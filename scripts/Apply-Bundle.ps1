@@ -93,32 +93,45 @@ try {
         }
     }
 
-    # Adopt the bundle's git history on EVERY apply, not just -Clean: the files are about to be
-    # overwritten wholesale, so if the bundle contains newer commits and we keep the old .git, the
-    # working tree ends up dirty against the wrong HEAD (BUG-019).
+    # Adopt the bundle's history on EVERY apply, not just -Clean: the files are about to be
+    # overwritten wholesale, so keeping an older .git guarantees a dirty tree (BUG-019).
+    # The history ships as history.bundle -- a single file git verifies itself. Copying a .git
+    # folder recursively is what silently broke on Windows (BUG-021).
     if (-not $NoGit) {
         S "adopting the bundle's git history"
-        $srcGit = Join-Path $root.FullName '.git'
-        if (Test-Path -LiteralPath $srcGit) {
+        $srcBundle = Join-Path $root.FullName 'history.bundle'
+        if (Test-Path -LiteralPath $srcBundle) {
             $dstGit = Join-Path $WorkingCopy '.git'
-            # keep the user's remote config; a bundle's .git has no origin
+            $srcPath = (& git -C $root.FullName rev-parse --show-toplevel 2>$null | Out-String).Trim()
+            if (-not $srcPath) { $srcPath = $root.FullName }
+
+            # remember origin before anything is replaced
             $savedRemote = $null
             if (Test-Path -LiteralPath $dstGit) {
-                Push-Location $WorkingCopy
-                try { $savedRemote = ((& git remote get-url origin) 2>$null | Out-String).Trim() } catch { }
-                Pop-Location
+                $savedRemote = (& git -C $WorkingCopy remote get-url origin 2>$null | Out-String).Trim()
+                if (-not $savedRemote) { $savedRemote = $null }
                 Remove-Item -LiteralPath $dstGit -Recurse -Force
+                OK "old .git removed"
             }
-            Copy-Item -LiteralPath $srcGit -Destination $dstGit -Recurse -Force
-            OK ".git replaced"
-            Push-Location $WorkingCopy
-            try {
-                if ($savedRemote) { & git remote add origin $savedRemote 2>$null; OK "origin preserved: $savedRemote" }
-                # the bundle's index must match its own checkout exactly
-                & git reset -q --mixed HEAD 2>$null
-            } catch { }
-            Pop-Location
-        } else { W "bundle has no .git; history left untouched" }
+
+            & git -C $WorkingCopy init -q 2>&1 | Out-Host
+            & git -C $WorkingCopy fetch -q $srcBundle "refs/heads/*:refs/heads/*" 2>&1 | Out-Host
+            if ($LASTEXITCODE -ne 0) { D "fetch from history.bundle failed" }
+            $bBranch = ((& git -C $srcPath rev-parse --abbrev-ref HEAD 2>$null) | Out-String).Trim()
+            & git -C $WorkingCopy symbolic-ref HEAD "refs/heads/$bBranch" 2>&1 | Out-Host
+            & git -C $WorkingCopy reset -q --mixed "refs/heads/$bBranch" 2>&1 | Out-Host
+            OK "history adopted: $bBranch at $((& git -C $WorkingCopy rev-parse --short $bBranch))"
+            if ($savedRemote) {
+                & git -C $WorkingCopy remote add origin $savedRemote 2>&1 | Out-Host
+                OK "origin preserved: $savedRemote"
+            } else {
+                W "no origin in the old .git -- set it with: git remote add origin <url>"
+            }
+            # hooks/config from the source repo are not needed; keep the bundle's identity out of it
+            & git -C $WorkingCopy config core.autocrlf false 2>&1 | Out-Host
+        } else {
+            W "bundle has no history.bundle (older bundle) -- history left untouched"
+        }
     }
 
     S "copying project files"

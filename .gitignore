@@ -90,3 +90,4 @@ tools/UnityStubs/obj/
 .idtest/
 .tmpcheck/
 .t1/
+.t[0-9]/
