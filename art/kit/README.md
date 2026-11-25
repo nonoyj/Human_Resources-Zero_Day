@@ -16,7 +16,7 @@ Preview everything: **`art/kit/reference/contact_sheet.png`**
 | `icons/` | 9 icons x 2 states | 7x7 pixel glyphs |
 | `applicants/` | **14 archetypes** x 4 idle frames, 192x216 sheets (768x216) | The person across the table |
 | `portraits/` | 14 crops, 96x96 | Document photos; `synthetic_cloned_a` portrait is a DIFFERENT person (the tell) |
-| `reference/` | `palette_swatch`, `contact_sheet`, `applicants_sheet`, **`artifact_legend`**, **`character_spread`** | Palette proof + visual indexes |
+| `reference/` | `palette_swatch`, `contact_sheet`, `applicants_sheet`, **`artifact_legend`**, **`character_spread`**, **`composition_preview`** | Palette proof + visual indexes |
 
 ## Integration rules (FE)
 
@@ -78,6 +78,12 @@ This is the contract between art, detection hotspots, and the Field Manual wordi
 Humans always have the human version of every one of those: stray hairs breaking the silhouette,
 asymmetric eyes with a single off-centre catchlight, a shadowed ear, a contact shadow under the
 glasses arm, a tilted badge, five fingers, a soft stepped cast shadow, and a blink on frame 3.
+
+## Composition (`reference/composition_preview.png`)
+
+`python tools/art/make_composition_preview.py` puts four applicants into the real 480x270 desk
+(monitor left, applicant seated across the right half, email sheet on the desk) at 3x. This is the
+screen FE has to build, drawn with shipped sprites only.
 
 ## Variety proof (`reference/character_spread.png`)
 

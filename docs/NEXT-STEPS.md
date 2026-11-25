@@ -26,8 +26,11 @@ python tools\art\make_applicants.py --check # PASS: palette-conformant, no parti
 
 ## Step 2 — Look at your art (5 minutes)
 
-Open `art\kit\reference\applicants_sheet.png` (14 archetypes), `artifact_legend.png`
-(human vs AI, side by side) and `character_spread.png` (36 humans + 18 synthetics proves the variety). Import rules are in `art\kit\README.md`:
+Open, in this order:
+1. `art\kit\reference\composition_preview.png` — the desk as it will look on the phone
+2. `art\kit\reference\artifact_legend.png` — human vs AI, same seed, one tell each
+3. `art\kit\reference\character_spread.png` — 36 humans + 18 synthetics (the variety proof)
+4. `art\kit\reference\applicants_sheet.png` — all 14 archetypes, frame 1 of 4 Import rules are in `art\kit\README.md`:
 Point filter, no compression, PPU 16, 9-slice border 8 px, Full Rect mesh.
 
 ## Step 3 — Send these two files to the others (this is the handoff)
