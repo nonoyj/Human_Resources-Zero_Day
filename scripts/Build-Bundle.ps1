@@ -53,15 +53,30 @@ $badChar = [char[]](':','*','?','"','<','>','|')
 if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
 
 S "collecting files from $root"
+
+# Collect the TRACKED tree, not the folder on disk. That guarantees the zip holds exactly the commit
+# it names -- no scratch folders, no stray test output, no "bundle is newer than its HEAD" (BUG-019/021).
+# It also means a bundle build requires a clean working tree, which is checked right below.
+$st = @(& git -C $root status --porcelain) | Where-Object { $_ -and $_.Trim() }
+if ($st) {
+    W "working tree is dirty ($($st.Count) entries) -- a bundle must be exactly one commit"
+    $st | Select-Object -First 8 | ForEach-Object { Write-Host "    $_" }
+    D "commit or stash first"
+}
+OK "working tree clean"
+
+$tracked = ((& git -C $root ls-files) 2>$null)
+if (-not $tracked) { D "git ls-files returned nothing" }
 $files, $skipped = @(), @()
-foreach ($f in (Get-ChildItem -LiteralPath $root -Recurse -File -Force)) {
-    $rel = $f.FullName.Substring($root.Length).TrimStart('\', '/')
-    $parts = $rel -split '[\\/]'
+foreach ($rel in $tracked) {
+    if (-not $rel) { continue }
+    $relNorm = $rel -replace '/', '\'
+    $parts = $relNorm -split '\\'
     if ($parts | Where-Object { $skipDir -contains $_ }) { continue }
-    if ($parts[0] -eq '.git') { continue }   # history ships as history.bundle, see below
-    if ($skipExt -contains $f.Extension.ToLower()) { continue }
-    if ($rel.IndexOfAny($badChar) -ge 0) { $skipped += $rel; continue }
-    $files += $f
+    if ($skipExt -contains ([System.IO.Path]::GetExtension($relNorm).ToLower())) { continue }
+    if ($relNorm.IndexOfAny($badChar) -ge 0) { $skipped += $relNorm; continue }
+    $full = Join-Path $root $relNorm
+    if (Test-Path -LiteralPath $full) { $files += (Get-Item -LiteralPath $full) }
 }
 OK "$($files.Count) files selected"
 if ($skipped.Count) { W "$($skipped.Count) files skipped (unwritable on Windows)" }
