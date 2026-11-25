@@ -68,3 +68,13 @@ bin/
 .cache/
 .tooling/
 uploads/
+
+# ---------- Nesting damage from the buggy update script (BUG-011) ----------
+art/art/
+docs/docs/
+handoff/handoff/
+prototype/prototype/
+scripts/scripts/
+tools/tools/
+unity/unity/
+content/content/

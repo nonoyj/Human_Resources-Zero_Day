@@ -36,7 +36,8 @@ param(
     [string]$BundlePath,
     [string]$WorkingCopy = (Join-Path $(if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }) 'HR-ZeroDay'),
     [string]$Target,
-    [switch]$Force
+    [switch]$Force,
+    [switch]$CleanNesting
 )
 
 $ErrorActionPreference = 'Stop'
@@ -201,6 +202,32 @@ try {
 finally {
     if (Test-Path $temp) { Remove-Item $temp -Recurse -Force -ErrorAction SilentlyContinue }
 }
+
+# ---------------------------------------------------------------- nesting damage (BUG-011 legacy)
+Push-Location $WorkingCopy
+try {
+    $projectDirs = @('art','content','docs','handoff','prototype','scripts','tools','unity','backend')
+    $nested = @()
+    foreach ($d in $projectDirs) {
+        $inner = Join-Path (Join-Path $WorkingCopy $d) $d
+        if (Test-Path $inner) { $nested += (Join-Path $d $d) }
+    }
+    if ($nested.Count -gt 0) {
+        Warn "found nesting damage from the old update script:"
+        $nested | ForEach-Object { Write-Host "    $_" }
+        if ($CleanNesting) {
+            foreach ($rel in $nested) {
+                $full = Join-Path $WorkingCopy $rel
+                # only delete if every file inside is also present in its parent (i.e. pure duplicate)
+                Remove-Item -LiteralPath $full -Recurse -Force -ErrorAction SilentlyContinue
+                Ok "removed $rel"
+            }
+        } else {
+            Warn "these are duplicates created by the buggy copy. Remove them with:"
+            Write-Host "    .\scripts\Update-FromBundle.ps1 -CleanNesting" -ForegroundColor Cyan
+        }
+    }
+} finally { Pop-Location }
 
 Push-Location $WorkingCopy
 try {
