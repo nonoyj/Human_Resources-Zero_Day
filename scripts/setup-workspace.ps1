@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Sets up C:\users\user for HR//0D: clone/pull the repo, create the folder contract,
     optionally create a Desktop shortcut and print the next steps.
@@ -14,10 +14,11 @@
 [CmdletBinding()]
 param(
     [string]$RepoUrl = 'https://github.com/nonoyj/Human_Resources-Zero_Day',
-    [string]$Root    = (Join-Path $env:USERPROFILE 'HR-ZeroDay')
+    [string]$Root    = (Join-Path $(if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }) 'HR-ZeroDay')
 )
 
 $ErrorActionPreference = 'Stop'
+$Home0 = if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
 
 function Info ($m) { Write-Host "  $m" }
 function Step ($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
@@ -30,10 +31,10 @@ Write-Host @'
 Step 'folder contract'
 $dirs = @(
     $Root,
-    (Join-Path $env:USERPROFILE 'Downloads\HR0D-installers'),
-    (Join-Path $env:USERPROFILE 'Tools\scrcpy'),
-    (Join-Path $env:USERPROFILE 'Android'),
-    (Join-Path $env:USERPROFILE 'keys\hrzeroday')
+    (Join-Path $Home0 'Downloads\HR0D-installers'),
+    (Join-Path $Home0 'Tools\scrcpy'),
+    (Join-Path $Home0 'Android'),
+    (Join-Path $Home0 'keys\hrzeroday')
 )
 foreach ($d in $dirs) {
     if (-not (Test-Path $d)) { New-Item -ItemType Directory -Force -Path $d | Out-Null; Info "created $d" }
@@ -80,7 +81,7 @@ try {
 
     Step 'git lfs'
     try { git lfs install | Out-Null; Info 'lfs hooks installed' }
-    catch { Write-Host '  [warn] git lfs missing — install with: winget install Git.Git' -ForegroundColor Yellow }
+    catch { Write-Host '  [warn] git lfs missing -- install with: winget install Git.Git' -ForegroundColor Yellow }
 
     Step 'repo sanity'
     $tracked = git ls-files

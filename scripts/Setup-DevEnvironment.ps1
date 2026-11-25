@@ -1,6 +1,6 @@
-<#
+﻿<#
 .SYNOPSIS
-    HR//0D — developer environment installer / verifier.
+    HR//0D -- developer environment installer / verifier.
 
 .DESCRIPTION
     Installs the tooling listed in docs/tooling-setup-database.md, then verifies it.
@@ -32,9 +32,11 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'   # much faster Invoke-WebRequest
 
 $REQUIRED_UNITY = '6000.3.29f1'
-$Downloads = Join-Path $env:USERPROFILE 'Downloads'
-$Tools     = Join-Path $env:USERPROFILE 'Tools'
-$Android   = Join-Path $env:USERPROFILE 'Android'
+$ProgramFiles   = if ($env:ProgramFiles) { $env:ProgramFiles } else { '/Program Files' }
+$ProgramFilesX86 = if (${env:ProgramFiles(x86)}) { ${env:ProgramFiles(x86)} } else { '/Program Files (x86)' }
+$UserHome  = if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
+$Downloads = Join-Path $UserHome 'Downloads'
+$Android   = Join-Path $UserHome 'Android'
 $Results   = [System.Collections.Generic.List[object]]::new()
 
 function Write-Step ($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
@@ -78,7 +80,7 @@ function Download-File ($id, $name, $url, $outFile, $expectedBytes) {
     if (Test-Path $outFile) {
         $size = (Get-Item $outFile).Length
         if (-not $expectedBytes -or $size -eq $expectedBytes) { Write-Ok "already downloaded ($([math]::Round($size/1MB,1)) MB)"; return }
-        Write-Warn "partial/incorrect size ($size / $expectedBytes) — re-downloading"
+        Write-Warn "partial/incorrect size ($size / $expectedBytes) -- re-downloading"
         Remove-Item $outFile -Force
     }
     New-Item -ItemType Directory -Force -Path (Split-Path $outFile) | Out-Null
@@ -110,7 +112,7 @@ if (-not $Verify) {
     if (-not $Verify -and -not ($Skip -contains 'D01')) {
         $hubExe = Join-Path $Downloads 'UnityHubSetup-x64.exe'
         if (Test-Path $hubExe) {
-            $hubInstalled = Test-Path "${env:ProgramFiles}\Unity Hub\Unity Hub.exe"
+            $hubInstalled = Test-Path (Join-Path $ProgramFiles "Unity Hub\Unity Hub.exe")
             if (-not $hubInstalled) {
                 Write-Step 'D01  installing Unity Hub (silent)'
                 Start-Process -FilePath $hubExe -ArgumentList '/S' -Wait
@@ -182,15 +184,15 @@ if (-not $Verify) {
 
 # ---------------------------------------------------------------- VERIFY PHASE
 Write-Step 'VERIFY'
-Write-Host "  machine: $env:COMPUTERNAME  user: $env:USERNAME" -ForegroundColor DarkGray
+Write-Host ("  machine: {0}  user: {1}  home: {2}" -f $env:COMPUTERNAME, $env:USERNAME, $UserHome) -ForegroundColor DarkGray
 
 # Unity Hub
-$hubExe = "${env:ProgramFiles}\Unity Hub\Unity Hub.exe"
+$hubExe = Join-Path $ProgramFiles "Unity Hub\Unity Hub.exe"
 $hubOk = Test-Path $hubExe
 Add-Result 'D01' 'Unity Hub' $hubOk $(if ($hubOk) { $hubExe } else { 'not found: install from docs/tooling-setup-database.md' })
 
 # Unity Editor 6000.3.29f1
-$editorRoot = "${env:ProgramFiles}\Unity\Hub\Editor"
+$editorRoot = Join-Path $ProgramFiles "Unity\Hub\Editor"
 $editorPath = Join-Path $editorRoot $REQUIRED_UNITY
 $editorExe  = Join-Path $editorPath 'Editor\Unity.exe'
 $editorOk = Test-Path $editorExe
@@ -198,7 +200,7 @@ $installedVersions = @()
 if (Test-Path $editorRoot) { $installedVersions = Get-ChildItem $editorRoot -Directory | Select-Object -ExpandProperty Name }
 Add-Result 'D02' "Unity Editor $REQUIRED_UNITY" $editorOk $(
     if ($editorOk) { $editorPath }
-    elseif ($installedVersions.Count) { "found: $($installedVersions -join ', ') — MISMATCH, install $REQUIRED_UNITY" }
+    elseif ($installedVersions.Count) { "found: $($installedVersions -join ', ') -- MISMATCH, install $REQUIRED_UNITY" }
     else { 'no editor installed' })
 
 # Android modules
@@ -213,12 +215,17 @@ Add-Result 'D04' 'Android SDK / NDK / OpenJDK' ($sdkOk -and $ndkOk -and $jdkOk) 
 $gitOk = Test-Cmd 'git'
 $gitVer = if ($gitOk) { (git --version) } else { 'missing' }
 Add-Result 'D05' 'Git' $gitOk $gitVer
-$lfsVer = ''
-if ($gitOk) { try { $lfsVer = (git lfs version) } catch { $lfsVer = 'missing' } }
-Add-Result 'D06' 'Git LFS' ([bool]$lfsVer -and $lfsVer -notmatch 'not a git command') $lfsVer
+$lfsOk = $false; $lfsVer = 'missing'
+if ($gitOk) {
+    $raw = (& git lfs version 2>&1 | Out-String).Trim()
+    $firstLine = @($raw -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -First 1)[0]
+    if ($LASTEXITCODE -eq 0 -and $raw -match 'git-lfs') { $lfsOk = $true; $lfsVer = $firstLine }
+    else { $lfsVer = "not installed: run 'git lfs install' (winget install Git.Git)" }
+}
+Add-Result 'D06' 'Git LFS' $lfsOk $lfsVer
 
 # Visual Studio workloads
-$vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$vswhere = Join-Path $ProgramFilesX86 "Microsoft Visual Studio\Installer\vswhere.exe"
 $vsOk = $false; $vsDetail = 'vswhere not found (no VS installer present)'
 if (Test-Path $vswhere) {
     $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Workload.ManagedGame -property installationPath 2>$null
@@ -232,8 +239,8 @@ $ghOk = Test-Cmd 'gh'
 $ghDetail = 'missing'
 if ($ghOk) {
     $ghDetail = (gh --version | Select-Object -First 1)
-    try { $null = gh auth status 2>&1; if ($LASTEXITCODE -ne 0) { $ghDetail += ' — NOT logged in: run "gh auth login"' } }
-    catch { $ghDetail += ' — NOT logged in: run "gh auth login"' }
+    try { $null = gh auth status 2>&1; if ($LASTEXITCODE -ne 0) { $ghDetail += ' -- NOT logged in: run "gh auth login"' } }
+    catch { $ghDetail += ' -- NOT logged in: run "gh auth login"' }
 }
 Add-Result 'D09' 'GitHub CLI' $ghOk $ghDetail
 
@@ -247,10 +254,12 @@ Add-Result 'D12' 'Python 3.x' $pyOk $(if ($pyOk) { try { (python --version) } ca
 
 # Repo sanity
 Write-Step 'repo checks'
-$repoRoot = Split-Path $PSScriptRoot -Parent
+$scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Definition }
+if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
+$repoRoot = Split-Path -Parent $scriptDir
 $isRepo = Test-Path (Join-Path $repoRoot '.git')
 Write-Ok "repo root: $repoRoot"
-if (-not $isRepo) { Write-Warn 'not a git repo — clone first, then re-run' }
+if (-not $isRepo) { Write-Warn 'not a git repo -- clone first, then re-run' }
 $tracked = @()
 if ($isRepo -and $gitOk) {
     Push-Location $repoRoot
@@ -259,7 +268,7 @@ if ($isRepo -and $gitOk) {
         $bad = $tracked | Where-Object { $_ -match '^(Library|Temp|Logs|obj|UserSettings)/' -or $_ -match '\.(apk|aab)$' }
         if ($bad) { Write-Fail "these must not be tracked: $($bad -join ', ')" } else { Write-Ok 'no build artifacts tracked' }
         $lfsAttrs = Test-Path (Join-Path $repoRoot '.gitattributes')
-        if (-not $lfsAttrs) { Write-Warn '.gitattributes missing — art will not be LFS-tracked' } else { Write-Ok '.gitattributes present' }
+        if (-not $lfsAttrs) { Write-Warn '.gitattributes missing -- art will not be LFS-tracked' } else { Write-Ok '.gitattributes present' }
     } finally { Pop-Location }
 }
 

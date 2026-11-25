@@ -131,3 +131,30 @@ Get-ChildItem C:\users\user\HR-ZeroDay -ErrorAction SilentlyContinue
 ```
 
 plus the exact red error text. That's enough for me to pinpoint it in one pass.
+
+---
+
+## Known fixed issue: parse errors on the first run (BUG-001)
+
+If you ever see:
+
+```
+Unexpected token '", 'User')
+The string is missing the terminator: ".
+    + CategoryInfo : ParserError: (:) [], ParseException
+```
+
+**Cause:** the `.ps1` file had non-ASCII characters (em-dashes) and Windows PowerShell 5.1 decoded it
+as ANSI. Fixed on 2026-11-25 — all scripts are now ASCII-only with a UTF-8 BOM.
+
+**What to do:**
+1. Re-extract the latest bundle (`HR-ZeroDay-bundle-v2-with-git.zip`) or `git pull`.
+2. Confirm the file is healthy before running it:
+
+```powershell
+cd C:\users\user\HR-ZeroDay
+.\scripts\Test-Scripts.ps1
+```
+
+Expect `PASS` for all three scripts, then `All scripts healthy.` If you see `FAIL (encoding)`, the file
+is still the old copy — you are in a stale folder; check `Get-Location`.
