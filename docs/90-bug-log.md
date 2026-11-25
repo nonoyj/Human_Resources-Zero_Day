@@ -126,3 +126,19 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
   tests fails the check.
 - **Prevention rule:** **verify a distribution by exercising it from a clean clone** (build + test),
   not by inspecting the source tree. Ignore rules are part of the build.
+
+### BUG-008 — workspace snapshot "over budget" while the project was only 9 MB
+- **Found:** 2026-11-25 by the user (platform warning) · **Severity:** P1 (blocks persistence)
+- **Symptom:** "went over budget", yet the repo was 53 tracked files / 9 MB and no single file exceeded
+  the limits.
+- **Root cause:** the **agent** installed a .NET SDK into `/home/user/.tooling/` to compile and test the
+  C# core (636 MB). The platform excludes `.cache`, `.local`, `.venv`, `node_modules`, `bin`, `obj`, etc.
+  from snapshots -- `.tooling` is **not** on that list, so every snapshot captured the whole SDK.
+  The file-count and per-file limits were never the problem; total snapshot size was.
+- **Fix:** the SDK now lives in `.cache/dotnet` (an excluded directory); `.tooling`, `.dotnet`, `.nuget`,
+  `.local`, `bin`, `obj` are in `.gitignore`; workspace dropped 649 MB -> 9 MB of real content.
+- **Regression test:** before delivering, run `du -sh --exclude=.cache --exclude=.git .` and confirm it
+  is under ~10 MB, and `find . -type f | wc -l` stays in the hundreds.
+- **Prevention rule:** **the agent installs toolchains only into excluded directories**
+  (`.cache/`, `.venv/`, `node_modules/`, `/tmp`), never into a new dot-folder, and never into the repo.
+  Check `du -sh` before the end of any turn that installs something.

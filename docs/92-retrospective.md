@@ -69,3 +69,15 @@ The bug log (`docs/90-bug-log.md`) has the mechanical entries; this file is abou
 
 That single habit would have prevented 4 of my 7 mistakes. It is now encoded as prevention rules
 2 and 6 in the bug log, and as `scripts/Test-Scripts.ps1` in the repo, so it survives even if I forget.
+
+---
+
+## Addendum (2026-11-25, turn 8) -- the budget incident
+
+| # | Mistake | Cost | Cause |
+|---|---|---|---|
+| 8 | Installed a 636 MB .NET SDK into `.tooling/` in the workspace | Snapshots went over budget, risking lost progress; you had to diagnose my mess | I treated the workspace as a Linux box rather than a *persisted* sandbox with a documented exclusion list. I checked file counts and per-file sizes, never total size |
+
+**New habit, added to the rules:** after installing anything, print `du -sh` for the workspace and keep
+the persisted footprint under ~10 MB. Toolchains live in `.cache/` (excluded) or `/tmp` (ephemeral).
+**Nothing I install for verification ever belongs in the deliverable.**
