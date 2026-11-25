@@ -78,7 +78,8 @@ foreach ($rel in $tracked) {
     # Join-Path with the original '/' form: git ls-files always reports forward slashes and .NET
     # accepts them on Windows too. Normalising to '\\' breaks every non-Windows run (BUG-023).
     $full = Join-Path $root $rel
-    if (Test-Path -LiteralPath $full) { $files += (Get-Item -LiteralPath $full) }
+    # -Force: dot-files (.gitattributes, .gitignore) are "hidden" to Get-Item on Linux/macOS
+    if (Test-Path -LiteralPath $full) { $files += (Get-Item -LiteralPath $full -Force) }
 }
 OK "$($files.Count) files selected"
 if ($skipped.Count) { W "$($skipped.Count) files skipped (unwritable on Windows)" }
