@@ -84,3 +84,32 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
   explicit "reopen PowerShell" message, never a misleading "not on PATH".
 - **Prevention rule:** **any check that depends on PATH/env must refresh from the registry first.**
   Never verify an environment mutation inside the process that made it without re-reading the source of truth.
+
+### BUG-005 — `D03/D04` permanently FAILed even with the Android modules installed
+- **Found:** 2026-11-25 by the user (Unity Hub showed Android Build Support 6.43 GB installed) · **Severity:** P1
+- **Symptom:** Hub listed `Android Build Support`, `OpenJDK`, `Android SDK & NDK Tools` as *Installed*,
+  but `-Verify` reported `D03 FAIL` and `D04 SDK=False NDK=False JDK=False`.
+- **Root cause:** wrong path. I checked `<version>\PlaybackEngines\AndroidPlayer`. Unity 6 puts it at
+  **`<version>\Editor\Data\PlaybackEngines\AndroidPlayer`**. The check could *never* pass — a false
+  negative that wasted a Hub reinstall cycle.
+- **Fix:** the script now tries both layouts, selects the first that exists, and prints the
+  `PlaybackEngines` directory listing when neither matches (so the next failure is diagnosable from the
+  output alone). `Unity.exe` is likewise probed in both `Editor\` and `Editor\Data\`.
+- **Regression test:** fake-layout test in the sandbox — create
+  `<pf>\Unity\Hub\Editor\6000.3.29f1\Editor\Data\PlaybackEngines\AndroidPlayer\{SDK,NDK,OpenJDK}` and run
+  `-Verify` with `$env:ProgramFiles` pointed at it → D01–D04 all PASS (confirmed 2026-11-25).
+- **Prevention rule:** **never hardcode a third-party installation path from memory.** Find it by probing
+  known candidates + listing the directory on failure.
+
+### BUG-006 — `D10 adb` still FAILed after the installer added it to PATH
+- **Found:** 2026-11-25 by the user (second verify run, fresh window) · **Severity:** P1
+- **Root cause:** the check tested `Test-Cmd 'adb'`, which only sees the *current process* PATH. When the
+  user PATH is written by a non-elevated installer or the shell was started before the change, the
+  command is still invisible even in a "new" window. Inferring "not installed" from that is wrong.
+- **Fix:** D10 now checks three independent facts — `adb.exe` on disk at the expected location, `adb`
+  resolvable on PATH, and whether the User PATH *registry value* contains `platform-tools` — and reports
+  the distinction ("installed; reopen PowerShell" vs "not installed").
+- **Regression test:** run `-Verify` in a shell whose PATH lacks the new entry; the detail must say
+  "installed ... reopen PowerShell", never a bare "not installed".
+- **Prevention rule:** **distinguish "not installed" from "not visible in this shell".** Report the fact
+  and the remedy separately.

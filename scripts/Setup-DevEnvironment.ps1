@@ -204,7 +204,8 @@ Add-Result 'D01' 'Unity Hub' $hubOk $(if ($hubOk) { $hubExe } else { 'not found:
 # Unity Editor 6000.3.29f1
 $editorRoot = Join-Path $ProgramFiles "Unity\Hub\Editor"
 $editorPath = Join-Path $editorRoot $REQUIRED_UNITY
-$editorExe  = Join-Path $editorPath 'Editor\Unity.exe'
+$editorExe  = @((Join-Path $editorPath 'Editor\Unity.exe'), (Join-Path $editorPath 'Editor\Data\Unity.exe')) | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $editorExe) { $editorExe = Join-Path $editorPath 'Editor\Unity.exe' }
 $editorOk = Test-Path $editorExe
 $installedVersions = @()
 if (Test-Path $editorRoot) { $installedVersions = Get-ChildItem $editorRoot -Directory | Select-Object -ExpandProperty Name }
@@ -214,14 +215,30 @@ Add-Result 'D02' "Unity Editor $REQUIRED_UNITY" $editorOk $(
     else { 'no editor installed' })
 
 # Android modules
-$androidPlayer = Join-Path $editorPath 'PlaybackEngines\AndroidPlayer'
-$sdkOk = Test-Path (Join-Path $androidPlayer 'SDK')
-$ndkOk = Test-Path (Join-Path $androidPlayer 'NDK')
-$jdkOk = Test-Path (Join-Path $androidPlayer 'OpenJDK')
-$d03Ok = Test-Path $androidPlayer
-$d03Detail = if ($d03Ok) { "present: $androidPlayer" }
-             else { 'MISSING -- Unity Hub > Installs > gear icon on 6000.3.29f1 > Add modules > Android Build Support (+ SDK & NDK Tools, + OpenJDK)' }
+# Android modules live at <version>\Editor\Data\PlaybackEngines\AndroidPlayer
+# (NOT at the version root -- that mistake caused a permanent false FAIL, BUG-005).
+$androidCandidates = @(
+    (Join-Path $editorPath 'Editor\Data\PlaybackEngines\AndroidPlayer'),
+    (Join-Path $editorPath 'PlaybackEngines\AndroidPlayer')      # older layouts
+)
+$androidPlayer = $androidCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+$d03Ok = [bool]$androidPlayer
+if ($d03Ok) {
+    $d03Detail = "present: $androidPlayer"
+} else {
+    $d03Detail = 'MISSING -- Hub > Installs > gear on 6000.3.29f1 > Add modules > Android Build Support (+ SDK & NDK Tools, + OpenJDK)'
+    # help the human diagnose: is the folder there under a different shape?
+    $enginesRoot = Join-Path $editorPath 'Editor\Data\PlaybackEngines'
+    if (Test-Path $enginesRoot) {
+        $found = (Get-ChildItem $enginesRoot -Directory -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name) -join ', '
+        $d03Detail += " | PlaybackEngines contains: $found"
+    }
+}
 Add-Result 'D03' 'Android Build Support' $d03Ok $d03Detail
+
+$sdkOk = $d03Ok -and (Test-Path (Join-Path $androidPlayer 'SDK'))
+$ndkOk = $d03Ok -and (Test-Path (Join-Path $androidPlayer 'NDK'))
+$jdkOk = $d03Ok -and (Test-Path (Join-Path $androidPlayer 'OpenJDK'))
 $d04Detail = if ($sdkOk -and $ndkOk -and $jdkOk) { 'SDK, NDK and OpenJDK all present' }
              else { "SDK=$sdkOk NDK=$ndkOk JDK=$jdkOk -- re-run the Hub module install and tick all three" }
 Add-Result 'D04' 'Android SDK / NDK / OpenJDK' ($sdkOk -and $ndkOk -and $jdkOk) $d04Detail
@@ -259,18 +276,16 @@ if ($ghOk) {
 }
 Add-Result 'D09' 'GitHub CLI' $ghOk $ghDetail
 
-# adb
-$adbOk = Test-Cmd 'adb'
+# adb -- check the file first, then PATH, then the registry value (BUG-004/006)
 $adbExe = Join-Path $Android 'platform-tools\adb.exe'
-$adbDetail = 'not installed'
-if ($adbOk) {
-    $adbDetail = (& adb version 2>&1 | Select-Object -First 1)
-} elseif (Test-Path $adbExe) {
-    # installed, but this shell's PATH predates the change
-    $env:Path = "$env:Path;" + (Split-Path -Parent $adbExe)
-    $adbOk = Test-Cmd 'adb'
-    $adbDetail = if ($adbOk) { "found at $adbExe (PATH refreshed for this session)" } else { "installed at $adbExe but PATH still stale - reopen PowerShell" }
-}
+$adbOnDisk = Test-Path $adbExe
+$adbOnPath = Test-Cmd 'adb'
+$adbInRegistry = ([Environment]::GetEnvironmentVariable('Path', 'User') -like "*platform-tools*")
+$adbOk = $adbOnDisk -or $adbOnPath
+$adbDetail = if ($adbOnDisk -and $adbOnPath) { (& adb version 2>&1 | Select-Object -First 1) }
+             elseif ($adbOnDisk) { "installed at $adbExe; user PATH " + $(if ($adbInRegistry) { 'contains it -- reopen PowerShell' } else { 'missing it' }) }
+             elseif ($adbOnPath) { 'on PATH but not at the expected location' }
+             else { 'not installed -- re-run the installer step D10' }
 Add-Result 'D10' 'adb (platform-tools)' $adbOk $adbDetail
 
 # Python (any 3.x is fine; winget's install may sit behind an older one on PATH)
