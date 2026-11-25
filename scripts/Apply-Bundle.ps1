@@ -104,6 +104,10 @@ try {
     if (-not $NoGit) {
         S "adopting the bundle's git history"
         $srcBundle = Join-Path $root.FullName 'history.bundle'
+        if (-not (Test-Path -LiteralPath $srcBundle)) {
+            $nested = Join-Path (Join-Path $root.FullName $root.Name) 'history.bundle'
+            if (Test-Path -LiteralPath $nested) { $srcBundle = $nested }
+        }
         if (Test-Path -LiteralPath $srcBundle) {
             $dstGit = Join-Path $WorkingCopy '.git'
             # NB: do NOT run git inside the extracted folder to discover the branch -- the extracted
@@ -148,11 +152,13 @@ try {
     # the enumerator throw mid-loop and the apply dies after a half-copy. Materialise, then act.
     # NOTE: this is a plain foreach, so `continue` (not `return`) is the skip -- `return` here would
     # exit the whole script silently (BUG-022).
+    $scriptCopied = $false
     $items = @(Get-ChildItem -LiteralPath $root.FullName -Force)
     foreach ($it in $items) {
         if ($it.Name -eq '.git') { continue }
         # bundle transport files, not project files
         if ($it.Name -in @('history.bundle', 'history.branch')) { continue }
+        if ($it.Name -eq 'Apply-Bundle.ps1') { $scriptCopied = $true }
         if ($it.PSIsContainer -and ($keepDirs -contains $it.Name)) { W "skipped $($it.Name)"; continue }
         $dest = Join-Path $WorkingCopy $it.Name
         if ($it.PSIsContainer) {
