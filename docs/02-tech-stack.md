@@ -77,10 +77,10 @@ Wrap it in a `ContentLoader` so we can swap later.
 
 | Item | Spec |
 |---|---|
-| Base canvas | **320 × 180**, integer scaling only (Pixel Perfect Camera), portrait framing via 9-slice panels |
+| Base canvas | **480 × 270**, landscape, integer scaling only (Pixel Perfect Camera). See ADR-005 |
 | PPU | 16 |
 | Portraits | 96 × 96, 1px outline, 4-shade shading |
-| Applicant full-card | 288 × 160 |
+| Applicant full-card | 384 × 216 (resume sheet) |
 | Filtering | Point (no filter), compression **None**, Mip Maps **off** |
 | Colour space | **Gamma** for crisp pixel art (not Linear) |
 | Format | PNG, transparency, no alpha bleeding |
@@ -186,7 +186,7 @@ RuleEngine.Evaluate(ApplicantRecord a, RuleContext ctx) -> List<Episode>
 
 ## Build settings checklist (Android)
 
-- [ ] Portrait, Resizable window off, Render outside safe area off
+- [ ] **Landscape** (auto-rotate locked), Resizable window off, Render outside safe area off
 - [ ] Min API 24, Target API 35, IL2CPP, arm64+armv7
 - [ ] Scripting: .NET Standard 2.1, IL2CPP code generation: Faster (smaller builds) — switch to Faster runtime for release if perf needs it
 - [ ] Managed stripping: Low (avoid reflection surprises in JsonUtility)
