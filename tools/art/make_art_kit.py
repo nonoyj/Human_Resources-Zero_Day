@@ -398,6 +398,9 @@ def check() -> int:
     problems = []
     count = 0
     for root, _dirs, files in os.walk(os.path.normpath(OUT)):
+        # reference/ holds documentation images (contact sheet, swatch) that use UI label colours
+        if os.path.basename(root) == 'reference' or 'reference' in os.path.relpath(root, os.path.normpath(OUT)):
+            continue
         for f in sorted(files):
             if not f.endswith('.png'):
                 continue
@@ -405,7 +408,7 @@ def check() -> int:
             path = os.path.join(root, f)
             img = Image.open(path).convert('RGBA')
             bad = set()
-            for px in img.getdata():
+            for px in list(img.getdata()):
                 if px[3] == 0:
                     continue
                 if px[:3] not in PALETTE_SET and px[3] > 0:
