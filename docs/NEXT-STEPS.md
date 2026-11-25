@@ -4,37 +4,50 @@
 
 ---
 
-## Step 1 — Take the bundle (2 commands)
+## Step 1 — Repair the working copy (one command)
 
-Download **`HR-ZeroDay-bundle-v19.zip`** and **`Apply-Bundle.ps1`** into `C:\Users\User\Downloads`, then:
+Your PC currently has **newer files on an older `.git`** (the bundle transport bug, BUG-021). The
+files are all there; only the history pointer is stale. This fixes it without touching your art,
+your docs or your GitHub remote:
 
 ```powershell
 cd C:\Users\User\Downloads
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-.\Apply-Bundle.ps1 -BundlePath .\HR-ZeroDay-bundle-v19.zip -Clean
+.\Fix-Repo.ps1 -BundlePath .\HR-ZeroDay-bundle-v31.zip
 ```
 
-Confirm it worked:
+`Fix-Repo.ps1` reads the `.zip` **directly** (no extraction, nothing to go stale), rebuilds `.git` from
+the verified `history.bundle`, restores `origin`, and ends with the only line that matters:
+
+```
+[ok]   working tree clean -- files match HEAD exactly
+REPO OK
+```
+
+If that line is missing, paste the output — do not commit or push anything yet.
+
+## Step 1b — Push the real commit to GitHub
 
 ```powershell
 cd C:\users\user\HR-ZeroDay
-git log --oneline -1                       # newest commit, 37+ commits (a hash here can never match: the doc commit moves HEAD)
-git status --short                         # should print nothing
-python tools\art\make_art_kit.py --check   # PASS: every pixel is palette-conformant  (no Pillow needed)
-python tools\art\make_applicants.py --check # PASS: palette-conformant, no partial alpha
-.\scripts\Test-ArtPipeline.ps1             # ART PIPELINE OK  (manifest, Unity copy, layout, compile)
-.\scripts\Test-Scripts.ps1                 # All scripts healthy  (7 scripts)
-.\scripts\Setup-DevEnvironment.ps1 -Verify # D12 Python, D13 Pillow show PASS/skip
+git log --oneline -1                      # newest message, and NOT dc55e59
+git status --short                        # must print nothing
+.\scripts\Connect-Remote.ps1 -Push        # fast-forward; no force needed
 ```
 
-## Step 1b — Connect the GitHub repo (retires bundles)
+After this, bundles are retired: `git pull` / `git push` only.
+
+## Step 1c — Verify before sending anything to the team
 
 ```powershell
-.\scripts\Connect-Remote.ps1                 # dry run, prints exactly what would happen
-.\scripts\Connect-Remote.ps1 -Push           # if the remote is empty or behind you
-.\scripts\Connect-Remote.ps1 -Push -ReplaceRemoteHistory   # if GitHub made its own README commit
+.\scripts\Test-Scripts.ps1                # All scripts healthy
+.\scripts\Test-ArtPipeline.ps1            # ART PIPELINE OK
+dotnet run --project tools\CoreTests       # ALL TESTS PASSED
 ```
-A browser window opens once for sign-in. You do **not** need to create a token by hand.
+
+## Step 1d — Hand the team the day-1 status
+Send `handoff\2026-11-26_agent-to-team_day1-status-and-next.md`. BE1 starts with Unity project
+skeleton (task 1 — it blocks everyone); BE2 starts with content schemas.
 
 ## Step 2 — Look at your art (5 minutes)
 

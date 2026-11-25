@@ -11,10 +11,6 @@ One markdown file per cross-boundary handoff: `YYYY-MM-DD_<from>-to-<to>_<topic>
 | 2026-11-26 | `2026-11-26_agent-to-devA_core-handoff.md` | Agent → BE1 | active (core + test adapter) |
 | 2026-11-26 | **`2026-11-26_agent-to-BE1_systems-tasks.md`** | Agent → **BE1 (systems)** | **actionable task list** |
 | 2026-11-26 | **`2026-11-26_agent-to-BE2_content-server-audio-tasks.md`** | Agent → **BE2 (server/content/audio)** | **actionable task list** |
+| 2026-11-26 | **`2026-11-26_agent-to-team_day1-status-and-next.md`** | Agent → whole team | **READ FIRST: day-1 status, risks, next** |
 
 Rules: a handoff that crosses a boundary is mandatory; if it isn't written down it didn't happen.
-
-## 2026-11-26 — art to Unity bridge
-`docs/14-art-to-unity-pipeline.md` explains the one-way flow (art/kit → manifest → unity/Assets →
-Editor menus) and the five checks that keep it honest. Dev B: read the *NEW* section at the end of
-`2026-11-26_agent-to-BE1_systems-tasks.md` before touching the Unity project.
