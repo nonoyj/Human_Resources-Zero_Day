@@ -109,3 +109,41 @@ git pull
 
 And when *you* change something: `git add -A; git commit -m "..."; git push`.
 Bundles become an artifact only the agent uses to hand you work it cannot push itself.
+
+---
+
+## If an update leaves `folder/folder` duplicates (BUG-011 legacy, fixed in v10)
+
+Older versions of the script nested folders (`docs/docs/`) and left your copy on the old commit. v10
+fixes both. To repair a copy that already has the damage:
+
+```powershell
+cd C:\users\user\HR-ZeroDay
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+
+# 1. update to v10 (this also replaces .git properly, so HEAD finally moves)
+.\scripts\Update-FromBundle.ps1 -BundlePath C:\Users\User\Downloads\HR-ZeroDay-bundle-v10.zip -Force -CleanNesting
+
+# 2. confirm
+git log --oneline -3          # newest commit should be the v10 bundle's HEAD
+git status --short            # should print nothing
+dir docs                      # must NOT contain a "docs" folder inside it
+```
+
+`-CleanNesting` deletes only the known duplicate paths (`art/art`, `docs/docs`, ...). They were copies,
+never source, so nothing is lost. If you prefer to do it by hand:
+
+```powershell
+Remove-Item .\docs\docs, .\art\art, .\scripts\scripts, .\tools\tools, .\unity\unity, .\handoff\handoff, .\prototype\prototype -Recurse -Force -ErrorAction SilentlyContinue
+```
+
+## Check an update actually worked
+
+An update is only successful if **all four** are true:
+
+```powershell
+git rev-parse --short HEAD     # must equal the bundle's newest commit
+git status --short             # must be empty
+dir <project folder>           # no folder-inside-itself
+dotnet run --project tools\CoreTests   # ALL TESTS PASSED
+```
