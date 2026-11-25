@@ -31,6 +31,10 @@
 .PARAMETER UseSsh
     Use git@github.com:... instead of HTTPS (needs an SSH key uploaded to GitHub).
 
+.PARAMETER PublishLocalChanges
+    Commit the uncommitted changes in the working copy first, then continue. Without this the script
+    only warns -- it will never commit on your behalf silently.
+
 .EXAMPLE
     .\scripts\Connect-Remote.ps1
         connects, fetches, tells you the story. Changes nothing on GitHub.
@@ -48,7 +52,10 @@ param(
     [string]$RepoUrl = 'https://github.com/nonoyj/Human_Resources-Zero_Day.git',
     [switch]$Push,
     [switch]$ReplaceRemoteHistory,
-    [switch]$UseSsh
+    [switch]$UseSsh,
+    [switch]$PublishLocalChanges,
+
+    [string]$CommitMessage = 'chore: sync working copy'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -89,6 +96,20 @@ try {
         Write-Host '  (the email should match your GitHub account, or commits will not link to you)' -ForegroundColor Yellow
     } else {
         OK "$userName <$userEmail>"
+    }
+
+    if ($dirty) {
+        if ($PublishLocalChanges) {
+            S "committing local changes"
+            & git add -A | Out-Host
+            & git commit -q -m $CommitMessage | Out-Host
+            if ($LASTEXITCODE -ne 0) { D 'commit failed -- see the message above' }
+            OK "committed: $CommitMessage"
+            OK "HEAD now $((& git rev-parse --short HEAD)), $((& git rev-list --count HEAD)) commits"
+            $dirty = @()
+        } else {
+            W 'uncommitted work will NOT be pushed. Add -PublishLocalChanges to include it.'
+        }
     }
 
     S "remote"

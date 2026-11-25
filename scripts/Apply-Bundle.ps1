@@ -16,6 +16,12 @@
 .PARAMETER WorkingCopy
     Your existing checkout. Default: C:\users\user\HR-ZeroDay
 
+.PARAMETER Reinstall
+    Like -Clean (removes the local uncommitted changes so the files match the bundle commit) but KEEPS
+    the existing .git, so the history is not replaced by the one inside the zip. Use this when you are
+    running the copy of Apply-Bundle.ps1 that lives inside the working copy: PowerShell reads a script
+    before running it, so the script cannot replace the .git folder it is executing from.
+
 .PARAMETER Clean
     Also remove nesting damage (art\art, docs\docs, ...).
 
@@ -33,6 +39,7 @@ param(
     [Parameter(Mandatory = $true)][string]$BundlePath,
     [string]$WorkingCopy = (Join-Path $(if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }) 'HR-ZeroDay'),
     [switch]$Clean,
+    [switch]$Reinstall,
     [switch]$NoGit
 )
 
@@ -53,6 +60,7 @@ $tempRoot = if ($env:TEMP) { $env:TEMP } elseif ($env:TMP) { $env:TMP } else { [
 $temp = Join-Path $tempRoot ("hr0d-boot-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
 
 try {
+    Clear-Host
     S "extracting bundle"
     New-Item -ItemType Directory -Force -Path $temp | Out-Null
     Expand-Archive -LiteralPath $BundlePath -DestinationPath $temp -Force
@@ -65,6 +73,13 @@ try {
     if (-not (Test-Path -LiteralPath $WorkingCopy)) {
         New-Item -ItemType Directory -Force -Path $WorkingCopy | Out-Null
         OK "created $WorkingCopy"
+    }
+
+    if ($Reinstall -and -not $Clean) {
+        S "discarding local changes (keeping .git)"
+        $resetOut = & git -C $WorkingCopy reset --hard HEAD 2>&1
+        $cleanOut = & git -C $WorkingCopy clean -fd 2>&1
+        OK "working copy reset to HEAD ($((& git -C $WorkingCopy rev-parse --short HEAD)))"
     }
 
     if ($Clean) {
@@ -130,8 +145,22 @@ try {
             $count = (& git rev-list --count HEAD) 2>$null
             OK "HEAD $head ($count commits)"
             $st = @(& git status --porcelain) | Where-Object { $_ -and $_.Trim() }
-            if ($st) { W "working tree not clean:"; $st | ForEach-Object { Write-Host "    $_" } }
-            else { OK "working tree clean" }
+            if ($st) {
+                W "working tree not clean ($($st.Count) entries) -- files do NOT match HEAD"
+                $st | Select-Object -First 12 | ForEach-Object { Write-Host "    $_" }
+                Write-Host @"
+
+  This means the .git folder could not be updated (you ran the copy of this script that lives
+  inside the working copy -- PowerShell cannot replace the folder it is running from).
+  Fix it with EITHER:
+      git reset --hard $head && git clean -fd          # keep history, make files match HEAD
+      .\scripts\Apply-Bundle.ps1 -BundlePath <zip> -Reinstall   # same thing, from the repo copy
+  or run this script from OUTSIDE the repo (e.g. from Downloads) with -Clean.
+"@ -ForegroundColor Yellow
+                Set-Location $PSScriptRoot | Out-Null
+                exit 1
+            }
+            else { OK "working tree clean -- files match HEAD exactly" }
         }
         foreach ($d in $projectDirs) {
             if (Test-Path (Join-Path (Join-Path $WorkingCopy $d) $d)) { W "still nested: $d\$d" }
