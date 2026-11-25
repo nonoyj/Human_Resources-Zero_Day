@@ -65,6 +65,9 @@ try {
     }
     finally { $zip.Dispose() }
 
+    # 'git bundle verify' needs to run inside SOME repository (the bundle is self-contained, the cwd
+    # is not). Make a throwaway repo so the check works from anywhere.
+    & git -C $temp init -q 2>&1 | Out-Host
     $verify = (& git -C $temp bundle verify $bundleFile 2>&1 | Out-String)
     if ($verify -notmatch 'complete history') { D "the bundle inside this zip is damaged`n$verify" }
     OK 'bundle verified by git'
