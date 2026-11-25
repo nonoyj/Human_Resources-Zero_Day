@@ -76,3 +76,11 @@ See the handoff §7 for the day-by-day table. Milestones that matter to the game
 
 If the backend is not ready, we ship `FakeBackend` and cut the leaderboard screen (`docs/91-backlog.md`).
 The demo remains fully playable, offline, and teachable. **Nothing in the game depends on the server.**
+
+## Analytics layer (see `docs/10-analytics-spec.md`)
+
+The research instrument adds a `decisions` table (one row per hiring decision, with tells present /
+inspected / tools used / seconds on card), a `quiz_results` table, five research endpoints, a PII-key
+rejection rule, an opt-out purge endpoint, and four aggregate dashboards. It changes nothing about
+offline play: analytics is fire-and-forget with a local outbox, and the client ships an **"Export my
+play data"** button so research survives a dead server.

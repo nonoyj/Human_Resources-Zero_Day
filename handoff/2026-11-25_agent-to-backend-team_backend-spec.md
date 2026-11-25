@@ -252,3 +252,108 @@ curl -H "Authorization: Bearer dev-content-key" http://localhost:8000/v1/content
 
 ---
 *Repo is the source of truth. If this spec and the repo disagree, the repo wins — and tell me.*
+
+---
+
+# ADDENDUM 1 — Analytics / research instrument (added 2026-11-25)
+
+The human has approved adding a **research analytics layer** (what players fail to identify, plus
+more). Full client-side spec: `docs/10-analytics-spec.md`. What changes for you:
+
+## A1.1 New/changed endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/v1/runs/{runId}/events` | **extend the type allowlist** to: `app_open, consent, screen_enter, screen_exit, intro_skip, settings_change, app_quit, decision, email_action, hire, fire, day_end, manual_open, run_end, quiz_result` |
+| `GET` | `/v1/research/export?format=csv&from=&to=&minCell=5` | aggregated research export (one row per decision) |
+| `GET` | `/v1/research/tell-matrix` | miss matrix: `tellsPresent` × `tellsInspected` × `decision` |
+| `GET` | `/v1/research/funnel` | screen drop-off percentages (no per-device rows) |
+| `DELETE` | `/v1/devices/{deviceKey}` | opt-out purge (retroactive consent withdrawal) |
+
+## A1.2 Schema additions (migration `0003_analytics.sql`)
+
+```sql
+-- one row per decision, derived at ingest time (not at export time)
+create table decisions (
+  id bigserial primary key,
+  run_id uuid not null references runs(run_id) on delete cascade,
+  day int not null,
+  applicant_id text not null,
+  archetype text not null,
+  ground_truth text not null,            -- human | human_bait | synthetic
+  decision text not null,                -- approve | reject | fire
+  reason text,                           -- enum or null
+  confidence smallint,
+  tells_present text[] not null default '{}',
+  tells_inspected text[] not null default '{}',
+  surfaces_opened text[] not null default '{}',
+  tools_used jsonb not null default '[]',
+  distractors_present text[] not null default '{}',
+  distractor_resolved boolean not null default false,
+  seconds_on_card int,
+  stamps_undone int default 0,
+  hint_shown boolean default false,
+  correct boolean not null,
+  created_at timestamptz not null default now()
+);
+create index on decisions (day, ground_truth);
+create index on decisions using gin (tells_present);
+
+create table quiz_results (
+  id bigserial primary key,
+  run_id uuid not null references runs(run_id) on delete cascade,
+  item int not null,
+  correct boolean not null,
+  ms_shown int,
+  created_at timestamptz not null default now()
+);
+
+alter table runs add column consent_granted boolean not null default false;
+alter table runs add column content_versions jsonb not null default '{}';
+```
+
+Ingest rule: **compute `correct` server-side** from `ground_truth` + `decision` and store both the
+client's value and yours; if they disagree by > 1% across a batch, raise a data-quality alert
+(client instrumentation bug). Never trust the client's score for research.
+
+## A1.3 Privacy guardrails you must enforce in code
+
+1. Reject any event payload containing keys matching `name|email|phone|address|ip|free_?text|note`
+   → `422` with reason `pii_key_not_allowed`. This is the machine-checkable version of the promise.
+2. `GET /research/export` must enforce `minCell >= 5` and refuse queries that would return < 5 rows
+   in any group (return `409 insufficient_cell_size`).
+3. `run_hash` in exports = `substr(sha256(device_key || run_id), 1, 12)` — computed server-side, never
+   exposing `device_key`.
+4. IP retention stays 24 h. Analytics adds **no** new identity surface.
+5. `DELETE /v1/devices/{deviceKey}` cascades: delete `runs` → `run_events`/`decisions`/`quiz_results`.
+   Log the deletion (count only, no device key) for the audit trail.
+
+## A1.4 Dashboards for the ops console (read-only, aggregate only)
+
+| Panel | Content | Research question |
+|---|---|---|
+| Quit funnel | % reaching day 1…5 / ending | RQ6 |
+| Recall by tell | bar chart, caught vs missed per tell id | RQ1 |
+| Miss matrix | heat table: present × inspected | RQ1 (didn't look vs looked & missed) |
+| Over-suspicion by day | humans rejected / humans seen, per day | RQ2 |
+| Post-tool bias | approve-rate when a tool said VALID, truth=synthetic | RQ3 |
+| Learning curve | accuracy by day; quiz score per run index | RQ4 |
+| Distractor cost | wrongful rejections with unresolved distractors | RQ5 |
+
+**No per-player drill-down in the console.** Deliberate: prevents re-identification and matches the
+game's own ethics story. Researchers use the CSV export with `minCell` guarding.
+
+## A1.5 Extra day of work
+
+Add 1 day to your plan (so 11 working days): Day 5 becomes *pack validator + analytics allowlist +
+PII rejection*, and the dashboards move to Day 8–9. The CSV export + `decisions` table are **P0**
+(the event's research report depends on them); dashboards are **P1**.
+
+## A1.6 Fallback that must exist regardless of you
+
+The client ships a **"Export my play data"** button in Settings that writes a JSONL/CSV to the
+device's app folder and opens the Android share sheet. If the backend is down at the event, the
+research team still collects data by tapping Export. Build your export format so it matches that
+file, so both paths merge into one dataset:
+
+`run_hash,day,archetype,ground_truth,decision,reason,confidence,tells_present,tells_inspected,surfaces_opened,tools_used,seconds_on_card,distractors_present,distractor_resolved,correct`
