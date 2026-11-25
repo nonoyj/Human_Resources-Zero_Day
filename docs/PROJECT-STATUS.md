@@ -93,8 +93,10 @@ Legend: **[x]** done · **[~]** in progress · **[ ]** to do · Owner: **A** sys
 - [x] **Office backgrounds x3 (clean / glitch / red alert)** (G)
 - [x] **Desk furniture, monitor bezel, document sheet, ID card, table** (G)
 - [x] Stamps x2, 9 icons x2 states, contact sheet, palette checker (G)
-- [x] **Applicant sprites: 7 archetypes × 4 idle frames, 192×216** (G) — reactions still to do
-- [x] **Portrait crops 96×96 with synthetic artifacts** (G)
+- [x] **Applicant sprites v2: 14 archetypes (7 human / 7 synthetic) × 4 idle frames, 192×216** (G) — reactions still to do
+- [x] **Portrait crops 96×96, 14 of them; `synthetic_cloned_a` portrait is a different person** (G)
+- [x] **9 AI artifacts implemented + `reference/artifact_legend.png` human/AI side-by-side** (G)
+- [x] **`reference/character_spread.png`: 36 humans + 18 synthetics proven distinct, 324,000 looks** (G)
 - [ ] Stamps: APPROVE / REJECT + animation (G)
 - [ ] Icons: 3 tools, inbox, manual, pause, settings (G)
 - [ ] Logo / wordmark `HR//0D` + app icon (G)

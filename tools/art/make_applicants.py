@@ -1,16 +1,23 @@
 #!/usr/bin/env python3
 """
-HR//0D applicant sprites — 192x216, waist-up, seated, 3/4 view facing the monitor (left).
-Palette-locked and deterministic, like the UI kit.
+HR//0D applicant sprites v2 -- 14 archetypes, visible AI artifacts, human variety.
 
-Why 6 archetypes rather than 100 unique faces: the game's tell is *behaviour and evidence*, not
-"learn 100 faces". Six visual archetypes (3 human, 3 synthetic) x 4 idle frames give enough variety
-while keeping the art reviewable and the kit small.
+192x216 waist-up, seated, 3/4 to the monitor (left). Palette-locked, deterministic.
 
-Synthetic tells baked into the art (deliberately subtle, all documented in docs/08-behaviour-model.md):
-  - synthetic_polished : perfectly mirrored face details + a straight-line hair blend seam
-  - synthetic_cloned   : the live person does not match the ID photo (photo drawn separately)
-  - synthetic_collusion: identical idle silhouette to synthetic_polished (shared mannerisms = the tell)
+DESIGN: humans differ in *identity* (age, skin, hair, glasses, facial hair, headwear, build).
+Synthetics differ in *artifacts* -- small things that are wrong in a way a person never is.
+Each artifact is drawn, documented, and mirrored in the Field Manual legend.
+
+Artifacts (synthetics only), all listed in docs/08-behaviour-model.md:
+    seam            dead-straight hair/background line
+    mirror          identical catchlights + beauty mark on BOTH cheeks
+    hands           merged fingers (the classic generative-image failure)
+    ear             one ear is a featureless rectangle
+    glasses_merge   the glasses temple melts into the head with no gap
+    shadow          the chair shadow falls on the wrong side
+    skin_band       a hard posterised band at the jawline instead of a gradient
+    no_blink        the idle loop never blinks (animation tell; see behaviour model)
+    straight_badge  the lanyard/badge is perfectly vertical and centred
 
     python tools/art/make_applicants.py
     python tools/art/make_applicants.py --check
@@ -36,19 +43,15 @@ PALETTE = {
 }
 PALETTE_SET = set(PALETTE.values())
 
-# six skin ramps (3 shades each) so applicants read as different people without new colours
 SKIN = [
-    ('paper',   'paperdim', 'ink'),      # very light
-    ('warn',    'orange',   'paperdim'), # light warm
-    ('orange',  'paperdim', 'ink'),      # medium warm
-    ('paperdim','ink',      'void'),     # medium deep
-    ('muted',   'linehi',   'ink'),      # cool deep
-    ('linehi',  'line',     'void'),     # very deep / cool
+    ('paper', 'paperdim', 'ink'), ('warn', 'orange', 'paperdim'),
+    ('orange', 'paperdim', 'ink'), ('paperdim', 'ink', 'void'),
+    ('muted', 'linehi', 'ink'), ('linehi', 'line', 'void'),
 ]
-# hair must CONTRAST with the dark room -- dark-on-dark reads as bald/balaclava
-HAIR = ['paperdim', 'warn', 'muted', 'linehi', 'textdim']
-HAIR_HI = {'paperdim': 'warn', 'warn': 'text', 'muted': 'textdim', 'linehi': 'textdim', 'textdim': 'white'}
-OUTFIT = ['panel2', 'line', 'panel', 'muted']
+HAIR = ['paperdim', 'warn', 'muted', 'linehi', 'textdim', 'orange']
+HAIR_HI = {'paperdim': 'warn', 'warn': 'text', 'muted': 'textdim',
+           'linehi': 'textdim', 'textdim': 'white', 'orange': 'warn'}
+OUTFIT = ['panel2', 'line', 'panel', 'muted', 'linehi']
 ACCENT = ['signal', 'warn', 'synthdim', 'ok', 'orange']
 
 
@@ -58,32 +61,33 @@ def rgba(name, a=255):
 
 
 class Applicant:
-    """Procedural but deterministic: identity comes from an int seed, not randomness at runtime."""
-
-    def __init__(self, seed: int, synthetic: bool = False, mirrored_face: bool = False):
+    def __init__(self, seed: int, synthetic=False, artifacts=()):
         s = seed
         self.seed = seed
         self.synthetic = synthetic
+        self.artifacts = set(artifacts)
         self.skin_light, self.skin_mid, self.skin_dark = SKIN[s % len(SKIN)]
         self.hair = HAIR[(s // 3) % len(HAIR)]
         self.outfit = OUTFIT[(s // 7) % len(OUTFIT)]
         self.accent = ACCENT[(s // 11) % len(ACCENT)]
-        self.head_w = 34 + (s % 3) * 2          # 34..38
-        self.shoulders = 78 + (s % 4) * 4       # 78..90
-        self.hair_style = s % 4                 # 0..3
-        self.mirrored_face = mirrored_face      # synthetic tell: perfect symmetry
-        self.blend_seam = synthetic             # synthetic tell: straight hair/background line
-        # idle variation
-        self.breathe = 0                        # 0..1 px shoulder rise
+        self.hair_style = (s // 5) % 6        # crop, side, bun, long, hijab, beanie
+        self.glasses = ((s // 13) % 3 == 0)
+        self.facial_hair = 0
+        if not synthetic and s % 4 == 0:
+            self.facial_hair = 1 + (s % 3)          # moustache / beard / both
+        self.build = 40 + (s % 5) * 4               # shoulder half-width 40..56
+        self.age_lines = (s % 6 == 2)
+        self.badge_dx = 0 if 'straight_badge' in self.artifacts else ((s % 5) - 2)
+        self.breathe = 0
         self.blink = False
-        self.fidget = 0                         # 0..1 hand offset
+        self.fidget = 0
 
     # ------------------------------------------------------------------ drawing
     def draw(self, w=192, h=216) -> Image.Image:
-        """Waist-up, seated, 3/4 to the monitor. Fills the frame: head top ~14, table edge ~196."""
         img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
         px = img.load()
         cx = w // 2
+        A = self.artifacts
 
         def put(x, y, col):
             if 0 <= x < w and 0 <= y < h:
@@ -94,96 +98,167 @@ class Applicant:
                 for x in range(x0, x1 + 1):
                     put(x, y, col)
 
-        def ellipse_ish(cx0, cy0, rx, ry, col):
-            for y in range(-ry, ry + 1):
-                half = int(rx * (1 - (y * y) / float(ry * ry + 1)) ** 0.5)
-                for x in range(-half, half + 1):
-                    put(cx0 + x, cy0 + y, col)
-
         breath = self.breathe
-        base = 196                      # table edge line
-        # ---------------- chair back (behind everything)
-        rect(cx - 52, 120, cx + 52, base + 6, 'panel')
-        rect(cx - 52, 120, cx + 52, 124, 'panel2')
+        base = 196
+        sh = self.build
 
-        # ---------------- torso: sloped shoulders widening downward, fills to the table
-        sh = 46                          # shoulder half-width at the top
+        # ---------------- chair back
+        rect(cx - 56, 116, cx + 56, base + 6, 'panel')
+        rect(cx - 56, 116, cx + 56, 120, 'panel2')
+
+        # (cast shadow is drawn last, on the desk -- see the table block at the end)
+
+        # ---------------- torso
         top = 100 - breath
         for i in range(base + 10 - top):
             y = top + i
-            # shoulders widen quickly for 18px then stay roughly flat to the table
-            half = sh + min(18, int(i * 1.6)) if i < 18 else 46 + 18
-            half = min(half, 74)
+            half = sh + min(14, int(i * 1.6)) if i < 14 else sh + 14
+            half = min(half, 58)
             rect(cx - half, y, cx + half, y, self.outfit)
-            rect(cx - half, y, cx - half + 1, y, 'linehi')     # rim light on the silhouette
-            rect(cx - half + 1, y, cx - half + 3, y, 'line')
-            rect(cx + half - 3, y, cx + half - 1, y, 'line')
-            rect(cx + half, y, cx + half, y, 'linehi')
-        # shirt opening / collar
-        for i in range(16):
-            rect(cx - 10 + i // 2, top + i, cx + 10 - i // 2, top + i, self.skin_mid)
-        # lanyard + ID badge
-        rect(cx - 2, top + 14, cx + 2, top + 40, self.accent)
-        rect(cx - 9, top + 40, cx + 9, top + 56, 'paper')
-        rect(cx - 9, top + 40, cx + 9, top + 56, 'paper')
-        rect(cx - 9, top + 40, cx + 9, top + 41, 'paperdim')
-        rect(cx - 6, top + 44, cx + 6, top + 47, 'line')
-        rect(cx - 6, top + 50, cx + 6, top + 51, 'paperdim')
+            rect(cx - half, y, cx - half, y, 'linehi')       # 1 px lit edge (monitor side)
+            rect(cx + half, y, cx + half, y, 'line')         # 1 px shadow edge
 
-        # ---------------- arms resting toward the table, hands just above the edge
-        arm_x = 52
-        rect(cx - arm_x - 6, top + 16, cx - arm_x + 4, base + 4, self.outfit)
-        rect(cx + arm_x - 4, top + 16, cx + arm_x + 6, base + 4, self.outfit)
-        rect(cx - arm_x - 6, top + 16, cx - arm_x - 4, base + 4, 'line')
-        rect(cx + arm_x + 4, top + 16, cx + arm_x + 6, base + 4, 'line')
+        # collar: crew neck -- a dark band over the shirt, then the throat above it
+        rect(cx - 15, top, cx + 15, top + 3, 'line')
+        rect(cx - 13, top + 3, cx + 13, top + 8, self.skin_dark)
+        rect(cx - 13, top + 3, cx + 13, top + 6, self.skin_mid)
+        rect(cx - 15, top, cx - 6, top + 2, 'linehi')
+        # lanyard + badge
+        bx = cx + self.badge_dx
+        if 'straight_badge' not in A:
+            # humans hang imperfectly: the lanyard drifts 1 px and the card sits a touch off-axis
+            rect(bx - 1, top + 16, bx + 3, top + 30, self.accent)
+            rect(bx - 2, top + 30, bx + 2, top + 40, self.accent)
+            rect(bx - 10, top + 41, bx + 2, top + 57, 'paper')     # left half of the card
+            rect(bx + 1, top + 43, bx + 9, top + 59, 'paper')      # right half drops 2 px = tilt
+            rect(bx - 10, top + 41, bx + 8, top + 42, 'paperdim')
+            rect(bx - 7, top + 45, bx + 1, top + 48, 'line')
+            rect(bx - 7, top + 51, bx + 2, top + 52, 'paperdim')
+            rect(bx - 9, top + 60, bx + 10, top + 60, 'line')      # card shadow on the shirt
+        else:
+            rect(bx - 2, top + 14, bx + 2, top + 40, self.accent)  # dead vertical
+        rect(bx - 9, top + 40, bx + 9, top + 56, 'paper')
+        rect(bx - 9, top + 40, bx + 9, top + 41, 'paperdim')
+        rect(bx - 6, top + 44, bx + 6, top + 47, 'line')
+        rect(bx - 6, top + 50, bx + 6, top + 51, 'paperdim')
+
+        # ---------------- arms + hands
+        # sleeves overlap the torso edge by 6 px and end on the desk; fists rest in front
+        shoulder = min(58, sh + 14)
+        arm_x = shoulder - 6 + 8            # sleeve centre-line
+        for side in (-1, 1):
+            ax = cx + side * arm_x
+            rect(ax - 7, top + 18, ax + 7, base + 2, self.outfit)
+            edge = 'linehi' if side < 0 else 'line'
+            rect(ax + (side * 7), top + 18, ax + (side * 7), base + 2, edge)
+            rect(ax - 7, top + 18, ax + 7, top + 19, 'linehi')       # shoulder seam catch-light
         fidget = self.fidget
-        rect(cx - arm_x - 7, base - 6 - fidget, cx - arm_x + 6, base + 2 - fidget, self.skin_mid)
-        rect(cx + arm_x - 6, base - 6 + fidget, cx + arm_x + 7, base + 2 + fidget, self.skin_mid)
+        for side in (-1, 1):
+            hx = cx + side * arm_x
+            hy = base - 15 + (fidget if side > 0 else -fidget)
+            rect(hx - 8, hy - 5, hx + 8, hy + 1, self.outfit)        # shirt cuff
+            rect(hx - 8, hy - 5, hx + 8, hy - 4, 'linehi')
+            rect(hx - 8, hy, hx + 8, hy + 1, 'line')                 # cuff shadow on the wrist
+            rect(hx - 7, hy + 1, hx + 7, hy + 11, self.skin_mid)     # back of hand
+            rect(hx - 9, hy, hx + 9, hy + 2, self.skin_light)        # lit top edge
+            rect(hx - 9, hy + 2, hx + 9, hy + 2, self.skin_dark)     # knuckle shadow
+            if 'hands' in A:
+                # ARTIFACT: one solid mitt -- fingers never separate, no knuckles at all
+                rect(hx - 7, hy + 3, hx + 7, hy + 11, self.skin_light)
+                rect(hx - 9, hy + 6, hx + 9, hy + 6, self.skin_light)
+            else:
+                # four fingers + a thumb, each separated by a 1 px shadow gap
+                for f in range(4):
+                    fx = hx - 7 + f * 4
+                    rect(fx, hy + 4, fx + 2, hy + 11, self.skin_light)
+                    rect(fx + 3, hy + 4, fx + 3, hy + 11, self.skin_dark)
+                rect(hx - 9, hy + 3, hx - 8, hy + 8, self.skin_mid)  # thumb tucked at the side
 
         # ---------------- neck
-        rect(cx - 10, 88 - breath, cx + 10, 102 - breath, self.skin_mid)
-        rect(cx - 10, 88 - breath, cx + 10, 91 - breath, self.skin_dark)
+        rect(cx - 11, 84 - breath, cx + 11, 100 - breath, self.skin_mid)
+        rect(cx - 11, 84 - breath, cx + 11, 87 - breath, self.skin_dark)
+        if 'skin_band' in A:
+            # ARTIFACT: a hard 4-row posterised step instead of a soft gradient
+            rect(cx - 10, 93 - breath, cx + 10, 96 - breath, self.skin_light)
 
         # ---------------- head
-        hw = 21                                  # head half-width -> 42px wide
+        hw = 21
         head_top = 16 - breath
         head_bot = 88 - breath
         rect(cx - hw, head_top + 8, cx + hw, head_bot, self.skin_mid)
         rect(cx - hw, head_top + 8, cx + hw, head_top + 14, self.skin_light)
         rect(cx - hw, head_bot - 8, cx + hw, head_bot, self.skin_dark)
-        rect(cx - hw - 2, head_top + 20, cx - hw, head_top + 34, self.skin_mid)   # ears
-        rect(cx + hw, head_top + 20, cx + hw + 2, head_top + 34, self.skin_mid)
+        # ears
+        if 'ear' in A:
+            # the far ear is normal; the near one is drawn later, on top of the hair, so a
+            # scarf or beanie can never hide the tell.
+            rect(cx + hw, head_top + 20, cx + hw + 2, head_top + 34, self.skin_mid)
+            rect(cx + hw + 1, head_top + 24, cx + hw + 2, head_top + 30, self.skin_dark)
+        else:
+            rect(cx - hw - 2, head_top + 20, cx - hw, head_top + 34, self.skin_mid)
+            rect(cx - hw - 2, head_top + 24, cx - hw - 1, head_top + 30, self.skin_dark)
+            rect(cx + hw, head_top + 20, cx + hw + 2, head_top + 34, self.skin_mid)
+            rect(cx + hw + 1, head_top + 24, cx + hw + 2, head_top + 30, self.skin_dark)
         # jaw taper
         for i in range(8):
             rect(cx - hw + i, head_bot + i, cx + hw - i, head_bot + i, self.skin_mid)
 
-        # ---------------- hair (4 styles)
-        if self.hair_style == 0:          # short crop
-            rect(cx - hw, head_top, cx + hw, head_top + 12, self.hair)
-            rect(cx - hw, head_top + 12, cx - hw + 4, head_top + 26, self.hair)
-            rect(cx + hw - 4, head_top + 12, cx + hw, head_top + 26, self.hair)
-        elif self.hair_style == 1:        # side part
-            rect(cx - hw - 1, head_top, cx + hw, head_top + 14, self.hair)
-            rect(cx - hw - 1, head_top + 14, cx - hw + 7, head_top + 4, self.hair)
-            rect(cx - hw - 1, head_top + 14, cx - hw + 6, head_top + 40, self.hair)
-        elif self.hair_style == 2:        # bun
-            rect(cx - hw, head_top + 2, cx + hw, head_top + 12, self.hair)
-            ellipse_ish(cx, head_top - 2, 9, 8, self.hair)
-        else:                             # long, pulled back
-            rect(cx - hw - 3, head_top, cx + hw + 3, head_top + 14, self.hair)
-            rect(cx - hw - 3, head_top + 14, cx - hw + 2, head_bot - 2, self.hair)
-            rect(cx + hw - 2, head_top + 14, cx + hw + 3, head_bot - 2, self.hair)
-
-        # hair top highlight so the silhouette reads against a dark room
+        # ---------------- hair / headwear (6 styles)
+        st = self.hair_style
         hi = HAIR_HI.get(self.hair, 'textdim')
-        rect(cx - hw + 2, head_top + 1, cx + hw - 2, head_top + 2, hi)
-        rect(cx - hw + 4, head_top + 3, cx - hw + 6, head_top + 5, hi)
-        if self.blend_seam:
-            # SYNTHETIC TELL: hair meets the background on a perfectly straight line, both sides equal
+        if st == 0:                                   # short crop
+            rect(cx - hw, head_top, cx + hw, head_top + 9, self.hair)
+            rect(cx - hw, head_top + 9, cx + hw - 6, head_top + 11, self.hair)   # tapered hairline
+            rect(cx - hw, head_top + 9, cx - hw + 4, head_top + 22, self.hair)
+            rect(cx + hw - 4, head_top + 9, cx + hw, head_top + 22, self.hair)
+        elif st == 1:                                 # side part
+            rect(cx - hw - 1, head_top, cx + hw, head_top + 10, self.hair)
+            rect(cx - hw - 1, head_top + 10, cx + 4, head_top + 12, self.hair)   # fringe swept right
+            rect(cx - hw - 1, head_top + 10, cx - hw + 6, head_top + 34, self.hair)
+        elif st == 2:                                 # bun
+            rect(cx - hw, head_top + 2, cx + hw, head_top + 9, self.hair)
+            rect(cx - hw, head_top + 9, cx + hw - 8, head_top + 11, self.hair)
+            rect(cx - 8, head_top - 6, cx + 8, head_top + 2, self.hair)          # knot behind
+        elif st == 3:                                 # long, pulled back
+            rect(cx - hw - 2, head_top, cx + hw + 2, head_top + 11, self.hair)
+            rect(cx - hw - 2, head_top + 11, cx + hw - 4, head_top + 13, self.hair)
+            rect(cx - hw - 2, head_top + 11, cx - hw + 2, head_bot - 4, self.hair)
+            rect(cx + hw - 2, head_top + 11, cx + hw + 2, head_bot - 4, self.hair)
+        elif st == 4:                                 # headscarf
+            rect(cx - hw - 2, head_top - 2, cx + hw + 2, head_top + 16, self.accent)
+            rect(cx - hw - 2, head_top + 16, cx - hw + 2, head_bot - 6, self.accent)
+            rect(cx + hw - 2, head_top + 16, cx + hw + 2, head_bot - 6, self.accent)
+            rect(cx - hw - 2, head_top - 2, cx + hw + 2, head_top, 'line')
+        else:                                         # beanie
+            rect(cx - hw - 1, head_top - 2, cx + hw + 1, head_top + 11, self.hair)
+            rect(cx - hw - 1, head_top + 11, cx + hw + 1, head_top + 14, 'linehi')   # ribbed brim
+            for x in range(cx - hw, cx + hw + 1, 4):
+                put(x, head_top + 12, 'line')
+        if st not in (4,):
+            rect(cx - hw + 2, head_top + 1, cx + hw - 2, head_top + 2, hi)
+            rect(cx - hw + 4, head_top + 3, cx - hw + 6, head_top + 5, hi)
+        if 'seam' in A:
             for x in range(cx - hw - 3, cx + hw + 4):
                 put(x, head_top - 1, 'synth')
+        if not self.synthetic:
+            # humans have stray hairs breaking the silhouette
+            for (dx, dy) in ((-hw - 4, 4), (hw + 3, 6), (-hw - 3, 11)):
+                put(cx + dx, head_top + dy, self.hair)
 
-        # ---------------- face (readable at 44px wide)
+        if 'ear' in A:
+            # ARTIFACT: one perfectly rectangular slab, uniform colour, spanning hairline to
+            # jaw -- no fold, no shadow, no taper, and it grows straight out of the hair.
+            rect(cx - hw - 4, head_top + 12, cx - hw, head_bot - 12, self.skin_mid)
+            rect(cx - hw - 4, head_top + 12, cx - hw - 4, head_bot - 12, self.skin_light)
+            rect(cx - hw - 4, head_top + 12, cx - hw, head_top + 12, self.skin_light)
+
+        # ---------------- facial hair
+        if self.facial_hair in (1, 3):
+            rect(cx - 7, head_top + 46, cx + 7, head_top + 49, self.hair)      # moustache
+        if self.facial_hair in (2, 3):
+            rect(cx - hw + 2, head_top + 50, cx + hw - 2, head_bot, self.hair)  # beard
+            rect(cx - 8, head_top + 50, cx + 8, head_top + 56, self.skin_mid)   # mouth gap
+        # ---------------- face
         eye_y = head_top + 30
         eye_dx = 10
         if self.blink:
@@ -192,132 +267,161 @@ class Applicant:
         else:
             rect(cx - eye_dx - 3, eye_y, cx - eye_dx + 4, eye_y + 5, 'white')
             rect(cx + eye_dx - 4, eye_y, cx + eye_dx + 3, eye_y + 5, 'white')
-            if self.mirrored_face:
-                rect(cx - eye_dx - 1, eye_y + 1, cx - eye_dx + 2, eye_y + 4, 'ink')
-                rect(cx + eye_dx - 2, eye_y + 1, cx + eye_dx + 1, eye_y + 4, 'ink')
+            if 'mirror' in A:
+                # ARTIFACT: both pupils identical in size AND height, no catchlight anywhere.
+                # Real eyes never match this exactly -- the player only needs the pair to rhyme.
+                rect(cx - eye_dx - 2, eye_y + 1, cx - eye_dx + 3, eye_y + 5, 'ink')
+                rect(cx + eye_dx - 3, eye_y + 1, cx + eye_dx + 2, eye_y + 5, 'ink')
             else:
                 rect(cx - eye_dx - 1, eye_y + 1, cx - eye_dx + 2, eye_y + 4, 'ink')
                 rect(cx + eye_dx - 1, eye_y + 2, cx + eye_dx + 2, eye_y + 5, 'ink')
-        # brows
+                put(cx - eye_dx, eye_y + 1, 'white')      # one catchlight, off-centre
         rect(cx - eye_dx - 4, eye_y - 6, cx - eye_dx + 4, eye_y - 4, self.hair)
         rect(cx + eye_dx - 4, eye_y - 6, cx + eye_dx + 4, eye_y - 4, self.hair)
-        # nose
         rect(cx - 1, eye_y + 8, cx + 1, eye_y + 15, self.skin_dark)
         rect(cx - 3, eye_y + 15, cx + 3, eye_y + 16, self.skin_dark)
-        # mouth
         mouth_y = eye_y + 22
         rect(cx - 7, mouth_y, cx + 7, mouth_y + 2, self.skin_dark)
         rect(cx - 4, mouth_y + 3, cx + 4, mouth_y + 3, self.skin_light)
-        # beauty mark: one cheek for humans, BOTH cheeks for mirrored synthetics
-        if self.mirrored_face:
-            put(cx - 15, eye_y + 13, 'ink')
-            put(cx + 15, eye_y + 13, 'ink')
+        if 'mirror' in A:
+            put(cx - 15, eye_y + 13, 'ink'); put(cx + 15, eye_y + 13, 'ink')
         elif self.seed % 2 == 0:
             put(cx - 15, eye_y + 13, 'ink')
-        # eye bags / age line for the bait applicant (weariness, not a tell)
-        if self.seed % 5 == 1:
+        if self.age_lines:
             rect(cx - eye_dx - 3, eye_y + 7, cx - eye_dx + 3, eye_y + 7, self.skin_dark)
             rect(cx + eye_dx - 3, eye_y + 7, cx + eye_dx + 3, eye_y + 7, self.skin_dark)
+            rect(cx - 2, head_top + 17, cx + 2, head_top + 17, self.skin_dark)
 
-        # ---------------- table edge in front (occludes the lower body)
+        # ---------------- glasses
+        if self.glasses:
+            rect(cx - eye_dx - 6, eye_y - 3, cx - eye_dx + 6, eye_y + 8, 'linehi')
+            rect(cx + eye_dx - 6, eye_y - 3, cx + eye_dx + 6, eye_y + 8, 'linehi')
+            rect(cx - 4, eye_y + 1, cx + 4, eye_y + 2, 'linehi')
+            if 'glasses_merge' in A:
+                # ARTIFACT: the arm is a bright bar fused to the head -- no gap, no contact
+                # shadow, and it overruns the silhouette by 2 px on both sides.
+                rect(cx - hw - 2, eye_y + 3, cx - eye_dx - 6, eye_y + 4, 'white')
+                rect(cx + eye_dx + 6, eye_y + 3, cx + hw + 2, eye_y + 4, 'white')
+                rect(cx - eye_dx - 4, eye_y + 2, cx - eye_dx + 2, eye_y + 4, 'white')
+                rect(cx + eye_dx - 2, eye_y + 2, cx + eye_dx + 4, eye_y + 4, 'white')
+            else:
+                # human: arm sits lower (toward the ear) with a dark contact shadow under it
+                rect(cx - hw, eye_y + 5, cx - eye_dx - 6, eye_y + 6, 'linehi')
+                rect(cx - hw, eye_y + 7, cx - eye_dx - 6, eye_y + 7, self.skin_dark)
+                rect(cx + eye_dx + 6, eye_y + 5, cx + hw, eye_y + 6, 'linehi')
+                rect(cx + eye_dx + 6, eye_y + 7, cx + hw, eye_y + 7, self.skin_dark)
+                rect(cx - eye_dx - 4, eye_y + 2, cx - eye_dx + 1, eye_y + 3, 'white')
+                rect(cx + eye_dx + 1, eye_y + 2, cx + eye_dx + 4, eye_y + 3, 'textdim')
+
+        # ---------------- table edge
         rect(0, base, w - 1, h - 1, 'panel2')
         rect(0, base, w - 1, base + 3, 'linehi')
         rect(0, base + 3, w - 1, base + 4, 'line')
         for x in range(0, w, 16):
             rect(x, base + 5, x, h - 1, 'panel')
+
+        # ---------------- cast shadow on the desk (key light = the monitor, screen-left)
+        if 'shadow' in A:
+            # ARTIFACT: one hard slab thrown TOWARD the monitor light, ending on a
+            # perfectly straight edge -- no falloff, no contact darkening.
+            rect(cx - 58, base + 5, cx - 10, base + 11, 'line')
+            rect(cx - 54, base + 6, cx - 10, base + 10, 'void')
+        else:
+            # human: stepped shadow thrown away from the monitor, fading as it goes
+            for i in range(4):
+                rect(cx + 14 + i * 4, base + 5 + i * 3, cx + 62, base + 7 + i * 3, 'line')
+            rect(cx + 18, base + 17, cx + 58, base + 17, 'panel2')
         return img
 
 
+# name -> (seed, synthetic, artifacts)
 ARCHETYPES = {
-    # name                seed  synthetic  mirrored
-    'human_solid_a':    (3,   False, False),
-    'human_solid_b':    (17,  False, False),
-    'human_nervous_a':  (29,  False, False),
-    'human_bait_a':     (41,  False, False),
-    'synthetic_polished_a': (101, True, True),
-    'synthetic_cloned_a':   (113, True, True),
-    'synthetic_collusion_a':(127, True, True),
+    # --- humans: identity variety, no artifacts
+    'human_solid_a':     (3,   False, ()),
+    'human_solid_b':     (17,  False, ()),
+    'human_solid_c':     (58,  False, ()),      # older, glasses, age lines
+    'human_nervous_a':   (29,  False, ()),
+    'human_nervous_b':   (71,  False, ()),      # headscarf
+    'human_bait_a':      (41,  False, ()),
+    'human_bait_b':      (86,  False, ()),      # bearded, beanie
+    # --- synthetics: each carries a specific artifact set
+    'synthetic_polished_a':  (101, True, ('seam', 'mirror')),
+    'synthetic_polished_b':  (131, True, ('hands', 'skin_band')),
+    'synthetic_polished_c':  (163, True, ('glasses_merge', 'mirror')),
+    'synthetic_cloned_a':    (113, True, ('ear', 'shadow')),
+    'synthetic_cloned_b':    (149, True, ('hands', 'seam')),
+    'synthetic_collusion_a': (127, True, ('straight_badge', 'mirror')),
+    'synthetic_collusion_b': (173, True, ('shadow', 'no_blink')),
 }
 
 
 def build_frame(state: Applicant, frame: int) -> Image.Image:
-    """4 idle frames: breathe 0/1, blink on frame 3, fidget on frame 2."""
-    a = Applicant(state.seed, state.synthetic, state.mirrored_face)
+    a = Applicant(state.seed, state.synthetic, state.artifacts)
     a.breathe = 1 if frame in (1, 2) else 0
-    a.blink = (frame == 3)
+    # ARTIFACT no_blink: the loop never blinks. Humans always do on frame 3.
+    a.blink = (frame == 3) and ('no_blink' not in a.artifacts)
     a.fidget = 1 if frame == 2 else 0
     return a.draw()
 
 
 def make_sheet(state: Applicant) -> Image.Image:
-    frames = [build_frame(state, i) for i in range(4)]
     sheet = Image.new('RGBA', (192 * 4, 216), (0, 0, 0, 0))
-    for i, f in enumerate(frames):
-        sheet.paste(f, (192 * i, 0))
+    for i in range(4):
+        sheet.paste(build_frame(state, i), (192 * i, 0))
     return sheet
 
 
 def make_portrait(state: Applicant) -> Image.Image:
-    """96x96 document photo crop of the head+shoulders."""
-    full = state.draw()
-    head = full.crop((48, 34, 144, 130))
-    return head
+    """96x96 document photo (head + shoulders)."""
+    return state.draw().crop((48, 30, 144, 126))
+
+
+def check() -> int:
+    root = os.path.normpath(OUT)
+    problems, count = [], 0
+    for sub in ('applicants', 'portraits'):
+        d = os.path.join(root, sub)
+        if not os.path.isdir(d):
+            continue
+        for f in sorted(os.listdir(d)):
+            if not f.endswith('.png'):
+                continue
+            count += 1
+            for px in list(Image.open(os.path.join(d, f)).convert('RGBA').getdata()):
+                if px[3] == 0:
+                    continue
+                if px[:3] not in PALETTE_SET or 0 < px[3] < 255:
+                    problems.append((f, px))
+                    break
+    print(f"checked {count} applicant sprites")
+    if problems:
+        for f, px in problems[:8]:
+            print("   ", f, px)
+        return 1
+    print("PASS: palette-conformant, no partial alpha")
+    return 0
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--check', action='store_true')
     args = ap.parse_args()
-    root = os.path.normpath(OUT)
-
     if args.check:
-        problems, count = [], 0
-        for sub in ('applicants', 'portraits'):
-            d = os.path.join(root, sub)
-            if not os.path.isdir(d):
-                continue
-            for f in sorted(os.listdir(d)):
-                if not f.endswith('.png'):
-                    continue
-                count += 1
-                img = Image.open(os.path.join(d, f)).convert('RGBA')
-                for px in list(img.getdata()):
-                    if px[3] == 0:
-                        continue
-                    if px[:3] not in PALETTE_SET:
-                        problems.append((f, px))
-                        break
-                    if 0 < px[3] < 255:
-                        problems.append((f, px))
-                        break
-        print(f"checked {count} applicant sprites")
-        if problems:
-            print("violations:")
-            for f, px in problems[:8]:
-                print("   ", f, px)
-            return 1
-        print("PASS: palette-conformant, no partial alpha")
-        return 0
-
+        return check()
+    root = os.path.normpath(OUT)
     made = []
-    for name, (seed, synthetic, mirrored) in ARCHETYPES.items():
-        st = Applicant(seed, synthetic, mirrored)
-        sheet = make_sheet(st)
+    for name, (seed, syn, arts) in ARCHETYPES.items():
+        st = Applicant(seed, syn, arts)
         p = os.path.join(root, 'applicants', f'app_{name}_192x216.png')
         os.makedirs(os.path.dirname(p), exist_ok=True)
-        sheet.save(p)
+        make_sheet(st).save(p)
         made.append(p)
-        # document portrait (clone archetype: portrait belongs to a DIFFERENT person -> the tell)
         pseed = seed + 500 if name == 'synthetic_cloned_a' else seed
-        port = make_portrait(Applicant(pseed, synthetic, mirrored))
         p2 = os.path.join(root, 'portraits', f'portrait_{name}_96x96.png')
         os.makedirs(os.path.dirname(p2), exist_ok=True)
-        port.save(p2)
+        make_portrait(Applicant(pseed, syn, arts)).save(p2)
         made.append(p2)
-
-    print(f"wrote {len(made)} files")
-    for m in made:
-        print("  " + os.path.relpath(m, root))
+    print(f"wrote {len(made)} files for {len(ARCHETYPES)} archetypes")
     return 0
 
 
