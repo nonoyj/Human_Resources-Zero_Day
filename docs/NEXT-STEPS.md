@@ -6,12 +6,12 @@
 
 ## Step 1 — Take the bundle (2 commands)
 
-Download **`HR-ZeroDay-bundle-v17.zip`** and **`Apply-Bundle.ps1`** into `C:\Users\User\Downloads`, then:
+Download **`HR-ZeroDay-bundle-v19.zip`** and **`Apply-Bundle.ps1`** into `C:\Users\User\Downloads`, then:
 
 ```powershell
 cd C:\Users\User\Downloads
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-.\Apply-Bundle.ps1 -BundlePath .\HR-ZeroDay-bundle-v17.zip -Clean
+.\Apply-Bundle.ps1 -BundlePath .\HR-ZeroDay-bundle-v19.zip -Clean
 ```
 
 Confirm it worked:
@@ -22,7 +22,8 @@ git log --oneline -1                       # newest commit, 37+ commits (a hash 
 git status --short                         # should print nothing
 python tools\art\make_art_kit.py --check   # PASS: every pixel is palette-conformant  (no Pillow needed)
 python tools\art\make_applicants.py --check # PASS: palette-conformant, no partial alpha
-.\scripts\Test-Scripts.ps1                 # All scripts healthy  (6 scripts)
+.\scripts\Test-ArtPipeline.ps1             # ART PIPELINE OK  (manifest, Unity copy, layout, compile)
+.\scripts\Test-Scripts.ps1                 # All scripts healthy  (7 scripts)
 .\scripts\Setup-DevEnvironment.ps1 -Verify # D12 Python, D13 Pillow show PASS/skip
 ```
 
@@ -32,8 +33,11 @@ Open, in this order:
 1. `art\kit\reference\composition_preview.png` — the desk as it will look on the phone
 2. `art\kit\reference\artifact_legend.png` — human vs AI, same seed, one tell each
 3. `art\kit\reference\character_spread.png` — 36 humans + 18 synthetics (the variety proof)
-4. `art\kit\reference\applicants_sheet.png` — all 14 archetypes, frame 1 of 4 Import rules are in `art\kit\README.md`:
-Point filter, no compression, PPU 16, 9-slice border 8 px, Full Rect mesh.
+4. `art\kit\reference\applicants_sheet.png` — all 14 archetypes, frame 1 of 4
+5. `art\kit\reference\twin_desk_human_solid_a_f0_L0.png` — the engine-accurate desk render (hotspots outlined)
+
+Import rules are in `art\kit\README.md`; nobody clicks them by hand any more — the Editor menu
+`HR//0D > Import Art Kit` applies them from `unity_sprites.json`.
 
 ## Step 3 — Send these two files to the others (this is the handoff)
 
