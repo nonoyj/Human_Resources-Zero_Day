@@ -139,7 +139,8 @@ try {
 } finally { Pop-Location }
 
 Step "extracting $([System.IO.Path]::GetFileName($BundlePath)) to a temp folder"
-$temp = Join-Path $env:TEMP ("hr0d-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
+$tempRoot = if ($env:TEMP) { $env:TEMP } elseif ($env:TMP) { $env:TMP } else { [System.IO.Path]::GetTempPath() }
+$temp = Join-Path $tempRoot ("hr0d-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
 New-Item -ItemType Directory -Force -Path $temp | Out-Null
 try {
     Expand-Archive -Path $BundlePath -DestinationPath $temp -Force
@@ -149,19 +150,53 @@ try {
     if (-not (Test-Path (Join-Path $root.FullName '.git'))) { Warn "bundle has no .git (history will not match)" } else { Ok "bundle carries git history" }
 
     Step "copying files over $WorkingCopy"
-    $excludeDirs = @('Library','Temp','Logs','obj','UserSettings','Build','Builds','.tooling','.cache','.dotnet','.nuget','.local','bin')
+    # IMPORTANT (BUG-011): Copy-Item -Recurse into an existing directory NESTS the source
+    # (docs -> docs\docs). Everything is therefore copied entry-by-entry with an explicit
+    # destination path, and .git is handled separately.
+    $excludeDirs = @('Library','Temp','Logs','obj','UserSettings','Build','Builds',
+                     '.tooling','.cache','.dotnet','.nuget','.local','bin')
     $copied = 0
-    Get-ChildItem $root.FullName -Force | ForEach-Object {
+
+    function Copy-Tree ([string]$source, [string]$dest) {
+        New-Item -ItemType Directory -Force -Path $dest | Out-Null
+        Get-ChildItem -LiteralPath $source -Force | ForEach-Object {
+            $target = Join-Path $dest $_.Name
+            if ($_.PSIsContainer) {
+                Copy-Tree $_.FullName $target
+            } else {
+                Copy-Item -LiteralPath $_.FullName -Destination $target -Force
+                try { (Get-Item -LiteralPath $target).Attributes = 'Normal' } catch { }
+            }
+        }
+    }
+
+    Get-ChildItem -LiteralPath $root.FullName -Force | ForEach-Object {
         $name = $_.Name
+        if ($name -eq '.git') { return }                      # handled below
         if ($_.PSIsContainer -and ($excludeDirs -contains $name)) { Warn "skipping $name\"; return }
-        if ($_.PSIsContainer -and $name -eq '.git') {
-            Copy-Item $_.FullName (Join-Path $WorkingCopy '.git') -Recurse -Force
+        $dest = Join-Path $WorkingCopy $name
+        if ($_.PSIsContainer) {
+            Copy-Tree $_.FullName $dest
         } else {
-            Copy-Item $_.FullName (Join-Path $WorkingCopy $name) -Recurse -Force
+            Copy-Item -LiteralPath $_.FullName -Destination $dest -Force
         }
         $copied++
     }
-    Ok "$copied top-level items copied"
+    Ok "$copied top-level items copied (no nesting)"
+
+    # Replace .git wholesale: the bundle is a byte-for-byte snapshot, so its history must match its files.
+    # A merge would leave the old HEAD with new files -> "everything modified".
+    $srcGit = Join-Path $root.FullName '.git'
+    if (Test-Path $srcGit) {
+        Warn "replacing .git (history comes from the bundle)"
+        foreach ($junk in @('.git\index.lock','.git\ORIG_HEAD','.git\refs\original')) {
+            $p = Join-Path $WorkingCopy $junk
+            if (Test-Path $p) { Remove-Item $p -Recurse -Force -ErrorAction SilentlyContinue }
+        }
+        Copy-Tree $srcGit (Join-Path $WorkingCopy '.git')
+        Ok ".git replaced"
+    }
+
 }
 finally {
     if (Test-Path $temp) { Remove-Item $temp -Recurse -Force -ErrorAction SilentlyContinue }
