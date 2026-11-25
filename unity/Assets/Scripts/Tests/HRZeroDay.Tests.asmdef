@@ -1,0 +1,14 @@
+{
+  "name": "HRZeroDay.Tests",
+  "rootNamespace": "HRZeroDay.Tests",
+  "references": ["HRZeroDay.Core"],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
