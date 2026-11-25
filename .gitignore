@@ -55,6 +55,9 @@ __pycache__/
 *.zip
 Unselected files/
 
+# Unity ignores *.csproj globally; the headless test harness needs its own
+!tools/**/*.csproj
+
 # ---------- Agent tooling (not part of the deliverable) ----------
 .tooling/
 bin/
