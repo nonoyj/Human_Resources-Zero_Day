@@ -14,7 +14,9 @@ Preview everything: **`art/kit/reference/contact_sheet.png`**
 | `ui/` | `panel_*_9slice`, `button_*_9slice` (6 states), `inset`, `tooltip`, `bar_trust_*`, `pip_*`, `slider_*` | 9-slices, sliced at 8 px in Unity |
 | `stamps/` | `stamp_approve`, `stamp_reject` (56x20) | Stamp body only; text is TMP |
 | `icons/` | 9 icons x 2 states | 7x7 pixel glyphs |
-| `reference/` | `palette_swatch`, `contact_sheet` | Palette proof + visual index |
+| `applicants/` | 7 archetypes x 4 idle frames, 192x216 sheets (768x216) | The person across the table |
+| `portraits/` | 7 crops, 96x96 | Document photos; `synthetic_cloned` portrait is a DIFFERENT person (the tell) |
+| `reference/` | `palette_swatch`, `contact_sheet`, `applicants_sheet` | Palette proof + visual indexes |
 
 ## Integration rules (FE)
 
@@ -31,10 +33,26 @@ Preview everything: **`art/kit/reference/contact_sheet.png`**
 5. Backgrounds are drawn at exactly 480x270 and the camera is orthographic with a Pixel Perfect Camera
    component (`Assets Pixels Per Unit 16`, reference resolution 480x270, upscale RT off).
 
-## Not in v1 (next art pass)
+## Applicant sheet layout
 
-- Applicant sprites 192x216 (4 idle frames, 3 reaction frames) x6 archetypes — the biggest remaining job
-- Portrait crops 96x96 with synthetic artifacts
+Each `applicants/app_<archetype>_192x216.png` is a horizontal 4-frame strip: 768x216.
+In Unity: Sprite Mode **Multiple**, grid **192x216**, 4 cells. Idle frames are 0-1-2-3:
+
+| Frame | State |
+|---|---|
+| 0 | neutral |
+| 1 | breathe in (shoulders +1px) |
+| 2 | breathe in + hand fidget |
+| 3 | blink |
+
+Synthetic tells baked into the art (deliberate, documented in `docs/08-behaviour-model.md`):
+- a thin **purple line** where the hair meets the background (perfectly straight, both sides equal)
+- **perfectly mirrored** face details: same eye highlight side, beauty mark on BOTH cheeks
+
+## Not yet (next art pass)
+
+- 3 reaction frames per archetype (approved / rejected / stared-at)
 - Player avatar parts (4 body / 6 hair / 6 skin / 4 outfit)
 - Logo + app icon (`HR//0D`)
-- Menu/character-creation background variants
+- Menu / character-creation background variants
+- More identity variety (currently 7 archetypes; content can tint via a palette swap)

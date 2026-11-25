@@ -93,8 +93,8 @@ Legend: **[x]** done · **[~]** in progress · **[ ]** to do · Owner: **A** sys
 - [x] **Office backgrounds x3 (clean / glitch / red alert)** (G)
 - [x] **Desk furniture, monitor bezel, document sheet, ID card, table** (G)
 - [x] Stamps x2, 9 icons x2 states, contact sheet, palette checker (G)
-- [ ] Applicant sprites: 192×216, 4 idle frames, 3 reaction frames ×6 archetypes (G)
-- [ ] Portrait crops 96×96 with synthetic artifacts (G)
+- [x] **Applicant sprites: 7 archetypes × 4 idle frames, 192×216** (G) — reactions still to do
+- [x] **Portrait crops 96×96 with synthetic artifacts** (G)
 - [ ] Stamps: APPROVE / REJECT + animation (G)
 - [ ] Icons: 3 tools, inbox, manual, pause, settings (G)
 - [ ] Logo / wordmark `HR//0D` + app icon (G)
