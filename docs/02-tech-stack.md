@@ -184,6 +184,33 @@ RuleEngine.Evaluate(ApplicantRecord a, RuleContext ctx) -> List<Episode>
 - Difficulty = number of concurrent tells, clarity of tells, and distractor noise — **not**
   faster timers or unfair ambiguity.
 
+## Orientation & desk composition (ADR-005, ADR-007)
+
+World layout on the 480x270 canvas:
+
+```
++------------------------------------------------------------------+
+|  HUD: DAY 1   SHIFT CLOCK   TRUST   [pause]                      |
++---------------------------------+--------------------------------+
+|  LEFT HALF  = YOUR MONITOR      |  RIGHT HALF = THE APPLICANT     |
+|  - resume sheet (384x216)       |  - waist-up seated sprite       |
+|  - cover letter / ID card       |    (192x216)                    |
+|  - tabs: RESUME | LETTER | ID   |  - chair + table edge           |
+|  - tool row (3 tools + pips)    |  - behaviour loop (breathe,     |
+|  - stamp tray (approve/reject)  |    blink, fidget, react)        |
+|  - reason dropdown              |  - 0-2 short dialogue lines     |
++---------------------------------+--------------------------------+
+|  [back]  FIELD MANUAL   INBOX(1) |  CORRUPTION/RISK INDICATOR     |
++------------------------------------------------------------------+
+```
+
+Design consequences:
+- Both halves are always visible at once — the player can watch the applicant while reading the
+  document. This is the core of the fantasy and of the "observation" lesson.
+- Any zoom/inspect layer must be anchored to the **left** half so the applicant stays visible.
+- Safe-area insets: keep 24 px (at 480x270) clear on all sides for notch/cutout handling.
+- The right half is the most expensive art asset (animated applicant); budget it accordingly.
+
 ## Build settings checklist (Android)
 
 - [ ] **Landscape** (auto-rotate locked), Resizable window off, Render outside safe area off

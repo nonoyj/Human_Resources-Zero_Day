@@ -106,3 +106,32 @@ attach and push (including LFS init). Until then nothing is blocked — the repo
    a network layer at all. My assumption: **no server**.
 4. **Do you have a name for the studio/team?** Needed for the icon, splash, and credits.
 5. **Do you want a 5-slide pitch deck** for the event?
+
+---
+
+## ADR-007 — Desk composition: monitor left, applicant right
+**Date:** 2026-11-25 · **Status:** Accepted
+
+The interview is a physical scene, not a paperwork metaphor: **the monitor occupies the left half**
+of the screen (resume, ID, cover letter, metadata, tools, stamps, reason dropdown) and **the
+applicant sits across the table on the right half**, live and animated. Both are always visible.
+
+Consequences:
+- Behaviour becomes evidence-adjacent: nervousness invites investigation, never rejects alone
+  (`docs/08-behaviour-model.md`).
+- Art budget shifts to the right half (applicant sprites: 192x216, 3 corruption background variants).
+- Any inspect/zoom overlay anchors left so the applicant is never hidden.
+- "Reduce motion" and colour-blind settings must not remove any tell (they only change presentation).
+
+## ADR-008 — Randomised runs with proven fairness
+**Date:** 2026-11-25 · **Status:** Accepted
+
+Applicants, identities, tells, distractors, emails and attack events are generated per run from a
+single seed. No campaign is authored by hand, though content (names, wording pools, emails) is.
+Fairness invariants I1–I8 (`docs/07-randomization-spec.md`) are enforced in code and EditMode tests,
+and are already validated by `prototype/generator_sim.py` (0 violations / 1,000 runs).
+
+Consequences:
+- Every bug report must include the run seed.
+- Determinism is a feature: same seed = same run (QA, debugging, replay).
+- Content tuning happens through weights/pools, never by hardcoding a fixed applicant.
