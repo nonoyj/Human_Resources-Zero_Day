@@ -50,3 +50,7 @@ node_modules/
 __pycache__/
 *.log
 !docs/**/*.log
+
+# ---------- Distribution / generated ----------
+*.zip
+Unselected files/
