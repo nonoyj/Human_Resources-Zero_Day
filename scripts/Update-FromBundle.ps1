@@ -95,12 +95,45 @@ Ok "working copy: $WorkingCopy"
 
 Push-Location $WorkingCopy
 try {
-    $dirty = (& git status --porcelain) 2>$null
-    if ($dirty -and -not $Force) {
-        Write-Host $dirty
-        Die "You have uncommitted changes. Commit them (git add -A; git commit -m 'wip') or re-run with -Force."
-    }
-    if ($dirty) { Warn "uncommitted changes will be overwritten (-Force)" } else { Ok "no uncommitted changes" }
+    $dirty = @(& git status --porcelain) 2>$null | Where-Object { $_ -and $_.Trim() }
+    if ($dirty) {
+        Warn "uncommitted changes detected:"
+        $dirty | ForEach-Object { Write-Host "    $_" }
+
+        # Classify: LFS-pointer churn and line-ending churn are harmless noise, not real work.
+        $noise = $dirty | Where-Object { $_ -match '^\s*M\s+.*\.(png|psd|wav|mp3|ttf|otf|fbx)$' }
+        $real  = $dirty | Where-Object { $noise -notcontains $_ }
+
+        if ($real.Count -eq 0) {
+            Warn "only binary/LFS noise above -- your files are not actually different."
+            Warn "Safe to proceed; run: git checkout -- .   to clear it."
+        } else {
+            Write-Host "  These look like real edits:" -ForegroundColor Yellow
+            $real | ForEach-Object { Write-Host "    $_" }
+        }
+
+        if (-not $Force) {
+            Write-Host @"
+
+  Stopping so you do not lose work. Pick one:
+
+    # A) keep your work
+    git add -A
+    git commit -m "wip: my local changes before update"
+    .\scripts\Update-FromBundle.ps1
+
+    # B) throw the local changes away (safe if they are only noise)
+    git checkout -- .
+    .\scripts\Update-FromBundle.ps1
+
+    # C) overwrite anyway
+    .\scripts\Update-FromBundle.ps1 -Force
+
+"@ -ForegroundColor Cyan
+            Die "uncommitted changes (see options above)"
+        }
+        Warn "continuing with -Force; local changes will be overwritten"
+    } else { Ok "no uncommitted changes" }
 
     $before = (git rev-parse --short HEAD)
 } finally { Pop-Location }

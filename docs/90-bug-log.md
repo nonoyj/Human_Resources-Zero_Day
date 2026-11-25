@@ -155,3 +155,20 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
   `du -sh .git` is under 10 MB. Both are now part of the pre-delivery checklist.
 - **Prevention rule:** **the platform's snapshot-exclusion list and `.gitignore` are different lists --
   satisfy both.** Never run `git add -A` in this workspace without checking the tracked-file count first.
+
+### BUG-010 — two art PNGs showed as permanently modified, blocking every update
+- **Found:** 2026-11-25 by the user (`Update-FromBundle.ps1` refused: ` M art/concepts/*.png`) · **Severity:** P1
+- **Symptom:** `git status` reported both concept mockups modified on a machine where nobody had edited
+  them; the update script correctly refused to run.
+- **Root cause:** `.gitattributes` declared `*.png filter=lfs ...`, but the files had been committed in an
+  environment **without** the LFS client, so history contains real PNG blobs, not LFS pointers. On a
+  machine **with** LFS installed, the filter compares "expected pointer" against "actual file" and always
+  reports a difference. Mixed state: filter declared, content never migrated.
+- **Fix:** dropped LFS entirely (`.gitattributes` now marks art as `binary`); documented the decision and
+  the one-way migration procedure in `docs/GIT-LFS-DECISION.md`; `Update-FromBundle.ps1` now classifies
+  dirty files and distinguishes harmless binary noise from real edits, and prints the three ways out.
+- **Regression test:** on a clean clone with the LFS client installed, `git status --short` must be empty
+  and `git check-attr` must show `binary: set` (no `filter: lfs`).
+- **Prevention rule:** **never declare an LFS filter without migrating the history in the same change**,
+  and verify `git status` on a machine where the client is installed -- which is not the machine that
+  authored the commit.
