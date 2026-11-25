@@ -172,3 +172,25 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
 - **Prevention rule:** **never declare an LFS filter without migrating the history in the same change**,
   and verify `git status` on a machine where the client is installed -- which is not the machine that
   authored the commit.
+
+### BUG-011 — the update script nested every folder (`docs/docs/`) and never replaced `.git`
+- **Found:** 2026-11-25 by the user (update output showed `HEAD before == HEAD after` and `?? docs/docs/`) · **Severity:** P0 (broke the only safe update path)
+- **Symptom:**
+  - `art/art/`, `docs/docs/`, `handoff/handoff/`, `prototype/prototype/`, `scripts/scripts/`, `tools/tools/`, `unity/unity/` appeared as untracked duplicates
+  - `HEAD before: cb2bab6`, `HEAD after: cb2bab6` -- the bundle's history was **not** applied, so a brand-new bundle left the copy at an old commit
+- **Root cause:** two defects in my `Copy-Item` loop:
+  1. `Copy-Item <src dir> (Join-Path $WorkingCopy $name) -Recurse` **nests** when the destination already
+     exists. Correct behaviour is to copy the *contents* into the destination, entry by entry.
+  2. `.git` copy targeted `Join-Path $WorkingCopy '.git'` -- an existing directory, so git's internal
+     folders were nested the same way and the old refs/index survived; the update was a no-op for history.
+  A third, environment-only defect: `$env:TEMP` is null in some shells, so extraction crashed.
+- **Fix:** `Copy-Tree` recursive helper copies file-by-file into explicit destinations (never nesting);
+  `.git` is deleted-and-replaced wholesale (the bundle is a byte-for-byte snapshot, so its history must
+  match its files); temp path falls back through `$env:TEMP` -> `$env:TMP` -> `GetTempPath()`; added
+  `-CleanNesting` to repair copies already damaged by the old version.
+- **Regression test:** build a damaged copy (reset to an older commit + injected `docs/docs/`), run the
+  update, then assert: HEAD advances, `git status` shows only the injected damage, no new `X/X` folders.
+  Performed 2026-11-25: `HEAD cb2bab6 -> d6ad239`, 10 top-level items, `.git replaced`, no nesting.
+- **Prevention rule:** **test a copy/merge tool against a deliberately damaged target, not a clean one.**
+  A "works on an empty folder" test proves nothing about an update. And: when replacing a VCS directory,
+  replace it entirely -- never merge into it.
