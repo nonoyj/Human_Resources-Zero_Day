@@ -144,7 +144,12 @@ try {
 
     S "copying project files"
     $copied = 0
-    Get-ChildItem -LiteralPath $root.FullName -Force | ForEach-Object {
+    # Snapshot the list FIRST. Deleting from a folder while Get-ChildItem is still enumerating it (the
+    # working copy can be the same drive/root in tests) makes the enumerator throw mid-loop and the
+    # whole apply dies after a half-copy. Materialise, then act.
+    $items = @(Get-ChildItem -LiteralPath $root.FullName -Force)
+    foreach ($item in $items) {
+        $_ = $item
         if ($_.Name -eq '.git') { return }
         # bundle transport files, not project files
         if ($_.Name -in @('history.bundle', 'history.branch')) { return }
