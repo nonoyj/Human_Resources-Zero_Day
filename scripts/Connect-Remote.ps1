@@ -73,6 +73,19 @@ try {
     if ($dirty) { W "$($dirty.Count) uncommitted change(s) -- commit before pushing"; $dirty | Select-Object -First 5 | ForEach-Object { Write-Host "         $_" } }
     else { OK 'working tree clean' }
 
+    S "commit identity"
+    $userName  = ((& git config user.name)  2>$null | Out-String).Trim()
+    $userEmail = ((& git config user.email) 2>$null | Out-String).Trim()
+    if (-not $userName -or -not $userEmail) {
+        W 'this machine has no user.name / user.email -- the first commit you make will fail'
+        Write-Host '  fix once:' -ForegroundColor Yellow
+        Write-Host '    git config --global user.name  "June0904"' -ForegroundColor Yellow
+        Write-Host '    git config --global user.email "YOUR-GITHUB-EMAIL"' -ForegroundColor Yellow
+        Write-Host '  (the email should match your GitHub account, or commits will not link to you)' -ForegroundColor Yellow
+    } else {
+        OK "$userName <$userEmail>"
+    }
+
     S "remote"
     $remotes = ((& git remote) 2>$null)
     if ($remotes -contains 'origin') {

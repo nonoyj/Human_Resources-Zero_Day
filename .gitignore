@@ -85,3 +85,7 @@ content/content/
 tools/UnityStubs/bin/
 tools/UnityStubs/obj/
 # Unity's own meta/.meta files are tracked; generated Resources copies of the json are tracked too
+
+# scratch clones used by script tests
+.idtest/
+.tmpcheck/

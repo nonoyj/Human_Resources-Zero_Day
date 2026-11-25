@@ -258,3 +258,29 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
 - **Prevention rule:** **verification must never depend on a package that only the generator needs.**
   If a check can be written against the standard library, write it that way — a green check that
   requires an install is not a green check.
+
+## BUG-017 — the twin renderer drew every applicant upside-down
+
+- **Found:** 2026-11-26 while building `tools/comp/twin_desk.py`; caught by looking at the render, not by a test.
+- **Severity:** P2 — offline renderer only, no shipped art affected. Would have poisoned every future
+  layout decision made against the twin.
+- **Root cause:** `pngcheck.read_rgba` already returns rows **top-down** (PNG order normalised). The
+  slicer re-flipped them as if they came from a bottom-up source, so each frame was mirrored vertically.
+- **Fix:** splice `pixels[row * w + ox + col]` straight through; no flip. Only the frame crop needed
+  changing, not the strip geometry.
+- **Prevention rule:** **know which direction your byte rows run before writing any blit.** Add a
+  deliberately asymmetric test sprite (a 3-pixel notch in one corner) whenever a new blitter appears.
+
+## BUG-018 — `[MenuItem("x", priority = N)]` is not valid C#
+
+- **Found:** 2026-11-26 by `tools/UnityStubs` (the stub compile), **before any Unity install existed**.
+- **Severity:** P1 — the whole Editor menu (and therefore the art importer and scene builder) would have
+  failed to compile on the first project open, blocking Dev B.
+- **Root cause:** C# attributes do not accept named arguments to a constructor unless the attribute
+  declares a settable property of that name. Unity's `MenuItem` has **no** `priority` property — only
+  positional ctor parameters.
+- **Fix:** `[MenuItem("HR//0D/Build Desk Scene", false, 20)]` — the third positional parameter *is* the
+  priority. Verified by stubbing the four real ctor overloads and compiling.
+- **Prevention rule:** **the Unity-facing code must compile without Unity.** `tools/UnityStubs` +
+  `.\scripts\Test-ArtPipeline.ps1` do this in ~6 s; it has already paid for itself three times
+  (also caught a missing `using`, an ambiguous `TextAsset`, and `Color32` -> `Color`).
