@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Type-checks the Unity-facing scripts (Game + Editor) against stubs. No Unity required. -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <LangVersion>9.0</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>HRZeroDay.CompileCheck</AssemblyName>
+    <NoWarn>CS0168;CS0219;CS8632;CS0649;CS0414</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="UnityStubs.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Core/**/*.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/**/*.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Editor/**/*.cs" />
+  </ItemGroup>
+</Project>

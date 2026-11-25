@@ -1,0 +1,2063 @@
+{
+  "manifestVersion": 1,
+  "generatedBy": "tools/art/make_sprite_manifest.py",
+  "note": "Import settings for every shipped sprite. Reference sheets are docs, not game art.",
+  "unity": {
+    "referenceResolution": [
+      480,
+      270
+    ],
+    "pixelsPerUnit": 16,
+    "filterMode": "Point",
+    "colorSpace": "Linear",
+    "spriteAtlas": null,
+    "targetFrameRate": 60
+  },
+  "counts": {
+    "applicants": 14,
+    "portraits": 14,
+    "ui": 18,
+    "icons": 18,
+    "stamps": 2,
+    "desk": 4,
+    "backgrounds": 3
+  },
+  "sprites": [
+    {
+      "source": "art/kit/applicants/app_human_bait_a_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/app_human_bait_a_192x216.png",
+      "width": 768,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Multiple",
+      "kind": "applicant",
+      "sha256_16": "741e7cd9c3831819",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "human_bait_a_neutral",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_bait_a_breathe",
+          "rect": [
+            192,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_bait_a_breathe_fidget",
+          "rect": [
+            384,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_bait_a_blink",
+          "rect": [
+            576,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/app_human_bait_b_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/app_human_bait_b_192x216.png",
+      "width": 768,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Multiple",
+      "kind": "applicant",
+      "sha256_16": "845a888af5e9e5bc",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "human_bait_b_neutral",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_bait_b_breathe",
+          "rect": [
+            192,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_bait_b_breathe_fidget",
+          "rect": [
+            384,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_bait_b_blink",
+          "rect": [
+            576,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/app_human_nervous_a_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/app_human_nervous_a_192x216.png",
+      "width": 768,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Multiple",
+      "kind": "applicant",
+      "sha256_16": "43014c98399530b8",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "human_nervous_a_neutral",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_nervous_a_breathe",
+          "rect": [
+            192,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_nervous_a_breathe_fidget",
+          "rect": [
+            384,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_nervous_a_blink",
+          "rect": [
+            576,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/app_human_nervous_b_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/app_human_nervous_b_192x216.png",
+      "width": 768,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Multiple",
+      "kind": "applicant",
+      "sha256_16": "de1fd4bd2d5c10b3",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "human_nervous_b_neutral",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_nervous_b_breathe",
+          "rect": [
+            192,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_nervous_b_breathe_fidget",
+          "rect": [
+            384,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_nervous_b_blink",
+          "rect": [
+            576,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/app_human_solid_a_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/app_human_solid_a_192x216.png",
+      "width": 768,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Multiple",
+      "kind": "applicant",
+      "sha256_16": "68de0cc6fcbf7d23",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "human_solid_a_neutral",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_solid_a_breathe",
+          "rect": [
+            192,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_solid_a_breathe_fidget",
+          "rect": [
+            384,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_solid_a_blink",
+          "rect": [
+            576,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/app_human_solid_b_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/app_human_solid_b_192x216.png",
+      "width": 768,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Multiple",
+      "kind": "applicant",
+      "sha256_16": "668ff7fc6008cae0",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "human_solid_b_neutral",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_solid_b_breathe",
+          "rect": [
+            192,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_solid_b_breathe_fidget",
+          "rect": [
+            384,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_solid_b_blink",
+          "rect": [
+            576,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/app_human_solid_c_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/app_human_solid_c_192x216.png",
+      "width": 768,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Multiple",
+      "kind": "applicant",
+      "sha256_16": "25d1adb0adde9ca4",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "human_solid_c_neutral",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_solid_c_breathe",
+          "rect": [
+            192,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_solid_c_breathe_fidget",
+          "rect": [
+            384,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "human_solid_c_blink",
+          "rect": [
+            576,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/app_synthetic_cloned_a_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/app_synthetic_cloned_a_192x216.png",
+      "width": 768,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Multiple",
+      "kind": "applicant",
+      "sha256_16": "9b62c6ed699fb781",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "synthetic_cloned_a_neutral",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_cloned_a_breathe",
+          "rect": [
+            192,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_cloned_a_breathe_fidget",
+          "rect": [
+            384,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_cloned_a_blink",
+          "rect": [
+            576,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/app_synthetic_cloned_b_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/app_synthetic_cloned_b_192x216.png",
+      "width": 768,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Multiple",
+      "kind": "applicant",
+      "sha256_16": "1607152c2fdd502b",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "synthetic_cloned_b_neutral",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_cloned_b_breathe",
+          "rect": [
+            192,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_cloned_b_breathe_fidget",
+          "rect": [
+            384,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_cloned_b_blink",
+          "rect": [
+            576,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/app_synthetic_collusion_a_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/app_synthetic_collusion_a_192x216.png",
+      "width": 768,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Multiple",
+      "kind": "applicant",
+      "sha256_16": "e336f5aeef810fac",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "synthetic_collusion_a_neutral",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_collusion_a_breathe",
+          "rect": [
+            192,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_collusion_a_breathe_fidget",
+          "rect": [
+            384,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_collusion_a_blink",
+          "rect": [
+            576,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/app_synthetic_collusion_b_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/app_synthetic_collusion_b_192x216.png",
+      "width": 768,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Multiple",
+      "kind": "applicant",
+      "sha256_16": "c9f3eae02b1c37ab",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "synthetic_collusion_b_neutral",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_collusion_b_breathe",
+          "rect": [
+            192,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_collusion_b_breathe_fidget",
+          "rect": [
+            384,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_collusion_b_blink",
+          "rect": [
+            576,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/app_synthetic_polished_a_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/app_synthetic_polished_a_192x216.png",
+      "width": 768,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Multiple",
+      "kind": "applicant",
+      "sha256_16": "e940b8adbfc75478",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "synthetic_polished_a_neutral",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_polished_a_breathe",
+          "rect": [
+            192,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_polished_a_breathe_fidget",
+          "rect": [
+            384,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_polished_a_blink",
+          "rect": [
+            576,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/app_synthetic_polished_b_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/app_synthetic_polished_b_192x216.png",
+      "width": 768,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Multiple",
+      "kind": "applicant",
+      "sha256_16": "69737991f4888e5f",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "synthetic_polished_b_neutral",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_polished_b_breathe",
+          "rect": [
+            192,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_polished_b_breathe_fidget",
+          "rect": [
+            384,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_polished_b_blink",
+          "rect": [
+            576,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/app_synthetic_polished_c_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/app_synthetic_polished_c_192x216.png",
+      "width": 768,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Multiple",
+      "kind": "applicant",
+      "sha256_16": "00ba547835fade00",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "synthetic_polished_c_neutral",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_polished_c_breathe",
+          "rect": [
+            192,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_polished_c_breathe_fidget",
+          "rect": [
+            384,
+            0,
+            192,
+            216
+          ]
+        },
+        {
+          "name": "synthetic_polished_c_blink",
+          "rect": [
+            576,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/portraits/portrait_human_bait_a_96x96.png",
+      "assetPath": "Assets/Art/Kit/portraits/portrait_human_bait_a_96x96.png",
+      "width": 96,
+      "height": 96,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "portrait",
+      "sha256_16": "3d1987392f2acdf3",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/portraits/portrait_human_bait_b_96x96.png",
+      "assetPath": "Assets/Art/Kit/portraits/portrait_human_bait_b_96x96.png",
+      "width": 96,
+      "height": 96,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "portrait",
+      "sha256_16": "a7871da8e7f55e96",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/portraits/portrait_human_nervous_a_96x96.png",
+      "assetPath": "Assets/Art/Kit/portraits/portrait_human_nervous_a_96x96.png",
+      "width": 96,
+      "height": 96,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "portrait",
+      "sha256_16": "addefae15cfa3c57",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/portraits/portrait_human_nervous_b_96x96.png",
+      "assetPath": "Assets/Art/Kit/portraits/portrait_human_nervous_b_96x96.png",
+      "width": 96,
+      "height": 96,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "portrait",
+      "sha256_16": "2565d35b051cab87",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/portraits/portrait_human_solid_a_96x96.png",
+      "assetPath": "Assets/Art/Kit/portraits/portrait_human_solid_a_96x96.png",
+      "width": 96,
+      "height": 96,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "portrait",
+      "sha256_16": "67c28adedb84fe0a",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/portraits/portrait_human_solid_b_96x96.png",
+      "assetPath": "Assets/Art/Kit/portraits/portrait_human_solid_b_96x96.png",
+      "width": 96,
+      "height": 96,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "portrait",
+      "sha256_16": "1baeaf3c7e94bccb",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/portraits/portrait_human_solid_c_96x96.png",
+      "assetPath": "Assets/Art/Kit/portraits/portrait_human_solid_c_96x96.png",
+      "width": 96,
+      "height": 96,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "portrait",
+      "sha256_16": "e5d6767a1d08685a",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/portraits/portrait_synthetic_cloned_a_96x96.png",
+      "assetPath": "Assets/Art/Kit/portraits/portrait_synthetic_cloned_a_96x96.png",
+      "width": 96,
+      "height": 96,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "portrait",
+      "sha256_16": "07c078ac910566bb",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/portraits/portrait_synthetic_cloned_b_96x96.png",
+      "assetPath": "Assets/Art/Kit/portraits/portrait_synthetic_cloned_b_96x96.png",
+      "width": 96,
+      "height": 96,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "portrait",
+      "sha256_16": "24a1e16bf2f8ba19",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/portraits/portrait_synthetic_collusion_a_96x96.png",
+      "assetPath": "Assets/Art/Kit/portraits/portrait_synthetic_collusion_a_96x96.png",
+      "width": 96,
+      "height": 96,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "portrait",
+      "sha256_16": "d62be5bc49aa8baf",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/portraits/portrait_synthetic_collusion_b_96x96.png",
+      "assetPath": "Assets/Art/Kit/portraits/portrait_synthetic_collusion_b_96x96.png",
+      "width": 96,
+      "height": 96,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "portrait",
+      "sha256_16": "fe369b8867ec3f8d",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/portraits/portrait_synthetic_polished_a_96x96.png",
+      "assetPath": "Assets/Art/Kit/portraits/portrait_synthetic_polished_a_96x96.png",
+      "width": 96,
+      "height": 96,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "portrait",
+      "sha256_16": "93fd7e869a21b3a3",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/portraits/portrait_synthetic_polished_b_96x96.png",
+      "assetPath": "Assets/Art/Kit/portraits/portrait_synthetic_polished_b_96x96.png",
+      "width": 96,
+      "height": 96,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "portrait",
+      "sha256_16": "e6f88435319551fd",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/portraits/portrait_synthetic_polished_c_96x96.png",
+      "assetPath": "Assets/Art/Kit/portraits/portrait_synthetic_polished_c_96x96.png",
+      "width": 96,
+      "height": 96,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "portrait",
+      "sha256_16": "f15d36fff382c92e",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/ui/bar_trust_high.png",
+      "assetPath": "Assets/Art/Kit/ui/bar_trust_high.png",
+      "width": 64,
+      "height": 6,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "ui",
+      "sha256_16": "068374fd690c54d9",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp",
+        "border": [
+          8,
+          8,
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "source": "art/kit/ui/bar_trust_low.png",
+      "assetPath": "Assets/Art/Kit/ui/bar_trust_low.png",
+      "width": 64,
+      "height": 6,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "ui",
+      "sha256_16": "f9775e2f438b6429",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp",
+        "border": [
+          8,
+          8,
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "source": "art/kit/ui/bar_trust_mid.png",
+      "assetPath": "Assets/Art/Kit/ui/bar_trust_mid.png",
+      "width": 64,
+      "height": 6,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "ui",
+      "sha256_16": "a9715488998f4e39",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp",
+        "border": [
+          8,
+          8,
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "source": "art/kit/ui/button_danger_9slice.png",
+      "assetPath": "Assets/Art/Kit/ui/button_danger_9slice.png",
+      "width": 40,
+      "height": 20,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "ui",
+      "sha256_16": "1a87cf3f9615dab0",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp",
+        "border": [
+          8,
+          8,
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "source": "art/kit/ui/button_disabled_9slice.png",
+      "assetPath": "Assets/Art/Kit/ui/button_disabled_9slice.png",
+      "width": 40,
+      "height": 20,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "ui",
+      "sha256_16": "d3011c87ff9bee0e",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp",
+        "border": [
+          8,
+          8,
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "source": "art/kit/ui/button_hover_9slice.png",
+      "assetPath": "Assets/Art/Kit/ui/button_hover_9slice.png",
+      "width": 40,
+      "height": 20,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "ui",
+      "sha256_16": "b08a45f0a0e39cd5",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp",
+        "border": [
+          8,
+          8,
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "source": "art/kit/ui/button_idle_9slice.png",
+      "assetPath": "Assets/Art/Kit/ui/button_idle_9slice.png",
+      "width": 40,
+      "height": 20,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "ui",
+      "sha256_16": "b31ed98402ee5f46",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp",
+        "border": [
+          8,
+          8,
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "source": "art/kit/ui/button_pressed_9slice.png",
+      "assetPath": "Assets/Art/Kit/ui/button_pressed_9slice.png",
+      "width": 40,
+      "height": 20,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "ui",
+      "sha256_16": "59ec7b8d0dccea2d",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp",
+        "border": [
+          8,
+          8,
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "source": "art/kit/ui/button_primary_9slice.png",
+      "assetPath": "Assets/Art/Kit/ui/button_primary_9slice.png",
+      "width": 40,
+      "height": 20,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "ui",
+      "sha256_16": "930f4d08e746e57d",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp",
+        "border": [
+          8,
+          8,
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "source": "art/kit/ui/inset_9slice.png",
+      "assetPath": "Assets/Art/Kit/ui/inset_9slice.png",
+      "width": 16,
+      "height": 16,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "ui",
+      "sha256_16": "6d885faeeba5c457",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp",
+        "border": [
+          8,
+          8,
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "source": "art/kit/ui/panel_9slice.png",
+      "assetPath": "Assets/Art/Kit/ui/panel_9slice.png",
+      "width": 24,
+      "height": 24,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "ui",
+      "sha256_16": "3eb2120dead83fed",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp",
+        "border": [
+          8,
+          8,
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "source": "art/kit/ui/panel_active_9slice.png",
+      "assetPath": "Assets/Art/Kit/ui/panel_active_9slice.png",
+      "width": 24,
+      "height": 24,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "ui",
+      "sha256_16": "f1676ffecc0f2239",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp",
+        "border": [
+          8,
+          8,
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "source": "art/kit/ui/panel_danger_9slice.png",
+      "assetPath": "Assets/Art/Kit/ui/panel_danger_9slice.png",
+      "width": 24,
+      "height": 24,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "ui",
+      "sha256_16": "61273c29ed5d16b4",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp",
+        "border": [
+          8,
+          8,
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "source": "art/kit/ui/pip_full.png",
+      "assetPath": "Assets/Art/Kit/ui/pip_full.png",
+      "width": 6,
+      "height": 6,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "ui",
+      "sha256_16": "c1b8b86dd19b3fef",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp",
+        "border": [
+          8,
+          8,
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "source": "art/kit/ui/pip_used.png",
+      "assetPath": "Assets/Art/Kit/ui/pip_used.png",
+      "width": 6,
+      "height": 6,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "ui",
+      "sha256_16": "30f537ef9ec30caa",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp",
+        "border": [
+          8,
+          8,
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "source": "art/kit/ui/slider_knob.png",
+      "assetPath": "Assets/Art/Kit/ui/slider_knob.png",
+      "width": 7,
+      "height": 9,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "ui",
+      "sha256_16": "e3bb1befa2073600",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp",
+        "border": [
+          8,
+          8,
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "source": "art/kit/ui/slider_track.png",
+      "assetPath": "Assets/Art/Kit/ui/slider_track.png",
+      "width": 64,
+      "height": 4,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "ui",
+      "sha256_16": "6b720a1a5b33883f",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp",
+        "border": [
+          8,
+          8,
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "source": "art/kit/ui/tooltip_9slice.png",
+      "assetPath": "Assets/Art/Kit/ui/tooltip_9slice.png",
+      "width": 20,
+      "height": 16,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "ui",
+      "sha256_16": "f4c46c68ffcc6eaa",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp",
+        "border": [
+          8,
+          8,
+          8,
+          8
+        ]
+      }
+    },
+    {
+      "source": "art/kit/icons/check.png",
+      "assetPath": "Assets/Art/Kit/icons/check.png",
+      "width": 7,
+      "height": 5,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "icon",
+      "sha256_16": "675c9669fb26ffba",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/icons/check_active.png",
+      "assetPath": "Assets/Art/Kit/icons/check_active.png",
+      "width": 7,
+      "height": 5,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "icon",
+      "sha256_16": "92bec0aef14c9edf",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/icons/cross.png",
+      "assetPath": "Assets/Art/Kit/icons/cross.png",
+      "width": 5,
+      "height": 5,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "icon",
+      "sha256_16": "434dfcc2af7c06fe",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/icons/cross_active.png",
+      "assetPath": "Assets/Art/Kit/icons/cross_active.png",
+      "width": 5,
+      "height": 5,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "icon",
+      "sha256_16": "2b3299876b0411a3",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/icons/gear.png",
+      "assetPath": "Assets/Art/Kit/icons/gear.png",
+      "width": 7,
+      "height": 7,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "icon",
+      "sha256_16": "86c4a97228dbc5e8",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/icons/gear_active.png",
+      "assetPath": "Assets/Art/Kit/icons/gear_active.png",
+      "width": 7,
+      "height": 7,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "icon",
+      "sha256_16": "3b04c84a7f01cedf",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/icons/id_registry.png",
+      "assetPath": "Assets/Art/Kit/icons/id_registry.png",
+      "width": 7,
+      "height": 7,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "icon",
+      "sha256_16": "bbf18805d097ff04",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/icons/id_registry_active.png",
+      "assetPath": "Assets/Art/Kit/icons/id_registry_active.png",
+      "width": 7,
+      "height": 7,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "icon",
+      "sha256_16": "2761e3d9f97c81ad",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/icons/inbox.png",
+      "assetPath": "Assets/Art/Kit/icons/inbox.png",
+      "width": 7,
+      "height": 6,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "icon",
+      "sha256_16": "4ad649446724b59b",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/icons/inbox_active.png",
+      "assetPath": "Assets/Art/Kit/icons/inbox_active.png",
+      "width": 7,
+      "height": 6,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "icon",
+      "sha256_16": "3035ccb32907073f",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/icons/manual.png",
+      "assetPath": "Assets/Art/Kit/icons/manual.png",
+      "width": 7,
+      "height": 6,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "icon",
+      "sha256_16": "c706b65432703d66",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/icons/manual_active.png",
+      "assetPath": "Assets/Art/Kit/icons/manual_active.png",
+      "width": 7,
+      "height": 6,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "icon",
+      "sha256_16": "5e512d0ff90f881e",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/icons/metadata_scan.png",
+      "assetPath": "Assets/Art/Kit/icons/metadata_scan.png",
+      "width": 7,
+      "height": 7,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "icon",
+      "sha256_16": "9f6df228a9c8d62a",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/icons/metadata_scan_active.png",
+      "assetPath": "Assets/Art/Kit/icons/metadata_scan_active.png",
+      "width": 7,
+      "height": 7,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "icon",
+      "sha256_16": "edc738915ae3f6b6",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/icons/pause.png",
+      "assetPath": "Assets/Art/Kit/icons/pause.png",
+      "width": 6,
+      "height": 5,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "icon",
+      "sha256_16": "e28de6786442cd78",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/icons/pause_active.png",
+      "assetPath": "Assets/Art/Kit/icons/pause_active.png",
+      "width": 6,
+      "height": 5,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "icon",
+      "sha256_16": "e35cd3fbee072f92",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/icons/reference_call.png",
+      "assetPath": "Assets/Art/Kit/icons/reference_call.png",
+      "width": 7,
+      "height": 7,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "icon",
+      "sha256_16": "67c83fc055b3f672",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/icons/reference_call_active.png",
+      "assetPath": "Assets/Art/Kit/icons/reference_call_active.png",
+      "width": 7,
+      "height": 7,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "icon",
+      "sha256_16": "837dc9d2c1665c7b",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/stamps/stamp_approve.png",
+      "assetPath": "Assets/Art/Kit/stamps/stamp_approve.png",
+      "width": 56,
+      "height": 20,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "stamp",
+      "sha256_16": "f104216cec92eb44",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/stamps/stamp_reject.png",
+      "assetPath": "Assets/Art/Kit/stamps/stamp_reject.png",
+      "width": 56,
+      "height": 20,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "stamp",
+      "sha256_16": "346d40e0366e4db4",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/desk/document_sheet.png",
+      "assetPath": "Assets/Art/Kit/desk/document_sheet.png",
+      "width": 192,
+      "height": 108,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "5ace53fb43016d52",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/desk/id_card.png",
+      "assetPath": "Assets/Art/Kit/desk/id_card.png",
+      "width": 84,
+      "height": 52,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "c56d739a1ca6b36e",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/desk/monitor_bezel.png",
+      "assetPath": "Assets/Art/Kit/desk/monitor_bezel.png",
+      "width": 264,
+      "height": 200,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "488d3c7edab69f38",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/desk/table_and_chair.png",
+      "assetPath": "Assets/Art/Kit/desk/table_and_chair.png",
+      "width": 264,
+      "height": 54,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "a96612d922779892",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/backgrounds/office_L0.png",
+      "assetPath": "Assets/Art/Kit/backgrounds/office_L0.png",
+      "width": 480,
+      "height": 270,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "background",
+      "sha256_16": "0fbc235c53601507",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/backgrounds/office_L1.png",
+      "assetPath": "Assets/Art/Kit/backgrounds/office_L1.png",
+      "width": 480,
+      "height": 270,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "background",
+      "sha256_16": "088d51eb9e03342b",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/backgrounds/office_L2.png",
+      "assetPath": "Assets/Art/Kit/backgrounds/office_L2.png",
+      "width": 480,
+      "height": 270,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "background",
+      "sha256_16": "e9cb1c0f711be3cf",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    }
+  ],
+  "referenceSheets": [
+    "art/kit/reference/applicants_sheet.png",
+    "art/kit/reference/artifact_legend.png",
+    "art/kit/reference/character_spread.png",
+    "art/kit/reference/composition_preview.png",
+    "art/kit/reference/contact_sheet.png",
+    "art/kit/reference/palette_swatch.png",
+    "art/kit/reference/twin_desk_human_solid_a_f0_L0.png"
+  ]
+}

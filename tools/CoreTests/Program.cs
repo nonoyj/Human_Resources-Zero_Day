@@ -21,7 +21,10 @@ internal static class Program
         Console.WriteLine("====================");
 
         int failed = 0;
-        foreach (var line in GeneratorInvariantTests.RunAll())
+        var lines = new List<string>();
+        lines.AddRange(GeneratorInvariantTests.RunAll());
+        lines.AddRange(GameDataTests.RunAll());        // art -> Unity data bridge
+        foreach (var line in lines)
         {
             Console.WriteLine(line);
             if (line.StartsWith("FAIL")) failed++;

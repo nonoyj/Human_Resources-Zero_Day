@@ -1,0 +1,181 @@
+{
+  "layoutVersion": 1,
+  "generatedBy": "hand-authored, then frozen -- both the Unity scene builder and the offline twin read this",
+  "canvas": {
+    "width": 480,
+    "height": 270,
+    "pixelsPerUnit": 16,
+    "orthographicSize": 8.4375
+  },
+  "convention": {
+    "anchors": "px = pixels from bottom-left of the 480x270 canvas; y up (Unity convention)",
+    "rects": "x, y, w, h measured from the anchor: x grows right, y grows UP, so y is the BOTTOM edge",
+    "sortingOrder": "lower draws first (behind)"
+  },
+  "notes": [
+    "Applicant sprites are 192x216 and sit on the right half, feet at the desk edge (y=18).",
+    "The monitor occupies the left half: bezel at x=14, the email sheet overlaps its lower edge.",
+    "Hotspot rects are in APPLICANT-LOCAL pixels (0,0 = bottom-left of the 192x216 sprite) so they",
+    "survive the sprite being moved. tools/comp/twin_desk.py draws them for visual verification."
+  ],
+  "layers": [
+    {
+      "id": "background",
+      "sprite": "art/kit/backgrounds/office_L1.png",
+      "anchor": [
+        0,
+        0
+      ],
+      "sortingOrder": -20
+    },
+    {
+      "id": "monitor",
+      "sprite": "art/kit/desk/monitor_bezel.png",
+      "anchor": [
+        14,
+        52
+      ],
+      "sortingOrder": -10
+    },
+    {
+      "id": "document",
+      "sprite": "art/kit/desk/document_sheet.png",
+      "anchor": [
+        44,
+        6
+      ],
+      "sortingOrder": -5
+    },
+    {
+      "id": "applicant",
+      "sprite": "art/kit/applicants/app_human_solid_a_192x216.png",
+      "anchor": [
+        280,
+        18
+      ],
+      "sortingOrder": 0,
+      "frameSprite": "human_solid_a_neutral",
+      "animator": {
+        "frames": [
+          "neutral",
+          "breathe",
+          "breathe_fidget",
+          "blink"
+        ],
+        "fps": 4,
+        "loop": true
+      }
+    }
+  ],
+  "deskEdgeY": 18,
+  "hotspots": [
+    {
+      "artifact": "seam",
+      "rect": [
+        68,
+        196,
+        56,
+        16
+      ],
+      "label": "hairline against the wall"
+    },
+    {
+      "artifact": "mirror",
+      "rect": [
+        76,
+        156,
+        40,
+        28
+      ],
+      "label": "eyes and cheeks"
+    },
+    {
+      "artifact": "ear",
+      "rect": [
+        64,
+        148,
+        16,
+        44
+      ],
+      "label": "the near ear"
+    },
+    {
+      "artifact": "glasses_merge",
+      "rect": [
+        66,
+        160,
+        60,
+        16
+      ],
+      "label": "glasses arms"
+    },
+    {
+      "artifact": "skin_band",
+      "rect": [
+        80,
+        112,
+        32,
+        24
+      ],
+      "label": "jaw and neck"
+    },
+    {
+      "artifact": "hands",
+      "rect": [
+        16,
+        20,
+        160,
+        28
+      ],
+      "label": "fists on the desk"
+    },
+    {
+      "artifact": "straight_badge",
+      "rect": [
+        80,
+        54,
+        32,
+        48
+      ],
+      "label": "lanyard and badge"
+    },
+    {
+      "artifact": "shadow",
+      "rect": [
+        0,
+        0,
+        192,
+        14
+      ],
+      "label": "shadow on the desk"
+    },
+    {
+      "artifact": "no_blink",
+      "rect": [
+        76,
+        156,
+        40,
+        28
+      ],
+      "label": "never blinks (timed, shares the eye band)"
+    }
+  ],
+  "screens": {
+    "pixelPerfectCamera": {
+      "assetsPPU": 16,
+      "referenceResolution": [
+        480,
+        270
+      ],
+      "upscaleRT": false,
+      "cropFrame": false
+    },
+    "safeAreaPx": [
+      0,
+      0,
+      480,
+      270
+    ]
+  },
+  "hotspotSource": "rects derived from tools/art/make_applicants.py geometry; verified visually with tools/comp/twin_desk.py --hotspots"
+}

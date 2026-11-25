@@ -79,3 +79,9 @@ content/content/
 
 # local tooling config, never part of the project
 .nuget/
+
+# ---------- pipeline ----------
+# dotnet build output for the stub type-checker (tools/UnityStubs)
+tools/UnityStubs/bin/
+tools/UnityStubs/obj/
+# Unity's own meta/.meta files are tracked; generated Resources copies of the json are tracked too

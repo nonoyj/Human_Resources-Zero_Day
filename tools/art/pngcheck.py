@@ -156,3 +156,26 @@ def violations(path: str, palette_set, allow_partial_alpha: bool = False):
         if not allow_partial_alpha and 0 < px[3] < 255:
             return f'partial alpha: {px}'
     return None
+
+
+def write_rgba(path: str, width: int, height: int, pixels) -> None:
+    """Write an 8-bit RGBA PNG from [(r, g, b, a), ...] (row-major). No third-party library."""
+    import struct as _struct
+    import zlib as _zlib
+
+    def chunk(tag, body):
+        return (_struct.pack('>I', len(body)) + tag + body +
+                _struct.pack('>I', _zlib.crc32(tag + body) & 0xFFFFFFFF))
+
+    rows = bytearray()
+    for y in range(height):
+        rows.append(0)                                   # filter type 0 (None)
+        for x in range(width):
+            r, g, b, a = pixels[y * width + x]
+            rows += bytes((r, g, b, a))
+
+    ihdr = _struct.pack('>IIBBBBB', width, height, 8, 6, 0, 0, 0)
+    blob = (PNG_SIG + chunk(b'IHDR', ihdr) +
+            chunk(b'IDAT', _zlib.compress(bytes(rows), 9)) + chunk(b'IEND', b''))
+    with open(path, 'wb') as fh:
+        fh.write(blob)

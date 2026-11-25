@@ -18,6 +18,7 @@
     <Compile Include="Program.cs" />
     <Compile Include="../../unity/Assets/Scripts/Core/**/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Tests/GeneratorInvariantTests.cs" />
+    <Compile Include="GameDataTests.cs" />
   </ItemGroup>
 
 </Project>
