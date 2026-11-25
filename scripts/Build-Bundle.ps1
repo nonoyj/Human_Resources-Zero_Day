@@ -75,7 +75,9 @@ foreach ($rel in $tracked) {
     if ($parts | Where-Object { $skipDir -contains $_ }) { continue }
     if ($skipExt -contains ([System.IO.Path]::GetExtension($relNorm).ToLower())) { continue }
     if ($relNorm.IndexOfAny($badChar) -ge 0) { $skipped += $relNorm; continue }
-    $full = Join-Path $root $relNorm
+    # Join-Path with the original '/' form: git ls-files always reports forward slashes and .NET
+    # accepts them on Windows too. Normalising to '\\' breaks every non-Windows run (BUG-023).
+    $full = Join-Path $root $rel
     if (Test-Path -LiteralPath $full) { $files += (Get-Item -LiteralPath $full) }
 }
 OK "$($files.Count) files selected"
