@@ -142,3 +142,16 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
 - **Prevention rule:** **the agent installs toolchains only into excluded directories**
   (`.cache/`, `.venv/`, `node_modules/`, `/tmp`), never into a new dot-folder, and never into the repo.
   Check `du -sh` before the end of any turn that installs something.
+
+### BUG-009 — `.cache/` (a 567 MB SDK) was committed into git
+- **Found:** 2026-11-25 by the agent (git printed CRLF warnings for 700+ SDK files) · **Severity:** P1
+- **Symptom:** bundle/jRepo suddenly had 794 tracked files (expected 53) and `.git` grew 3 MB -> 36 MB.
+- **Root cause:** the platform *excludes* `.cache/` from workspace snapshots, but **git has its own
+  ignore list** -- and `.cache/` was not in `.gitignore`. `git add -A` then swept the entire SDK in.
+  Two independent ignore systems were conflated.
+- **Fix:** `.cache/`, `.tooling/`, `.dotnet/`, `.local/`, `uploads/` added to `.gitignore`; history
+  rewritten to drop the blobs (`filter-branch` + `gc`); `.git` back to 3.0 MB, 52 tracked files.
+- **Regression test:** after any `git add -A`, assert `git ls-files | wc -l` is under 100 and
+  `du -sh .git` is under 10 MB. Both are now part of the pre-delivery checklist.
+- **Prevention rule:** **the platform's snapshot-exclusion list and `.gitignore` are different lists --
+  satisfy both.** Never run `git add -A` in this workspace without checking the tracked-file count first.

@@ -81,3 +81,19 @@ That single habit would have prevented 4 of my 7 mistakes. It is now encoded as 
 **New habit, added to the rules:** after installing anything, print `du -sh` for the workspace and keep
 the persisted footprint under ~10 MB. Toolchains live in `.cache/` (excluded) or `/tmp` (ephemeral).
 **Nothing I install for verification ever belongs in the deliverable.**
+
+## Addendum 2 (same turn) -- I made it twice
+
+Two minutes after logging BUG-008 I committed the very directory I had just moved the SDK into, because
+I confused *"excluded from workspace snapshots"* with *"ignored by git"*. Same class of error as the
+bundle-without-`.git` mistake: **I assumed a property instead of checking it.**
+
+What changed for real this time:
+1. `.gitignore` now covers `.cache/`, `.tooling/`, `.dotnet/`, `.local/`, `uploads/`.
+2. The pre-delivery checklist has three hard numbers, checked every turn:
+   `git ls-files < 100`, `du -sh .git < 10 MB`, `du -sh --exclude=.cache --exclude=.git . < 15 MB`.
+3. After any `git add -A` I look at the tracked count before committing, not after.
+
+The pattern to name plainly: **my failures cluster around environment assumptions, not around
+algorithms.** The generator, the scoring, the tests -- those were built and verified. The mistakes were
+all "where does the file live and who ignores it". Guardrails now sit exactly there.
