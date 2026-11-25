@@ -342,3 +342,36 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
   make the transport self-describing (a `history.branch` literal) instead of inferring state by running
   git in a folder that may not be a repo. Also: never let a `catch {}` swallow the loop that performs a
   required swap.
+
+## BUG-022 — `return` inside a `foreach` exited the whole apply script
+
+- **Found:** 2026-11-26 while regression-testing the BUG-021 rewrite: the apply printed
+  `==> copying project files` and then simply stopped, exit code 0, no error.
+- **Severity:** P1 — a silent half-apply. The worst possible failure: no message, no non-zero exit.
+- **Root cause:** the copy loop was converted from `Get-ChildItem | ForEach-Object { ... return }` to a
+  plain `foreach ($it in $items) { ... }` but the `return` statements were kept. In a `ForEach-Object`
+  block `return` skips one item; in a plain `foreach` inside a script it returns from the *script*.
+- **Fix:** `continue` for skips, `foreach` kept for the early-exit-free structure. The comment in the
+  code now says so explicitly.
+- **Prevention rule:** after changing a pipeline block into a `foreach` statement (or back), grep the
+  block for `return`. They are not interchangeable.
+
+## BUG-023 — `Get-Item` silently refuses dot-files off Windows
+
+- **Found:** 2026-11-26 by the user-visible symptom `Could not find item /home/user/.gitattributes`,
+  thrown by the *first* tracked file during bundle build.
+- **Severity:** P2 — build-tooling only; Windows (where the team builds) is unaffected because
+  "hidden" there is an attribute, not a leading dot.
+- **Root cause:** on Linux/macOS PowerShell reports dot-prefixed names as hidden, and `Get-Item` (like
+  `Get-ChildItem` without `-Force`) skips hidden items and then complains the path does not exist.
+- **Fix:** `Get-Item -LiteralPath $full -Force`. Also kept the forward-slash form from `git ls-files`
+  instead of rewriting it to `\` (BUG-023b: that normalisation broke every non-Windows run).
+- **Prevention rule:** **any code path that touches dot-files must use `-Force`.** The Windows-only
+  habit hides this class of bug until someone runs the script in CI or on a Mac.
+
+## Bundle build is now exact (closing the whole class)
+
+`Build-Bundle.ps1` collects **`git ls-files`** (the tracked tree), refuses to build when the working
+tree is dirty, and ships `history.bundle` + `history.branch` instead of a `.git` folder. That makes
+"the zip" and "the commit it names" the same thing by construction — BUG-019, BUG-021 and every
+variant of "bundle newer than its HEAD" cannot recur.
