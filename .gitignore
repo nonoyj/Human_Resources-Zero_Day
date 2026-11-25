@@ -62,11 +62,9 @@ Unselected files/
 .tooling/
 bin/
 *.dll
-*.pdb
 .dotnet/
 .local/
 .cache/
-.tooling/
 uploads/
 
 # ---------- Nesting damage from the buggy update script (BUG-011) ----------
@@ -78,3 +76,6 @@ scripts/scripts/
 tools/tools/
 unity/unity/
 content/content/
+
+# local tooling config, never part of the project
+.nuget/
