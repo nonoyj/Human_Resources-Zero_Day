@@ -144,22 +144,22 @@ try {
 
     S "copying project files"
     $copied = 0
-    # Snapshot the list FIRST. Deleting from a folder while Get-ChildItem is still enumerating it (the
-    # working copy can be the same drive/root in tests) makes the enumerator throw mid-loop and the
-    # whole apply dies after a half-copy. Materialise, then act.
+    # Snapshot the list FIRST. Deleting from a folder while Get-ChildItem is still enumerating it makes
+    # the enumerator throw mid-loop and the apply dies after a half-copy. Materialise, then act.
+    # NOTE: this is a plain foreach, so `continue` (not `return`) is the skip -- `return` here would
+    # exit the whole script silently (BUG-022).
     $items = @(Get-ChildItem -LiteralPath $root.FullName -Force)
-    foreach ($item in $items) {
-        $_ = $item
-        if ($_.Name -eq '.git') { return }
+    foreach ($it in $items) {
+        if ($it.Name -eq '.git') { continue }
         # bundle transport files, not project files
-        if ($_.Name -in @('history.bundle', 'history.branch')) { return }
-        if ($_.PSIsContainer -and ($keepDirs -contains $_.Name)) { W "skipped $($_.Name)\"; return }
-        $dest = Join-Path $WorkingCopy $_.Name
-        if ($_.PSIsContainer) {
+        if ($it.Name -in @('history.bundle', 'history.branch')) { continue }
+        if ($it.PSIsContainer -and ($keepDirs -contains $it.Name)) { W "skipped $($it.Name)"; continue }
+        $dest = Join-Path $WorkingCopy $it.Name
+        if ($it.PSIsContainer) {
             if (Test-Path -LiteralPath $dest) { Remove-Item -LiteralPath $dest -Recurse -Force }
-            Copy-Item -LiteralPath $_.FullName -Destination $dest -Recurse -Force
+            Copy-Item -LiteralPath $it.FullName -Destination $dest -Recurse -Force
         } else {
-            Copy-Item -LiteralPath $_.FullName -Destination $dest -Force
+            Copy-Item -LiteralPath $it.FullName -Destination $dest -Force
         }
         $copied++
     }
