@@ -1,32 +1,33 @@
 # What to do next — the only page you need this week
 
-**Art kit approved. Everything is in the repo.** There is nothing to wait for.
+**Art kit v2 is in the repo (14 applicant archetypes + 9 AI artifacts).** Nothing to wait for.
 
 ---
 
 ## Step 1 — Take the bundle (2 commands)
 
-Download **`HR-ZeroDay-bundle-v14.zip`** and **`Apply-Bundle.ps1`** into `C:\Users\User\Downloads`, then:
+Download **`HR-ZeroDay-bundle-v16.zip`** and **`Apply-Bundle.ps1`** into `C:\Users\User\Downloads`, then:
 
 ```powershell
 cd C:\Users\User\Downloads
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-.\Apply-Bundle.ps1 -BundlePath .\HR-ZeroDay-bundle-v14.zip -Clean
+.\Apply-Bundle.ps1 -BundlePath .\HR-ZeroDay-bundle-v16.zip -Clean
 ```
 
 Confirm it worked:
 
 ```powershell
 cd C:\users\user\HR-ZeroDay
-git log --oneline -1                    # should be the newest commit
-git status --short                      # should print nothing
+git log --oneline -1                       # eed990f  (32 commits)
+git status --short                         # should print nothing
 python tools\art\make_art_kit.py --check   # PASS: every pixel is palette-conformant
+python tools\art\make_applicants.py --check # PASS: palette-conformant, no partial alpha
 ```
 
 ## Step 2 — Look at your art (5 minutes)
 
-Open `art\kit\reference\contact_sheet.png` (you approved it) and
-`art\kit\reference\palette_swatch.png`. Import rules are in `art\kit\README.md`:
+Open `art\kit\reference\applicants_sheet.png` (14 archetypes), `artifact_legend.png`
+(human vs AI, side by side) and `character_spread.png` (36 humans + 18 synthetics proves the variety). Import rules are in `art\kit\README.md`:
 Point filter, no compression, PPU 16, 9-slice border 8 px, Full Rect mesh.
 
 ## Step 3 — Send these two files to the others (this is the handoff)
