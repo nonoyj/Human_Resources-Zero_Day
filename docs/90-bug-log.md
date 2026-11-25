@@ -70,3 +70,17 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
   `.gitignore`, and the zip files were purged from history with `git filter-branch`.
 - **Prevention rule:** **verify a distributed artefact by extracting it and running the command the
   user will run** (`git log`) before announcing it as ready.
+
+### BUG-004 — `-Verify` reported `D10 adb: not on PATH` right after installing it in the same run
+- **Found:** 2026-11-25 by the user (install + verify in one invocation) · **Severity:** P1 (false alarm)
+- **Symptom:** `-D10 extracting platform-tools` printed `added ... to user PATH`, then the verify table
+  said `D10 FAIL not on PATH`. A second run in a *new* shell would have passed.
+- **Root cause:** `[Environment]::SetEnvironmentVariable(..., 'User')` writes the **registry**, but the
+  current process keeps the `$env:Path` it started with. `Get-Command adb` therefore can't see it.
+- **Fix:** `Update-SessionPath` rebuilds `$env:Path` from Machine+User registry values before the verify
+  pass; `D10` also looks for `adb.exe` on disk and refreshes PATH as a fallback. `D03`/`D04`/`D12` now
+  print the exact remediation instead of a bare `False`.
+- **Regression test:** run `-Verify` in the same process as an install; adb must report PASS or an
+  explicit "reopen PowerShell" message, never a misleading "not on PATH".
+- **Prevention rule:** **any check that depends on PATH/env must refresh from the registry first.**
+  Never verify an environment mutation inside the process that made it without re-reading the source of truth.

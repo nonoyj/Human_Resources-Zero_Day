@@ -49,6 +49,15 @@ function Add-Result ($id, $name, $ok, $detail) {
     $Results.Add([pscustomobject]@{ ID = $id; Tool = $name; Status = $(if ($ok) { 'PASS' } else { 'FAIL' }); Detail = $detail })
 }
 
+function Update-SessionPath {
+    # PATH edits made earlier in this same session are not visible to Get-Command.
+    # Rebuild the process PATH from the registry so verification is truthful (BUG-004).
+    $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+    $user    = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $merged  = (@($machine, $user) | Where-Object { $_ }) -join ';'
+    if ($merged) { $env:Path = $merged }
+}
+
 function Test-Cmd ($exe) {
     return [bool](Get-Command $exe -ErrorAction SilentlyContinue)
 }
@@ -184,6 +193,7 @@ if (-not $Verify) {
 
 # ---------------------------------------------------------------- VERIFY PHASE
 Write-Step 'VERIFY'
+Update-SessionPath
 Write-Host ("  machine: {0}  user: {1}  home: {2}" -f $env:COMPUTERNAME, $env:USERNAME, $UserHome) -ForegroundColor DarkGray
 
 # Unity Hub
@@ -208,8 +218,13 @@ $androidPlayer = Join-Path $editorPath 'PlaybackEngines\AndroidPlayer'
 $sdkOk = Test-Path (Join-Path $androidPlayer 'SDK')
 $ndkOk = Test-Path (Join-Path $androidPlayer 'NDK')
 $jdkOk = Test-Path (Join-Path $androidPlayer 'OpenJDK')
-Add-Result 'D03' 'Android Build Support' (Test-Path $androidPlayer) $androidPlayer
-Add-Result 'D04' 'Android SDK / NDK / OpenJDK' ($sdkOk -and $ndkOk -and $jdkOk) "SDK=$sdkOk NDK=$ndkOk JDK=$jdkOk"
+$d03Ok = Test-Path $androidPlayer
+$d03Detail = if ($d03Ok) { "present: $androidPlayer" }
+             else { 'MISSING -- Unity Hub > Installs > gear icon on 6000.3.29f1 > Add modules > Android Build Support (+ SDK & NDK Tools, + OpenJDK)' }
+Add-Result 'D03' 'Android Build Support' $d03Ok $d03Detail
+$d04Detail = if ($sdkOk -and $ndkOk -and $jdkOk) { 'SDK, NDK and OpenJDK all present' }
+             else { "SDK=$sdkOk NDK=$ndkOk JDK=$jdkOk -- re-run the Hub module install and tick all three" }
+Add-Result 'D04' 'Android SDK / NDK / OpenJDK' ($sdkOk -and $ndkOk -and $jdkOk) $d04Detail
 
 # Git + LFS
 $gitOk = Test-Cmd 'git'
@@ -246,11 +261,24 @@ Add-Result 'D09' 'GitHub CLI' $ghOk $ghDetail
 
 # adb
 $adbOk = Test-Cmd 'adb'
-Add-Result 'D10' 'adb (platform-tools)' $adbOk $(if ($adbOk) { (adb version | Select-Object -First 1) } else { 'not on PATH' })
+$adbExe = Join-Path $Android 'platform-tools\adb.exe'
+$adbDetail = 'not installed'
+if ($adbOk) {
+    $adbDetail = (& adb version 2>&1 | Select-Object -First 1)
+} elseif (Test-Path $adbExe) {
+    # installed, but this shell's PATH predates the change
+    $env:Path = "$env:Path;" + (Split-Path -Parent $adbExe)
+    $adbOk = Test-Cmd 'adb'
+    $adbDetail = if ($adbOk) { "found at $adbExe (PATH refreshed for this session)" } else { "installed at $adbExe but PATH still stale - reopen PowerShell" }
+}
+Add-Result 'D10' 'adb (platform-tools)' $adbOk $adbDetail
 
-# Python
-$pyOk = (Test-Cmd 'python') -or (Test-Cmd 'py')
-Add-Result 'D12' 'Python 3.x' $pyOk $(if ($pyOk) { try { (python --version) } catch { 'py launcher only' } } else { 'optional: needed to run prototype/generator_sim.py' })
+# Python (any 3.x is fine; winget's install may sit behind an older one on PATH)
+$pyDetail = 'not found (optional: needed for prototype/generator_sim.py)'
+$pyOk = $false
+if (Test-Cmd 'python') { $pyOk = $true; $pyDetail = (& python --version 2>&1 | Out-String).Trim() }
+if (Test-Cmd 'py')     { $pyOk = $true; $pyDetail += ' | launcher: ' + (& py -3 --version 2>&1 | Out-String).Trim() }
+Add-Result 'D12' 'Python 3.x' $pyOk $pyDetail
 
 # Repo sanity
 Write-Step 'repo checks'
