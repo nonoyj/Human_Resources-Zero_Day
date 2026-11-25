@@ -60,3 +60,5 @@ Unselected files/
 bin/
 *.dll
 *.pdb
+.dotnet/
+.local/
