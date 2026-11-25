@@ -235,3 +235,26 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
   `'HR-ZeroDay/scripts/Apply-Bundle.ps1' -in $names` on every build (wired into the script itself).
 - **Prevention rule:** **the operator's very first command must be tested from the folder the docs name.**
   Bundles are judged from `Downloads`, not from a repo.
+
+## BUG-016 — the palette checks needed Pillow, so verification failed on a clean machine
+
+- **Found:** 2026-11-26 by the user on the freshly applied v17:
+  `ModuleNotFoundError: No module named 'PIL'` from both `tools/art/make_art_kit.py --check` and
+  `tools/art/make_applicants.py --check`.
+- **Severity:** P1 — the art was fine; the *proof* was unavailable. The team's verify loop broke on
+  any machine that had not run `pip install pillow`.
+- **Root cause:** both checkers imported Pillow at module scope. `--check` only needs to *read* pixels,
+  and Pillow was doing work the standard library can do.
+- **Fix:** new `tools/art/pngcheck.py` — a dependency-free PNG decoder (colour types 0/2/3/4/6, 8-bit,
+  non-interlaced; all five filter types). Both `--check` paths now use it. Pillow is imported lazily and
+  is only required to *regenerate* art; without it the generators print
+  `Pillow is required to REGENERATE…` and exit 2 instead of crashing.
+  `Setup-DevEnvironment.ps1 -Verify` gained check `D13` so the dependency is visible, not implied.
+- **Regression test:** `tools/art/selfcheck_pngcheck.py` writes RGBA / palette+tRNS / grey+alpha PNGs,
+  decodes them back, and (when Pillow exists) cross-checks the decoder against Pillow on real kit files
+  -> `RESULT: PASS -- stdlib decoder is trustworthy`. Additionally both checkers were run with PIL
+  import-blocked (`PYTHONPATH` stub): both still print PASS, `73 sprites` and `28 applicant sprites`;
+  regeneration without Pillow exits 2 with a one-line explanation.
+- **Prevention rule:** **verification must never depend on a package that only the generator needs.**
+  If a check can be written against the standard library, write it that way — a green check that
+  requires an install is not a green check.

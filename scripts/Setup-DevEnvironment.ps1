@@ -289,11 +289,21 @@ $adbDetail = if ($adbOnDisk -and $adbOnPath) { (& adb version 2>&1 | Select-Obje
 Add-Result 'D10' 'adb (platform-tools)' $adbOk $adbDetail
 
 # Python (any 3.x is fine; winget's install may sit behind an older one on PATH)
-$pyDetail = 'not found (optional: needed for prototype/generator_sim.py)'
+$pyDetail = 'not found (needed for tools/art/* -- install Python 3.13)'
 $pyOk = $false
 if (Test-Cmd 'python') { $pyOk = $true; $pyDetail = (& python --version 2>&1 | Out-String).Trim() }
 if (Test-Cmd 'py')     { $pyOk = $true; $pyDetail += ' | launcher: ' + (& py -3 --version 2>&1 | Out-String).Trim() }
 Add-Result 'D12' 'Python 3.x' $pyOk $pyDetail
+
+# Pillow -- only needed to REGENERATE art. `--check` works without it (BUG-016).
+$pilOk = $false
+$pilDetail = 'not installed -- art checks still pass without it'
+if ($pyOk) {
+    $probe = (& python -c "import PIL, sys; sys.stdout.write(PIL.__version__)" 2>$null | Out-String).Trim()
+    if ($probe) { $pilOk = $true; $pilDetail = "Pillow $probe"
+    } else { $pilDetail = 'missing -- regenerate art with: python -m pip install pillow' }
+}
+Add-Result 'D13' 'Pillow (art generation)' $pilOk $pilDetail
 
 # Repo sanity
 Write-Step 'repo checks'

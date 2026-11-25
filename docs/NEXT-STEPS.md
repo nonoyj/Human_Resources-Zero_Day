@@ -20,9 +20,10 @@ Confirm it worked:
 cd C:\users\user\HR-ZeroDay
 git log --oneline -1                       # newest commit, 37+ commits (a hash here can never match: the doc commit moves HEAD)
 git status --short                         # should print nothing
-python tools\art\make_art_kit.py --check   # PASS: every pixel is palette-conformant
+python tools\art\make_art_kit.py --check   # PASS: every pixel is palette-conformant  (no Pillow needed)
 python tools\art\make_applicants.py --check # PASS: palette-conformant, no partial alpha
-.\scripts\Test-Scripts.ps1               # All scripts healthy  (6 scripts)
+.\scripts\Test-Scripts.ps1                 # All scripts healthy  (6 scripts)
+.\scripts\Setup-DevEnvironment.ps1 -Verify # D12 Python, D13 Pillow show PASS/skip
 ```
 
 ## Step 2 — Look at your art (5 minutes)

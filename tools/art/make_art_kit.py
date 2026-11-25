@@ -16,7 +16,17 @@ import argparse
 import os
 import sys
 
-from PIL import Image, ImageDraw
+# Pillow is needed to DRAW art, but never to CHECK it (BUG-016: a fresh Windows box has no
+# Pillow, so the verification command must not import it). Reading is done by pngcheck.py.
+try:
+    from PIL import Image, ImageDraw
+    HAVE_PIL = True
+except ImportError:                                  # pragma: no cover
+    Image = ImageDraw = None
+    HAVE_PIL = False
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from pngcheck import read_rgba                   # noqa: E402
 
 OUT = os.path.join(os.path.dirname(__file__), '..', '..', 'art', 'kit')
 
@@ -377,6 +387,12 @@ def main():
     if args.check:
         return check()
 
+    if not HAVE_PIL:
+        print("Pillow is required to REGENERATE art, but not to check it.")
+        print("  pip install pillow")
+        print("Or verify what is committed:  python tools/art/make_art_kit.py --check")
+        return 2
+
     made = []
     made += kit_nine_slices()
     made += kit_bars()
@@ -394,36 +410,44 @@ def main():
 
 
 def check() -> int:
-    """Every sprite must use only palette colours; no stray alpha."""
+    """Every sprite must use only palette colours; no stray alpha.
+
+    Reads PNGs with tools/art/pngcheck.py, so this runs on a machine with no Pillow (BUG-016).
+    """
     problems = []
     count = 0
-    for root, _dirs, files in os.walk(os.path.normpath(OUT)):
+    root_dir = os.path.normpath(OUT)
+    for root, _dirs, files in os.walk(root_dir):
         # reference/ holds documentation images (contact sheet, swatch) that use UI label colours
-        if os.path.basename(root) == 'reference' or 'reference' in os.path.relpath(root, os.path.normpath(OUT)):
+        if 'reference' in os.path.relpath(root, root_dir).split(os.sep):
             continue
         for f in sorted(files):
             if not f.endswith('.png'):
                 continue
             count += 1
             path = os.path.join(root, f)
-            img = Image.open(path).convert('RGBA')
             bad = set()
-            for px in list(img.getdata()):
+            try:
+                _w, _h, pixels = read_rgba(path)
+            except Exception as exc:                 # noqa: BLE001
+                problems.append(f"{os.path.relpath(path, root_dir)}: unreadable ({exc})")
+                continue
+            for px in pixels:
                 if px[3] == 0:
                     continue
-                if px[:3] not in PALETTE_SET and px[3] > 0:
-                    # allow the translucent scanline tint on L2 backgrounds
-                    if not (px[:3] == (0xff, 0x47, 0x57) and px[3] < 60):
-                        bad.add(px)
-                if 0 < px[3] < 255 and not (px[:3] == (0xff, 0x47, 0x57)):
+                # allow the translucent scanline tint on L2 backgrounds
+                is_alarm_tint = px[:3] == (0xff, 0x47, 0x57) and px[3] < 60
+                if px[:3] not in PALETTE_SET and not is_alarm_tint:
+                    bad.add(px)
+                if 0 < px[3] < 255 and px[:3] != (0xff, 0x47, 0x57):
                     bad.add(px)
             if bad:
-                problems.append(f"{os.path.relpath(path, os.path.normpath(OUT))}: {sorted(bad)[:4]}")
+                problems.append(f"{os.path.relpath(path, root_dir)}: {sorted(bad)[:4]}")
     print(f"checked {count} sprites")
     if problems:
-        print(f"PALETTE VIOLATIONS in {len(problems)} file(s):")
-        for p_ in problems:
-            print("   ", p_)
+        for line in problems[:8]:
+            print("   ", line)
+        print("FAIL: palette violations above")
         return 1
     print("PASS: every pixel is palette-conformant, no partial alpha")
     return 0

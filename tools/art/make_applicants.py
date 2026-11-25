@@ -28,7 +28,16 @@ import argparse
 import os
 import sys
 
-from PIL import Image
+# Pillow draws; it never verifies (BUG-016).
+try:
+    from PIL import Image
+    HAVE_PIL = True
+except ImportError:                                  # pragma: no cover
+    Image = None
+    HAVE_PIL = False
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from pngcheck import read_rgba                   # noqa: E402
 
 OUT = os.path.join(os.path.dirname(__file__), '..', '..', 'art', 'kit')
 
@@ -377,6 +386,7 @@ def make_portrait(state: Applicant) -> Image.Image:
 
 
 def check() -> int:
+    """Palette + alpha rules, read with the stdlib decoder -- runs without Pillow."""
     root = os.path.normpath(OUT)
     problems, count = [], 0
     for sub in ('applicants', 'portraits'):
@@ -387,7 +397,13 @@ def check() -> int:
             if not f.endswith('.png'):
                 continue
             count += 1
-            for px in list(Image.open(os.path.join(d, f)).convert('RGBA').getdata()):
+            path = os.path.join(d, f)
+            try:
+                _w, _h, pixels = read_rgba(path)
+            except Exception as exc:                 # noqa: BLE001
+                problems.append((f, f'unreadable ({exc})'))
+                continue
+            for px in pixels:
                 if px[3] == 0:
                     continue
                 if px[:3] not in PALETTE_SET or 0 < px[3] < 255:
@@ -397,6 +413,7 @@ def check() -> int:
     if problems:
         for f, px in problems[:8]:
             print("   ", f, px)
+        print("FAIL: palette violations above")
         return 1
     print("PASS: palette-conformant, no partial alpha")
     return 0
@@ -408,6 +425,11 @@ def main():
     args = ap.parse_args()
     if args.check:
         return check()
+    if not HAVE_PIL:
+        print("Pillow is required to REGENERATE sprites, but not to check them.")
+        print("  pip install pillow")
+        print("Or verify what is committed:  python tools/art/make_applicants.py --check")
+        return 2
     root = os.path.normpath(OUT)
     made = []
     for name, (seed, syn, arts) in ARCHETYPES.items():
