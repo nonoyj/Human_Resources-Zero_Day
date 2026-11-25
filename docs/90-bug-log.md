@@ -113,3 +113,16 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
   "installed ... reopen PowerShell", never a bare "not installed".
 - **Prevention rule:** **distinguish "not installed" from "not visible in this shell".** Report the fact
   and the remedy separately.
+
+### BUG-007 — the headless test harness shipped without its `.csproj`
+- **Found:** 2026-11-25 by the agent during bundle verification · **Severity:** P1
+- **Symptom:** fresh clone -> `dotnet run --project tools\CoreTests` ->
+  *"Couldn't find a project to run."* Only `Program.cs` was committed.
+- **Root cause:** the standard Unity `.gitignore` contains `*.csproj`; it silently excluded
+  `tools/CoreTests/CoreTests.csproj`. `git status` looked clean, so nothing warned me.
+- **Fix:** added `!tools/**/*.csproj` to `.gitignore` and committed the project file.
+- **Regression test:** the bundle check now extracts the zip and runs
+  `dotnet run --project tools/CoreTests` from the extracted copy -- a clone that cannot build its own
+  tests fails the check.
+- **Prevention rule:** **verify a distribution by exercising it from a clean clone** (build + test),
+  not by inspecting the source tree. Ignore rules are part of the build.
