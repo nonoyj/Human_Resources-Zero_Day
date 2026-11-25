@@ -65,3 +65,6 @@ bin/
 *.pdb
 .dotnet/
 .local/
+.cache/
+.tooling/
+uploads/
