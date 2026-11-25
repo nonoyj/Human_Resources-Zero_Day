@@ -80,3 +80,39 @@ The 6 analytics/save tests in `docs/10-analytics-spec.md` §5. Profile: applican
 ```
 STATUS / DONE (files) / NEXT / BLOCKED ON + suggested default / RISK / EVIDENCE
 ```
+
+---
+
+## NEW (2026-11-26) — the art → Unity bridge is ready before the project exists
+
+You do not have to guess import settings or hand-place sprites. Six new files land in `unity/`:
+
+| File | What it does | Who touches it |
+|---|---|---|
+| `Assets/Art/Kit/**` (73 PNGs) | byte-identical copy of `art/kit` | nobody hand-edits |
+| `Assets/Resources/unity_sprites.json` | every sprite + its import settings | nobody hand-edits |
+| `Assets/Resources/desk_layout.json` | where each sprite sits on the 480x270 desk | reviewed by hand |
+| `Assets/Scripts/Game/**` | `DeskLayoutData`, `SpriteManifest`, `ApplicantView`, `DeskSceneBuilder` | Dev A |
+| `Assets/Scripts/Editor/ArtKitImporter.cs` | menu: `HR//0D > Import Art Kit` / `Verify Art Import` | Dev B runs it |
+| `Assets/Scripts/Editor/HRZeroDayMenu.cs` | menu: `HR//0D > Build Desk Scene` / `Pipeline Self-Check` | Dev B runs it |
+
+### Task order (after your task 1 creates the project)
+
+1. Create the URP 2D project on **6000.3.29f1** as described in task 1, then copy `ProjectSettings/` and
+   `Packages/` in. The `unity/Assets` tree already exists — do not overwrite it.
+2. Open the project, wait for the first import to finish.
+3. Menu **HR//0D > Import Art Kit** → Console: `art kit import: 73 sprites checked … updated …`.
+4. Menu **HR//0D > Verify Art Import** → `art import PASS -- 73 sprites are Point, uncompressed, 16 PPU, sliced`.
+5. Menu **HR//0D > Build Desk Scene** → creates `Assets/Scenes/Desk.unity`.
+6. Open the scene, press Play: the applicant breathes at 4 fps, the monitor is on the left.
+7. Commit the generated `.meta` files. **Never** edit anything under `Assets/Art/Kit`.
+
+### Rules
+
+- Do not change `Filter Mode`, `Compression`, `PPU` or slicing by hand — the importer owns those, and
+  `Verify Art Import` will flag any hand edit.
+- The applicant's 4 frames are named `<archetype>_neutral`, `_breathe`, `_breathe_fidget`, `_blink`.
+  `ApplicantView.frames` is filled by `DeskSceneBuilder`; the animation tell (`no_blink`) is enforced
+  in code, so do not "fix" a synthetic that never blinks.
+- `Assets/Resources/*.json` are copies. If they look stale, run `python tools/art/publish_to_unity.py`
+  from the repo root (no Unity needed).
