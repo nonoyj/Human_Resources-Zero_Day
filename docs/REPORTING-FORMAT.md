@@ -46,3 +46,9 @@ Each step says what "done" looks like.
 | 6 | Agent | Applicant sprites + portraits | Next art pass |
 | 7 | Agent | Backend catch-up document | On request ("when I say it or when I'm stopping") |
 | 8 | Agent | Unity glue layer (SaveSystem, ContentLoader, Analytics, GameManager) | After art, or on request |
+
+### Ledger update 2026-11-26 — item #1 (push) is no longer DEFERRED
+
+The user joined the GitHub repo as a collaborator, so pushing is now available. Standing rule replaces
+the old "never attempt pushes": **use `scripts/Connect-Remote.ps1` (dry run first); never
+`--force` without `-ReplaceRemoteHistory`, and never store a credential inside the repo.**

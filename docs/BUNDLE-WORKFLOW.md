@@ -171,3 +171,38 @@ git log --oneline -1 ; git status --short
 python tools\art\make_art_kit.py --check
 python tools\art\make_applicants.py --check
 ```
+
+---
+
+## Retiring bundles: the first push to GitHub
+
+Bundles exist only because there was no remote. Once the repo is on GitHub, `git pull` / `git push`
+replace them.
+
+```powershell
+cd C:\users\user\HR-ZeroDay
+.\scripts\Connect-Remote.ps1                     # dry run: connect, fetch, report. changes nothing.
+.\scripts\Connect-Remote.ps1 -Push               # push when the remote is empty or behind you
+.\scripts\Connect-Remote.ps1 -Push -ReplaceRemoteHistory   # only if GitHub made a README commit
+```
+
+### Why a plain `git push` can be rejected even though you have access
+
+Being a collaborator grants **permission**; git still has to **authenticate** (prove who you are) on
+every push, and the histories must be related:
+
+| Symptom | Real cause | Fix |
+|---|---|---|
+| `could not read Username` / `Authentication failed` | no credential yet | just push: Git Credential Manager opens a browser; sign in once (no token needed) |
+| `Updates were rejected because the remote contains work you do not have` | GitHub auto-created a README/initial commit, so the two histories share no ancestor | `-Push -ReplaceRemoteHistory`, then set the default branch in Settings if it is `master` |
+| `Permission denied` / `protected branch` | you are a member but not a writer, or `main` is protected | ask the owner; do not force |
+
+### Credentials: which one do you need?
+
+- **Browser sign-in (default, recommended).** Git for Windows installs Git Credential Manager; the
+  first push opens a window, you authorise once, and the token is cached in Windows Credential Manager.
+- **Personal Access Token** only when there is no browser (headless/CI). Fine-grained token,
+  Contents = Read and write. Paste it when git asks for a *password*.
+- **SSH** for a permanent key-based setup: `-UseSsh` after uploading `~/.ssh/id_ed25519.pub`.
+
+Never put a token in a file inside the repo, and never paste it into a handoff doc.

@@ -27,6 +27,15 @@ python tools\art\make_applicants.py --check # PASS: palette-conformant, no parti
 .\scripts\Setup-DevEnvironment.ps1 -Verify # D12 Python, D13 Pillow show PASS/skip
 ```
 
+## Step 1b — Connect the GitHub repo (retires bundles)
+
+```powershell
+.\scripts\Connect-Remote.ps1                 # dry run, prints exactly what would happen
+.\scripts\Connect-Remote.ps1 -Push           # if the remote is empty or behind you
+.\scripts\Connect-Remote.ps1 -Push -ReplaceRemoteHistory   # if GitHub made its own README commit
+```
+A browser window opens once for sign-in. You do **not** need to create a token by hand.
+
 ## Step 2 — Look at your art (5 minutes)
 
 Open, in this order:
