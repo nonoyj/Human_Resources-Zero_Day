@@ -6,22 +6,23 @@
 
 ## Step 1 — Take the bundle (2 commands)
 
-Download **`HR-ZeroDay-bundle-v16.zip`** and **`Apply-Bundle.ps1`** into `C:\Users\User\Downloads`, then:
+Download **`HR-ZeroDay-bundle-v17.zip`** and **`Apply-Bundle.ps1`** into `C:\Users\User\Downloads`, then:
 
 ```powershell
 cd C:\Users\User\Downloads
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-.\Apply-Bundle.ps1 -BundlePath .\HR-ZeroDay-bundle-v16.zip -Clean
+.\Apply-Bundle.ps1 -BundlePath .\HR-ZeroDay-bundle-v17.zip -Clean
 ```
 
 Confirm it worked:
 
 ```powershell
 cd C:\users\user\HR-ZeroDay
-git log --oneline -1                       # newest commit (33 commits total)
+git log --oneline -1                       # 621b71f (35 commits)
 git status --short                         # should print nothing
 python tools\art\make_art_kit.py --check   # PASS: every pixel is palette-conformant
 python tools\art\make_applicants.py --check # PASS: palette-conformant, no partial alpha
+.\scripts\Test-Scripts.ps1               # All scripts healthy  (6 scripts)
 ```
 
 ## Step 2 — Look at your art (5 minutes)
