@@ -146,6 +146,8 @@ try {
     $copied = 0
     Get-ChildItem -LiteralPath $root.FullName -Force | ForEach-Object {
         if ($_.Name -eq '.git') { return }
+        # bundle transport files, not project files
+        if ($_.Name -in @('history.bundle', 'history.branch')) { return }
         if ($_.PSIsContainer -and ($keepDirs -contains $_.Name)) { W "skipped $($_.Name)\"; return }
         $dest = Join-Path $WorkingCopy $_.Name
         if ($_.PSIsContainer) {

@@ -36,7 +36,6 @@ crashlytics-build.properties
 .DS_Store
 Thumbs.db
 desktop.ini
-
 # ---------- Secrets ----------
 .env
 .env.*
@@ -44,29 +43,23 @@ desktop.ini
 *.jks
 keystore.properties
 !*.keystore.example
-
 # ---------- Tooling ----------
 node_modules/
 __pycache__/
 *.log
 !docs/**/*.log
-
 # ---------- Distribution / generated ----------
 *.zip
 Unselected files/
-
 # Unity ignores *.csproj globally; the headless test harness needs its own
 !tools/**/*.csproj
-
 # ---------- Agent tooling (not part of the deliverable) ----------
-.tooling/
 bin/
 *.dll
 .dotnet/
 .local/
 .cache/
 uploads/
-
 # ---------- Nesting damage from the buggy update script (BUG-011) ----------
 art/art/
 docs/docs/
@@ -76,20 +69,16 @@ scripts/scripts/
 tools/tools/
 unity/unity/
 content/content/
-
 # local tooling config, never part of the project
 .nuget/
-
 # ---------- pipeline ----------
 # dotnet build output for the stub type-checker (tools/UnityStubs)
 tools/UnityStubs/bin/
 tools/UnityStubs/obj/
 # Unity's own meta/.meta files are tracked; generated Resources copies of the json are tracked too
-
 # scratch clones used by script tests
 .idtest/
+# agent scratch dirs (script tests) -- keep them out of the repo, always
+.t*/
+.scratch/
 .tmpcheck/
-.t1/
-.t[0-9]/
-.t4/
-.t5/
