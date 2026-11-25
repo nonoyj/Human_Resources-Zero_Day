@@ -179,6 +179,16 @@ python tools\art\make_applicants.py --check
 Bundles exist only because there was no remote. Once the repo is on GitHub, `git pull` / `git push`
 replace them.
 
+### Bundle anatomy (since v26)
+
+| File | Purpose |
+|---|---|
+| `HR-ZeroDay/history.bundle` | the entire git history, verified by `git bundle verify` |
+| `HR-ZeroDay/history.branch` | which branch to check out (`main`) |
+| `Apply-Bundle.ps1` (zip root and `HR-ZeroDay/`) | bootstrap; rebuilds `.git` from the bundle, keeps your `origin` |
+
+A `.git` folder is **never** shipped -- copying one recursively is what broke v22 (BUG-021).
+
 ```powershell
 cd C:\users\user\HR-ZeroDay
 .\scripts\Connect-Remote.ps1                     # dry run: connect, fetch, report. changes nothing.

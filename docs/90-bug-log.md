@@ -315,3 +315,30 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
 - **Prevention rule:** **test on the operator's shell, not the one you have.** The sandbox has
   PowerShell 7; the user has 5.1. Any stderr redirection of a native tool is a 5.1 landmine.
   `.\scripts\Test-Scripts.ps1` only catches *parse* errors — it cannot catch this class.
+
+## BUG-021 — a copied `.git` folder produced a working copy that was dirty no matter what
+
+- **Found:** 2026-11-26 while reproducing the user's v22 apply: files arrived (including the *new*
+  `Apply-Bundle.ps1`) but `git log` still showed the OLD commit and `git status` listed 8 entries.
+- **Severity:** P1 — every bundle after the first was untrustworthy, and the GitHub push published a
+  snapshot whose own scripts were older than the files next to them.
+- **Root cause:** three independent faults, all in "copy `.git` with `Copy-Item -Recurse`":
+  1. the copy loop set `ErrorActionPreference='Stop'`, so the first file Windows refused (a locked
+     `.git/index`) aborted the whole `.git` copy inside `try{}catch{}` — the exception was swallowed and
+     the swap silently never happened;
+  2. a replaced `.git` was therefore never introduced, leaving HEAD old while files were new;
+  3. later, discovering the branch by running `git` inside the *extracted* folder resolved to an
+     unrelated parent repository (the test sandbox), returning an empty branch name.
+- **Fix:** history no longer travels as a `.git` folder. `Build-Bundle.ps1` writes a **git bundle**
+  (`git bundle create … main`, verified with `git bundle verify` → *"records a complete history"*) plus a
+  literal `history.branch` file. `Apply-Bundle.ps1` then does `git init` + `git fetch history.bundle`
+  + `symref HEAD` + `reset --mixed`, preserving the user's `origin`, and excludes the two transport
+  files from the file copy. `-Reinstall` added for "match the files to HEAD without touching a remote".
+  `Apply-Bundle` now **exits 1 and prints the fix** when the tree is dirty instead of warning politely.
+- **Proven on three scenarios:** stale `.git` + real origin → `history adopted: main at a70342c`,
+  `origin preserved`, `working tree clean -- files match HEAD exactly`; empty folder → same, with a
+  `no origin` hint; running the repo's own script copy → clean.
+- **Prevention rule:** **never package a `.git` directory.** Ship a bundle file that git validates, and
+  make the transport self-describing (a `history.branch` literal) instead of inferring state by running
+  git in a folder that may not be a repo. Also: never let a `catch {}` swallow the loop that performs a
+  required swap.
