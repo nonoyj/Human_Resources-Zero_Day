@@ -91,3 +91,5 @@ tools/UnityStubs/obj/
 .tmpcheck/
 .t1/
 .t[0-9]/
+.t4/
+.t5/

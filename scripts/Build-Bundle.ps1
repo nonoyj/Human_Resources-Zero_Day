@@ -90,6 +90,10 @@ $bundleCheck = (& git -C $root bundle verify $bundleTmp 2>&1 | Out-String)
 if ($bundleCheck -notmatch 'complete history') { D "git bundle verify did not confirm a complete history`n$bundleCheck" }
 OK "history bundle: $branchName, $([math]::Round((Get-Item $bundleTmp).Length / 1MB, 2)) MB, verified"
 
+$branchFileTmp = Join-Path ([System.IO.Path]::GetTempPath()) ("hr0d-branch-" + [Guid]::NewGuid().ToString('N').Substring(0, 8) + ".txt")
+Set-Content -LiteralPath $branchFileTmp -Value $branchName -NoNewline -Encoding ascii
+OK "branch recorded: $branchName"
+
 S "writing $zip"
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [System.IO.Compression.ZipFile]::Open($zip, 'Create')
@@ -103,6 +107,9 @@ try {
     [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
         $archive, $bundleTmp, 'HR-ZeroDay/history.bundle',
         [System.IO.Compression.CompressionLevel]::Optimal)
+    [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+        $archive, $branchFileTmp, 'HR-ZeroDay/history.branch',
+        [System.IO.Compression.CompressionLevel]::Optimal)
     # the bootstrap must be reachable from the folder the operator stands in
     [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
         $archive, (Join-Path $root 'scripts\Apply-Bundle.ps1'), 'Apply-Bundle.ps1',
@@ -111,6 +118,7 @@ try {
 finally { $archive.Dispose() }
 OK "archive closed"
 Remove-Item -LiteralPath $bundleTmp -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $branchFileTmp -Force -ErrorAction SilentlyContinue
 
 S "verifying the archive"
 $check = [System.IO.Compression.ZipFile]::OpenRead($zip)
@@ -121,6 +129,7 @@ try {
 if ($names -notcontains 'Apply-Bundle.ps1')                        { D "bootstrap missing at zip root" }
 if ($names -notcontains 'HR-ZeroDay/scripts/Apply-Bundle.ps1')     { D "bootstrap missing inside HR-ZeroDay" }
 if ($names -notcontains 'HR-ZeroDay/history.bundle')               { D "history.bundle missing from zip" }
+if ($names -notcontains 'HR-ZeroDay/history.branch')               { D "history.branch missing from zip" }
 if ($names | Where-Object { $_ -like 'HR-ZeroDay/.git/*' })        { D ".git leaked into the zip (must ship as history.bundle)" }
 $leak = $names | Where-Object { $_ -match '/(\.local|\.nuget|\.dotnet|\.tooling|node_modules|Library)/' }
 if ($leak) { D "tooling cache leaked into the zip: $($leak | Select-Object -First 3)" }

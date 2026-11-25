@@ -25,6 +25,9 @@
 .PARAMETER Clean
     Also remove nesting damage (art\art, docs\docs, ...).
 
+.PARAMETER Branch
+    Branch to check out after adopting the history. Default: main.
+
 .PARAMETER NoGit
     Do not touch .git (keeps your current history).
 
@@ -40,7 +43,8 @@ param(
     [string]$WorkingCopy = (Join-Path $(if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }) 'HR-ZeroDay'),
     [switch]$Clean,
     [switch]$Reinstall,
-    [switch]$NoGit
+    [switch]$NoGit,
+    [string]$Branch = 'main'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -102,8 +106,13 @@ try {
         $srcBundle = Join-Path $root.FullName 'history.bundle'
         if (Test-Path -LiteralPath $srcBundle) {
             $dstGit = Join-Path $WorkingCopy '.git'
-            $srcPath = (& git -C $root.FullName rev-parse --show-toplevel 2>$null | Out-String).Trim()
-            if (-not $srcPath) { $srcPath = $root.FullName }
+            # NB: do NOT run git inside the extracted folder to discover the branch -- the extracted
+            # project has no .git, so git walks up to an unrelated parent repository (this bit us in
+            # testing: it reported the outer repo's branch). Build-Bundle.ps1 records the branch in
+            # history.branch instead.
+            $branchFile = Join-Path $root.FullName 'history.branch'
+            $bBranch = if (Test-Path -LiteralPath $branchFile) { (Get-Content -LiteralPath $branchFile -Raw).Trim() } else { $Branch }
+            if (-not $bBranch) { $bBranch = 'main' }
 
             # remember origin before anything is replaced
             $savedRemote = $null
@@ -117,7 +126,6 @@ try {
             & git -C $WorkingCopy init -q 2>&1 | Out-Host
             & git -C $WorkingCopy fetch -q $srcBundle "refs/heads/*:refs/heads/*" 2>&1 | Out-Host
             if ($LASTEXITCODE -ne 0) { D "fetch from history.bundle failed" }
-            $bBranch = ((& git -C $srcPath rev-parse --abbrev-ref HEAD 2>$null) | Out-String).Trim()
             & git -C $WorkingCopy symbolic-ref HEAD "refs/heads/$bBranch" 2>&1 | Out-Host
             & git -C $WorkingCopy reset -q --mixed "refs/heads/$bBranch" 2>&1 | Out-Host
             OK "history adopted: $bBranch at $((& git -C $WorkingCopy rev-parse --short $bBranch))"
