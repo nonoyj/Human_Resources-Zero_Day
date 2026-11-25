@@ -284,3 +284,34 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
 - **Prevention rule:** **the Unity-facing code must compile without Unity.** `tools/UnityStubs` +
   `.\scripts\Test-ArtPipeline.ps1` do this in ~6 s; it has already paid for itself three times
   (also caught a missing `using`, an ambiguous `TextAsset`, and `Color32` -> `Color`).
+
+## BUG-019 — applying a bundle without `-Clean` left the files newer than HEAD
+
+- **Found:** 2026-11-26 by the user while applying v21: files landed correctly (`Test-Path` -> `True`)
+  but `git log` still showed `dc55e59` and `git status` listed 6 modified/untracked entries.
+- **Severity:** P1 — the exact "is my copy right?" doubt the bundle exists to remove. It also made the
+  new `Connect-Remote.ps1` look broken when it was merely uncommitted.
+- **Root cause:** `.git` was only adopted when `-Clean` was passed, but the file copy always ran. So a
+  non-Clean apply overwrote the working tree while keeping the older history — dirty by construction.
+- **Fix:** `Apply-Bundle.ps1` now adopts the bundle's `.git` on **every** apply (unless `-NoGit`),
+  saves and restores the user's `origin` URL (a bundle's `.git` has no remote), and runs
+  `git reset --mixed HEAD` so index and files agree.
+- **Prevention rule:** **the file copy and the history copy must be one operation.** If a step can
+  leave files and HEAD disagreeing, it must not exist.
+
+## BUG-020 — `git fetch ... 2>&1 | Out-String` kills the script in PowerShell 5.1
+
+- **Found:** 2026-11-26 by the user on Windows PowerShell 5.1 (`Connect-Remote.ps1` printed `==> fetching`
+  then `NativeCommandError` and stopped, even though the fetch itself had succeeded).
+- **Severity:** P1 — the runbook died at the moment it was supposed to report good news.
+- **Root cause:** PS 5.1 wraps a native command's **first stderr line** in an `ErrorRecord`; with
+  `$ErrorActionPreference = 'Stop'` and a redirection/pipe (`2>&1 |`), that record is *terminating*.
+  Git writes progress and `From https://…` to stderr by design. PowerShell 7 changed this behaviour,
+  which is why the sandbox never reproduced it.
+- **Fix:** never redirect a native command's stderr when the script may run on 5.1 — use
+  `& git fetch origin --prune | Out-Host`, and set `$ErrorActionPreference = 'Continue'` before native
+  calls, checking `$LASTEXITCODE` instead of relying on exceptions. Also dropped a stale `$branch`
+  reference that printed `git push -u origin ` with no branch name.
+- **Prevention rule:** **test on the operator's shell, not the one you have.** The sandbox has
+  PowerShell 7; the user has 5.1. Any stderr redirection of a native tool is a 5.1 landmine.
+  `.\scripts\Test-Scripts.ps1` only catches *parse* errors — it cannot catch this class.

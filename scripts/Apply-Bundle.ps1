@@ -78,14 +78,31 @@ try {
         }
     }
 
-    if ($Clean -and -not $NoGit) {
+    # Adopt the bundle's git history on EVERY apply, not just -Clean: the files are about to be
+    # overwritten wholesale, so if the bundle contains newer commits and we keep the old .git, the
+    # working tree ends up dirty against the wrong HEAD (BUG-019).
+    if (-not $NoGit) {
         S "adopting the bundle's git history"
         $srcGit = Join-Path $root.FullName '.git'
         if (Test-Path -LiteralPath $srcGit) {
             $dstGit = Join-Path $WorkingCopy '.git'
-            if (Test-Path -LiteralPath $dstGit) { Remove-Item -LiteralPath $dstGit -Recurse -Force }
+            # keep the user's remote config; a bundle's .git has no origin
+            $savedRemote = $null
+            if (Test-Path -LiteralPath $dstGit) {
+                Push-Location $WorkingCopy
+                try { $savedRemote = ((& git remote get-url origin) 2>$null | Out-String).Trim() } catch { }
+                Pop-Location
+                Remove-Item -LiteralPath $dstGit -Recurse -Force
+            }
             Copy-Item -LiteralPath $srcGit -Destination $dstGit -Recurse -Force
             OK ".git replaced"
+            Push-Location $WorkingCopy
+            try {
+                if ($savedRemote) { & git remote add origin $savedRemote 2>$null; OK "origin preserved: $savedRemote" }
+                # the bundle's index must match its own checkout exactly
+                & git reset -q --mixed HEAD 2>$null
+            } catch { }
+            Pop-Location
         } else { W "bundle has no .git; history left untouched" }
     }
 

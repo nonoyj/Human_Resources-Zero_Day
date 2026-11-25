@@ -57,6 +57,11 @@ function OK ($m) { Write-Host "  [ok]   $m" -ForegroundColor Green }
 function W  ($m) { Write-Host "  [warn] $m" -ForegroundColor Yellow }
 function D  ($m) { Write-Host "  [FAIL] $m" -ForegroundColor Red; exit 1 }
 
+# PowerShell 5.1 turns the FIRST stderr line of a native command into a terminating
+# NativeCommandError when that stream is redirected (2>&1), which killed this script at 'git fetch'.
+# Keeping stderr on its own channel is harmless and works identically in PS 5.1 and 7+.
+$ErrorActionPreference = 'Continue'
+
 $repo = Split-Path -Parent $PSScriptRoot
 Push-Location $repo
 try {
@@ -102,7 +107,7 @@ try {
 
     S "fetching (no changes yet)"
     $fetchOk = $true
-    & git fetch origin --prune 2>&1 | Out-String | Write-Host
+    & git fetch origin --prune | Out-Host
     if ($LASTEXITCODE -ne 0) { $fetchOk = $false }
 
     if (-not $fetchOk) {
@@ -112,7 +117,7 @@ try {
 Nothing was changed. To authenticate:
 
   A) The easy path (recommended on Windows)
-     Just run:  git push -u origin $branch
+     Just run:  git push -u origin $currentBranch
      Git Credential Manager opens a browser, you sign in once, and the credential is stored.
      You do NOT need to create a token by hand.
 
@@ -173,6 +178,9 @@ Nothing was changed. To authenticate:
 
     if ($mode -eq 'diverged') {
         $remoteHead = ((& git ls-remote --symref origin HEAD) 2>$null | Select-Object -First 1) -replace '^ref: refs/heads/(\S+)\s+HEAD$', '$1'
+        Write-Host "`n  to get the SAME content under the correct commit (keeps the clean history):" -ForegroundColor Yellow
+        Write-Host "    git reset --hard <hash of the newest commit>" -ForegroundColor Yellow
+        Write-Host "  (or simply re-apply this bundle with -Clean)" -ForegroundColor Yellow
         if ($remoteHead -and $remoteHead -ne $currentBranch -and $remoteHead -notmatch '^[0-9a-f]{40}$') {
             W "GitHub's default branch is '$remoteHead', but you are pushing '$currentBranch'"
             Write-Host "  that leaves two branches. To make '$currentBranch' the default:" -ForegroundColor Yellow
@@ -185,7 +193,7 @@ Nothing was changed. To authenticate:
     if ($mode -eq 'diverged') {
         & git push -u origin $currentBranch --force-with-lease
     } else {
-        & git push -u origin $branch
+        & git push -u origin $currentBranch
     }
     if ($LASTEXITCODE -ne 0) {
         W 'push failed -- see the message above'

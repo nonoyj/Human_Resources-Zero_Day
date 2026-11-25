@@ -89,3 +89,4 @@ tools/UnityStubs/obj/
 # scratch clones used by script tests
 .idtest/
 .tmpcheck/
+.t1/

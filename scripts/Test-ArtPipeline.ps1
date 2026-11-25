@@ -52,7 +52,7 @@ try {
         S 'Unity scripts type-check (stubs, no Unity install needed)'
         Push-Location (Join-Path $repo 'tools\UnityStubs')
         try {
-            & dotnet build -v q --nologo 2>&1 | Out-String | Write-Host
+            & dotnet build -v q --nologo | Out-Host
             if ($LASTEXITCODE -ne 0) { D 'Game/Editor scripts do not compile' } else { OK 'Game + Editor compile' }
         } finally { Pop-Location }
     }
