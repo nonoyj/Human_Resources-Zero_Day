@@ -194,3 +194,44 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
 - **Prevention rule:** **test a copy/merge tool against a deliberately damaged target, not a clean one.**
   A "works on an empty folder" test proves nothing about an update. And: when replacing a VCS directory,
   replace it entirely -- never merge into it.
+
+---
+
+## BUG-014 — bundle zip contained a path Windows cannot write; every apply failed at extraction
+
+- **Found:** 2026-11-26 by the user, applying v16 (a wall of
+  `Remove-Item : Cannot find path '...\hr0d-boot-b28400fa\HR-ZeroDay\.git\objects\5e\decd...'`)
+- **Severity:** P0 — the update path was dead for everyone
+- **Symptom:** `Expand-Archive` created some entries and then failed on the rest, ending with
+  `New-Object ... "The given path's format is not supported."` Nothing was applied.
+- **Root cause:** my ad-hoc zip step walked the whole repo root and swept up **sandbox tool caches**:
+  `.nuget/NuGet/NuGet.Config` and `.local/share/NuGet/http-cache/<hash>$ps:_api.nuget.org_v3_index.json/…`.
+  That folder name contains a colon. NTFS forbids `:` in a path, so `Expand-Archive` cannot create it,
+  and its cleanup pass then reported every *other* entry as "cannot find path" — a misleading cascade
+  that points at `.git` when the real culprit is one NuGet cache folder. 514 zip entries; 2 of them
+  were unrepresentable on Windows.
+- **Fix:** packaging is now a script, `scripts/Build-Bundle.ps1` (ASCII+BOM+CRLF, covered by
+  `Test-Scripts.ps1`). It never packages `.local`, `.nuget`, `.dotnet`, `.tooling`, `node_modules`,
+  Unity `Library/Temp/Logs/obj`, `__pycache__`, `*.zip`, `*.bundle`; it **skips and reports** any path
+  containing `: * ? " < > |`; and it aborts if any of those leak in.
+- **Regression test:** build with the script, then verify the archive before shipping —
+  `391 entries`, `bootstrap at root and inside HR-ZeroDay`, `git history present, no tooling caches,
+  no unwritable paths`, then extract to a clean folder and run both palette checks + `dotnet run`.
+- **Prevention rule:** **never zip a working directory you have also used as a toolchain home.** Package
+  from an explicit allow-list (or an explicit deny-list that includes every cache dir), and validate the
+  archive against the *target* OS's path rules before calling it done.
+
+## BUG-015 — `.\Apply-Bundle.ps1` was not in the zip root (bootstrap unreachable)
+
+- **Found:** 2026-11-26 by the user: `The term '.\Apply-Bundle.ps1' is not recognized…`
+- **Severity:** P1 — a one-line fix, but it blocks the whole handoff
+- **Symptom:** standing in `Downloads`, the documented first command failed with
+  `CommandNotFoundException`, even though the zip was downloaded correctly.
+- **Root cause:** the bootstrap existed only at `HR-ZeroDay/Apply-Bundle.ps1` in the earlier build
+  recipe, so after extracting the zip there was nothing in the folder the operator stands in.
+- **Fix:** `Build-Bundle.ps1` now writes `Apply-Bundle.ps1` at **both** the zip root and
+  `HR-ZeroDay/Apply-Bundle.ps1`, and fails the build if either is missing.
+- **Regression test:** assert `'Apply-Bundle.ps1' -in $names` and
+  `'HR-ZeroDay/scripts/Apply-Bundle.ps1' -in $names` on every build (wired into the script itself).
+- **Prevention rule:** **the operator's very first command must be tested from the folder the docs name.**
+  Bundles are judged from `Downloads`, not from a repo.

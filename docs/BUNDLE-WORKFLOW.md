@@ -147,3 +147,27 @@ git status --short             # must be empty
 dir <project folder>           # no folder-inside-itself
 dotnet run --project tools\CoreTests   # ALL TESTS PASSED
 ```
+
+---
+
+## Building a bundle (never by hand -- BUG-014 / BUG-015)
+
+```powershell
+cd C:\users\user\HR-ZeroDay
+.\scripts\Build-Bundle.ps1 -Version 17
+```
+
+It refuses to ship if: the bootstrap is missing at the zip root or inside `HR-ZeroDay\`, `.git` is
+absent, a tooling cache (`.local`, `.nuget`, `.dotnet`, `node_modules`, `Library`) leaked in, or any
+entry path contains a character Windows cannot write (`: * ? " < > |`). It prints size + sha256 to
+paste into the handoff note.
+
+Then verify from a clean folder before handing it over:
+
+```powershell
+Expand-Archive .\HR-ZeroDay-bundle-v17.zip -DestinationPath .\hr0d-check -Force
+cd .\hr0d-check\HR-ZeroDay
+git log --oneline -1 ; git status --short
+python tools\art\make_art_kit.py --check
+python tools\art\make_applicants.py --check
+```
