@@ -87,11 +87,12 @@ Legend: **[x]** done · **[~]** in progress · **[ ]** to do · Owner: **A** sys
 - [ ] Endings: 1 win + 4 defeat texts, each with a "what you could have done" hint (C)
 - [ ] Intro story script (skippable) (C)
 
-### 3.5 Art (agent generates, B integrates)
-- [ ] Palette + font selection (OFL pixel fonts) (G)
-- [ ] UI 9-slice kit: panel, button, toggle, slider, tab, tooltip (G)
-- [ ] Office backgrounds ×3 (clean → glitch → red alert) (G)
-- [ ] Desk furniture, monitor bezel, document sheets (G)
+### 3.5 Art (agent generates, FE integrates)
+- [x] Palette + swatch (G) — fonts still to choose
+- [x] **UI 9-slice kit v1: panels, 6 button states, inset, tooltip, bars, pips, slider** (G)
+- [x] **Office backgrounds x3 (clean / glitch / red alert)** (G)
+- [x] **Desk furniture, monitor bezel, document sheet, ID card, table** (G)
+- [x] Stamps x2, 9 icons x2 states, contact sheet, palette checker (G)
 - [ ] Applicant sprites: 192×216, 4 idle frames, 3 reaction frames ×6 archetypes (G)
 - [ ] Portrait crops 96×96 with synthetic artifacts (G)
 - [ ] Stamps: APPROVE / REJECT + animation (G)
@@ -99,8 +100,8 @@ Legend: **[x]** done · **[~]** in progress · **[ ]** to do · Owner: **A** sys
 - [ ] Logo / wordmark `HR//0D` + app icon (G)
 - [ ] Player avatar: 4 bodies, 6 hair, 6 skin, 4 outfits (G)
 
-### 3.6 Screens (UI)
-- [ ] Boot / loading (B)
+### 3.6 Screens (FE = you)
+- [ ] Boot / loading (FE)
 - [ ] Intro sequence + skip (B)
 - [ ] Main menu: Continue / New Shift / Field Manual / Settings / Credits (B)
 - [ ] Character creation: name + appearance (B)

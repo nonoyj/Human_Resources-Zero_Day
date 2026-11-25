@@ -1,0 +1,136 @@
+﻿<#
+.SYNOPSIS
+    Applies an HR//0D bundle to a working copy. The only script you run from OUTSIDE the repo.
+
+.DESCRIPTION
+    Why this exists: fixes for the project live inside the repo, so an update command that uses the
+    repo's own script cannot fix the very script being replaced (chicken-and-egg, BUG-012). This
+    bootstrap file has no dependencies and is safe to overwrite.
+
+    It replaces the project file set with the bundle's, removes folder/folder duplicates left by
+    older versions, and (unless -NoGit) adopts the bundle's git history so HEAD and files agree.
+
+.PARAMETER BundlePath
+    Path to HR-ZeroDay-bundle-vN.zip
+
+.PARAMETER WorkingCopy
+    Your existing checkout. Default: C:\users\user\HR-ZeroDay
+
+.PARAMETER Clean
+    Also remove nesting damage (art\art, docs\docs, ...).
+
+.PARAMETER NoGit
+    Do not touch .git (keeps your current history).
+
+.EXAMPLE
+    .\Apply-Bundle.ps1 -BundlePath .\HR-ZeroDay-bundle-v12.zip -Clean
+
+.EXAMPLE
+    .\Apply-Bundle.ps1 -BundlePath C:\Users\User\Downloads\HR-ZeroDay-bundle-v12.zip
+#>
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory = $true)][string]$BundlePath,
+    [string]$WorkingCopy = (Join-Path $(if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }) 'HR-ZeroDay'),
+    [switch]$Clean,
+    [switch]$NoGit
+)
+
+$ErrorActionPreference = 'Stop'
+function S  ($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
+function OK ($m) { Write-Host "  [ok]   $m" -ForegroundColor Green }
+function W  ($m) { Write-Host "  [warn] $m" -ForegroundColor Yellow }
+function D  ($m) { Write-Host "  [FAIL] $m" -ForegroundColor Red; exit 1 }
+
+if (-not (Test-Path -LiteralPath $BundlePath)) { D "bundle not found: $BundlePath" }
+$BundlePath = (Resolve-Path -LiteralPath $BundlePath).Path
+
+$projectDirs = @('art','content','docs','handoff','prototype','scripts','tools','unity','backend')
+$keepDirs    = @('Library','Temp','Logs','obj','UserSettings','Build','Builds','bin',
+                 '.tooling','.cache','.dotnet','.nuget','.local','.vs','.idea')
+
+$tempRoot = if ($env:TEMP) { $env:TEMP } elseif ($env:TMP) { $env:TMP } else { [System.IO.Path]::GetTempPath() }
+$temp = Join-Path $tempRoot ("hr0d-boot-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
+
+try {
+    S "extracting bundle"
+    New-Item -ItemType Directory -Force -Path $temp | Out-Null
+    Expand-Archive -LiteralPath $BundlePath -DestinationPath $temp -Force
+    $root = Get-ChildItem -LiteralPath $temp -Directory |
+            Where-Object { Test-Path (Join-Path $_.FullName 'README.md') } |
+            Select-Object -First 1
+    if (-not $root) { D "bundle does not contain a project folder (no README.md inside)" }
+    OK "project found in bundle: $($root.Name)"
+
+    if (-not (Test-Path -LiteralPath $WorkingCopy)) {
+        New-Item -ItemType Directory -Force -Path $WorkingCopy | Out-Null
+        OK "created $WorkingCopy"
+    }
+
+    if ($Clean) {
+        S "cleaning folder/folder duplicates"
+        foreach ($d in $projectDirs) {
+            $inner = Join-Path (Join-Path $WorkingCopy $d) $d
+            if (Test-Path -LiteralPath $inner) {
+                Remove-Item -LiteralPath $inner -Recurse -Force
+                OK "removed $d\$d"
+            }
+        }
+    }
+
+    if ($Clean -and -not $NoGit) {
+        S "adopting the bundle's git history"
+        $srcGit = Join-Path $root.FullName '.git'
+        if (Test-Path -LiteralPath $srcGit) {
+            $dstGit = Join-Path $WorkingCopy '.git'
+            if (Test-Path -LiteralPath $dstGit) { Remove-Item -LiteralPath $dstGit -Recurse -Force }
+            Copy-Item -LiteralPath $srcGit -Destination $dstGit -Recurse -Force
+            OK ".git replaced"
+        } else { W "bundle has no .git; history left untouched" }
+    }
+
+    S "copying project files"
+    $copied = 0
+    Get-ChildItem -LiteralPath $root.FullName -Force | ForEach-Object {
+        if ($_.Name -eq '.git') { return }
+        if ($_.PSIsContainer -and ($keepDirs -contains $_.Name)) { W "skipped $($_.Name)\"; return }
+        $dest = Join-Path $WorkingCopy $_.Name
+        if ($_.PSIsContainer) {
+            if (Test-Path -LiteralPath $dest) { Remove-Item -LiteralPath $dest -Recurse -Force }
+            Copy-Item -LiteralPath $_.FullName -Destination $dest -Recurse -Force
+        } else {
+            Copy-Item -LiteralPath $_.FullName -Destination $dest -Force
+        }
+        $copied++
+    }
+    OK "$copied top-level items"
+
+    S "result"
+    Push-Location $WorkingCopy
+    try {
+        if ((Test-Path '.git') -and (Get-Command git -ErrorAction SilentlyContinue)) {
+            $head  = (& git rev-parse --short HEAD) 2>$null
+            $count = (& git rev-list --count HEAD) 2>$null
+            OK "HEAD $head ($count commits)"
+            $st = @(& git status --porcelain) | Where-Object { $_ -and $_.Trim() }
+            if ($st) { W "working tree not clean:"; $st | ForEach-Object { Write-Host "    $_" } }
+            else { OK "working tree clean" }
+        }
+        foreach ($d in $projectDirs) {
+            if (Test-Path (Join-Path (Join-Path $WorkingCopy $d) $d)) { W "still nested: $d\$d" }
+        }
+    } finally { Pop-Location }
+
+    Write-Host @"
+
+Next:
+  cd "$WorkingCopy"
+  .\scripts\Test-Scripts.ps1
+  .\scripts\Setup-DevEnvironment.ps1 -Verify
+  dotnet run --project tools\CoreTests
+
+"@ -ForegroundColor Cyan
+}
+finally {
+    if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue }
+}
