@@ -18,7 +18,7 @@ Confirm it worked:
 
 ```powershell
 cd C:\users\user\HR-ZeroDay
-git log --oneline -1                       # 621b71f (35 commits)
+git log --oneline -1                       # 6d11167 (36 commits)
 git status --short                         # should print nothing
 python tools\art\make_art_kit.py --check   # PASS: every pixel is palette-conformant
 python tools\art\make_applicants.py --check # PASS: palette-conformant, no partial alpha
