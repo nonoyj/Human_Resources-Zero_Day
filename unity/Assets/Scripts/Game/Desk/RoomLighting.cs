@@ -42,7 +42,7 @@ namespace HRZeroDay.Game
 
         void Start()
         {
-            _renderers = FindObjectsOfType<SpriteRenderer>();
+            _renderers = FindObjectsByType<SpriteRenderer>(FindObjectsSortMode.None);
             var keep = new System.Collections.Generic.List<SpriteRenderer>();
             var baseColors = new System.Collections.Generic.List<Color>();
             for (int i = 0; i < _renderers.Length; i++)

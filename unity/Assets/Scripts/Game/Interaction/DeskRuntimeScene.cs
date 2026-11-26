@@ -106,7 +106,7 @@ namespace HRZeroDay.Game.Interaction
             var labelMesh = label.AddComponent<TextMesh>();
             labelMesh.font = font;
             labelMesh.characterSize = 0.09f;
-            labelMesh.sortingOrder = 46;            // panel sprite is 45
+            label.GetComponent<Renderer>().sortingOrder = 46;   // panel sprite is 45
             labelMesh.text = string.Empty;
             overlay.calloutLabel = labelMesh;
 
@@ -116,7 +116,7 @@ namespace HRZeroDay.Game.Interaction
             var bodyMesh = body.AddComponent<TextMesh>();
             bodyMesh.font = font;
             bodyMesh.characterSize = 0.07f;
-            bodyMesh.sortingOrder = 46;
+            body.GetComponent<Renderer>().sortingOrder = 46;
             bodyMesh.text = string.Empty;
             overlay.calloutBody = bodyMesh;
             callout.SetActive(false);

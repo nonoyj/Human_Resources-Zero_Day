@@ -24,6 +24,8 @@ namespace UnityEngine
         public static void Destroy(Object o) { }
         public static T FindObjectOfType<T>() where T : Object { return null; }
         public static T[] FindObjectsOfType<T>() where T : Object { return new T[0]; }
+        public static T FindFirstObjectByType<T>() where T : Object { return null; }
+        public static T[] FindObjectsByType<T>(FindObjectsSortMode mode) where T : Object { return new T[0]; }
     }
     public class Component : Object
     {
@@ -40,6 +42,8 @@ namespace UnityEngine
         public T AddComponent<T>() where T : Component { return null; }
         public static T FindObjectOfType<T>() where T : Component { return null; }
         public static T[] FindObjectsOfType<T>() where T : Component { return new T[0]; }
+        public static T FindFirstObjectByType<T>() where T : Component { return null; }
+        public static T[] FindObjectsByType<T>(FindObjectsSortMode mode) where T : Component { return new T[0]; }
         public T[] GetComponentsInChildren<T>() where T : Component { return new T[0]; }
         public T[] GetComponentsInParent<T>() where T : Component { return new T[0]; }
     }
@@ -121,7 +125,7 @@ namespace UnityEngine
     }
     public class TextAsset : Object { public string text; }
     public class Font : Object { }
-    public class TextMesh : Component { public string text; public Font font; public float characterSize; public int sortingOrder; }
+    public class TextMesh : Component { public string text; public Font font; public float characterSize; }
     public class Camera : Behaviour
     {
         public static Camera main;
@@ -136,7 +140,9 @@ namespace UnityEngine
     {
         public RuntimeInitializeOnLoadMethodAttribute(RuntimeInitializeLoadType type) { }
     }
-    public class SpriteRenderer : Component { public Sprite sprite; public int sortingOrder; public Color color; }
+    public enum FindObjectsSortMode { None, InstanceID }
+    public class Renderer : Component { public int sortingOrder; }
+    public class SpriteRenderer : Renderer { public Sprite sprite; public Color color; }
     public class Collider2D : Component { public bool isTrigger; }
     public class BoxCollider2D : Collider2D { public Vector2 size; }
     public class Resources

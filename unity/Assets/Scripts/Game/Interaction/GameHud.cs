@@ -47,7 +47,7 @@ namespace HRZeroDay.Game.Interaction
                 var text = go.AddComponent<TextMesh>();
                 text.font = font;
                 text.characterSize = 0.38f;          // ~6 px at 480x270 / 16 PPU
-                text.sortingOrder = 220;            // above the letter page and the CRT
+                go.GetComponent<Renderer>().sortingOrder = 220;   // above the letter page and the CRT
                 text.text = string.Empty;
                 _lines[i] = text;
             }
@@ -86,7 +86,7 @@ namespace HRZeroDay.Game.Interaction
                 Add(result, d == null ? string.Empty :
                     "APPROVED " + d.Approved + "   REJECTED " + d.Rejected + "   QUOTA " + (d.QuotaMet ? "MET" : "MISSED"));
                 Add(result, d == null ? string.Empty :
-                    "WRONGFUL REJECTIONS " + d.WrongfulRejections + "   SYNTHETICS CAUGHT " + d.SyntheticCaught);
+                    "WRONGFUL REJECTIONS " + d.WrongfulRejections + "   SYNTHETICS CAUGHT " + d.SyntheticsCaught);
                 Add(result, "TRUST " + s.Trust + "   CORRUPTION " + s.CorruptionLevel);
                 Add(result, "");
                 if (d != null) Add(result, Wrap(d.HintLine, 62));
