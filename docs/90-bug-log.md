@@ -376,6 +376,24 @@ tree is dirty, and ships `history.bundle` + `history.branch` instead of a `.git`
 "the zip" and "the commit it names" the same thing by construction — BUG-019, BUG-021 and every
 variant of "bundle newer than its HEAD" cannot recur.
 
+## BUG-024 — `HR//0D > Build Desk Scene` throws NullReferenceException before creating anything
+
+- **Found:** 2026-11-26 by the agent while wiring the interaction layer (type-check review).
+  **Severity:** P1 — the documented way to create the first scene cannot work at all.
+- **Symptom:** the menu calls `DeskSceneBuilder.Build(layout, null)`, then `Build` immediately runs
+  `parent.Find(RootName)` on the null parent. Unity reports a `NullReferenceException` and no
+  `Assets/Scenes/Desk.unity` is written.
+- **Repro:** 1. Open the Unity project. 2. `HR//0D > Build Desk Scene`. 3. Read the Console.
+- **Root cause:** the builder's "rebuild an existing desk" path was written assuming a parent
+  transform always exists; the editor menu legitimately passes `null` to build at the root.
+- **Fix:** treat `parent == null` as the root case: skip the `Find` and parent the new root with
+  `SetParent(null, false)`. (The same fix landed independently on `main`; kept here so the number
+  in this log is not reused.)
+- **Regression test:** `dotnet build tools/UnityStubs/CompileCheck.csproj` plus a manual
+  `HR//0D > Build Desk Scene` in Unity; the Console must end with `built Assets/Scenes/Desk.unity`.
+- **Prevention rule:** **every API with an optional parent must be called with null at least once in
+  a test.** A helper that only works from one call site is not a helper.
+
 ## BUG-025 -- monitor floated 12 px above the desk (found by the user, 2026-11-26)
 
 - **Symptom:** the monitor read as hanging in mid-air; the desk surface started below it with nothing

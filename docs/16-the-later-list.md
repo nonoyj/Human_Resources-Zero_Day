@@ -10,11 +10,34 @@ Rules for this file: nothing moves out of here without either (a) a roadmap line
 
 ## 0. Where we actually are (one paragraph)
 
-Art is ~90 % done and gated (`Test-ArtPipeline.ps1`, 9 gates). The full 480×270 composition exists,
-the RAGGED style is applied kit-wide, the night window is final, applicants have real identity
-traits, and corruption wear overlays exist as sprites. **Nothing of this is running in Unity yet
-beyond the stub-compiled scene builder.** The game has no loop, no UI screens, no content data, no
-audio, no save round-trip, no Android build. That gap — not more art — is what the next phase is.
+Art is gated (`Test-ArtPipeline.ps1`, 9 gates). The full 480×270 composition exists, the RAGGED style
+is applied kit-wide, the night window is final, applicants have real identity traits, and corruption
+wear overlays exist as sprites. `unity/` is now a Hub-openable project on 6000.3.29f1 with committed
+`ProjectSettings/` and `Packages/`; `HR//0D > Setup Project (one click)` publishes art, imports it,
+builds the Desk scene and adds it to Build Settings. Play mode also self-boots from an empty scene.
+The first playable minute runs: hotspot → magnifier/callout → letter flags → stamp → debrief → day
+summary → next applicant. Still not shipped: the polished Field Manual, separate day-summary/ending
+*screens* (the HUD has readable text versions), content text, audio, save round-trip and an APK.
+
+---
+
+## 0a. Landed on the interaction branch (2026-11-26, pending merge)
+
+The `arena/c1faebb9-human-resources-zero-day` branch adds the first playable minute. It does **not**
+remove any task from this list; it partial-covers 3.1, 3.6 and 3.7 and adds the wiring those tasks
+need:
+
+- `Game/Interaction/**` — pure evidence ledger, safe-area hotspot geometry, tool budgets (2/2/1),
+  truth-free session DTO, magnifier/callout presenter, stamp + reason flow and a drop-in bootstrap.
+- `ScoringService.DecisionInput.PaperworkTrustDelta` — one defaulted field that lets the five letter
+  flags pay/take trust through the existing `ShiftController.Submit` path.
+- `HR//0D > Build Desk Scene` — now creates the hotspot interactors, padded colliders, EventSystem
+  with a 2D raycaster, evidence overlay, stamp and bootstrap in `Desk.unity`.
+- `prototype/web/` — a playable twin of the same minute (9 rule checks, no Unity, no backend).
+
+Still owed from those rows: the real Field Manual, day-summary and endings screens, 48 dp inspect
+list, tool-result panel, save round-trip and an on-device APK. See `docs/15-interaction-layer.md`
+and the BE1 handoff before starting any of them.
 
 ---
 

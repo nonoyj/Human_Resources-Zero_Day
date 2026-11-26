@@ -15,9 +15,34 @@ namespace UnityEngine
         public static float Lerp(float a, float b, float t) => a + (b - a) * Clamp01(t);
         public static int Min(int a, int b) => a < b ? a : b;
         public static float Min(float a, float b) => a < b ? a : b;
+
+        // Added 2026-11-25 when the merged Game layer landed: the editor compiles these, so the stub must
+        // have them or the gate fails on code Unity accepts. Every one is a real UnityEngine.Mathf member.
+        public static int CeilToInt(float v) => (int)System.Math.Ceiling(v);
+        public static int FloorToInt(float v) => (int)System.Math.Floor(v);
+        public static float Ceil(float v) => (float)System.Math.Ceiling(v);
+        public static float Floor(float v) => (float)System.Math.Floor(v);
+        public static float Round(float v) => (float)System.Math.Round(v);
+        public static float Abs(float v) => v < 0f ? -v : v;
+        public static int Abs(int v) => v < 0 ? -v : v;
+        public static float Sign(float v) => v < 0f ? -1f : 1f;
+        public static float Sqrt(float v) => (float)System.Math.Sqrt(v);
+        public static float Pow(float a, float b) => (float)System.Math.Pow(a, b);
+        public static float Sin(float v) => (float)System.Math.Sin(v);
+        public static float Cos(float v) => (float)System.Math.Cos(v);
+        public static float LerpUnclamped(float a, float b, float t) => a + (b - a) * t;
+        public static float Repeat(float t, float length) => t - (float)System.Math.Floor(t / length) * length;
+        public static float MoveTowards(float a, float b, float d) => System.Math.Abs(b - a) <= d ? b : a + Sign(b - a) * d;
     }
 
-    public class Object { public string name; public static void DestroyImmediate(Object o) { } public static void Destroy(Object o) { } }
+    public class Object {
+        public string name;
+        public static void DestroyImmediate(Object o) { }
+        public static void Destroy(Object o) { }
+        // Unity 6 still has these (obsolete, not removed); GameBoot.cs and DeskSession use them.
+        public static T FindObjectOfType<T>() where T : Object { return null; }
+        public static T[] FindObjectsOfType<T>() where T : Object { return new T[0]; }
+    }
     public class Component : Object
     {
         public Transform transform; public GameObject gameObject;
@@ -36,10 +61,20 @@ namespace UnityEngine
         public T[] GetComponentsInChildren<T>() where T : Component { return new T[0]; }
         public T[] GetComponentsInParent<T>() where T : Component { return new T[0]; }
         public T GetComponentInChildren<T>() where T : Component { return null; }
+        public T GetComponentInChildren<T>(bool includeInactive) where T : Component { return null; }
+        public T[] GetComponentsInChildren<T>(bool includeInactive) where T : Component { return new T[0]; }
         public T GetComponentInParent<T>() where T : Component { return null; }
     }
     public class Transform : Component
     {
+        public Vector3 lossyScale;          // Unity 6: Transform.lossyScale
+        public Vector3 eulerAngles;
+        public Vector3 localEulerAngles;
+        public int childCount;
+        public void SetAsLastSibling() { }
+        public void SetAsFirstSibling() { }
+        public void SetSiblingIndex(int i) { }
+
         public Vector3 position, localPosition;
         public Vector3 localScale = new Vector3(1f, 1f, 1f);
         public Quaternion localRotation;
@@ -139,7 +174,15 @@ namespace UnityEngine
         public string text;
         public int fontSize;
         public Color color;
+        public float characterSize;      // Unity 6: TextMesh.characterSize (real API)
+        public Font font;                // Unity 6: TextMesh.font
+        // Unity 6 also exposes sortingOrder/sortingLayerID on TextMesh via its renderer; DeskRuntimeScene
+        // sets it to keep the callout above the desk, so the stub must allow it.
+        public int sortingOrder;
+        public string sortingLayerName;
     }
+
+    public class Font : Object { }
 
     public class Collider2D : Component { public bool isTrigger; }
     public class BoxCollider2D : Collider2D { public Vector2 size; }
@@ -147,7 +190,28 @@ namespace UnityEngine
     {
         public static T Load<T>(string path) where T : Object { return null; }
         public static T[] LoadAll<T>(string path) where T : Object { return null; }
+        public static T GetBuiltinResource<T>(string path) where T : Object { return null; }
     }
+    public static class Screen
+    {
+        public static int width = 480;
+        public static int height = 270;
+    }
+
+    // UnityEditor build-settings surface. The editor menu (merged layer) registers the Desk scene in
+    // Build Settings; these are real UnityEditor types, so they belong in the editor stubs.
+    public class EditorBuildSettingsScene
+    {
+        public string path;
+        public bool enabled;
+        public EditorBuildSettingsScene(string p, bool on) { path = p; enabled = on; }
+    }
+
+    public static class EditorBuildSettings
+    {
+        public static EditorBuildSettingsScene[] scenes = new EditorBuildSettingsScene[0];
+    }
+
     public static class Debug
     {
         public static void Log(object m) { }
@@ -170,6 +234,21 @@ namespace UnityEngine
         public static T FromJson<T>(string json) { return default(T); }
     }
     [AttributeUsage(AttributeTargets.Field)] public class HeaderAttribute : Attribute { public HeaderAttribute(string h) { } }
+    // Runtime initialisation hook. UnityEngine type, always available -- NOT a package type, so it
+    // belongs here. Missing it was a real compile break (CS0246) introduced by the merged GameBoot.cs.
+    [AttributeUsage(AttributeTargets.Method)]
+    public class RuntimeInitializeOnLoadMethodAttribute : Attribute
+    {
+        public RuntimeInitializeOnLoadMethodAttribute() { }
+        public RuntimeInitializeOnLoadMethodAttribute(RuntimeInitializeLoadType loadType) { }
+    }
+
+    public enum RuntimeInitializeLoadType
+    {
+        AfterSceneLoad = 0, BeforeSceneLoad = 1, AfterAssembliesLoaded = 2,
+        BeforeSplashScreen = 3, SubsystemRegistration = 4,
+    }
+
     [AttributeUsage(AttributeTargets.Field)] public class RangeAttribute : Attribute { public RangeAttribute(float a, float b) { } }
     [AttributeUsage(AttributeTargets.Field)] public class SerializeFieldAttribute : Attribute { }
     public class RequireComponent : Attribute { public RequireComponent(Type t) { } }

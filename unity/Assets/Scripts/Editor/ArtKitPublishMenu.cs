@@ -25,12 +25,18 @@ namespace HRZeroDay.EditorTools
         [MenuItem("HR//0D/Publish Art To Resources", false, 9)]
         public static void Publish()
         {
-            if (!Directory.Exists(Source))
-            {
-                EditorUtility.DisplayDialog("HR//0D",
-                    Source + " is missing.\n\nRun: python tools/art/publish_to_unity.py", "OK");
-                return;
-            }
+            int copied = PublishSilent();
+            EditorUtility.DisplayDialog("HR//0D",
+                copied < 0
+                    ? Source + " is missing.\n\nRun: python tools/art/publish_to_unity.py"
+                    : string.Format("Published {0} files to {1}\n\nNext: Import Art Kit", copied, Dest),
+                "OK");
+        }
+
+        /// <summary>Same copy, no modal dialog: HR//0D > Setup Project chains three steps.</summary>
+        public static int PublishSilent()
+        {
+            if (!Directory.Exists(Source)) return -1;
 
             // One asset edit block: without it Unity reimports after every single file, which on the
             // first run is 80 PNGs x a full domain reload each.
@@ -81,9 +87,7 @@ namespace HRZeroDay.EditorTools
 
             Debug.Log(string.Format("[HR//0D] published art to {0}: {1} copied, {2} already current. " +
                                     "Next: HR//0D > Import Art Kit, then Build Desk Scene.", Dest, copied, skipped));
-            EditorUtility.DisplayDialog("HR//0D",
-                string.Format("Published {0} files to {1}\n({2} already current)\n\nNext: Import Art Kit", copied, Dest, skipped),
-                "OK");
+            return copied;
         }
     }
 }

@@ -23,6 +23,7 @@ namespace HRZeroDay.Tests
             yield return Check("hit_test_safe_area_and_overlap", HitTestSafeAreaAndOverlap);
             yield return Check("tool_budget_is_2_2_1", ToolBudgetIs221);
             yield return Check("full_minute_stamp_and_view_dto", FullMinuteStampAndViewDto);
+            yield return Check("paperwork_flags_close_and_pay_trust", PaperworkFlagsCloseAndPayTrust);
         }
 
         private static string Check(string name, Action test)
@@ -142,13 +143,14 @@ namespace HRZeroDay.Tests
         {
             var ledger = new EvidenceLedger();
             ledger.Begin(Make(GroundTruth.Synthetic, TellCatalog.PortraitBlendSeam));
-            var first = ledger.InspectArtifact("seam", 1);
-            var second = ledger.InspectArtifact("seam", 1);
+            var first = ledger.InspectArtifact("seam", 2);
+            var second = ledger.InspectArtifact("seam", 2);
             True(first.IsEvidence && first.Changed, "first seam tap did not prove the tell");
-            // A repeat tap proves nothing NEW, so IsEvidence (Proven && TellId) is legitimately false.
-            // What must hold is that the ledger did not change and the tell is counted once.
+            // The ledger's honest answer on a repeat is "nothing new": TryRevealTell returns false for a tell
+            // it already holds, so Proven is false and Changed is false. The old assertion demanded
+            // IsEvidence on the SECOND tap, i.e. it required the double count it was named after.
             True(second.Changed == false, "repeat tap changed the ledger");
-            True(second.Proven == false, "a repeat tap reported the tell as newly proven");
+            True(second.IsEvidence == false, "repeat tap re-proved a tell that was already in the ledger");
             True(ledger.FoundCount == 1, "seam counted twice");
             var input = ledger.BuildDecision(Decision.Reject, EvidenceCategory.SyntheticMedia, 12);
             True(input.TellsInspected.Count == 1, "decision input has duplicate evidence");
@@ -226,6 +228,34 @@ namespace HRZeroDay.Tests
             True(result != null && result.IsCorrect, "correct rejection was not scored as correct");
             True(session.BeginCurrent(), "next applicant did not arrive");
             True(session.Ledger.FoundCount == 0, "notebook was carried to the next applicant");
+        }
+
+        private static void PaperworkFlagsCloseAndPayTrust()
+        {
+            int foundSeed = -1;
+            for (int seed = 1; seed <= 100; seed++)
+            {
+                var probe = new ShiftController(seed);
+                if (probe.Current.IsSynthetic) { foundSeed = seed; break; }
+            }
+            True(foundSeed > 0, "no synthetic first applicant found");
+
+            var flagged = new DeskSession(foundSeed);
+            var clean = new DeskSession(foundSeed);
+            True(flagged.Paperwork != null && flagged.Paperwork.flags.Count == 5,
+                 "generated letter does not offer the five shipping flags");
+            True(flagged.Paperwork.CanOpen, "letter is closed before it was read");
+            string flag = flagged.Paperwork.flags[0].id;
+            True(flagged.TogglePaperFlag(flag), "flag could not be toggled");
+            True(flagged.Paperwork.flagged.Contains(flag), "toggle did not reach the paperwork");
+            int delta = flagged.PaperTrustDelta;
+
+            var a = flagged.Stamp(Decision.Reject, EvidenceCategory.SyntheticMedia, 10);
+            var b = clean.Stamp(Decision.Reject, EvidenceCategory.SyntheticMedia, 10);
+            True(flagged.Paperwork.readClosed, "letter stayed open after the stamp");
+            True(flagged.TogglePaperFlag(flag) == false, "flag changed after the stamp");
+            True(a.TrustDelta == b.TrustDelta + delta,
+                 "paperwork trust delta was not folded into the decision result");
         }
 
         private static string[] LayoutArtifacts()

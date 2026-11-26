@@ -30,7 +30,9 @@ button,select{font:inherit}
 .hotspot:hover{background:rgba(24,224,176,.2);border-color:var(--signal)}
 .hotspot span{position:absolute;left:0;top:-14px;font-size:9px;color:var(--warn);white-space:nowrap;background:rgba(11,14,19,.85);padding:0 3px;opacity:0}
 .hotspot:hover span{opacity:1}
-.monitor-ui{position:absolute;left:2%;top:4%;width:46%;height:64%;background:rgba(11,14,19,.9);border:1px solid var(--linehi);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+/* Composition L: the CRT sits at canvas (14,86) 154x106 and the document at (38,100) 96x54.
+   The panel is deliberately larger than the CRT so the file stays readable at phone scale. */
+.monitor-ui{position:absolute;left:3%;top:16%;width:45%;height:56%;background:rgba(11,14,19,.9);border:1px solid var(--linehi);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .monitor-head{display:flex;justify-content:space-between;align-items:flex-start}
 .kicker{color:var(--signal);font-size:9px;letter-spacing:2px}
 .monitor-head h1{font-size:17px;margin:2px 0 0;color:var(--paper);letter-spacing:.5px}
@@ -44,6 +46,9 @@ button,select{font:inherit}
 .sheet .row b{color:var(--text);font-weight:500;text-align:right}
 .sheet p{margin:4px 0 8px;color:var(--paper);line-height:1.6}
 .sheet .flag{color:var(--warn)}
+.flags{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.flags .flag{background:transparent;border:1px solid var(--linehi);color:var(--muted);font-size:10px;text-align:left;padding:3px 5px;cursor:pointer}
+.flags .flag.on{border-color:var(--warn);color:var(--warn);background:rgba(255,209,102,.1)}
 .tool-row{display:flex;gap:6px;flex-wrap:wrap}
 .tool{background:var(--panel2);border:1px solid var(--linehi);color:var(--dim);font-size:10px;padding:4px 6px;cursor:pointer}
 .tool:hover:not(:disabled){border-color:var(--signal);color:var(--signal)}

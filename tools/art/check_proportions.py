@@ -39,7 +39,11 @@ def check(path):
         problems.append('empty row(s) inside the figure: %s' % gaps[:5])
 
     # 2. head must be roughly round: width of the widest head row vs its height down to the neck
-    neck = [y for y in filled if 0 < rows[y][2] < 22]
+    # GATE BUG FIXED 2026-11-25: this looked for ANY narrow row, so the narrow crown of a head (or the
+    # top of a bun) was reported as a 10 px "neck" and every sheet failed. The neck is the narrow band
+    # BELOW the widest row of the head, and nothing above it counts.
+    widest_row = max(filled[:len(filled) // 2] or filled, key=lambda y: rows[y][1] - rows[y][0])
+    neck = [y for y in filled if y > widest_row and 0 < rows[y][2] < 24]
     if neck:
         head_rows = [y for y in filled if y < neck[0]]
         if head_rows:

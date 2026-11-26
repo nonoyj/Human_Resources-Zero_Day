@@ -3,8 +3,8 @@
 // reduce-motion skips the flourish without losing the feedback (docs/08-behaviour-model.md).
 // Owner: Agent (interaction layer).
 using System;
-using HRZeroDay.Core.Data;
 using UnityEngine;
+using HRZeroDay.Core.Data;   // Decision lives here; without it the Game assembly does not compile.
 
 namespace HRZeroDay.Game.Interaction
 {

@@ -12,5 +12,9 @@ One markdown file per cross-boundary handoff: `YYYY-MM-DD_<from>-to-<to>_<topic>
 | 2026-11-26 | **`2026-11-26_agent-to-BE1_systems-tasks.md`** | Agent → **BE1 (systems)** | **actionable task list** |
 | 2026-11-26 | **`2026-11-26_agent-to-BE2_content-server-audio-tasks.md`** | Agent → **BE2 (server/content/audio)** | **actionable task list** |
 | 2026-11-26 | **`2026-11-26_agent-to-team_day1-status-and-next.md`** | Agent → whole team | **READ FIRST: day-1 status, risks, next** |
+| 2026-11-26 | `2026-11-26_fe-to-BE1_unity-project-created.md` | FE → BE1 | actionable: adopt, do not recreate the project |
+| 2026-11-26 | `2026-11-26_agent-to-BE1_interaction-layer.md` | Agent → BE1 | actionable: wiring, stubs, caretaker of the Core field |
+| 2026-11-26 | `2026-11-26_agent-to-team_changes-made.md` | Agent → whole team | change report for the interaction branch |
+| 2026-11-26 | **`2026-11-26_agent-to-team_unity-playable.md`** | Agent → whole team | **READ FIRST: openable project + Play mode controls** |
 
 Rules: a handoff that crosses a boundary is mandatory; if it isn't written down it didn't happen.

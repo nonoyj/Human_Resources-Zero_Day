@@ -33,6 +33,36 @@ export const REASONS = [
   'COERCION', 'SOCIAL_ENGINEERING', 'INSUFFICIENT',
 ];
 
+/* The five paperwork flags mirror Core/Data/PaperFlag.cs. isReal is hidden until debrief. */
+export const FLAG_DEFS = [
+  { id: 'paper_money_demand', needles: ['fee', 'deposit', 'processing cost'], trustDelta: 6 },
+  { id: 'paper_urgency', needles: ['immediately', 'today', 'urgent'], trustDelta: 4 },
+  { id: 'paper_mass_template', needles: ['[name]', 'dear sir/madam'], trustDelta: 5 },
+  { id: 'paper_wrong_reference', needles: null, trustDelta: 5 },
+  { id: 'paper_missing_signature', needles: ['regards'], trustDelta: 3 },
+];
+
+export function buildFlags(letterText, referral) {
+  const text = letterText || '';
+  const has = (needle) => text.toLowerCase().includes(needle.toLowerCase());
+  return FLAG_DEFS.map(def => ({
+    id: def.id,
+    trustDelta: def.trustDelta,
+    isReal: def.needles === null
+      ? !referral
+      : def.id === 'paper_missing_signature' ? !has('regards') : def.needles.some(has),
+  }));
+}
+
+export function paperworkDelta(flags, flagged) {
+  let total = 0;
+  for (const f of flags || []) {
+    if (!flagged || !flagged.has(f.id)) continue;
+    total += f.isReal ? f.trustDelta : -f.trustDelta;
+  }
+  return total;
+}
+
 export const ARTIFACTS = {
   seam:           { tell: 'portrait_blend_seam', style: 'magnifier' },
   ear:            { tell: null, style: 'magnifier' },
@@ -240,12 +270,13 @@ export class Session {
   useTool(tool) { return ToolBudget.use(this.tools, tool, this.day); }
   tool(tool) { return toolResult(tool, this.current, this.copy); }
 
-  stamp(decision, reason, secondsOnCard) {
+  stamp(decision, reason, secondsOnCard, letterDelta = 0) {
     if (this.finished || this.dayFinished) return null;
     const applicant = this.current;
     const key = (this.keys.days[String(this.day)] || [])[this.index] || {};
     const input = this.ledger.decisionInput(decision, reason, secondsOnCard);
     const result = evaluate(input, applicant, key, this.copy);
+    result.trustDelta += letterDelta;   // same fold as ScoringService.PaperworkTrustDelta
     this.trust = Math.max(0, Math.min(100, this.trust + result.trustDelta));
     if (decision === 'APPROVE') {
       this.dayStats.approved++;

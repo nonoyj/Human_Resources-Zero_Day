@@ -22,6 +22,7 @@ navigation you need; the numbering is deliberate (lower number = decided earlier
 | `09-backend-spec.md` | The three backend jobs, offline-first |
 | `10-analytics-spec.md` | Research instrument: events, metrics, privacy guardrails |
 | `11-core-verification.md` | How the core is proven (test plan) |
+| `15-interaction-layer.md` | Hotspot -> evidence -> stamp loop, paperwork flags and the playable browser twin |
 
 ## Art
 
@@ -51,6 +52,7 @@ navigation you need; the numbering is deliberate (lower number = decided earlier
 | `SETUP-CHECKLIST.md` | Step-by-step Windows setup |
 | `TROUBLESHOOT-SETUP.md` | "script not recognized" and every other setup failure |
 | `DOWNLOADS.md` | Short download checklist |
+| `19-unity-project-setup.md` | Open `unity/` in Hub, one-click setup, Play controls, project settings |
 | `GIT-LFS-DECISION.md` | Why this project does **not** use LFS (BUG-010) |
 
 ## Deleted on purpose (2026-11-26) — do not recreate

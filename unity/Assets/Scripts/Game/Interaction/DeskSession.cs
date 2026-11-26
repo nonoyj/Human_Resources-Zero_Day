@@ -69,6 +69,7 @@ namespace HRZeroDay.Game.Interaction
         private readonly ShiftController _shift;
         private readonly EvidenceLedger _ledger = new EvidenceLedger();
         private readonly ToolBudget _tools = new ToolBudget();
+        private Paperwork _paperwork;
         private float _observationSeconds;
 
         public event Action<ApplicantViewData> ApplicantChanged;
@@ -84,6 +85,10 @@ namespace HRZeroDay.Game.Interaction
         public ShiftController Shift { get { return _shift; } }
         public EvidenceLedger Ledger { get { return _ledger; } }
         public ToolBudget Tools { get { return _tools; } }
+        /// <summary>The generated letter. The UI may show its text and flags, never the hidden isReal.</summary>
+        public Paperwork Paperwork { get { return _paperwork; } }
+        public int PaperScore { get { return _paperwork == null ? 0 : _paperwork.Score; } }
+        public int PaperTrustDelta { get { return _paperwork == null ? 0 : _paperwork.TrustDelta; } }
         public int Seed { get { return _shift.Seed; } }
         public int Day { get { return _shift.Day; } }
         public int Trust { get { return _shift.Trust; } }
@@ -114,10 +119,20 @@ namespace HRZeroDay.Game.Interaction
             return _tools.TryUse(tool, _shift.Day);
         }
 
+        /// <summary>One read, then commit: the flag panel locks at the stamp (user decision 2026-11-26).</summary>
+        public bool TogglePaperFlag(string flagId)
+        {
+            return _paperwork != null && _paperwork.CanOpen && _paperwork.Toggle(flagId);
+        }
+
         public DecisionResult Stamp(Decision decision, EvidenceCategory? reason, int secondsOnCard)
         {
             if (Finished || DayFinished) return null;
+            if (_paperwork != null) _paperwork.CloseForStamp();
             var input = _ledger.BuildDecision(decision, reason, secondsOnCard);
+            // Paperwork is a rule, not a view: right flags pay trust, wrong flags take it.
+            // ScoringService folds this into TrustDelta before ShiftController applies it.
+            input.PaperworkTrustDelta = PaperTrustDelta;
             var result = _shift.Submit(input);
             if (DecisionCommitted != null) DecisionCommitted(result, ApplicantViewData.From(input.Applicant));
             return result;
@@ -137,6 +152,7 @@ namespace HRZeroDay.Game.Interaction
             if (Finished || DayFinished) return false;
             _observationSeconds = 0f;
             _ledger.Begin(_shift.Current);
+            _paperwork = Paperwork.For(_shift.Current, Seed);
             _tools.AdvanceToDay(_shift.Day);
             if (ApplicantChanged != null) ApplicantChanged(Current);
             return true;

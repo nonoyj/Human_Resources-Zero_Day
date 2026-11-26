@@ -27,6 +27,18 @@ namespace HRZeroDay.Game.Interaction
 
         private Camera _camera;
 
+        /// <summary>
+        /// The single entry point for a tap. GameInputRouter calls it after its own screen-to-world test,
+        /// so there is exactly one hit test in the game and it is the one with the collider maths in it.
+        /// (This kept the name OnPointerDown after the EventSystem version was removed, so callers written
+        /// against that name still work and there is no second code path to keep in sync.)
+        /// </summary>
+        public void OnPointerDown(object ignored)
+        {
+            if (string.IsNullOrEmpty(artifact)) return;
+            if (Tapped != null) Tapped(artifact);
+        }
+
         void Update()
         {
             if (string.IsNullOrEmpty(artifact)) return;
@@ -41,7 +53,7 @@ namespace HRZeroDay.Game.Interaction
             if (world.x < p.x - halfW || world.x > p.x + halfW) return;
             if (world.y < p.y - halfH || world.y > p.y + halfH) return;
 
-            if (Tapped != null) Tapped(artifact);
+            OnPointerDown(null);
         }
 
         private void OnDisable()

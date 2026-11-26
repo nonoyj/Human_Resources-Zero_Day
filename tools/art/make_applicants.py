@@ -447,7 +447,7 @@ class Applicant:
         ear_y = jaw_top + 4
         for side in (-1, 1):
             ex = cx + side * max(1, head_half(ear_y) - 1)
-            for (dy, r) in ((0, 2), (1, 2), (2, 2), (3, 1), (4, 1)):
+            for (dy, r) in ((0, 2), (1, 2), (2, 1), (3, 1)):
                 for k in range(-r, r + 1):
                     P.put(ex + side * (1 + k // 2), ear_y + dy,
                           P.ramp(self.skin_ramp, 2 if side < 0 else 1))
@@ -461,140 +461,77 @@ class Applicant:
             P.rect(cx - hwid - 4, head_top + 12, cx - hwid - 4, head_bot - 12, P.ramp('skin_light', 3))
             P.rect(cx - hwid - 4, head_top + 12, cx - hwid, head_top + 12, P.ramp('skin_light', 3))
 
-        # ---------------- hair (v6: a cap that follows the cranium, never a rectangle)
-        # The hair block was lost in an earlier edit, which is why the v6 heads read as bald spheres.
-        # It is back, and it is now painted on the same circle the skull is: the hairline is a row slice of
-        # cranium_half(), the mass falls in strands, and the silhouette breaks in 1-2 px tufts.
+        # ---------------- hair (v10: SIMPLE)
+        # The player asked for simple hair twice, and they are right: every extra strand I added was a
+        # chance to draw something that does not exist. This is one mass that follows the skull, one
+        # darker band at the roots, and a soft edge -- nothing above the silhouette, nothing poking out.
         st = self.hair_style
-        hair_key = P.ramp(self.hair_ramp, 2)             # the mass
-        hair_dark = P.ramp(self.hair_ramp, 1)            # shadow side
-        hair_lit = P.ramp(self.hair_ramp, 3)             # the one highlight
-        hairline = cranium_cy - int(hw * 0.30)          # where the forehead stops
+        hairline = cranium_cy - int(hw * 0.30)               # where the forehead stops
+        hair_mass = P.ramp(self.hair_ramp, 2)
+        hair_deep = P.ramp(self.hair_ramp, 1)
+        hair_edge = P.ramp(self.hair_ramp, 3)                # 1 px of light where the light hits
 
-        def hair_top(y):
-            """Hair sits slightly proud of the skull (1-2 px) so it has volume."""
-            # at the very top of the skull cranium_half is 0, so the cap needs its own crown width
-            base = cranium_half(y)
-            # v9: a crown is not flat. The cap keeps the skull's own curve and only adds 1 px of volume,
-            # plus a rounded top so the hair does not end in a horizontal cut.
-            if y < head_top + 5:
-                base = max(base, int(hw * (0.34 + 0.14 * (y - (head_top - 4)))))
-            return base + (2 if y < cranium_cy - hw // 2 else 1)
-
-        # mass over the cranium, above the hairline
-        for y in range(head_top - 4, hairline + 6):
-            hwid = hair_top(y)
-            if hwid <= 0:
-                continue
-            # the fringe dips lower on one side: every human parting is off-centre
-            dip = 3 if (y > hairline and (self.seed % 2)) else 0
-            for x in range(cx - hwid, cx + hwid + 1):
-                # a fringe has steps in it. One flat bottom edge is a headband.
-                edge = hairline - dip + (2 if ((x - cx) // 6 + self.seed) % 2 else 0)
-                if st in (0, 1) and y > edge and abs(x - cx) < hwid - 2:
-                    # RAGGED hairline: a dithered couple of rows instead of a cut. A clean horizontal
-                    # line under the fringe is the single most-wig-like thing on the sprite.
-                    if y <= hairline + 1 and ((x * 7 + y * 13 + self.seed) % 5) < 2:
-                        P.put(x, y, P.ramp(self.hair_ramp, 1))
-                    continue                                # that is forehead, not hair
-                lit = (x - (cx - hwid)) / float(max(1, 2 * hwid))
-                # flat mass, one highlight band across the crown, dark at the roots (v9 final)
-                tone = 2
-                # a highlight on hair is a NARROW sheen, not a band: wider than 3 px and it reads as a
-                # bald patch, because the palette's next brown up is a skin tone.
-                # the sheen is a 2-row arc near the crown, never a vertical stripe
-                if abs(y - (cranium_cy - hw * 0.62)) < 2 and 0.22 < lit < 0.52:
-                    tone = 3
-                elif lit > 0.72 or y > cranium_cy:
-                    tone = 1
-                P.put(x, y, P.ramp(self.hair_ramp, tone))
-
-        # strands: short vertical runs that break the cap edge, denser on the shadow side
-        for i in range(9):
-            sx = cx - hw + 3 + (i * 5 + self.seed % 3)
-            length = 3 + (i * 7 + self.seed) % 5
-            for k in range(length):
-                yy = hairline - 2 - k
-                if P.alpha_at(sx, yy) and yy > head_top + 2:
-                    P.put(sx, yy, hair_lit if k % 3 == 0 else hair_key)
-
-        # side locks (v9): hair covers the temples down to ear level on every style. This is what stops a
-        # cap from reading as a bowl cut, and it is where the silhouette gets its asymmetry.
-        for side in ((-1, 1) if st != 4 else ()):
-            lock_len = (9, 14, 18)[self.hair_len] + (2 if side > 0 else 0)
-            for i in range(lock_len):
-                y = hairline - 2 + i
-                if y > chin_y - 4:
-                    break
-                hwid = head_half(y)
-                for k in range(0, 4 if i < lock_len // 2 else 2):
-                    x = cx + side * (hwid - k)
-                    if (i + k * 3 + self.seed) % 6 == 0:
-                        continue                            # a gap so the lock is not a slab
-                    P.put(x, y, P.ramp(self.hair_ramp, 1 if k else 2))
-                if i % 5 == 0:                              # one strand escapes the silhouette
-                    P.put(cx + side * (hwid + 1), y, P.ramp(self.hair_ramp, 1))
-
-        # length: how far the hair falls past the jaw
-        if st in (0, 1, 3) and st != 4:
-            fall = (6, 18, 30)[self.hair_len] if st != 0 else (4, 9, 14)[self.hair_len]
-            for side in (-1, 1):
-                for i in range(fall):
-                    y = hairline + i
-                    x0 = cx + side * (head_half(min(y, chin_y)) + (0 if i < 6 else -1))
-                    width = 2 if i < fall * 0.5 else 1
-                    for k in range(width):
-                        P.put(x0 + side * k, y, hair_key if (i + k) % 5 else hair_lit)
-                    if i % 4 == 2:                          # a tuft that escapes the mass
-                        P.put(x0 + side * (width + 1), y, hair_dark)
-
-        elif st == 2:                                        # bun
-            bun_r = 7
-            for (bx, by) in ellipse(None, cx + hw - 3, cranium_cy - hw // 2, bun_r, bun_r):
-                lit = (bx - (cx + hw - 3 - bun_r)) / float(max(1, 2 * bun_r))
-                P.put(bx, by, hair_lit if lit > 0.5 else hair_key)
-        elif st == 4:                                        # headscarf
-            # BUG FIXED 2026-11-26: this painted the whole head in the applicant's ACCENT colour, which
-            # turned two people into solid cyan statues -- the face was buried under the cloth. A scarf
-            # frames the face; it does not replace it.
+        if st == 4:                                          # headscarf: cloth, frames the face
             face_top = hairline + 3
             for y in range(head_top - 3, top + 8):
                 if y <= chin_y:
-                    hwid = head_half(y) + 3
-                else:                                        # the drape over the shoulders
+                    hwid = head_half(y) + 2
+                else:
                     hwid = max(self.neck_w + 4, head_half(chin_y) - 6) + min(3, (y - chin_y) // 4)
-                # the opening: wide at the brow, narrowing under the chin, never closed
-                open_half = 0
-                if y > face_top:
-                    open_half = max(0, head_half(min(y, chin_y)) - 4)
                 for x in range(cx - hwid, cx + hwid + 1):
-                    if open_half and abs(x - cx) <= open_half and y < chin_y - 2:
-                        continue                            # that is face
-                    rel = (x - (cx - hwid)) / float(max(1, 2 * hwid))
-                    tone = 3 - int(rel * 2.4) - (1 if y > chin_y - 14 else 0)
-                    P.put(x, y, P.ramp('cloth_light', max(0, min(3, tone))))
-                P.put(cx - hwid, y, P.ramp('cloth_mid', 0))
-                P.put(cx + hwid, y, P.ramp('cloth_mid', 0))
-            for y in range(head_top - 2, chin_y - 6, 4):        # folds across the crown and under the chin
-                hwid = head_half(min(y, chin_y)) + 2
-                P.dither(cx - hwid, y, cx - 2, y, P.ramp('cloth_light', 1), P.ramp('cloth_light', 2), seed=y)
-            P.put(cx + 4, hairline + 4, self.accent)            # one pin at the temple
-
-        else:                                                # beanie
-            cap_top = head_top - 2
-            for y in range(cap_top, hairline + 4):
-                # the cap follows the skull: full width at the crown, tucking in at the brim
-                hwid = hair_top(max(y, head_top))
-                if y < head_top + 4:
-                    hwid = max(hwid, int(hw * 0.72))
-                for x in range(cx - hwid, cx + hwid + 1):
-                    rib = ((x - cx + hw) // 3) % 2 == 0
-                    P.put(x, y, hair_key if rib else hair_dark)
-                P.put(cx - hwid, y, 'line')                   # edge stays on the silhouette
+                    if y > face_top and abs(x - cx) <= max(0, head_half(min(y, chin_y)) - 4) \
+                       and y < chin_y - 2:
+                        continue                             # the opening: this is face
+                    P.put(x, y, self.accent if abs(x - cx) > hwid - 3 else 'line')
+                P.put(cx - hwid, y, 'line')
                 P.put(cx + hwid, y, 'line')
-            for x in range(cx - hair_top(hairline) - 1, cx + hair_top(hairline) + 2):
-                P.put(x, hairline + 3, 'linehi')              # brim
-                P.put(x, hairline + 4, 'line')
+            P.put(cx + 4, hairline + 4, 'warn')               # one pin
+        elif st == 5:                                        # beanie: flat cap, one brim
+            cap_top = head_top - 3
+            for y in range(cap_top, hairline + 4):
+                hwid = max(cranium_half(max(y, head_top)), int(hw * (0.5 + 0.1 * (y - cap_top))))
+                hwid = min(hwid + 1, head_half(min(y, chin_y)) + 1)
+                for x in range(cx - hwid, cx + hwid + 1):
+                    P.put(x, y, hair_mass if (x - cx) % 4 else hair_deep)
+                P.put(cx - hwid, y, 'line')
+                P.put(cx + hwid, y, 'line')
+            for x in range(cx - hwid - 1, cx + hwid + 2):
+                P.put(x, hairline + 2, 'linehi')
+                P.put(x, hairline + 3, 'line')
+        else:                                                # every other style: one mass
+            for y in range(head_top - 2, hairline + 3):
+                hwid = cranium_half(max(y, head_top)) + 1
+                if y < head_top + 2:
+                    hwid = max(hwid, int(hw * (0.30 + 0.22 * (y - (head_top - 2)))))
+                hwid = min(hwid, head_half(min(y, chin_y)) + 1)
+                for x in range(cx - hwid, cx + hwid + 1):
+                    P.put(x, y, hair_mass)
+                # roots are darker, and the lit side gets 1 px of edge light
+                for x in range(cx - hwid, cx - hwid + 3):
+                    P.put(x, y, hair_edge)
+                for x in range(cx + hwid - 2, cx + hwid + 1):
+                    P.put(x, y, hair_deep)
+            # the hairline is a soft step, not a cut
+            for x in range(cx - int(hw * 0.55), cx + int(hw * 0.55) + 1):
+                if (x + self.seed) % 3:
+                    P.put(x, hairline + 2, hair_deep)
+
+            # length: a simple fall at the sides, inside the shoulders
+            if self.hair_len or True:
+                fall = (6, 12, 18)[self.hair_len]
+                for side in (-1, 1):
+                    for i in range(fall):
+                        y = hairline + i
+                        if y > chin_y - 2:
+                            break
+                        x0 = cx + side * (head_half(y) + 1)
+                        P.put(x0, y, hair_deep if i % 3 == 0 else hair_mass)
+                        P.put(x0 + side, y, hair_deep)
+            if st == 2:                                      # bun sits ON the skull, not beside it
+                for (bx, by) in ellipse(None, cx, cranium_cy - hw - 1, 6, 5):
+                    P.put(bx, by, hair_mass)
+                for (bx, by) in ellipse(None, cx, cranium_cy - hw - 1, 4, 3):
+                    P.put(bx, by, hair_edge)
 
         if 'seam' in A:
             # ARTIFACT: dead-straight line where hair meets background, no tufts

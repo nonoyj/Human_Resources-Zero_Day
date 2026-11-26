@@ -1,7 +1,10 @@
 {
     "name": "HRZeroDay.Game",
     "rootNamespace": "HRZeroDay.Game",
-    "references": ["HRZeroDay.Core"],
+    "references": [
+        "HRZeroDay.Core",
+        "Unity.InputSystem"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
