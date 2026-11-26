@@ -129,6 +129,7 @@ namespace UnityEditor
         public TextureImporterCompression textureCompression;
         public bool mipmapEnabled;
         public bool alphaIsTransparency;
+        public bool isReadable;
         public TextureWrapMode wrapMode;
         public SpriteImportMode spriteImportMode;
         public Vector4 spriteBorder;

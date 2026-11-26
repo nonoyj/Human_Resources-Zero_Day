@@ -126,6 +126,12 @@ namespace HRZeroDay.EditorTools
                 { Debug.LogError("[HR//0D] applicant frames missing (" + frames + "/4) -- run HR//0D > Import Art Kit"); problems++; }
             }
 
+            var atlas = AssetImporter.GetAtPath("Assets/Resources/fonts/monitor_font_5x7.png") as TextureImporter;
+            if (atlas == null)
+            { Debug.LogError("[HR//0D] font atlas not imported -- run HR//0D > Import Art Kit"); problems++; }
+            else if (!atlas.isReadable)
+            { Debug.LogError("[HR//0D] font atlas is not Read/Write -- the CRT cannot read its glyphs. Run HR//0D > Import Art Kit"); problems++; }
+
             if (problems == 0)
                 Debug.Log("[HR//0D] pipeline self-check PASS -- data files present, applicant strip sliced.");
         }

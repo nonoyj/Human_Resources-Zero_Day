@@ -55,6 +55,13 @@ namespace HRZeroDay.EditorTools
 
             AssetDatabase.Refresh();
 
+            // The glyph atlas is a plain Texture2D that the runtime reads pixel-by-pixel
+            // (Texture2D.GetPixels32). Unity imports textures with Read/Write DISABLED by default, which
+            // throws "texture data is either not readable" the moment the CRT initialises. It is also not
+            // a sprite in the manifest, so nothing else in the pipeline was configuring it.
+            ConfigureFontAtlas("Assets/Resources/fonts/monitor_font_5x7.png");
+            ConfigureFontAtlas("Assets/Art/Kit/fonts/monitor_font_5x7.png");
+
             // second pass: frames as real files, so they exist before anything tries to import them
             int frames = 0;
             for (int i = 0; i < manifest.sprites.Count; i++)
@@ -67,6 +74,24 @@ namespace HRZeroDay.EditorTools
             Debug.Log(string.Format("[HR//0D] art kit import: {0} sprites checked, {1} updated, " +
                                     "{2} frames built. Verify with: python tools/art/publish_to_unity.py --verify",
                                     manifest.sprites.Count, changed, frames));
+        }
+
+        /// <summary>
+        /// Font atlas: readable, Point filtered, uncompressed, no mipmaps, Clamp. Asked for by name
+        /// because it is not in the sprite manifest.
+        /// </summary>
+        private static void ConfigureFontAtlas(string path)
+        {
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null) return;
+            bool dirty = false;
+            if (!importer.isReadable) { importer.isReadable = true; dirty = true; }
+            if (importer.filterMode != FilterMode.Point) { importer.filterMode = FilterMode.Point; dirty = true; }
+            if (importer.textureCompression != TextureImporterCompression.Uncompressed)
+            { importer.textureCompression = TextureImporterCompression.Uncompressed; dirty = true; }
+            if (importer.mipmapEnabled) { importer.mipmapEnabled = false; dirty = true; }
+            if (!importer.wrapMode.Equals(TextureWrapMode.Clamp)) { importer.wrapMode = TextureWrapMode.Clamp; dirty = true; }
+            if (dirty) importer.SaveAndReimport();
         }
 
         private static bool ApplySettings(TextureImporter importer, SpriteEntry s)
