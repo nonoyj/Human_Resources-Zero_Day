@@ -464,6 +464,26 @@ Redundant, not broken. Nothing shipped was touched; every gate re-ran green afte
 - **Prevention rule:** a gate may not run a script that WRITES into the repo. Gates read, they do not
   produce -- otherwise every run dirties the tree and the "clean tree" bundle rule trips.
 
+## BUG-035 -- the bundle could not fix the script that applies it (found by rehearsal, 2026-11-26)
+
+- **Symptom:** after the BUG-032 fix, a *rolled-back* bootstrap still produced the old failure. The
+  bundle was correct; the script reading it was not.
+- **Cause:** `.\Apply-Bundle.ps1` lives in **Downloads**, outside the repo. No bundle can overwrite a
+  file that is already there, so the bootstrap that runs is the one the operator downloaded the *first*
+  time. Every bootstrap bug so far survived a release because of this.
+- **Second cause, found while rehearsing:** shipping `history.bundle` inside `HR-ZeroDay\` made the
+  **old** bootstrap copy it into the working copy as an untracked file, which it then reported as
+  "working tree not clean" -- a third way to look broken while being fine.
+- **Fix:** (a) transport files ship at the **zip root only**; (b) a current bootstrap **refreshes itself**
+  in place after the copy, so from the next apply onward Downloads always holds the current version;
+  (c) `docs/BUNDLE-WORKFLOW.md` documents the one-time manual replacement and the three recovery
+  commands (`-Clean`, `-Reinstall`, `Fix-Repo.ps1`).
+- **Rehearsal (proof, not assertion):** built v47, put the *old* bootstrap in a scratch Downloads,
+  applied -> reproduced the user's exact output (`bundle has no .git`, old HEAD, dirty); replaced the
+  bootstrap from the zip; applied again -> `HEAD 127c4ed (78 commits)`, `working tree clean`, and
+  `dotnet run --project tools/CoreTests` -> **56 PASS** in the applied copy.
+  `-Reinstall` was separately verified to clean a dirty tree (`reset --hard` + `clean -fd`).
+
 ## BUG-032 / BUG-033 / BUG-034 -- the apply copied files but could never adopt the history (v45 report)
 
 The user applied v45 correctly and the apply **still** reported `HEAD 0b52098` (the v44 commit) and a
