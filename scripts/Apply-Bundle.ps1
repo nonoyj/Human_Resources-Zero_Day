@@ -107,7 +107,9 @@ try {
     if (-not $root) { D "bundle does not contain a project folder (no README.md inside)" }
     OK "project found in bundle: $($root.Name)"
 
-    if (-not (Test-Path -LiteralPath $WorkingCopy)) {
+    # NB: do NOT create the folder when a git clone is coming -- `git clone` refuses a non-empty target,
+    # and an empty one would put HEAD on the machine's default branch (see BUG-038).
+    if ((-not (Test-Path -LiteralPath $WorkingCopy)) -and -not (Test-Path -LiteralPath (Join-Path $temp 'history.bundle'))) {
         New-Item -ItemType Directory -Force -Path $WorkingCopy | Out-Null
         OK "created $WorkingCopy"
     }
@@ -173,21 +175,23 @@ try {
                 OK "old .git removed"
             }
 
-            Git @('-C', $WorkingCopy, 'init', '-q') -Quiet | Out-Null
-            Git @('-C', $WorkingCopy, 'fetch', '-q', $srcBundle, 'refs/heads/*:refs/heads/*') | Out-Null
-            if ($script:GitExitCode -ne 0) { D "fetch from history.bundle failed: $srcBundle" }
-            Git @('-C', $WorkingCopy, 'symbolic-ref', 'HEAD', "refs/heads/$bBranch") | Out-Null
-            Git @('-C', $WorkingCopy, 'reset', '-q', '--mixed', "refs/heads/$bBranch") | Out-Null
-            $shortSha = (Git @('-C', $WorkingCopy, 'rev-parse', '--short', $bBranch) -Quiet).Trim()
-            OK "history adopted: $bBranch at $shortSha"
+            # BUG-038: the old sequence was  git init + fetch refs/heads/*:refs/heads/*  and it dies with
+            #   fatal: refusing to fetch into branch 'refs/heads/main' checked out at 'C:/Users/User/HR-ZeroDay'
+            # because `git init` already points HEAD at refs/heads/main on git builds whose default branch
+            # is main (ours here is master, which is why the rehearsal never caught it -- behaviour that
+            # depends on a machine setting can never be proven by one machine).
+            # A bundle is a repository, so CLONE it. No ref juggling, no HEAD state to argue with.
+            Git @('clone', '-q', '--branch', $bBranch, $srcBundle, $WorkingCopy) | Out-Null
+            if ($script:GitExitCode -ne 0) { D "clone from history.bundle failed ($bBranch): $srcBundle" }
+            OK "history cloned: $bBranch"
+            # hooks/config from the source repo are not needed; keep the bundle's identity out of it
+            Git @('-C', $WorkingCopy, 'config', 'core.autocrlf', 'false') -Quiet | Out-Null
             if ($savedRemote) {
                 Git @('-C', $WorkingCopy, 'remote', 'add', 'origin', $savedRemote) | Out-Null
                 OK "origin preserved: $savedRemote"
             } else {
                 W "no origin in the old .git -- set it with: git remote add origin <url>"
             }
-            # hooks/config from the source repo are not needed; keep the bundle's identity out of it
-            Git @('-C', $WorkingCopy, 'config', 'core.autocrlf', 'false') -Quiet | Out-Null
         } else {
             W "bundle has no history.bundle (older bundle) -- history left untouched"
         }
