@@ -13,8 +13,8 @@ namespace HRZeroDay.Game.Interaction
 {
     public sealed class GameHud : MonoBehaviour
     {
-        private const int LineCount = 22;
-        private const float Step = 0.68f;
+        private const int LineCount = 16;
+        private const float Step = 0.52f;
 
         private DeskBootstrap _game;
         private TextMesh[] _lines;
@@ -46,7 +46,7 @@ namespace HRZeroDay.Game.Interaction
                 go.transform.localPosition = new Vector3(0.45f, 16.25f - i * Step, -2f);
                 var text = go.AddComponent<TextMesh>();
                 text.font = font;
-                text.characterSize = 0.38f;          // ~6 px at 480x270 / 16 PPU
+                text.characterSize = 0.26f;          // compact: leaves the desk art readable
                 go.GetComponent<Renderer>().sortingOrder = 220;   // above the letter page and the CRT
                 text.text = string.Empty;
                 _lines[i] = text;
@@ -57,8 +57,15 @@ namespace HRZeroDay.Game.Interaction
         {
             if (!_bound || _game == null || _game.Session == null) return;
             var lines = BuildLines();
+            // The letter owns the centre of the screen; move the HUD to the right column while it is
+            // open so the flags do not sit on top of the letter text.
+            float x = _game.LetterOpen ? 15.5f : 0.5f;
             for (int i = 0; i < _lines.Length; i++)
-                if (_lines[i] != null) _lines[i].text = i < lines.Count ? lines[i] : string.Empty;
+            {
+                if (_lines[i] == null) continue;
+                _lines[i].transform.localPosition = new Vector3(x, 16.25f - i * Step, -2f);
+                _lines[i].text = i < lines.Count ? lines[i] : string.Empty;
+            }
         }
 
         private System.Collections.Generic.List<string> BuildLines()
@@ -114,7 +121,7 @@ namespace HRZeroDay.Game.Interaction
                 var p = s.Paperwork;
                 Add(result, p.title);
                 Add(result, new string('-', 58));
-                var words = WrapBlock(p.body, 58, 9);
+                var words = WrapBlock(p.body, 58, 5);
                 for (int i = 0; i < words.Count; i++) Add(result, words[i]);
                 Add(result, string.IsNullOrEmpty(p.signature) ? string.Empty : p.signature.Replace("\n", " "));
                 Add(result, new string('-', 58));
@@ -129,19 +136,15 @@ namespace HRZeroDay.Game.Interaction
             }
 
             var v = s.Current;
+            // Compact by design: the full dossier lives in the letter. Keeping only the identity
+            // line here stops the HUD covering the monitor and the applicant across the table.
             Add(result, "HUMAN RESOURCES // ZERO DAY");
-            Add(result, "DAY " + s.Day + "/5   TRUST " + s.Trust + "   CORRUPTION " + s.CorruptionLevel +
-                        "   SUBJECT " + (s.Shift.CurrentIndex + 1) + "/" + s.Shift.Today.Count);
-            Add(result, new string('-', 58));
-            Add(result, (v.FullName ?? "APPLICANT") + "  /  " + (v.Role ?? "OPEN ROLE"));
-            Add(result, "ID " + (v.IdNumber ?? "-") + "   AGE " + v.Age);
-            Add(result, "UNIVERSITY " + (v.University ?? "-") + " " + v.GraduationYear);
-            Add(result, "EMPLOYER " + (v.Employer ?? "-") + " EST. " + v.EmployerFounded);
-            Add(result, "STARTED " + v.EmploymentStartYear + "   EXPERIENCE " + v.YearsExperience + "Y   REFERRAL " + (v.Referral ?? "-"));
-            Add(result, new string('-', 58));
-            Add(result, "CLICK THE PERSON: inspect body tells (magnifier + text)");
-            Add(result, "[L] READ COVER LETTER   [1-5] LETTER FLAGS / REASON   [6] INSUFFICIENT");
-            Add(result, "[A] APPROVE   [S] REJECT   [SPACE] CONTINUE   [H] HELP   [X] CLOSE");
+            Add(result, "DAY " + s.Day + "/5  TRUST " + s.Trust + "  CORRUPT " + s.CorruptionLevel +
+                        "  SUBJECT " + (s.Shift.CurrentIndex + 1) + "/" + s.Shift.Today.Count);
+            Add(result, (v.FullName ?? "APPLICANT") + " / " + (v.Role ?? "OPEN ROLE") + " / ID " + (v.IdNumber ?? "-"));
+            Add(result, "CLICK THE PERSON TO INSPECT");
+            Add(result, "[L] LETTER  [1-5] FLAGS/REASON  [6] INSUFFICIENT");
+            Add(result, "[A] APPROVE  [S] REJECT  [SPACE] NEXT  [H] HELP");
             if (_game.HelpVisible)
             {
                 Add(result, "");
