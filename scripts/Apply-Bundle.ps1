@@ -94,7 +94,7 @@ $tempRoot = if ($env:TEMP) { $env:TEMP } elseif ($env:TMP) { $env:TMP } else { [
 $temp = Join-Path $tempRoot ("hr0d-boot-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
 
 try {
-    Clear-Host
+    if ($Host.Name -eq 'ConsoleHost') { Clear-Host }   # Clear-Host shells out to clear/TERM; skip when piped
     S "extracting bundle"
     New-Item -ItemType Directory -Force -Path $temp | Out-Null
     Expand-Archive -LiteralPath $BundlePath -DestinationPath $temp -Force
