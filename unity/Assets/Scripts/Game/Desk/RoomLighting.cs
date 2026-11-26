@@ -42,6 +42,8 @@ namespace HRZeroDay.Game
 
         void Start()
         {
+            // FindObjectsOfType is deprecated in 6.3 and Unity logs a CS0618 warning on every compile.
+            // FindObjectsByType with SortMode.None is the supported call and is cheaper.
             _renderers = FindObjectsByType<SpriteRenderer>(FindObjectsSortMode.None);
             var keep = new System.Collections.Generic.List<SpriteRenderer>();
             var baseColors = new System.Collections.Generic.List<Color>();

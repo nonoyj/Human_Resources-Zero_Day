@@ -259,7 +259,10 @@ namespace HRZeroDay.Tests
                     if (path.Contains("{")) continue;    // built at runtime
                     checkedCount++;
 
-                    var candidates = new[] { ".png", ".json", ".asset", ".bytes", ".txt" };
+                    // A Resources path never carries its extension: Resources.Load<TextAsset>("fonts/x")
+                    // reads fonts/x.json. The test used to demand fonts/x.json ON DISK, so a correct call
+                    // failed forever. Also accept the path with its extension already on it.
+                    var candidates = new[] { "", ".png", ".json", ".asset", ".bytes", ".txt" };
                     var found = candidates.Any(ext => File.Exists("unity/Assets/Resources/" + path + ext));
                     if (!found)
                         problems.Add(Path.GetFileName(file) + " -> Resources/" + path + " (" + type + ")");

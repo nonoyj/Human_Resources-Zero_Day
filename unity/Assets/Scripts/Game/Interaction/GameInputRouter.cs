@@ -44,6 +44,9 @@ namespace HRZeroDay.Game.Interaction
                 if (kb.digit6Key.wasPressedThisFrame) game.NumberKey(6);
             }
 
+            // CS0165: this was declared unassigned and then passed to DispatchPointer under a flag the
+            // compiler cannot prove, so the Game assembly did not compile at all (Unity too, not just the
+            // headless gate).
             Vector2 point = Vector2.zero;
             bool pressed = false;
             var mouse = Mouse.current;

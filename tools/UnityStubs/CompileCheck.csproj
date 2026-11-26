@@ -12,6 +12,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="UnityStubs.cs" />
+    <!-- Package stubs (Unity.InputSystem) are compiled HERE and only here. Unity never builds this
+         project, so the engine stub file stays free of package namespaces (ASSEMBLY-RULES.md). -->
+    <Compile Include="InputSystemStubs.cs" />
     <Compile Include="../../unity/Assets/Scripts/Core/**/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/**/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Editor/**/*.cs" />

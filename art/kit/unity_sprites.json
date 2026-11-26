@@ -22,7 +22,8 @@
     "desk": 8,
     "backgrounds": 3,
     "fx": 2,
-    "fonts": 1
+    "fonts": 1,
+    "sweep": 5
   },
   "sprites": [
     {
@@ -33,7 +34,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "f967e3db5c86bfcf",
+      "sha256_16": "6cd6ee758b6184d6",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -90,7 +91,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "c06f5872ce7b8145",
+      "sha256_16": "a83809cb852bddae",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -147,7 +148,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "849d1b98d842fc52",
+      "sha256_16": "2cc3913fbea6a157",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -204,7 +205,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "dc763f5e30439e88",
+      "sha256_16": "bf9d422caf1af02a",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -261,7 +262,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "2e020d0afb17bd4f",
+      "sha256_16": "89d9b79e2ec824bb",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -318,7 +319,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "dd9d8f1427874a47",
+      "sha256_16": "8977af8cb039fc32",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -375,7 +376,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "fc37c5cf8665917f",
+      "sha256_16": "53e4973aec31baf4",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -432,7 +433,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "6c240f71ec6e7d2c",
+      "sha256_16": "cbec40464e9e3da8",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -489,7 +490,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "68acc7ba19ddb65a",
+      "sha256_16": "b9e35fba4827153f",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -546,7 +547,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "036ad969ce322386",
+      "sha256_16": "66dc2d2f8418f79f",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -603,7 +604,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "28c52d0fe2ca28be",
+      "sha256_16": "9d04c9d0f137f405",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -660,7 +661,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "a35a1f0a804ec921",
+      "sha256_16": "1a33d86c7e38442d",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -717,7 +718,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "bfb5ea39fce7ffd4",
+      "sha256_16": "cb77f8187305b604",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -774,7 +775,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "b316f654e67cbcb5",
+      "sha256_16": "396cb3ababc101e0",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -831,7 +832,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "66c8f67d7e00cc14",
+      "sha256_16": "f9c08297bfa1ef35",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -850,7 +851,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "8296bfc2b383c055",
+      "sha256_16": "23e6f6c55c658fba",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -869,7 +870,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "1701b283f19fa620",
+      "sha256_16": "28894a0958b11bb8",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -888,7 +889,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "16a599f925abfc40",
+      "sha256_16": "dcf8d18650f03d6b",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -907,7 +908,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "4e789465701b92eb",
+      "sha256_16": "5d20de8773d9d79d",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -926,7 +927,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "75d478ce3bee84c2",
+      "sha256_16": "cefff98db17cdc0a",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -945,7 +946,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "754894b9b65d0344",
+      "sha256_16": "1375137613a37503",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -964,7 +965,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "6783bba146140b4f",
+      "sha256_16": "83d908d5e3aff9ea",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -983,7 +984,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "0439d973be6368bb",
+      "sha256_16": "aa591fb098746d2f",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1002,7 +1003,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "d34f953fc72e3f13",
+      "sha256_16": "e1880937210fe62a",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1021,7 +1022,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "9e5d1f268d402db6",
+      "sha256_16": "497e8ee0575e9aee",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1040,7 +1041,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "1d69eeb7425ef3ed",
+      "sha256_16": "2162c9bdf6cc55a1",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1059,7 +1060,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "0657e734db94fbc8",
+      "sha256_16": "edd0258cda800214",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1078,7 +1079,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "f2c26fd89b2f63ac",
+      "sha256_16": "bab212e9501bd5a9",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2184,15 +2185,115 @@
         "meshType": "FullRect",
         "wrapMode": "Clamp"
       }
+    },
+    {
+      "source": "art/kit/sweep/sweep_corridor_480x270.png",
+      "assetPath": "Assets/Art/Kit/sweep/sweep_corridor_480x270.png",
+      "width": 480,
+      "height": 270,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "sweep",
+      "sha256_16": "b8c6892bd81376f0",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/sweep/sweep_desk_480x270.png",
+      "assetPath": "Assets/Art/Kit/sweep/sweep_desk_480x270.png",
+      "width": 480,
+      "height": 270,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "sweep",
+      "sha256_16": "c5912fc153915d61",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/sweep/sweep_keys_480x22.png",
+      "assetPath": "Assets/Art/Kit/sweep/sweep_keys_480x22.png",
+      "width": 480,
+      "height": 22,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "sweep",
+      "sha256_16": "966a35a326d3b157",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/sweep/sweep_lift_480x270.png",
+      "assetPath": "Assets/Art/Kit/sweep/sweep_lift_480x270.png",
+      "width": 480,
+      "height": 270,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "sweep",
+      "sha256_16": "2b6d0fd39e9d1fab",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/sweep/sweep_walker_16x24.png",
+      "assetPath": "Assets/Art/Kit/sweep/sweep_walker_16x24.png",
+      "width": 16,
+      "height": 24,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "sweep",
+      "sha256_16": "5b950c88f7105cfa",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
     }
   ],
   "referenceSheets": [
+    "art/kit/reference/applicant_painterly_v5_preview.png",
+    "art/kit/reference/applicant_painterly_v8_preview.png",
+    "art/kit/reference/applicant_painterly_v9_preview.png",
     "art/kit/reference/contact_sheet.png",
     "art/kit/reference/letter_preview.png",
     "art/kit/reference/letter_scam.png",
     "art/kit/reference/palette_swatch.png",
     "art/kit/reference/screen_preview.png",
     "art/kit/reference/screen_preview_long.png",
+    "art/kit/reference/sweep_composed_preview.png",
+    "art/kit/reference/sweep_floors_preview.png",
     "art/kit/reference/twin_desk_human_solid_a_f0_L0.png",
     "art/kit/reference/twin_monitor_float_check.png"
   ]

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Makes unity\ a real Unity project that Unity Hub will open.
 

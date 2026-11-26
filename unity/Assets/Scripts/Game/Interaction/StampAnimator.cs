@@ -4,7 +4,7 @@
 // Owner: Agent (interaction layer).
 using System;
 using UnityEngine;
-using HRZeroDay.Core.Data;   // Decision enum lives in Core, not in this namespace
+using HRZeroDay.Core.Data;   // Decision lives here; without it the Game assembly does not compile.
 
 namespace HRZeroDay.Game.Interaction
 {

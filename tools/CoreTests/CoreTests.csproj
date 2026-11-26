@@ -11,13 +11,15 @@
     <RootNamespace>HRZeroDay.Tests</RootNamespace>
     <AssemblyName>HRZeroDay.CoreTests</AssemblyName>
     <NoWarn>CS0168;CS0219;CS8632</NoWarn>
-    <StartupObject>Program</StartupObject>
+    
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="ManifestBridgeTests.cs" />
     <Compile Include="DaylightTests.cs" />
+    <Compile Include="SweepTests.cs" />
+    <Compile Include="InteractionTests.cs" />
     <Compile Include="../../unity/Assets/Scripts/Core/**/*.cs" />
     <!-- The interaction layer is pure C#: the headless runner compiles the same files Unity uses. -->
     <Compile Include="../../unity/Assets/Scripts/Game/Interaction/EvidenceMap.cs" />
@@ -31,9 +33,17 @@
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/MonitorScreen.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/MonitorScreenRaster.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/LetterView.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Interaction/*.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Applicant/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/MonitorScreenView.cs" />
-    <Compile Include="../../unity/Assets/Scripts/Game/Layout/DeskLayoutData.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Layout/*.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Desk/DeskSceneBuilder.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Desk/RoomLighting.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Desk/DeskLightDriver.cs" />
     <Compile Include="../UnityStubs/UnityStubs.cs" />
+    <!-- Package stubs live in their own file, included here and ONLY here: Unity never compiles
+         anything under tools/, so the engine stubs stay package-free (ASSEMBLY-RULES.md). -->
+    <Compile Include="../UnityStubs/InputSystemStubs.cs" />
     <Compile Include="GameDataTests.cs" />
     <Compile Include="InteractionTests.cs" />
     <Compile Include="MonitorScreenTests.cs" />

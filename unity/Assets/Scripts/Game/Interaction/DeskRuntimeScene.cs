@@ -66,6 +66,7 @@ namespace HRZeroDay.Game.Interaction
                 box.isTrigger = true;
                 var tap = go.AddComponent<HotspotInteractor>();
                 tap.artifact = hp.artifact;
+                tap.sizeInUnits = box.size;   // kept in sync with the collider used by GameInputRouter
             }
         }
 

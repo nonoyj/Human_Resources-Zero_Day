@@ -143,10 +143,14 @@ namespace HRZeroDay.Tests
         {
             var ledger = new EvidenceLedger();
             ledger.Begin(Make(GroundTruth.Synthetic, TellCatalog.PortraitBlendSeam));
-            var first = ledger.InspectArtifact("seam", 1);
-            var second = ledger.InspectArtifact("seam", 1);
+            var first = ledger.InspectArtifact("seam", 2);
+            var second = ledger.InspectArtifact("seam", 2);
             True(first.IsEvidence && first.Changed, "first seam tap did not prove the tell");
-            True(second.IsEvidence && second.Changed == false, "repeat tap changed the ledger");
+            // The ledger's honest answer on a repeat is "nothing new": TryRevealTell returns false for a tell
+            // it already holds, so Proven is false and Changed is false. The old assertion demanded
+            // IsEvidence on the SECOND tap, i.e. it required the double count it was named after.
+            True(second.Changed == false, "repeat tap changed the ledger");
+            True(second.IsEvidence == false, "repeat tap re-proved a tell that was already in the ledger");
             True(ledger.FoundCount == 1, "seam counted twice");
             var input = ledger.BuildDecision(Decision.Reject, EvidenceCategory.SyntheticMedia, 12);
             True(input.TellsInspected.Count == 1, "decision input has duplicate evidence");
