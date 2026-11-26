@@ -816,3 +816,49 @@ produced by something that only runs on the developer's machine.
 **The rule that closes it:** if the runtime reads a file, that file — and the import settings that make it
 readable — belong in the commit. Before shipping, ask: *what does the build read that a fresh clone would
 not have?* `publish_to_unity.py --verify` now answers that question in one command.
+
+## BUG-048 -- the fix for BUG-042 crashed the game in the opposite direction (player report, 2026-11-25)
+
+**Symptom.**
+
+```
+[HR//0D] could not start the game: There is no 'MeshRenderer' attached to the "Text" game object,
+but a script is trying to access it.
+```
+
+**Root cause.** Fixing BUG-042 (`TextMesh.sortingOrder` does not exist) I replaced it with
+`GetComponent<MeshRenderer>().sortingOrder` — on **every** object, including one that is a `SpriteRenderer`.
+The failing object is named "Text" and it is the letter page's `SpriteRenderer`. `SpriteRenderer` **is** a
+`Renderer` and sets `sortingOrder` directly; asking it for a `MeshRenderer` throws.
+
+The real hierarchy, which decides everything:
+
+| Type | Is it a Renderer? | Sort order |
+|---|---|---|
+| `SpriteRenderer` | **yes** | `spriteRenderer.sortingOrder = n` |
+| `Renderer` (any) | yes | `.sortingOrder = n` |
+| `TextMesh` | **no** (Component) | `textMesh.GetComponent<MeshRenderer>().sortingOrder = n` |
+
+**Fix.** `DeskRuntimeScene.SetTextMeshSorting(mesh, order)` — one guarded helper used by every `TextMesh`
+in the game; `SpriteRenderer`s set their order directly with a comment saying why.
+
+**Gate.** A pattern check over all game scripts fails if
+(a) any `SpriteRenderer` asks for a `MeshRenderer`, or (b) any `*.sortingOrder =` lands on a `TextMesh`.
+Verified by re-injecting pattern (b) — the gate fails by name.
+
+## The real fix: stop finding these one crash at a time
+
+Six boot failures in one day (BUG-042, 044, 045, 046, 047, 048) all had the same shape: **my checks read
+the working directory; the player runs the commit.** Anything the working directory had that the commit did
+not — a gitignored art folder, a `.meta` Unity generated earlier, frames an editor menu cut — passed the
+gate and failed on his machine.
+
+`tools/verify_fresh_clone.py` closes the entire class:
+
+1. `git archive HEAD` → a temp folder, so the tree contains exactly what the commit contains.
+2. Every verification runs **inside that folder**: both art mirrors, the frames, the import settings, the
+   palette, the proportions, the font, the manifest.
+
+If a clean checkout cannot verify itself, the script fails here instead of on the player's machine. This is
+now the last step before any bundle is built, and it is the first thing to run when a bug report arrives
+that "works here".
