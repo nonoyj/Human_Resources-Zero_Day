@@ -51,6 +51,9 @@ PALETTE = {
     'synthdim':  (0xb3, 0x9d, 0xff),
     'ok':        (0x6e, 0xe7, 0xc8),
     'paperdim':  (0x8a, 0x6d, 0x3b),
+    'glow_teal': (0x0c, 0x3d, 0x38),   # approved glow step 1/3 (2026-11-26): mint light falling off
+    'glow_amber': (0x5c, 0x4a, 0x20),  # approved glow step 2/3: warm lamp falloff
+    'glow_red':  (0x4a, 0x15, 0x20),   # approved glow step 3/3: breach/corruption falloff
     'paper':     (0xf2, 0xe8, 0xd5),
     'ink':       (0x2a, 0x21, 0x18),
 }
@@ -321,6 +324,17 @@ def kit_desk():
 
 # --------------------------------------------------------------------------- backgrounds (3 corruption levels)
 def kit_backgrounds():
+    """RETIRED 2026-11-26.
+
+    This used to paint backgrounds/office_L0..L2.png. Composition L now owns those files
+    (tools/art/promote_composition_L.py), and having two generators write the same path meant that
+    re-running this script silently reverted the approved room. One path, one owner (BUG-024).
+    """
+    print('  backgrounds/ delegated to promote_composition_L.py (composition L owns them)')
+    return []
+
+
+def _old_kit_backgrounds():
     made = []
     W, H = 480, 270
     for level, accent in ((0, 'signaldim'), (1, 'warn'), (2, 'danger')):

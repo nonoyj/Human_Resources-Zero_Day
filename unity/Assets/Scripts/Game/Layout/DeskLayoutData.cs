@@ -17,6 +17,7 @@ namespace HRZeroDay.Game
         public int sortingOrder;
         public string frameSprite;
         public AnimatorSpec animator;
+        public float scaleFactor = 1f;  // 1 = authored size; 0.96 = the applicant (composition L)
     }
 
     [Serializable]

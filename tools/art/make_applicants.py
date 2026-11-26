@@ -27,6 +27,8 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ragged import chip_corners, scuff   # RAGGED style pass (docs/15-art-bible.md)
 
 # Pillow draws; it never verifies (BUG-016).
 try:
@@ -112,8 +114,10 @@ class Applicant:
         sh = self.build
 
         # ---------------- chair back
-        rect(cx - 56, 116, cx + 56, base + 6, 'panel')
-        rect(cx - 56, 116, cx + 56, 120, 'panel2')
+        # REMOVED 2026-11-26 (composition L): the applicant used to carry a lighter slab behind him.
+        # It read as a rectangle pasted into the room and forced every background change to fight it.
+        # The room now supplies whatever is behind him (see art/kit/backgrounds/office_L*.png).
+        # The chair itself lives in desk/table_and_chair.png.
 
         # (cast shadow is drawn last, on the desk -- see the table block at the end)
 
@@ -376,7 +380,12 @@ def build_frame(state: Applicant, frame: int) -> Image.Image:
 def make_sheet(state: Applicant) -> Image.Image:
     sheet = Image.new('RGBA', (192 * 4, 216), (0, 0, 0, 0))
     for i in range(4):
-        sheet.paste(build_frame(state, i), (192 * i, 0))
+        frame = build_frame(state, i)
+        # RAGGED (2026-11-26): the same wear rule as the rest of the game -- chipped silhouette at the
+        # corners, sparse scuffs on clothing. Faces and tells are never touched.
+        chip_corners(frame, 900 + i, per_corner=2)
+        scuff(frame, 910 + i, n=10, tones=('panel', 'void'), box=(40, 120, 152, 210))
+        sheet.paste(frame, (192 * i, 0))
     return sheet
 
 

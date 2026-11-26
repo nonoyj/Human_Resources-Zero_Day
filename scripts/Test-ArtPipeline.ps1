@@ -49,7 +49,20 @@ try {
     if ($LASTEXITCODE -ne 0) { D 'applicant palette check failed' } else { OK 'applicant palette clean' }
 
     if (-not $SkipCompile) {
-        S 'Unity scripts type-check (stubs, no Unity install needed)'
+        S 'art bible is present and referenced'
+    if (-not (Test-Path (Join-Path $repo 'docs\15-art-bible.md'))) { D 'docs/15-art-bible.md missing' }
+    else { OK 'docs/15-art-bible.md present' }
+
+    S 'concept studies stay on-palette'
+    foreach ($study in @('study_desk_workdesk.py')) {
+        $path = Join-Path $repo "tools\art\$study"
+        if (-not (Test-Path $path)) { continue }
+        $out = (& python $path 2>&1 | Out-String)
+        if ($out -notmatch 'off-palette px: 0') { D "$study is off-palette`n$out" }
+        else { OK "$study -- 0 off-palette px" }
+    }
+
+    S 'Unity scripts type-check (stubs, no Unity install needed)'
         Push-Location (Join-Path $repo 'tools\UnityStubs')
         try {
             & dotnet build -v q --nologo | Out-Host

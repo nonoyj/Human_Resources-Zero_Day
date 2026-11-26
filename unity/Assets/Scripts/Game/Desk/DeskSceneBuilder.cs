@@ -3,6 +3,15 @@
 // Owner: Dev A. Called by Editor/HRZeroDayMenu.cs ("HR//0D > Build Desk Scene") in the Editor, and
 // usable at runtime for tests. Everything it places comes from the same json the twin renderer
 // (tools/comp/twin_desk.py) draws, so the two can never disagree about placement.
+//
+// Layer contract (desk_layout.json, composition L approved 2026-11-26):
+//   sortingOrder -30 background   the room (window, board, clock, cabinet, plant, desk front)
+//                -20 monitor      desk/monitor_small.png  -- 1 px redraw at the approved 0.58 scale
+//                -15 document     desk/document_small.png -- 1 px redraw at 0.56
+//                  0 applicant    the 4-frame strip, scaleFactor 0.96
+//                 10 desk         desk/desk_foreground.png -- sorts ABOVE the applicant on purpose,
+//                                 so keyboard/mug/clipboard read as sitting in front of him.
+// anchor is the BOTTOM-LEFT corner in canvas pixels, y up.
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -35,8 +44,16 @@ namespace HRZeroDay.Game
                 var sr = go.AddComponent<SpriteRenderer>();
                 sr.sprite = LoadPrimarySprite(entry);
                 sr.sortingOrder = layer.sortingOrder;
+
+                // scaleFactor (json, optional): the applicant is drawn at 0.96 of its authored size.
+                // Nearest-neighbour only -- a Point-filtered sprite scaled bilinearly would blur.
+                float scale = layer.scaleFactor > 0f ? layer.scaleFactor : 1f;
+                int drawW = Mathf.RoundToInt(entry.width * scale);
+                int drawH = Mathf.RoundToInt(entry.height * scale);
+                go.transform.localScale = new Vector3(scale, scale, 1f);
+
                 go.transform.localPosition = PixelsToUnits(layer.anchor[0], layer.anchor[1],
-                                                           entry.width, entry.height,
+                                                           drawW, drawH,
                                                            layout.canvas.pixelsPerUnit);
                 created[layer.id] = go;
             }

@@ -5,6 +5,12 @@ using System.Collections.Generic;
 
 namespace UnityEngine
 {
+    public static class Mathf
+    {
+        public static int RoundToInt(float v) => (int)System.Math.Round(v);
+        public static float Clamp01(float v) => v < 0f ? 0f : (v > 1f ? 1f : v);
+    }
+
     public class Object { public string name; public static void DestroyImmediate(Object o) { } }
     public class Component : Object
     {
@@ -16,6 +22,7 @@ namespace UnityEngine
     public class Transform : Component
     {
         public Vector3 position, localPosition;
+        public Vector3 localScale = new Vector3(1f, 1f, 1f);
         public void SetParent(Transform p, bool worldStays) { }
         public Transform Find(string n) { return null; }
     }

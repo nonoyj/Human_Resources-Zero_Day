@@ -82,3 +82,6 @@ tools/UnityStubs/obj/
 .t*/
 .scratch/
 .tmpcheck/
+
+# local toolchain (not shipped)
+.tooling/
