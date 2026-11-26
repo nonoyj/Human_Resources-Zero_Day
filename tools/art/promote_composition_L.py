@@ -33,8 +33,9 @@ W, H = 480, 270
 FLOOR_ROW = 198
 DESK_ROW = 206
 DESK_H = H - DESK_ROW          # 64 px band the desk occupies at the bottom of the screen
+DESK_LIP = 19                  # desk_foreground is the front lip only (see desk_work)
 MON_W, MON_H = 154, 106
-DOC_W, DOC_H = 108, 63
+DOC_W, DOC_H = 96, 54     # measured against the monitor glass; 108x63 overflowed it by 6 px
 
 
 def out(rel):
@@ -430,8 +431,10 @@ def notepad_and_pen(img, d, x, row):
     for i in range(4):
         y = row + 9 + i * 5
         d.line([x + 5, y, x + 33 - (i % 2) * 9, y], fill=rgba('paperdim'))
-    d.line([x + 44, row + 26, x + 58, row + 18], fill=rgba('warn'))
-    d.line([x + 58, row + 18, x + 61, row + 16], fill=rgba('linehi'))
+    # pen: short, nearly flat, with a nib -- a long diagonal here read as a scratch on the desk
+    d.line([x + 44, row + 27, x + 56, row + 24], fill=rgba('warn'))
+    d.point((x + 57, row + 23), fill=rgba('linehi'))
+    d.point((x + 43, row + 27), fill=rgba('ink'))
 
 
 def folder_stack(img, d, x, row):
@@ -476,39 +479,47 @@ def clipboard(img, d, x, row):
 
 
 def desk_work():
-    """Everything lying on the desk. Local rows: 0 = DESK_ROW.
+    """Props on the desk + the front lip. 480x64 band at the bottom of the screen.
 
-    LAYOUT RULE (2026-11-26, "defining desk" pass). The old desk was eight small props spread evenly
-    across the whole width, so nothing led and everything competed. Now it reads as three GROUPS with
-    gaps between them, ordered by how the player actually works:
+    PROPS ARE PLACED AROUND THE MONITOR ARM (2026-11-26). The arm occupies x 63..119 and the monitor
+    case x 14..168, so nothing that sits tall on the desk may be placed under them -- the keyboard
+    used to be centred at x=104 and covered the lower half of the arm. The desk now reads:
 
-        LEFT  (work area)  notepad + pen | keyboard + mouse
-        RIGHT (paperwork)  folder stack + sticky notes | clipboard
-        EDGE  (comfort)    mug
+        x 12    notepad + pen        (clear of the arm, left of it)
+        x 63    [monitor arm]        <- kept clear on purpose
+        x 156   keyboard + mouse     (right of the monitor)
+        x 268   sticky notes
+        x 300   folder stack         paperwork in front of the applicant
+        x 380   clipboard
+        x 440   coffee               (comfort, far right)
 
-    Props are also bigger (keyboard 88 px wide, mug 24 px tall) so they read at phone size, and every
-    one carries a contact shadow -- an object with no shadow on a surface is the main reason the desk
-    looked undefined rather than cluttered.
+    Everything is drawn with a contact shadow (bible 7b) and grouped, never one prop per band
+    (bible 7c).
     """
     img = Image.new('RGBA', (W, DESK_H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     base = 6
 
-    # ---- GROUP 1: work area, left
     notepad_and_pen(img, d, 12, base + 2)
-    keyboard(img, d, cx=104, row=base + 1)
-    mouse(img, d, 162, base + 4)
+    keyboard(img, d, cx=200, row=base + 1)
+    mouse(img, d, 250, base + 4)
+    sticky_notes(img, d, 268, base + 3)
+    folder_stack(img, d, 300, base - 2)
+    clipboard(img, d, 374, base - 4)
+    coffee(img, d, 436, base + 2)
+    scuff(img, 301, n=12, tones=('panel', 'void'))
 
-    # ---- GROUP 2: paperwork, right of centre
-    sticky_notes(img, d, 186, base + 3)
-    folder_stack(img, d, 208, base - 2)
-    clipboard(img, d, 330, base - 4)
-
-    # ---- GROUP 3: comfort, far right
-    coffee(img, d, 404, base + 2)
-
-    # RAGGED: a desk worked at for years -- sparse, low-contrast, never noise
-    scuff(img, 301, n=14, tones=('panel', 'void'))
+    # ---- front lip at the bottom of the band: lit bevel, apron, kick shadow
+    LIP_Y = DESK_H - 19
+    d.line([0, LIP_Y, W - 1, LIP_Y], fill=rgba('void'))
+    d.line([0, LIP_Y + 1, W - 1, LIP_Y + 1], fill=rgba('linehi'))
+    d.line([0, LIP_Y + 2, W - 1, LIP_Y + 2], fill=rgba('line'))
+    d.rectangle([0, LIP_Y + 3, W - 1, DESK_H - 8], fill=rgba('panel'))
+    d.line([0, DESK_H - 9, W - 1, DESK_H - 9], fill=rgba('line'))
+    d.line([0, DESK_H - 8, W - 1, DESK_H - 8], fill=rgba('panel2'))
+    d.rectangle([0, DESK_H - 7, W - 1, DESK_H - 1], fill=rgba('void'))
+    d.line([0, LIP_Y + 1, 148, LIP_Y + 1], fill=rgba('glow_amber'))
+    d.line([0, LIP_Y + 2, 96, LIP_Y + 2], fill=rgba('paperdim'))
     return img
 
 
@@ -577,27 +588,57 @@ def monitor_small():
     return img
 
 
-def monitor_stand(w=44, h=26):
-    """Neck + base + contact shadow for desk/monitor_small.png.
+def monitor_stand(w=56, h=34):
+    """The ARM that holds the screen. Redrawn 2026-11-26 (user: "the one I wanted you to fix was the
+    monitor stand or the arm holding the screen").
 
-    Anchored in desk_layout.json so its base overlaps the desk surface by ~4 px; the desk layer
-    (+10) covers the overhang, which is what makes it read as *sitting on* the desk.
+    What was wrong: the old 44x26 sprite was a ragged column plus one ellipse, with a ragged 1 px
+    outline on every edge -- at 8x it looked like scratched glass, not hardware. It also had no
+    articulation, so the screen read as balanced on a stick.
+
+    What a real monitor arm is, in 34 px, bottom to top:
+        base plate    - wide, low, bevelled, contact shadow underneath
+        lower column  - short and thick, two value steps (lit left, shaded right)
+        joint         - a visible collar, 2 px wider than the column
+        upper column  - thinner, offset 2 px (the arm leans slightly; nothing is plumb)
+        mount plate   - a widening wedge that meets the bottom of the bezel
+    Nothing is dotted and nothing is ragged: hardware edges are straight.
     """
     img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     cx = w // 2
-    # contact shadow on the desk: widens and fades toward the viewer (no alpha -- 2 flat steps)
+
+    # ---- base plate: 3 rows of shadow, then a bevelled foot
     for i in range(3):
-        d.line([cx - 20 - i * 2, h - 2 - i, cx + 20 + i * 2, h - 2 - i], fill=rgba('void'))
-    d.line([cx - 16, h - 5, cx + 16, h - 5], fill=rgba('panel'))
-    # neck: a tapered column, hand-drawn
-    ragged_rect(img, cx - 7, 0, cx + 7, h - 6, 'panel2', 'line', seed=131, amp=1)
-    d.line([cx - 5, 1, cx - 5, h - 8], fill=rgba('linehi'))
-    # base: a flattened ellipse band, straight lit top edge
-    d.ellipse([cx - 20, h - 11, cx + 20, h - 1], fill=rgba('panel2'))
-    d.line([cx - 16, h - 7, cx + 16, h - 7], fill=rgba('linehi'))
-    d.ellipse([cx - 20, h - 11, cx + 20, h - 1], outline=rgba('line'))
-    scuff(img, 132, n=5, tones=('panel', 'void'))
+        d.line([cx - 22 - i, h - 1 - i, cx + 22 + i, h - 1 - i], fill=rgba('void'))
+    d.rectangle([cx - 21, h - 9, cx + 21, h - 4], fill=rgba('panel2'), outline=rgba('line'))
+    d.line([cx - 20, h - 9, cx + 20, h - 9], fill=rgba('linehi'))     # lit front edge
+    d.line([cx - 20, h - 4, cx + 20, h - 4], fill=rgba('void'))       # shadow under the foot
+    d.point((cx + 14, h - 7), fill=rgba('signal'))                    # standby LED
+
+    # ---- lower column: short, thick, two value steps
+    d.rectangle([cx - 6, h - 20, cx + 6, h - 9], fill=rgba('panel'))
+    d.line([cx - 6, h - 20, cx - 6, h - 9], fill=rgba('linehi'))
+    d.line([cx + 6, h - 20, cx + 6, h - 9], fill=rgba('line'))
+    d.line([cx - 5, h - 19, cx + 5, h - 19], fill=rgba('panel2'))
+
+    # ---- joint collar, 2 px wider than the columns -- this is what makes it read as an arm
+    d.rectangle([cx - 8, h - 24, cx + 8, h - 20], fill=rgba('panel2'), outline=rgba('line'))
+    d.line([cx - 7, h - 23, cx + 7, h - 23], fill=rgba('linehi'))
+
+    # ---- upper column: thinner, and offset 2 px so the arm leans instead of being plumb
+    d.rectangle([cx - 2, h - 32, cx + 8, h - 24], fill=rgba('panel'))
+    d.line([cx - 2, h - 32, cx - 2, h - 24], fill=rgba('linehi'))
+    d.line([cx + 8, h - 32, cx + 8, h - 24], fill=rgba('line'))
+
+    # ---- mount plate: widens to meet the bezel, with a screw head on each side
+    d.rectangle([cx - 11, h - 34, cx + 13, h - 30], fill=rgba('panel2'), outline=rgba('line'))
+    d.line([cx - 10, h - 34, cx + 12, h - 34], fill=rgba('linehi'))
+    d.point((cx - 8, h - 32), fill=rgba('line'))
+    d.point((cx + 10, h - 32), fill=rgba('line'))
+
+    # wear: two scuffs on the column ONLY (hardware, not paper)
+    scuff(img, 132, n=2, tones=('panel2', 'void'), box=(cx - 5, h - 30, cx + 6, h - 10))
     return img
 
 
@@ -625,8 +666,8 @@ def document_small():
         y = 8 + (1 if (x // 11) % 4 == 0 else 0)
         img.putpixel((x, y), rgba('ink'))
     y = 14
-    for i in range(7):
-        ln = (w - 26) if i % 4 else (w - 58)
+    for i in range(6):
+        ln = (w - 26) if i % 4 else (w - 50)
         d.line([7, y, 7 + ln, y], fill=rgba('paperdim'))
         y += 6
     d.rectangle([w - 18, 3, w - 12, 7], outline=rgba('muted'))    # paper clip

@@ -436,3 +436,14 @@ Redundant, not broken. Nothing shipped was touched; every gate re-ran green afte
 - **Rule (bible §6b):** big hard objects stay hard. Only paper and soft goods get torn silhouettes.
 - **Also rejected:** a diagonal glare streak across the glass -- it read as a scratch and competed with
   the email text the player is reading.
+
+## BUG-028 / BUG-029 -- document overflowed the CRT; the arm was not an arm (2026-11-26)
+
+- **BUG-028:** document layer anchor `[34,93]` put the 108x63 sheet at rows 114-177 while the monitor
+  glass ends at row 171 -- 6 px of paper hung out of the screen. Sheet resized to 96x54, anchor moved
+  to `[38,100]`. Prevention: measure against the glass rect (`x+6, y+6 .. x+w-7, y+h-13`).
+- **BUG-029:** `monitor_stand.png` was a ragged column + ellipse with dotted edges, no articulation.
+  Redrawn 56x34: base plate / lower column / joint collar / leaning upper column / mount plate.
+  Anchor `[63,60]` so its mount meets the bezel bottom at row 184 and its foot overlaps the desk.
+- Also this pass: desk props re-laid around the arm (keyboard moved off x=104 to x=200), coffee
+  cleared off the clipboard, notepad pen shortened (a 15 px diagonal read as a scratch).

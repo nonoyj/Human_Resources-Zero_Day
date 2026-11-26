@@ -1926,7 +1926,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "desk",
-      "sha256_16": "a5a239a67a3f2dc3",
+      "sha256_16": "8106fc091eecf841",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1959,12 +1959,12 @@
     {
       "source": "art/kit/desk/document_small.png",
       "assetPath": "Assets/Art/Kit/desk/document_small.png",
-      "width": 108,
-      "height": 63,
+      "width": 96,
+      "height": 54,
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "desk",
-      "sha256_16": "f62b60438df97049",
+      "sha256_16": "0620d0ac5f08a4d4",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2035,12 +2035,12 @@
     {
       "source": "art/kit/desk/monitor_stand.png",
       "assetPath": "Assets/Art/Kit/desk/monitor_stand.png",
-      "width": 44,
-      "height": 26,
+      "width": 56,
+      "height": 34,
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "desk",
-      "sha256_16": "702f7e66e87cbb84",
+      "sha256_16": "6846d079e1374b11",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",

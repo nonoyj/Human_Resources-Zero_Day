@@ -280,6 +280,26 @@ vertical panel joints at x=168/312 (they ran through the mouse and the folder); 
 stack (one bright undefined block); a mouse drawn as concentric ellipses (two coins); a diagonal glare
 streak on the monitor glass (reads as a scratch and competes with the email text).
 
+## 7d. The monitor arm, and the document that overflowed the glass (2026-11-26)
+
+**BUG-028 -- the document stuck out of the screen.** Measured: monitor glass occupied rows 84-171,
+columns 20-161. The document layer was at anchor `[34, 93]`, i.e. rows 114-177 -- **6 px below the
+glass** -- so the sheet hung out of the bottom of the CRT. The document is now **96x54** (was 108x63)
+at anchor `[38, 100]`, which leaves 6 px of glass above it and 1 px below.
+
+Rule: **any sprite drawn "on" the screen must be measured against the glass rect, not eyeballed.**
+The glass rect for `monitor_small.png` is `x+6, y+6 .. x+w-7, y+h-13`.
+
+**BUG-029 -- the arm was not an arm.** The old `monitor_stand.png` was a ragged column plus one
+ellipse, outlined in 1 px dots (same failure as the monitor, BUG-027). Redrawn as 56x34 with real
+articulation: base plate (bevelled, with a standby LED) -> thick lower column -> **joint collar** 2 px
+wider -> thinner upper column offset 2 px so it leans -> mount plate with two screw heads. Hardware
+edges are straight; wear is 2 scuffs on the column.
+
+**Desk props vs the arm.** The arm occupies x 63..119. Desks props may not be placed under it: the
+keyboard used to be centred at x=104 and covered the arm's lower half. Band rule now: notepad x12 |
+**arm clear** | keyboard x200 / mouse x250 | sticky 268 / folder 300 | clipboard 374 | coffee 436.
+
 ## 8. Open decisions (do not build on these yet)
 
 - None carried over. (The applicant backdrop-slab question was closed by removing the slab.)
