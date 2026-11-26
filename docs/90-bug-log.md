@@ -401,3 +401,24 @@ variant of "bundle newer than its HEAD" cannot recur.
 - **Prevention rule:** never install a toolchain, package cache or SDK under `/home/user`. If a tool
   needs to persist between turns and is larger than a few MB, it belongs in `/tmp` or `/opt`, not the
   repo -- the snapshot is a deliverable, not a scratch disk.
+
+## Repo clean-up (2026-11-26) -- what was removed and why
+
+Redundant, not broken. Nothing shipped was touched; every gate re-ran green after the sweep.
+
+| Removed | Why |
+|---|---|
+| `tools/art/make_artifact_legend.py`, `make_character_spread.py`, `make_composition_preview.py` | One-off contact-sheet scripts with no caller and no gate. All three were superseded by `twin_desk.py` |
+| `art/kit/reference/{applicants_sheet,artifact_legend,character_spread,composition_preview,window_detail}.png` | Their outputs. The live previews are `twin_desk_*.png` (which the gates verify) |
+| `art/concepts/study_K_*.png`, `study_L_*.png`, `study_contact_sheet_JK.png` | Studies A–K were deleted when L was promoted; these three were the leftovers. The generator stays (`study_desk_workdesk.py` is referenced by a gate) |
+| `docs/PROJECT-STATUS.md` | Pinned `dfea20f` / 53 files. Had been false for weeks — the most confusing file in the repo |
+| `docs/NEXT-STEPS.md` | Superseded by `docs/16-the-later-list.md` |
+| `docs/03-title-shortlist.md` | Title is locked |
+| `docs/05-design-suggestions.md` | Superseded by `docs/06-decisions.md` |
+| `docs/92-retrospective.md` | Once-off, already acted on |
+| `.cache/`, `.dotnet/`, `.local/`, `.nuget/` at the workspace root | Toolchain droppings (BUG-026) |
+| `tools/art/__pycache__/` | Build droppings |
+
+**Docs now have an index** (`docs/README.md`) with a "deleted on purpose — do not recreate" list, and
+`README.md` links to it instead of describing files that no longer exist (it still pointed at a
+`content/` folder that was never created).
