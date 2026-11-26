@@ -1,7 +1,7 @@
 # Setup Checklist — do these in order, tick as you go
 
 Machine: Windows · user folder `C:\users\user` · target repo `C:\users\user\HR-ZeroDay`
-Full detail + verified URLs: `docs/tooling-setup-database.md` · Report: `docs/tooling-status.md`
+Full detail + verified URLs: `docs/tooling-setup-database.md`
 
 ---
 
@@ -140,5 +140,5 @@ scene; write a handoff file when you hand work to someone. Full protocol: `docs/
 ## Step 10 — Tell me the result
 
 Paste back the output of the `-Verify` run (or just the summary table). I'll update
-`docs/tooling-status.md` and hand out the Day-1 tasks. If any step failed, give me the exact
+the `-Verify` output and hand out the Day-1 tasks. If any step failed, give me the exact
 error text and I'll fix the script or the guide.

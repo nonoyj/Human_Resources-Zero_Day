@@ -104,7 +104,7 @@ Then:
 .\scripts\setup-workspace.ps1
 ```
 
-## Step 6 — Push to GitHub (see `docs/PUSH-TO-GITHUB.md` for the long version)
+## Step 6 — Push to GitHub (already done 2026-11-25; from here use `git push` / `git pull`, see `docs/BUNDLE-WORKFLOW.md`)
 
 ```powershell
 cd C:\users\user\HR-ZeroDay

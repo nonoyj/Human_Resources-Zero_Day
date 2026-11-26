@@ -651,3 +651,45 @@ Written tests-first-with-code; the first `dotnet run` failed 3 of 7, all real:
 - **Gate additions:** `make_font.py --check` and `preview_screen.py` now run in `Test-ArtPipeline.ps1`,
   so a broken atlas or a text-layout regression fails the gate and is visible in the bundle as
   `art/kit/reference/screen_preview.png`.
+
+## BUG-042 -- the art gate blessed code Unity rejects, and the editor went to Safe Mode (player report, 2026-11-25)
+
+**Symptom.** Opening the project asked *"Enter Safe Mode? The project you are opening contains
+compilation errors"*, with three `CS1061: 'TextMesh' does not contain a definition for 'sortingOrder'`.
+
+**Root cause, and it is the worst class we have.** `sortingOrder` lives on `Renderer` in Unity, not on
+`TextMesh`. The merged interaction layer set it on the `TextMesh`. The local gate passed because
+`sortingOrder` had been **added to the `TextMesh` stub** to silence the same error there. The stub was a
+lie, so the gate was green and the editor was broken.
+
+This is the identical failure mode as `TextureImporter.spritesheet` and `UnityEngine.EventSystems`
+(docs/../tools/UnityStubs/ASSEMBLY-RULES.md). The rule is not "make the gate pass", it is **"be exactly as
+strict as Unity"**.
+
+**Fix.**
+- `TextMesh` keeps only members it really has. `sortingOrder` / `sortingLayerName` moved to a `Renderer`
+  base class, with `MeshRenderer` and `SpriteRenderer` deriving from it — Unity's own hierarchy.
+- The three call sites use `GetComponent<MeshRenderer>().sortingOrder`, which is what the engine requires.
+- **New guard** in `scripts/Test-ArtPipeline.ps1`: it parses the `TextMesh` stub and fails by name if
+  `sortingOrder` or `sortingLayerName` ever appears there again. Verified by re-adding the lie.
+
+**Related CS0165 in the same merge:** `Vector2 point;` was used without a definite assignment in
+`GameInputRouter`, so the Game assembly did not compile at all. Also `DayResult.SyntheticCaught` (the field
+is `SyntheticsCaught`) and a missing `using HRZeroDay.Core.Data` in `StampAnimator`.
+
+## BUG-043 -- every relog needed a manual menu ritual, and a closed Unity (player report, 2026-11-25)
+
+**Symptom.** *"Do I have to do the HQ in every relog of Unity, it seems like lots of time is being used
+plus the going in and out of unity to extract a file."*
+
+**Three separate wastes, all fixed:**
+1. The `HR//0D` menu is **not** required to play. `GameBoot` builds the desk at `AfterSceneLoad` when no
+   `DeskBootstrap` exists, so pressing Play is the whole step. The menu is only for when art PNGs changed.
+2. `scripts/Open-Game.ps1` opens the project on the detected Unity install — no Hub clicking.
+3. `Apply-Bundle.ps1` used a hard `Remove-Item` on `.git`, which is what demanded a closed editor. It now
+   retries five times and only asks for a closed editor if all five fail.
+
+**And a documentation bug that cost the player a round trip:** the previous `docs/BUNDLE-WORKFLOW.md` said
+`.\scripts\Open-Game.ps1` right after the apply line — but that script ships *inside* the bundle, so it
+does not exist until the apply has run. It also never said the zip lives in `Downloads` while the repo is
+elsewhere. The page is rewritten with the two commands in order and a symptom → cause → fix table.

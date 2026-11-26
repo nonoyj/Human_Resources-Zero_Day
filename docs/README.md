@@ -39,7 +39,6 @@ navigation you need; the numbering is deliberate (lower number = decided earlier
 | `REPORTING-FORMAT.md` | How the agent reports (A/B/C) |
 | `13-team-plan.md` | Who owns what |
 | `BUNDLE-WORKFLOW.md` | How bundles move between the agent and your PC |
-| `PUSH-TO-GITHUB.md` | Pushing to the team remote |
 | `90-bug-log.md` | BUG-001 … BUG-026. Read before "fixing" anything twice |
 | `91-backlog.md` | Explicitly **not** in the build |
 
@@ -48,10 +47,8 @@ navigation you need; the numbering is deliberate (lower number = decided earlier
 | File | What it is |
 |---|---|
 | `tooling-setup-database.md` | Verified installers D01–D17 with sizes and first-party URLs |
-| `tooling-status.md` | Live status of what is installed on the Dev A machine |
 | `SETUP-CHECKLIST.md` | Step-by-step Windows setup |
 | `TROUBLESHOOT-SETUP.md` | "script not recognized" and every other setup failure |
-| `DOWNLOADS.md` | Short download checklist |
 | `19-unity-project-setup.md` | Open `unity/` in Hub, one-click setup, Play controls, project settings |
 | `GIT-LFS-DECISION.md` | Why this project does **not** use LFS (BUG-010) |
 

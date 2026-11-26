@@ -9,10 +9,16 @@ A mobile cybersecurity-awareness game for Android (Unity 6.3 LTS), inspired by t
 
 ---
 
+## Start here
+
+**[`HANDOFF.md`](HANDOFF.md)** — current state, the five things that have cost the most time (all guarded
+now), what is next, and where everything lives. One page, no history.
+
 ## Repository map
 
 | Path | Purpose |
 |---|---|
+| `HANDOFF.md` | **current working state — read this first** |
 | `docs/` | Source of truth — **see `docs/README.md` for the index** |
 | `docs/16-the-later-list.md` | Everything still owed, ordered and owner-tagged |
 | `docs/06-decisions.md` | Every locked decision, with dates |
