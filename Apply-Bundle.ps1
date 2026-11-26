@@ -185,7 +185,9 @@ try {
             # Nothing is ever "checked out into", so there is nothing for git to refuse.
             Git @('-C', $WorkingCopy, 'init', '-q') -Quiet | Out-Null
             $incoming = 'refs/hr0d-incoming'
-            Git @('-C', $WorkingCopy, 'fetch', '-q', '--no-tags', $srcBundle, ('+' + $incoming + '/*:refs/heads/*')) -Quiet | Out-Null
+            # source -> destination. Getting this backwards is silent: the fetch "succeeds" and creates
+            # nothing, which then looks like "the bundle has no branch". It did, once.
+            Git @('-C', $WorkingCopy, 'fetch', '-q', '--no-tags', $srcBundle, ('+refs/heads/*:' + $incoming + '/*')) -Quiet | Out-Null
             if ($script:GitExitCode -ne 0) {
                 # older syntax fallback: fetch the single branch straight to a temp ref
                 Git @('-C', $WorkingCopy, 'fetch', '-q', $srcBundle, ('+' + 'refs/heads/' + $bBranch + ':refs/heads/' + $bBranch)) -Quiet | Out-Null
