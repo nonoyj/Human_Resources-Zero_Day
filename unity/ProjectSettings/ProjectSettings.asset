@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!129 &1
+PlayerSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 26
+  companyName: NONOYJ
+  productName: HUMAN RESOURCES ZERO DAY
+  defaultScreenWidth: 480
+  defaultScreenHeight: 270
+  runInBackground: 1
+  m_StereoRenderingPath: 0
+  bundleVersion: 0.1.0
+  applicationIdentifier:
+    Android: com.nonoyj.hrzeroday
+  AndroidMinSdkVersion: 24
+  AndroidTargetSdkVersion: 35
+  AndroidTargetArchitectures: 1
+  scriptingBackend:
+    Android: 1
+  activeInputHandler: 2
+  m_ActiveColorSpace: 0
+  m_SpriteBatchVertexThreshold: 300
+  m_MTRendering: 1
+  mipStripping: 0
+  numberOfMipsStripped: 0

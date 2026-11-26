@@ -3,9 +3,13 @@
 **Decided 2026-11-26:** the user creates the project rather than waiting for BE1, so the week is not
 blocked. BE1 adopts it afterwards (see `handoff/2026-11-26_fe-to-BE1_unity-project-created.md`).
 
-**Why this is a separate step at all:** the repo deliberately contains no `ProjectSettings/` or
-`Packages/`. A Unity project cannot be opened without them, and hand-writing them is how a team ends up
-with a project that cannot build. So we generate them once from the pinned editor and commit them.
+**Status 2026-11-26 (updated):** `unity/ProjectSettings/` and `unity/Packages/` are now committed, so
+Unity Hub can open `unity/` directly. `Promote-UnityProject.ps1 -Source <Unity-created project>` remains
+the way to replace the committed minimum set with editor-generated settings before a device build.
+
+**Why this existed:** a Unity project cannot be opened without `ProjectSettings/` and `Packages/`, and
+hand-writing them is how a team ends up with a project that cannot build. The committed files are the
+minimum set for 6000.3.29f1; the script can overwrite them from a real editor-generated project.
 
 ---
 
@@ -59,6 +63,7 @@ It is a custom menu the project adds. Click it and a dropdown lists, in this ord
 | `Build Desk Scene` | writes `Assets/Scenes/Desk.unity` from `desk_layout.json` | third |
 | `Open Desk Scene` | opens that scene | fourth — then press **Play** |
 | `Verify Art Import` | re-checks the settings without changing them | any time |
+| `Setup Project (one click)` | publish art → import settings/frames → build + open Desk scene → add to Build Settings | **use this on a fresh checkout** |
 
 **If `HR//0D` is not in the menu bar, the editor scripts did not compile.** That is the normal state after
 a fresh checkout *if anything is broken*, so check `Window > General > Console` **first**: a compile
@@ -89,6 +94,19 @@ cd C:\users\user\HR-ZeroDay
 It proves the source is a Unity project, proves it is **not inside the repo**, proves the editor is
 **6000.3.29f1**, copies only `ProjectSettings\` and `Packages\`, and tells you what it skipped.
 If any check fails it stops before writing anything.
+
+## 0e. Fresh checkout, shortest path to Play
+
+1. Unity Hub → **Add** → **Add project from disk** → `C:\users\user\HR-ZeroDay\unity` (never the repo root).
+2. Wait for the first import; check `Window > General > Console` for compile errors.
+3. Menu **HR//0D > Setup Project (one click)**. It performs Publish → Import → Build Desk Scene,
+   adds `Assets/Scenes/Desk.unity` to Build Settings and opens the scene.
+4. Press **Play**. Click the applicant to inspect; `L` opens the letter; `1-5` toggle letter flags or
+   pick a rejection reason; `A` approves; `S` rejects; `SPACE` advances; `R` restarts after an ending.
+5. If the menu is missing, the Editor assembly did not compile — paste the first Console error.
+
+Even with no scene open, Play mode now self-boots the desk through `GameBoot`. Setup is still needed
+once to import sprites and generate the four animation frames per applicant.
 
 ## 0d. Where the project actually lives (the "Please add a valid project" fix)
 

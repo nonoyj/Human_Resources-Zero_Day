@@ -13,14 +13,24 @@ namespace UnityEngine
         public static float Lerp(float a, float b, float t) => a + (b - a) * Clamp01(t);
         public static int Max(int a, int b) => a > b ? a : b;
         public static float Max(float a, float b) => a > b ? a : b;
+        public static float Abs(float v) => v < 0f ? -v : v;
+        public static int CeilToInt(float v) => (int)System.Math.Ceiling(v);
     }
 
-    public class Object { public string name; public static void DestroyImmediate(Object o) { } public static void Destroy(Object o) { } }
+    public class Object
+    {
+        public string name;
+        public static void DestroyImmediate(Object o) { }
+        public static void Destroy(Object o) { }
+        public static T FindObjectOfType<T>() where T : Object { return null; }
+        public static T[] FindObjectsOfType<T>() where T : Object { return new T[0]; }
+    }
     public class Component : Object
     {
         public Transform transform; public GameObject gameObject;
         public T GetComponent<T>() where T : Component { return null; }
         public T GetComponentInChildren<T>() where T : Component { return null; }
+        public T GetComponentInChildren<T>(bool includeInactive) where T : Component { return null; }
         public T[] GetComponentsInChildren<T>() where T : Component { return new T[0]; }
     }
     public class Behaviour : Component { public bool enabled; }
@@ -36,6 +46,7 @@ namespace UnityEngine
     public class Transform : Component
     {
         public Vector3 position, localPosition;
+        public Vector3 lossyScale = new Vector3(1f, 1f, 1f);
         public Vector3 localScale = new Vector3(1f, 1f, 1f);
         public Quaternion localRotation;
         public void SetParent(Transform p, bool worldStays) { }
@@ -73,6 +84,7 @@ namespace UnityEngine
     public struct Color
     {
         public float r, g, b, a;
+        public static Color white = new Color(1f, 1f, 1f, 1f);
         public Color(float r, float g, float b, float a) { this.r = r; this.g = g; this.b = b; this.a = a; }
         public static implicit operator Color(Color32 c) { return new Color(c.r / 255f, c.g / 255f, c.b / 255f, c.a / 255f); }
     }
@@ -109,11 +121,20 @@ namespace UnityEngine
     }
     public class TextAsset : Object { public string text; }
     public class Font : Object { }
-    public class TextMesh : Component { public string text; public Font font; public float characterSize; }
+    public class TextMesh : Component { public string text; public Font font; public float characterSize; public int sortingOrder; }
     public class Camera : Behaviour
     {
+        public static Camera main;
         public bool orthographic; public float orthographicSize; public CameraClearFlags clearFlags;
         public Color backgroundColor;
+        public Vector3 ScreenToWorldPoint(Vector3 screen) { return Vector3.zero; }
+    }
+    public static class Screen { public static int width = 480, height = 270; }
+    public enum RuntimeInitializeLoadType { AfterSceneLoad }
+    [AttributeUsage(AttributeTargets.Method)]
+    public class RuntimeInitializeOnLoadMethodAttribute : Attribute
+    {
+        public RuntimeInitializeOnLoadMethodAttribute(RuntimeInitializeLoadType type) { }
     }
     public class SpriteRenderer : Component { public Sprite sprite; public int sortingOrder; public Color color; }
     public class Collider2D : Component { public bool isTrigger; }
@@ -138,6 +159,43 @@ namespace UnityEngine
     [AttributeUsage(AttributeTargets.Field)] public class RangeAttribute : Attribute { public RangeAttribute(float a, float b) { } }
     [AttributeUsage(AttributeTargets.Field)] public class SerializeFieldAttribute : Attribute { }
     public class RequireComponent : Attribute { public RequireComponent(Type t) { } }
+}
+
+namespace UnityEngine.InputSystem
+{
+    public class InputControl<T>
+    {
+        public bool wasPressedThisFrame;
+        public T ReadValue() { return default(T); }
+    }
+    public class ButtonControl : InputControl<float> { }
+    public class Vector2Control : InputControl<Vector2> { }
+    public class Keyboard
+    {
+        public static Keyboard current;
+        public ButtonControl lKey = new ButtonControl(), xKey = new ButtonControl(), hKey = new ButtonControl();
+        public ButtonControl aKey = new ButtonControl(), sKey = new ButtonControl(), rKey = new ButtonControl();
+        public ButtonControl escapeKey = new ButtonControl(), spaceKey = new ButtonControl(), enterKey = new ButtonControl();
+        public ButtonControl digit1Key = new ButtonControl(), digit2Key = new ButtonControl();
+        public ButtonControl digit3Key = new ButtonControl(), digit4Key = new ButtonControl();
+        public ButtonControl digit5Key = new ButtonControl(), digit6Key = new ButtonControl();
+    }
+    public class Mouse
+    {
+        public static Mouse current;
+        public ButtonControl leftButton = new ButtonControl();
+        public Vector2Control position = new Vector2Control();
+    }
+    public class TouchControl
+    {
+        public ButtonControl press = new ButtonControl();
+        public Vector2Control position = new Vector2Control();
+    }
+    public class Touchscreen
+    {
+        public static Touchscreen current;
+        public TouchControl primaryTouch = new TouchControl();
+    }
 }
 
 namespace UnityEngine.EventSystems
@@ -184,6 +242,14 @@ namespace UnityEditor
     public static class EditorUtility
     {
         public static bool DisplayDialog(string a, string b, string c) { return true; }
+    }
+    public class EditorBuildSettingsScene
+    {
+        public EditorBuildSettingsScene(string path, bool enabled) { }
+    }
+    public static class EditorBuildSettings
+    {
+        public static EditorBuildSettingsScene[] scenes;
     }
     public class MenuItem : Attribute
     {

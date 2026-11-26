@@ -20,7 +20,10 @@ namespace HRZeroDay.EditorTools
         private const string ResourcesKit = "Assets/Resources/Art/Kit";
 
         [MenuItem("HR//0D/Import Art Kit", false, 10)]
-        public static void ImportAll()
+        public static void ImportAll() { ImportSilent(); }
+
+        /// <summary>The work without the menu's console noise; used by Setup Project (one click).</summary>
+        public static void ImportSilent()
         {
             var manifest = LoadManifest();
             if (manifest == null) return;

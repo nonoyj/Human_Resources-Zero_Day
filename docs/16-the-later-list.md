@@ -10,11 +10,14 @@ Rules for this file: nothing moves out of here without either (a) a roadmap line
 
 ## 0. Where we actually are (one paragraph)
 
-Art is ~90 % done and gated (`Test-ArtPipeline.ps1`, 9 gates). The full 480×270 composition exists,
-the RAGGED style is applied kit-wide, the night window is final, applicants have real identity
-traits, and corruption wear overlays exist as sprites. **Nothing of this is running in Unity yet
-beyond the stub-compiled scene builder.** The game has no loop, no UI screens, no content data, no
-audio, no save round-trip, no Android build. That gap — not more art — is what the next phase is.
+Art is gated (`Test-ArtPipeline.ps1`, 9 gates). The full 480×270 composition exists, the RAGGED style
+is applied kit-wide, the night window is final, applicants have real identity traits, and corruption
+wear overlays exist as sprites. `unity/` is now a Hub-openable project on 6000.3.29f1 with committed
+`ProjectSettings/` and `Packages/`; `HR//0D > Setup Project (one click)` publishes art, imports it,
+builds the Desk scene and adds it to Build Settings. Play mode also self-boots from an empty scene.
+The first playable minute runs: hotspot → magnifier/callout → letter flags → stamp → debrief → day
+summary → next applicant. Still not shipped: the polished Field Manual, separate day-summary/ending
+*screens* (the HUD has readable text versions), content text, audio, save round-trip and an APK.
 
 ---
 

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Makes unity\ a real Unity project that Unity Hub will open.
 
@@ -124,6 +124,7 @@ PlayerSettings:
   AndroidTargetArchitectures: 1
   scriptingBackend:
     Android: 1
+  activeInputHandler: 2
   m_ActiveColorSpace: 0
   m_SpriteBatchVertexThreshold: 300
   m_MTRendering: 1

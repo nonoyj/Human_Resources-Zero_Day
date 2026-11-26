@@ -111,7 +111,7 @@ dotnet run --project tools/CoreTests                # all existing tests + 10 in
 dotnet run --project tools/CoreTests -- 2000        # generator soak
 ```
 
-In this sandbox these commands were replaced by a tree-sitter C# syntax pass (49 files, 0 errors)
+In this sandbox these commands were replaced by a tree-sitter C# syntax pass (53 files, 0 errors)
 and the browser rule suite (9/9). This is **not** a substitute for the .NET run; BE1 must run the
 two `dotnet` commands on the PC before merging.
 
@@ -132,10 +132,11 @@ python3 tools/art/selfcheck_pngcheck.py
 
 ## 5. Known gaps / next actions
 
-1. **`ProjectSettings/` + `Packages/` are not committed yet.** The user created the Unity project
-   locally; BE1 should **adopt** it with `scripts/Adopt-UnityProject.ps1` per
-   `docs/19-unity-project-setup.md` and `handoff/2026-11-26_fe-to-BE1_unity-project-created.md`.
-   Do not create a second project.
+1. **Unity project settings are committed.** `unity/ProjectSettings/` + `unity/Packages/` now exist
+   at 6000.3.29f1. On a fresh checkout use `HR//0D > Setup Project (one click)` in Unity; it publishes
+   art, imports sprites/frames, builds and opens the Desk scene and adds it to Build Settings.
+   Play mode also self-boots through `GameBoot` even without a scene. Controls: click hotspot, `L`
+   letter, `1-5` flags/reason, `A`/`S` stamp, `SPACE` continue, `R` restart, `H` help.
 2. **Touch-target size:** the art hotspot rects are small (some 16 px wide at 480 px reference).
    Colliders get 6 px padding and the smallest rect wins, but this is not a literal 48 dp target.
    The next UI pass should add an *inspect list* with full-width rows that select the same artifact
@@ -145,6 +146,7 @@ python3 tools/art/selfcheck_pngcheck.py
    source of truth; the browser twin uses `prototype/web/copy.json` for now.
 4. **Tool result panel:** the C# layer budgets and reveals tool tells; FE still needs to build the
    tool result panel and connect it to `EvidencePresenter.Open(...)`.
-5. **Field Manual / day summary / endings screens** are outside this minute and remain FE work.
+5. **Field Manual / dedicated day-summary and ending screens** remain FE work. The current HUD
+   (`GameHud`) renders day/debrief/ending text readably but does not yet have bespoke art screens.
 6. The Unity overlay uses `TextMesh` with the built-in font; it does not yet use the new 5x7
    monitor font atlas. Wire it through `LetterView`/`MonitorScreenRaster` when FE owns the page.

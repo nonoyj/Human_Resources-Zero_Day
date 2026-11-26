@@ -11,24 +11,43 @@ using HRZeroDay.Game.Interaction;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.EventSystems;
 
 namespace HRZeroDay.EditorTools
 {
     public static class HRZeroDayMenu
     {
         private const string ScenePath = "Assets/Scenes/Desk.unity";
-        private const float TouchPaddingPx = 6f;   // art rects + padding; the inspect menu owns 48 dp targets
+
+        [MenuItem("HR//0D/Setup Project (one click)", false, 0)]
+        public static void SetupProject()
+        {
+            S("publishing art to Resources");
+            ArtKitPublishMenu.PublishSilent();
+            S("configuring sprite import settings and extracting frames");
+            ArtKitImporter.ImportSilent();
+            S("building and opening the desk scene");
+            BuildDeskScene(true);
+            EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            Debug.Log("[HR//0D] setup complete. Press Play. Controls: click a hotspot, L letter, " +
+                      "1-5 flags/reason, A approve, S reject, SPACE continue, R restart.");
+            EditorUtility.DisplayDialog("HR//0D - ready",
+                "Project is ready. The Desk scene is open and is in Build Settings.\n\n" +
+                "Press Play.\nClick the applicant to inspect; L opens the letter;\n" +
+                "A / S stamps; SPACE advances; R restarts after the ending.", "OK");
+        }
+
+        private static void S(string message) { Debug.Log("[HR//0D] " + message + "\n"); }
 
         [MenuItem("HR//0D/Build Desk Scene", false, 1)]
-        public static void BuildDeskScene()
+        public static void BuildDeskScene() { BuildDeskScene(false); }
+
+        private static void BuildDeskScene(bool silent)
         {
             var layoutAsset = AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/Resources/desk_layout.json");
             if (layoutAsset == null)
             {
                 EditorUtility.DisplayDialog("HR//0D",
-                    "Assets/Resources/desk_layout.json is missing.\n\nRun in PowerShell:\n" +
-                    "python tools/art/publish_to_unity.py", "OK");
+                    "Assets/Resources/desk_layout.json is missing.\n\nRun HR//0D > Setup Project (one click).", "OK");
                 return;
             }
 
@@ -41,128 +60,24 @@ namespace HRZeroDay.EditorTools
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-            // camera
-            // "MainCamera" is a built-in tag, but a project that never opened the Tag Manager can reject
-            // it, and an exception here leaves a half-built scene behind. Leave the tag alone.
+            // No tag assignment: a project that never opened the Tag Manager can reject "MainCamera"
+            // and leave a half-built scene behind. Runtime input looks for Camera.main by component.
             var camGo = new GameObject("Main Camera");
             var cam = camGo.AddComponent<Camera>();
-            DeskSceneBuilder.ConfigureCamera(cam, layout.canvas);
-
-            // desk
-            var manifest = SpriteManifest.Load();
-            var root = DeskSceneBuilder.Build(layout, null);
-
-            // hotspots: named empty boxes under the applicant, positioned in applicant-local space
-            var appTransform = root.Find("L_applicant");
-            if (appTransform != null)
-            {
-                var hotspots = new GameObject("Hotspots").transform;
-                hotspots.SetParent(appTransform, false);
-                float ppu = layout.canvas.pixelsPerUnit;
-                float spriteW = 192f, spriteH = 216f;
-                for (int i = 0; i < layout.hotspots.Count; i++)
-                {
-                    var hp = layout.hotspots[i];
-                    var go = new GameObject("HS_" + hp.artifact);
-                    go.transform.SetParent(hotspots, false);
-                    // applicant-local px (y up, origin bottom-left) -> local units (pivot centre)
-                    float x = (hp.rect[0] + hp.rect[2] * 0.5f - spriteW * 0.5f) / ppu;
-                    float y = (hp.rect[1] + hp.rect[3] * 0.5f - spriteH * 0.5f) / ppu;
-                    go.transform.localPosition = new Vector3(x, y, 0f);
-                    var box = go.AddComponent<BoxCollider2D>();
-                    box.size = new Vector2((hp.rect[2] + TouchPaddingPx * 2f) / ppu,
-                                           (hp.rect[3] + TouchPaddingPx * 2f) / ppu);
-                    box.isTrigger = true;
-
-                    var tap = go.AddComponent<HotspotInteractor>();
-                    tap.artifact = hp.artifact;
-                }
-            }
-
-            BuildInteractionProps(root, layout, manifest);
-            root.gameObject.AddComponent<DecisionInputController>();
-            root.gameObject.AddComponent<DeskBootstrap>();
+            DeskRuntimeScene.ConfigureCamera(cam, layout.canvas);
+            DeskRuntimeScene.BuildGameplay(layout, null);
 
             Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "Assets", "Scenes"));
             EditorSceneManager.SaveScene(scene, ScenePath);
+            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             AssetDatabase.Refresh();
 
             Debug.Log("[HR//0D] built " + ScenePath + " -- " + layout.layers.Count + " layers, " +
-                      layout.hotspots.Count + " hotspots. Next: HR//0D > Import Art Kit");
+                      layout.hotspots.Count + " hotspots. Added to Build Settings.");
+            if (silent) return;
             EditorUtility.DisplayDialog("HR//0D",
-                "Desk scene written to Assets/Scenes/Desk.unity\n\nNext steps:\n" +
-                "1. HR//0D > Import Art Kit\n2. Open the scene and press Play\n" +
-                "3. Check the Console for [HR//0D] import PASS", "OK");
-        }
-
-        /// <summary>
-        /// Creates the interaction props the desk needs: evidence overlay, stamp and an
-        /// EventSystem with a 2D raycaster. The input module itself is set up by BE1 with the
-        /// Input System package; no legacy Input calls are used by the interaction scripts.
-        /// </summary>
-        private static void BuildInteractionProps(Transform root, DeskLayout layout, SpriteManifest manifest)
-        {
-            float ppu = layout.canvas.pixelsPerUnit;
-
-            var overlayGo = new GameObject("HR_EvidenceOverlay");
-            overlayGo.transform.SetParent(root, false);
-            var overlay = overlayGo.AddComponent<DeskEvidenceOverlay>();
-            overlay.referenceWidth = layout.canvas.width;
-            overlay.referenceHeight = layout.canvas.height;
-            overlay.pixelsPerUnit = ppu;
-
-            var ring = new GameObject("MagnifierRing");
-            ring.transform.SetParent(overlayGo.transform, false);
-            var ringSprite = ring.AddComponent<SpriteRenderer>();
-            ringSprite.sprite = DeskSceneBuilder.LoadPrimarySprite(manifest.Find("art/kit/ui/tooltip_9slice.png"));
-            ringSprite.sortingOrder = 50;
-            overlay.magnifierRing = ring.transform;
-            ring.SetActive(false);
-
-            var callout = new GameObject("Callout");
-            callout.transform.SetParent(overlayGo.transform, false);
-            callout.transform.localPosition = new Vector3(overlay.calloutX / ppu, overlay.calloutY / ppu, 0f);
-            var panel = new GameObject("Panel");
-            panel.transform.SetParent(callout.transform, false);
-            var panelSprite = panel.AddComponent<SpriteRenderer>();
-            panelSprite.sprite = DeskSceneBuilder.LoadPrimarySprite(manifest.Find("art/kit/ui/panel_9slice.png"));
-            panelSprite.sortingOrder = 45;
-            panel.transform.localScale = new Vector3(10f, 3f, 1f);
-            overlay.callout = callout.transform;
-
-            var label = new GameObject("Label");
-            label.transform.SetParent(callout.transform, false);
-            var labelMesh = label.AddComponent<TextMesh>();
-            labelMesh.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            labelMesh.characterSize = 0.09f;
-            labelMesh.text = string.Empty;
-            overlay.calloutLabel = labelMesh;
-
-            var body = new GameObject("Body");
-            body.transform.SetParent(callout.transform, false);
-            body.transform.localPosition = new Vector3(0f, -0.45f, 0f);
-            var bodyMesh = body.AddComponent<TextMesh>();
-            bodyMesh.font = labelMesh.font;
-            bodyMesh.characterSize = 0.07f;
-            bodyMesh.text = string.Empty;
-            overlay.calloutBody = bodyMesh;
-            callout.SetActive(false);
-
-            var stamp = new GameObject("Stamp");
-            stamp.transform.SetParent(root, false);
-            var stampSprite = stamp.AddComponent<SpriteRenderer>();
-            stampSprite.sprite = DeskSceneBuilder.LoadPrimarySprite(manifest.Find("art/kit/stamps/stamp_approve.png"));
-            stampSprite.sortingOrder = 60;
-            var anim = stamp.AddComponent<StampAnimator>();
-            anim.stampTransform = stamp.transform;
-            anim.stampRenderer = stampSprite;
-            anim.approveSprite = stampSprite.sprite;
-            anim.rejectSprite = DeskSceneBuilder.LoadPrimarySprite(manifest.Find("art/kit/stamps/stamp_reject.png"));
-            stamp.SetActive(false);
-
-            var eventSystem = new GameObject("EventSystem");
-            eventSystem.AddComponent<EventSystem>();
-            eventSystem.AddComponent<Physics2DRaycaster>();
+                "Desk scene written to Assets/Scenes/Desk.unity and added to Build Settings.\n\n" +
+                "Press Play. For a fresh checkout, use Setup Project (one click) instead.", "OK");
         }
 
         [MenuItem("HR//0D/Open Desk Scene", false, 2)]

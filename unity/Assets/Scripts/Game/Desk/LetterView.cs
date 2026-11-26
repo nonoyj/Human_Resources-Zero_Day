@@ -198,6 +198,10 @@ namespace HRZeroDay.Game
     {
         public const string RootName = "LetterView";
         private const string AtlasResource = "fonts/monitor_font_5x7";
+        // The atlas is a PNG; the glyph metrics are a SEPARATE TextAsset. Loading both from
+        // AtlasResource made every fresh letter fail with "font atlas missing" (the json is never
+        // found because the name has no extension in Resources.Load).
+        private const string MetricsResource = "fonts/monitor_font_5x7.json";
 
         public GameObject root;              // the panel that gets shown/hidden
         public SpriteRenderer paper;         // the page background (UI/panel 9-slice, stretched)
@@ -221,7 +225,29 @@ namespace HRZeroDay.Game
             {
                 applicant = applicant,
                 pages = LetterPaginator.Paginate(title, letterBody, signature, null),
-                flags = LetterFlags.Build(applicant, letterBody)
+                flags = LetterFlags.Build(applicant, letterBody + "\n" + signature)
+            };
+            if (root != null) root.SetActive(true);
+            Repaint();
+            return true;
+        }
+
+        /// <summary>
+        /// Opens the letter the DeskSession already generated. This is the path the game uses: the
+        /// flags (and their hidden isReal) are decided once by Paperwork.For, never re-derived here.
+        /// The flagged set is shared with Paperwork so the HUD and the scoring see the same choices.
+        /// </summary>
+        public bool OpenPaperwork(Paperwork paper)
+        {
+            if (paper == null) return false;
+            if (!_ready && !Initialise()) return false;
+            session = new LetterSession
+            {
+                applicant = paper.applicant,
+                pages = LetterPaginator.Paginate(paper.title, paper.body, paper.signature,
+                                                 "> FLAG WHAT IS WRONG        X BACK TO DESK"),
+                flags = paper.flags,
+                flagged = paper.flagged
             };
             if (root != null) root.SetActive(true);
             Repaint();
@@ -240,7 +266,7 @@ namespace HRZeroDay.Game
         private bool Initialise()
         {
             var tex = Resources.Load<Texture2D>(AtlasResource);
-            var metrics = Resources.Load<TextAsset>(AtlasResource);
+            var metrics = Resources.Load<TextAsset>(MetricsResource);
             if (tex == null || metrics == null)
             {
                 Debug.LogError("LetterView: font atlas missing from Resources -- run make_font.py");
