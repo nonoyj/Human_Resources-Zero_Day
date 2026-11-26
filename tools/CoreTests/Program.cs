@@ -29,6 +29,7 @@ internal static class Program
         lines.AddRange(LetterViewTests.RunAll());      // paperwork: wrap, paginate, flag scoring
         lines.AddRange(ScreenMetricsTests.RunAll());   // one source of truth for the glass grid
         lines.AddRange(PaperworkTests.RunAll());       // slow-clock ruling, one-read ruling, letter generation
+        lines.AddRange(ManifestBridgeTests.RunAll());  // json -> Unity: serializable, frame names, rects
         foreach (var line in lines)
         {
             Console.WriteLine(line);

@@ -17,6 +17,7 @@ namespace HRZeroDay.Game
         public int x, y, width, height;
     }
 
+    [Serializable]
     public class SpriteEntry
     {
         public string source;        // art/kit/...  (repo path, used by tools)

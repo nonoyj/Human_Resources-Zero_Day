@@ -17,6 +17,7 @@ namespace HRZeroDay.EditorTools
     {
         private const string KitRoot = "Assets/Art/Kit";
         private const string ManifestPath = "Assets/Resources/unity_sprites.json";
+        private const string ResourcesKit = "Assets/Resources/Art/Kit";
 
         [MenuItem("HR//0D/Import Art Kit", false, 10)]
         public static void ImportAll()
@@ -35,6 +36,12 @@ namespace HRZeroDay.EditorTools
                     var importer = AssetImporter.GetAtPath(path) as TextureImporter;
                     if (importer == null) continue;                        // not imported yet
                     if (ApplySettings(importer, s)) changed++;
+                    // The game loads Resources/Art/Kit, not Assets/Art/Kit. Both copies have to agree or the
+                    // build silently ships bilinear PPU-100 textures -- the art gate compares the PNGs, not
+                    // the .meta files, so this was invisible.
+                    var resPath = s.assetPath.Replace("Assets/Art/Kit/", "Assets/Resources/Art/Kit/");
+                    var resImporter = AssetImporter.GetAtPath(resPath) as TextureImporter;
+                    if (resImporter != null && ApplySettings(resImporter, s)) changed++;
                     if (s.spriteMode == "Multiple") sliced += s.sprites == null ? 0 : s.sprites.Count;
                 }
             }
@@ -96,7 +103,7 @@ namespace HRZeroDay.EditorTools
             // sprite rects, which is why this is done in two steps rather than one.
             if (s.spriteMode == "Multiple")
             {
-                if (ExtractFrames(importer, s) > 0) dirty = true;
+                if (ExtractFrames(s) > 0) dirty = true;
             }
 
             if (dirty) importer.SaveAndReimport();
@@ -110,16 +117,24 @@ namespace HRZeroDay.EditorTools
         /// UnityEditor.U2D.Sprites, lives in the 2D Sprite package, which is not referenced by this
         /// assembly -- so the import failed with CS0234 on the user's machine even though the stub-based
         /// compile check passed. Rather than making the whole editor assembly depend on a package for
-        /// one feature, each frame becomes a real Sprite sub-asset: same pivot, same PPU, same Point
-        /// filter, addressed as <file>.png/name, which is exactly what a sliced sheet gives you but
-        /// which no package can remove. Frame rects and names come from unity_sprites.json, so the
-        /// python pipeline stays the single source of truth.
+        /// one feature, each frame is written out as its own PNG next to the strip
+        /// (frames/<stem>__<frame>.png) and imported as a Single sprite: same PPU, same Point filter,
+        /// same pivot, and addressable as Resources/Art/Kit/applicants/frames/<stem>__<frame>.
+        /// Frame rects and names come from unity_sprites.json, so the python pipeline stays the single
+        /// source of truth.
         /// </summary>
-        private static int ExtractFrames(TextureImporter sheetImporter, SpriteEntry s)
+        private static int ExtractFrames(SpriteEntry s)
         {
             if (s.sprites == null || s.sprites.Count == 0) return 0;
 
-            var full = Path.Combine(Directory.GetCurrentDirectory(), s.assetPath);
+            // Prefer the published copy (the one the game loads); fall back to the authoring copy.
+            // Both are checked as absolute paths: the editor's working directory is the project root,
+            // but never assume it.
+            var published = Path.Combine(Directory.GetCurrentDirectory(),
+                                         ResourcesKit + s.assetPath.Substring("Assets/Art/Kit".Length));
+            var full = File.Exists(published)
+                ? published
+                : Path.Combine(Directory.GetCurrentDirectory(), s.assetPath);
             if (!File.Exists(full)) return 0;
             var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
             var made = 0;
@@ -131,7 +146,8 @@ namespace HRZeroDay.EditorTools
                     return 0;
                 }
 
-                var dir = Path.GetDirectoryName(s.assetPath).Replace('\\', '/');
+                var dir = (ResourcesKit + "/" + Path.GetDirectoryName(
+                              s.assetPath.Substring("Assets/Art/Kit/".Length)).Replace('\\', '/')).TrimEnd('/');
                 var stem = Path.GetFileNameWithoutExtension(s.assetPath);
                 for (int i = 0; i < s.sprites.Count; i++)
                 {
@@ -256,7 +272,26 @@ namespace HRZeroDay.EditorTools
                 Debug.LogError("[HR//0D] " + ManifestPath + " missing. Run: python tools/art/publish_to_unity.py");
                 return null;
             }
-            return JsonUtility.FromJson<SpriteManifest>(asset.text);
+            var manifest = JsonUtility.FromJson<SpriteManifest>(asset.text);
+            // JsonUtility does not throw on a shape mismatch: it returns an empty object, and a missing
+            // [Serializable] on a nested class silently yields entries with null fields. That is exactly
+            // how "0 sprites checked" shipped, so treat an empty/garbage manifest as an error.
+            if (manifest == null || manifest.sprites == null || manifest.sprites.Count == 0)
+            {
+                Debug.LogError("[HR//0D] " + ManifestPath + " deserialized to 0 sprites. The json and " +
+                               "SpriteManifest disagree (usually a missing [Serializable]).");
+                return null;
+            }
+            var broken = 0;
+            for (int i = 0; i < manifest.sprites.Count; i++)
+                if (string.IsNullOrEmpty(manifest.sprites[i].assetPath)) broken++;
+            if (broken > 0)
+            {
+                Debug.LogError("[HR//0D] " + broken + " of " + manifest.sprites.Count +
+                               " manifest entries have no assetPath -- the json is not being read correctly.");
+                return null;
+            }
+            return manifest;
         }
     }
 }
