@@ -279,8 +279,19 @@ namespace HRZeroDay.Game
                 return false;
             }
             var fm = JsonUtility.FromJson<FontMetrics>(metrics.text);
-            _glyphs = new FontAtlasGlyphSource(fm, tex.GetPixels32(), tex.width,
-                                               MonitorScreenView.Palette.FromResources());
+            // ON PAPER the ink must be dark: the monitor palette's "text" is near-white (230,241,255)
+            // for a dark tube, and on cream paper (242,232,213) it is invisible -- caught in Play mode
+            // (white-on-cream letter). Mirror tools/comp/preview_letter.py PAPER_INKS here.
+            var palette = MonitorScreenView.Palette.FromResources();
+            Color32 ink = palette.ContainsKey("ink") ? palette["ink"] : new Color32(42, 33, 24, 255);
+            Color32 paperdim = palette.ContainsKey("paperdim") ? palette["paperdim"] : new Color32(138, 109, 59, 255);
+            palette["text"] = ink;
+            palette["textdim"] = ink;
+            palette["warn"] = paperdim;
+            palette["line"] = paperdim;
+            palette["muted"] = paperdim;
+            palette["signal"] = ink;
+            _glyphs = new FontAtlasGlyphSource(fm, tex.GetPixels32(), tex.width, palette);
 
             // the TEXT area inside the paper: the paper sprite itself is placed by the editor
             _page = LetterLayout.TextRect();
