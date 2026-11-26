@@ -62,6 +62,15 @@ namespace HRZeroDay.Game.Interaction
             if (session != null) session.BeginCurrent();
         }
 
+        /// <summary>Used by DeskBootstrap.Restart; no scene reload, no stale decision state.</summary>
+        public void Reset()
+        {
+            _locked = false;
+            Reason = null;
+            _secondsOnCard = 0;
+            if (presenter != null) presenter.Hide();
+        }
+
         private void Commit(Decision decision, EvidenceCategory? reason)
         {
             if (_locked || session == null || session.Finished || session.DayFinished) return;
