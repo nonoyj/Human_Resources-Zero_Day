@@ -62,6 +62,24 @@ It proves the source is a Unity project, proves it is **not inside the repo**, p
 **6000.3.29f1**, copies only `ProjectSettings\` and `Packages\`, and tells you what it skipped.
 If any check fails it stops before writing anything.
 
+## 0d. Where the project actually lives (the "Please add a valid project" fix)
+
+**Open `C:\users\user\HR-ZeroDay\unity` in Unity Hub — never the repo root.** The repo root has no
+`Assets/` folder, and Hub refuses any folder without one.
+
+If `ProjectSettings\` or `Packages\` ended up at the repo root, promote them into `unity\`:
+
+```powershell
+cd C:\users\user\HR-ZeroDay
+.\scripts\Promote-UnityProject.ps1 -Source C:\Users\User\Projects\HRZeroDayTemp
+
+git add unity/ProjectSettings unity/Packages .gitignore
+git commit -m "feat(unity): unity/ is the Unity project (6000.3.29f1)"
+```
+
+`-Source` copies the settings Unity actually generated (best); without it the script writes the minimum
+set this project needs. Either way it deletes the stray copies at the repo root.
+
 ## 1. Create a throwaway project (outside the repo)
 
 1. Unity Hub → **New project**.

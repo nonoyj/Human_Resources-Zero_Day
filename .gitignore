@@ -95,3 +95,19 @@ tools/UnityStubs/obj/
 .dotnet/
 .nuget/
 tooling-history/
+
+# ---------- Unity, generated on first open (unity/ is the project, not the repo root) ----------
+# These are per-machine outputs of opening the project; ProjectSettings/ and Packages/ ARE committed.
+unity/ProjectSettings/boot.config
+unity/ProjectSettings/UnityConnectSettings.asset
+unity/ProjectSettings/XRSettings.asset
+unity/ProjectSettings/SceneTemplateSettings.json
+unity/ProjectSettings/VirtualProjectsConfig.json
+unity/ProjectSettings/Packages/
+unity/ProjectSettings/*.pidb
+unity/Packages/packages-lock.json
+unity/*.csproj
+unity/*.sln
+unity/Assembly-CSharp*.csproj
+unity/.vsconfig
+unity/Assets/AssetStoreTools*

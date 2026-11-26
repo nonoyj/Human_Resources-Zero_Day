@@ -220,3 +220,23 @@ Design consequences:
 - [ ] Keystore created and stored in a password manager (never in the repo)
 - [ ] `bundleVersion 0.1.0`, `AndroidBundleVersionCode` incremented per build
 - [ ] Test on: 1 low-end (2 GB RAM), 1 mid (4 GB), 1 recent flagship, tablet if possible
+
+## Project layout (corrected 2026-11-26)
+
+**`unity/` IS the Unity project.** Open *that* folder in Unity Hub, never the repo root.
+
+```
+HR-ZeroDay/                 <- git repo. Not a Unity project. No Assets/ here, so Hub refuses it.
+  art/                      <- authoring source for the sprites (python generates it)
+  docs/  handoff/  tools/   <- everything the game is not
+  unity/                    <- OPEN THIS IN UNITY
+    Assets/                 <- Art, Content, Resources, Scripts (Core, Game, Editor, Tests)
+    Packages/manifest.json  <- URP 2D, Input System, pixel-perfect, uGUI
+    ProjectSettings/        <- 480x270, Android 24/35, IL2CPP, Force Text serialization
+```
+
+Why this changed: `ProjectSettings/` was being generated at the repo root (whatever folder the operator
+happened to be standing in), while `Assets/` was always in `unity/`. Hub rejects a folder with settings
+but no `Assets/` — "Please add a valid project" — so the project could never be opened at all.
+`scripts/Promote-UnityProject.ps1` makes `unity/` self-contained; `scripts/Adopt-UnityProject.ps1` is
+superseded by it except as the `-Source` copier.
