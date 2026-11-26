@@ -464,6 +464,35 @@ Redundant, not broken. Nothing shipped was touched; every gate re-ran green afte
 - **Prevention rule:** a gate may not run a script that WRITES into the repo. Gates read, they do not
   produce -- otherwise every run dirties the tree and the "clean tree" bundle rule trips.
 
+## BUG-032 / BUG-033 / BUG-034 -- the apply copied files but could never adopt the history (v45 report)
+
+The user applied v45 correctly and the apply **still** reported `HEAD 0b52098` (the v44 commit) and a
+dirty tree. The files were right; three separate defects meant the history step could never work.
+
+- **BUG-032 — the bootstrap looked for the history in a place the bundle never puts it.**
+  `Build-Bundle.ps1` ships `history.bundle` / `history.branch` at the **zip root**; `Apply-Bundle.ps1`
+  (the root bootstrap) builds `$root` = the extracted *project folder* and then tested
+  `$root\.git`. There is no such folder in any bundle, so every `-Clean` apply printed
+  `bundle has no .git; history left untouched` and left the old `HEAD` in place. The v45 manifest even
+  *proves* the files were fine (`history.bundle present`).
+  **Fix:** the bootstrap now accepts `history.bundle` at the zip root, inside the project, or a whole
+  `.git` folder (older bundles), and fetches from the bundle with `git fetch <file> refs/heads/*:...`.
+  `Build-Bundle.ps1` now writes the transport files in **both** locations and fails the build if either
+  is missing.
+- **BUG-033 — "history adopted" could be a lie.** `git symbolic-ref` + `reset --mixed` were run without
+  checking that the branch actually exists in the bundle; a miss would leave `HEAD` dangling (which
+  reads as `0 commits`). Now the script verifies `refs/heads/<branch>` exists and **fails loudly**.
+- **BUG-034 — no recovery path.** The script's own advice was `git reset --hard && git clean -fd`, which
+  the user would have to type. There is now **`-Reinstall`**: does exactly that, no extraction, idempotent.
+
+**Also fixed here:** `scripts/Build-Bundle.ps1` shipped `history.bundle` at the root only, and the
+tree-check message in `Apply-Bundle.ps1` pointed at a symptom instead of the cause. Both now say what
+actually happened.
+
+**Prevention rule:** a bundle is only "correct" when a clean machine, given nothing but the zip, ends at
+the same `HEAD` as the box that built it. `history.bundle present` in the manifest is not that proof --
+only the post-apply `HEAD` check is.
+
 ## BUG-031 -- the art gate needed Pillow (found on the user's PC, v44 report)
 
 - **Symptom:** the user ran the 11 gates after applying v44: 9 `[ok]`, then

@@ -104,13 +104,32 @@ a new verb or a new button to the desk.
 | `LetterView` MonoBehaviour — open/close/repaint, one 444×234 texture | — |
 | `tools/comp/preview_letter.py` — see the page without Unity (`--scam` for the fake) | — |
 
-## 8. Open questions (pinned, not built on)
+## 8. Decisions (user, 2026-11-26) — closed, and now enforced by tests
 
-1. **Does the shift clock stop while the letter is open?** Reading is the point; a clock that punishes
-   reading would kill the mechanic. Proposal: **the clock slows to 25%** — reading is cheap, not free.
-2. **Can a letter be reopened after the stamp?** Proposal: **no.** One read, then commit. It is the only
-   way the flag choice has weight.
-3. **Where do the flags render — on the letter page or a separate overlay?** Proposal: **on the page**,
-   the bottom five rows, so the player reads and judges in one place. The page has 23 rows; body is 16.
+1. **The clock SLOWS to 25% while the letter is open. It never stops.**
+   The user's reasoning, verbatim: stopping "could be taken advantage of and we have a pause button".
+   So the pause button remains the only true stop, and reading costs a quarter of real time.
+   Implemented in `Core/Data/ShiftClock.cs` (`ReadingTimeScale = 0.25`); `PaperworkTests` asserts
+   4 s of wall time costs 1 s of shift time, and that a full minute of reading costs 15 s of a 180 s
+   applicant.
+2. **A letter cannot be reopened after the stamp.** One read, then commit.
+   `Paperwork.CloseForStamp()` locks the body *and* the flags; `CanOpen` is false forever after, and
+   `Toggle` returns false. Tests assert both.
+3. **The flags render on the page**, bottom rows, so reading and judging happen in one place.
+   Page has 23 rows; body is 16; five flag rows fit under the rule.
 
-Answered in §9 once the user decides.
+## 9. Where the letter text comes from (and why it is generated)
+
+The prose is **generated from the record**, deterministically, by `Paperwork.For(applicant, runSeed)` —
+not stored as content. Reasons:
+
+- the save file does not have to carry five days of letters;
+- invariant **I7** (same seed, same run) extends to the paperwork for free: the letter is a pure
+  function of `(run seed, applicant id)`;
+- generation and flagging can be tested *against each other*: `PaperworkTests` runs **40 seeds** and
+  fails if an honest letter raises a true flag, or if a synthetic/bait letter raises none.
+
+That last test caught a real bug on its first run: flags were derived from the body only, so
+`NO SIGNATURE` was true on **every** letter, including the normal ones. A player who flagged it would
+have been penalised for being right. The flags are now derived from `body + signature` — the text the
+player actually reads. **This is the class of bug that only a many-seed test finds.**

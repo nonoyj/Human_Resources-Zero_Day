@@ -125,8 +125,17 @@ try {
     [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
         $archive, $bundleTmp, 'history.bundle',
         [System.IO.Compression.CompressionLevel]::Optimal)
+    # AND inside the project folder: scripts/Apply-Bundle.ps1 resolves the zip by walking up
+    # from the extracted project, so it only ever finds the transport files that sit beside
+    # HR-ZeroDay\. Shipping them at the root alone left the working-copy script blind (BUG-032).
+    [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+        $archive, $bundleTmp, 'HR-ZeroDay/history.bundle',
+        [System.IO.Compression.CompressionLevel]::Optimal)
     [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
         $archive, $branchFileTmp, 'history.branch',
+        [System.IO.Compression.CompressionLevel]::Optimal)
+    [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+        $archive, $branchFileTmp, 'HR-ZeroDay/history.branch',
         [System.IO.Compression.CompressionLevel]::Optimal)
     # the rescue script needs no extraction at all -- it reads the .zip directly
     $fixSrc = Join-Path $root 'scripts\Fix-Repo.ps1'
@@ -155,6 +164,8 @@ if ($names -notcontains 'Fix-Repo.ps1')                            { D "rescue s
 if ($names -notcontains 'HR-ZeroDay/scripts/Apply-Bundle.ps1')     { D "bootstrap missing inside HR-ZeroDay" }
 if ($names -notcontains 'history.bundle')                          { D "history.bundle missing from zip root" }
 if ($names -notcontains 'history.branch')                          { D "history.branch missing from zip root" }
+if ($names -notcontains 'HR-ZeroDay/history.bundle')               { D "history.bundle missing inside HR-ZeroDay (Apply-Bundle.ps1 cannot find it there)" }
+if ($names -notcontains 'HR-ZeroDay/history.branch')               { D "history.branch missing inside HR-ZeroDay" }
 if ($names | Where-Object { $_ -like 'HR-ZeroDay/.git/*' })        { D ".git leaked into the zip (must ship as history.bundle)" }
 $leak = $names | Where-Object { $_ -match '/(\.local|\.nuget|\.dotnet|\.tooling|node_modules|Library)/' }
 if ($leak) { D "tooling cache leaked into the zip: $($leak | Select-Object -First 3)" }

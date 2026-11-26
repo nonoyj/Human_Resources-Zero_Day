@@ -149,76 +149,7 @@ namespace HRZeroDay.Game
         }
     }
 
-    // ------------------------------------------------------------------ the flagged-evidence model
-    /// <summary>
-    /// A thing the player can flag in the paperwork. `id` matches TellCatalog where a tell exists, so
-    /// flagging feeds the same debrief as the visual tells. `isReal` is hidden: a player who flags a
-    /// perfectly normal letter loses trust -- that is the whole lesson of the game.
-    /// </summary>
-    [Serializable]
-    public sealed class FlagOption
-    {
-        public string id;                 // TellCatalog id, or a paperwork-only id
-        public string label;              // what the player sees on the button
-        public bool isReal;               // hidden ground truth of THIS letter
-        public int trustDelta;            // applied at debrief, not immediately
-    }
-
-    /// <summary>
-    /// The set of things worth flagging for one applicant. Built deterministically from the record +
-    /// the letter body, so the same run always produces the same flags (invariant I7).
-    /// </summary>
-    public static class LetterFlags
-    {
-        public const string FlagMoneyDemand = "paper_money_demand";
-        public const string FlagUrgency = "paper_urgency";
-        public const string FlagMassTemplate = "paper_mass_template";
-        public const string FlagWrongReference = "paper_wrong_reference";
-        public const string FlagMissingSignature = "paper_missing_signature";
-
-        public static List<FlagOption> Build(ApplicantRecord a, string letterBody)
-        {
-            var opts = new List<FlagOption>();
-            var body = letterBody ?? string.Empty;
-
-            opts.Add(new FlagOption
-            {
-                id = FlagMoneyDemand, label = "ASKING FOR MONEY / FEES",
-                isReal = body.IndexOf("fee", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                         body.IndexOf("deposit", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                         body.IndexOf("processing cost", StringComparison.OrdinalIgnoreCase) >= 0,
-                trustDelta = 6
-            });
-            opts.Add(new FlagOption
-            {
-                id = FlagUrgency, label = "PRESSURE / DEADLINE THREAT",
-                isReal = body.IndexOf("immediately", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                         body.IndexOf("today", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                         body.IndexOf("urgent", StringComparison.OrdinalIgnoreCase) >= 0,
-                trustDelta = 4
-            });
-            opts.Add(new FlagOption
-            {
-                id = FlagMassTemplate, label = "TEMPLATE / SOMEONE ELSE'S LETTER",
-                isReal = body.IndexOf("[NAME]", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                         body.IndexOf("dear sir/madam", StringComparison.OrdinalIgnoreCase) >= 0,
-                trustDelta = 5
-            });
-            opts.Add(new FlagOption
-            {
-                id = FlagWrongReference, label = "REFERENCE DOES NOT MATCH THE RECORD",
-                isReal = a != null && string.IsNullOrEmpty(a.referral),
-                trustDelta = 5
-            });
-            opts.Add(new FlagOption
-            {
-                id = FlagMissingSignature, label = "NO SIGNATURE / NO CONTACT DETAILS",
-                isReal = body.IndexOf("regards", StringComparison.OrdinalIgnoreCase) < 0,
-                trustDelta = 3
-            });
-            return opts;
-        }
-    }
+    // (FlagOption / LetterFlags moved to HRZeroDay.Core.Data on 2026-11-26: a flag is a RULE.)
 
     /// <summary>What the flag panel is doing right now.</summary>
     public sealed class LetterSession
