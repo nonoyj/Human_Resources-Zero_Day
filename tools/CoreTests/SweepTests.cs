@@ -97,7 +97,9 @@ namespace HRZeroDay.Tests
             var b = Sweep.AfterShift(99, Hired(Archetype.SyntheticPolished));
             if (a.Count != 1 || a[0].Severity != 0) return "FAIL  a negative corruption level does not clamp to quiet";
             if (b.Count > 3) return "FAIL  99 hired synthetics produced " + b.Count + " traces";
-            if (!Sweep.HasSweep(1) || Sweep.HasSweep(0)) return "FAIL  HasSweep is wrong for day 0/1";
+            // decided 2026-11-26: only on days when something got through
+            if (Sweep.HasSweep(0)) return "FAIL  a clean day must not trigger the walk";
+            if (!Sweep.HasSweep(1) || !Sweep.HasSweep(3)) return "FAIL  a dirty day must trigger the walk";
             return "PASS  corruption is clamped 0..3 and the sweep caps at three traces";
         }
     }

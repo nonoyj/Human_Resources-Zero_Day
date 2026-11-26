@@ -46,7 +46,22 @@ The 7 strings above are placeholders with the right length and tone. Keep the ru
 No gore, no figures standing in doorways, no sound sting the player did not earn. The scare is that the
 office is *familiar and slightly wrong*.
 
-## 5. Open question for the user
+## 5. When it runs — DECIDED 2026-11-26
 
-Should the sweep happen **every** day (routine, per the team's wording) or only on days where something got
-through? The rule supports both — `Sweep.HasSweep(day)` is the single switch. Currently: every day.
+**Only on days when something got through** (`Sweep.HasSweep(corruption)` returns `corruption > 0`).
+A quiet office is not a scene; that day goes straight to the summary. The walk stays a consequence.
+
+## 6. Art direction — DECIDED 2026-11-26
+
+The sweep is the **one place** the game changes style, on purpose:
+
+| | Main game | After-hours sweep |
+|---|---|---|
+| Camera | 3/4 painterly bust across the desk | flat side-on room, tiny characters (~16 px) |
+| Technique | dither ramps, rim light, 3–4 px shading bands | 2-tone flat fills, hard 1 px edges |
+| UI | diegetic CRT text, no chrome | neon-cyan key caps along the bottom, a caption bar |
+| Reference | the painterly applicant samples | the `Lounge — LEVEL 5` shot |
+
+That contrast is the point: the office at night is a *different kind of thing*, and the player reads it as
+"this is not the interview" before reading a single word. The neon key caps are the one non-diegetic UI in
+the game, and they exist only here.

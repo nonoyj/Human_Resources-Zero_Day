@@ -78,10 +78,11 @@ namespace HRZeroDay.Core.Rules
         }
 
         /// <summary>
-        /// True when the sweep should be shown at all. A quiet day still shows it -- the routine is the
-        /// point, and a player who has never seen a wrong hire needs to learn that the office can be silent.
+        /// Whether the walk happens at all. DECIDED 2026-11-26: only on days when something got through.
+        /// A quiet office is not a scene -- it is the summary screen, and that keeps the walk meaningful
+        /// instead of a chore the player learns to skip.
         /// </summary>
-        public static bool HasSweep(int dayIndex) { return dayIndex >= 1; }
+        public static bool HasSweep(int corruption) { return corruption > 0; }
 
         /// <summary>How long the player has to walk the office, in seconds. Fixed: no clock pressure here.</summary>
         public const double WalkSeconds = 45.0;
