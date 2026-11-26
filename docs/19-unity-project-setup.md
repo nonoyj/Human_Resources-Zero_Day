@@ -49,13 +49,28 @@ lines in order. `scripts\setup-workspace.ps1` now does exactly this sequence.
   Build Support (with SDK, NDK, OpenJDK)*. It is a ~3 GB download; start it and do something else.
 - Your working copy at `C:\users\user\HR-ZeroDay` on **`main`**, clean (`git status -s` prints nothing).
 
+## 0c. The one-button version (`Adopt-UnityProject.ps1`)
+
+Copying two folders by hand is where this step goes wrong, so the repo now does it:
+
+```powershell
+cd C:\users\user\HR-ZeroDay
+.\scripts\Adopt-UnityProject.ps1 -Source C:\Users\User\Projects\HRZeroDayTemp
+```
+
+It proves the source is a Unity project, proves it is **not inside the repo**, proves the editor is
+**6000.3.29f1**, copies only `ProjectSettings\` and `Packages\`, and tells you what it skipped.
+If any check fails it stops before writing anything.
+
 ## 1. Create a throwaway project (outside the repo)
 
 1. Unity Hub → **New project**.
 2. Editor version dropdown: **`6000.3.29f1`** — check it, do not accept "latest".
 3. Template: **Universal 2D** (this is URP 2D; we do not want 3D or HDRP).
 4. Project name: **`HRZeroDayTemp`**.
-5. Location: **`C:\users\user\temp`** — anywhere **outside** `HR-Zero-Day`. (Make the folder if needed.)
+5. Location: **`C:\Users\User\Projects`** — Unity Hub creates the folder if it does not exist, so you do
+   not have to make it first. **Do not point it at `HR-Zero-Day`** and do not use `Select folder` to pick
+   the repo: that generates a second `Assets/` inside the repo (the script in §0c refuses that case).
 6. Create. Wait for the editor to open fully, then **File → Quit**. Wait until the process is gone
    (Task Manager: no `Unity.exe`). Copying files out of an open editor is how you get a half-written
    `ProjectSettings`.
