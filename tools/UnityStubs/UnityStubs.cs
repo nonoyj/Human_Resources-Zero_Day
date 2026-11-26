@@ -21,25 +21,33 @@ namespace UnityEngine
         public T GetComponent<T>() where T : Component { return null; }
     }
     public class Behaviour : Component { public bool enabled; }
+    public enum FindObjectsSortMode { None, InstanceID }
+
     public class MonoBehaviour : Behaviour
     {
+        public static T[] FindObjectsByType<T>(FindObjectsSortMode mode) where T : Component { return new T[0]; }
         public T GetComponent<T>() where T : Component { return null; }
         public T AddComponent<T>() where T : Component { return null; }
         public static T FindObjectOfType<T>() where T : Component { return null; }
         public static T[] FindObjectsOfType<T>() where T : Component { return new T[0]; }
         public T[] GetComponentsInChildren<T>() where T : Component { return new T[0]; }
         public T[] GetComponentsInParent<T>() where T : Component { return new T[0]; }
+        public T GetComponentInChildren<T>() where T : Component { return null; }
+        public T GetComponentInParent<T>() where T : Component { return null; }
     }
     public class Transform : Component
     {
         public Vector3 position, localPosition;
         public Vector3 localScale = new Vector3(1f, 1f, 1f);
+        public Quaternion localRotation;
+        public Quaternion rotation;
         public void SetParent(Transform p, bool worldStays) { }
         public Transform Find(string n) { return null; }
     }
     public class GameObject : Object
     {
         public T GetComponent<T>() where T : Component { return null; }
+        public bool activeInHierarchy;
         public Transform transform = new Transform();
         public string tag;
         public GameObject() { }
@@ -50,18 +58,36 @@ namespace UnityEngine
         public Component AddComponent(Type t) { return null; }
     }
     public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public static Vector2 zero; }
-    public struct Vector3 { public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 zero; }
+    public struct Quaternion
+    {
+        public float x, y, z, w;
+        public static Quaternion identity { get { return new Quaternion(); } }
+        public static Quaternion Euler(float x, float y, float z) { return new Quaternion(); }
+    }
+
+    public struct Vector3 { public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 zero { get { return new Vector3(0f, 0f, 0f); } } public static Vector3 one { get { return new Vector3(1f, 1f, 1f); } } }
     public struct Vector4 { public float x, y, z, w; public Vector4(float x, float y, float z, float w) { this.x = x; this.y = y; this.z = z; this.w = w; } public static Vector4 zero; }
     public struct Rect
     {
         public float x, y, width, height;
+        // centre, y-up, same convention as the rest of the kit
+        public Vector2 center { get { return new Vector2(x + width * 0.5f, y + height * 0.5f); } }
+        public float xMin { get { return x; } }
+        public float xMax { get { return x + width; } }
+        public float yMin { get { return y; } }
+        public float yMax { get { return y + height; } }
+        public bool Contains(Vector2 p) { return p.x >= x && p.x <= x + width && p.y >= y && p.y <= y + height; }
         public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; }
     }
     public struct Color32 { public byte r, g, b, a; public Color32(byte r, byte g, byte b, byte a) { this.r = r; this.g = g; this.b = b; this.a = a; } }
     public struct Color
     {
         public float r, g, b, a;
+        public Color(float r, float g, float b) { this.r = r; this.g = g; this.b = b; this.a = 1f; }
         public Color(float r, float g, float b, float a) { this.r = r; this.g = g; this.b = b; this.a = a; }
+        public static Color white { get { return new Color(1f, 1f, 1f, 1f); } }
+        public static Color black { get { return new Color(0f, 0f, 0f, 1f); } }
+        public static Color clear { get { return new Color(0f, 0f, 0f, 0f); } }
         public static implicit operator Color(Color32 c) { return new Color(c.r / 255f, c.g / 255f, c.b / 255f, c.a / 255f); }
     }
     public enum FilterMode { Point, Bilinear, Trilinear }
@@ -186,4 +212,33 @@ namespace UnityEditor.SceneManagement
 namespace UnityEngine.SceneManagement
 {
     public struct Scene { }
+}
+
+namespace UnityEngine.EventSystems
+{
+    // uGUI input plumbing. The interaction layer lives on IPointerDownHandler, so the stub has to model
+    // it or the whole Game assembly stops type-checking the moment that layer exists.
+    public class PointerEventData
+    {
+        public Vector2 position;
+        public Vector2 pressPosition;
+        public GameObject pointerPress;
+    }
+
+    public interface IPointerDownHandler { void OnPointerDown(PointerEventData eventData); }
+    public interface IPointerUpHandler { void OnPointerUp(PointerEventData eventData); }
+    public interface IPointerClickHandler { void OnPointerClick(PointerEventData eventData); }
+}
+
+namespace UnityEngine
+{
+    public class TextMesh : Component
+    {
+        public string text;
+        public int fontSize;
+        public Color color;
+        public Font font;
+    }
+
+    public class Font : Object { }
 }

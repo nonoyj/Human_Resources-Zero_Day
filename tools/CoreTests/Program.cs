@@ -31,6 +31,7 @@ internal static class Program
         lines.AddRange(PaperworkTests.RunAll());       // slow-clock ruling, one-read ruling, letter generation
         lines.AddRange(ManifestBridgeTests.RunAll());  // json -> Unity: serializable, frame names, rects
         lines.AddRange(DaylightTests.RunAll());        // day -> dusk -> night, from the shift clock
+        lines.AddRange(InteractionTests.RunAll());     // hotspots, evidence ledger, tool budget
         foreach (var line in lines)
         {
             Console.WriteLine(line);

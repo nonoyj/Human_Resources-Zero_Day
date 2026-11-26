@@ -18,6 +18,7 @@
     <Compile Include="Program.cs" />
     <Compile Include="ManifestBridgeTests.cs" />
     <Compile Include="DaylightTests.cs" />
+    <Compile Include="InteractionTests.cs" />
     <Compile Include="../../unity/Assets/Scripts/Core/**/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Tests/GeneratorInvariantTests.cs" />
     <!-- MonitorScreen lives in the Game assembly (it needs Color32 + the json layout), so the test
@@ -25,8 +26,13 @@
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/MonitorScreen.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/MonitorScreenRaster.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/LetterView.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Interaction/*.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Applicant/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/MonitorScreenView.cs" />
-    <Compile Include="../../unity/Assets/Scripts/Game/Layout/DeskLayoutData.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Layout/*.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Desk/DeskSceneBuilder.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Desk/RoomLighting.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Desk/DeskLightDriver.cs" />
     <Compile Include="../UnityStubs/UnityStubs.cs" />
     <Compile Include="GameDataTests.cs" />
     <Compile Include="MonitorScreenTests.cs" />
