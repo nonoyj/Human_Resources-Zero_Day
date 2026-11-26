@@ -18,6 +18,17 @@ namespace HRZeroDay.Game
         public string frameSprite;
         public AnimatorSpec animator;
         public float scaleFactor = 1f;  // 1 = authored size; 0.96 = the applicant (composition L)
+        public ScreenSpec screen;        // only on the monitor layer: the CRT glass rect
+    }
+
+    /// <summary>The drawable glass area of the monitor, in layer-local art px, y UP.
+    /// Source of truth is desk_layout.json; MonitorScreen.GlassForSprite recomputes the same numbers
+    /// from the sprite size so a redraw cannot silently desync the text from the bezel.</summary>
+    [Serializable]
+    public class ScreenSpec
+    {
+        public int x, y, w, h;
+        public int glyphW = 5, glyphH = 7, letterGap = 1, lineGap = 2;
     }
 
     [Serializable]

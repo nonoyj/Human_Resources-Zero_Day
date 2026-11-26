@@ -30,7 +30,18 @@
         14,
         86
       ],
-      "sortingOrder": -20
+      "sortingOrder": -20,
+      "screen": {
+        "x": 6,
+        "y": 12,
+        "w": 142,
+        "h": 88,
+        "glyphW": 5,
+        "glyphH": 7,
+        "letterGap": 1,
+        "lineGap": 2,
+        "note": "glass rect in monitor-local px, y UP, measured from monitor_small's 6,6..w-7,h-13 drawing. MonitorScreen.GlassForSprite recomputes this; GameDataTests asserts they agree."
+      }
     },
     {
       "id": "monitor_stand",

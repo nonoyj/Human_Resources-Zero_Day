@@ -447,3 +447,27 @@ Redundant, not broken. Nothing shipped was touched; every gate re-ran green afte
   Anchor `[63,60]` so its mount meets the bezel bottom at row 184 and its foot overlaps the desk.
 - Also this pass: desk props re-laid around the arm (keyboard moved off x=104 to x=200), coffee
   cleared off the clipboard, notepad pen shortened (a 15 px diagonal read as a scratch).
+
+## BUG-030 -- Test-ArtPipeline threw a red traceback in 5.1 (found on the user's PC, 2026-11-26)
+
+- **Symptom:** the gate printed a green `[ok]` list, then `python.exe : Traceback (most recent call last):`
+  with `NativeCommandError` at `Test-ArtPipeline.ps1:64`.
+- **Cause:** the gate RAN `tools/art/study_desk_workdesk.py`. That script is a leftover from composition
+  study L: it draws from `desk/monitor_bezel.png` and `desk/document_sheet.png` (pre-v42 assets), and it
+  rewrites `art/concepts/study_*.png` on every gate run -- so the working tree went dirty every time the
+  gate ran. In PowerShell 5.1 any stderr from a native command surfaces as a NativeCommandError, which
+  looks like a failure even when the exit code is 0.
+- **Fix:** retired the script and its three output PNGs; the gate now checks that no stray `study_*.py`
+  exists. `twin_desk.py` already renders the same 480x270 view and is verified byte-for-byte, so nothing
+  was lost. Also removed the three one-off art scripts that survived the earlier sweep (they had been
+  re-added to the index by the bundle round-trip).
+- **Prevention rule:** a gate may not run a script that WRITES into the repo. Gates read, they do not
+  produce -- otherwise every run dirties the tree and the "clean tree" bundle rule trips.
+
+## MonitorScreen: three API bugs caught by the first test run (2026-11-26)
+
+Written tests-first-with-code; the first `dotnet run` failed 3 of 7, all real:
+`rows` was off by one (88 px of glass holds **10** lines, not 9 -- the last line needs no trailing gap);
+`LinesToRects` put line 1 at the BOTTOM of the glass because canvas space is y-UP while text runs DOWN
+(it would have rendered the page upside down, and nothing would have thrown); `TrustBar` reflowed from
+16 chars to 15 when the value hit 100 (now zero-padded to 3 digits).

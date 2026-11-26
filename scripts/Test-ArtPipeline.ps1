@@ -57,14 +57,14 @@ try {
     if (-not (Test-Path (Join-Path $repo 'docs\15-art-bible.md'))) { D 'docs/15-art-bible.md missing' }
     else { OK 'docs/15-art-bible.md present' }
 
-    S 'concept studies stay on-palette'
-    foreach ($study in @('study_desk_workdesk.py')) {
-        $path = Join-Path $repo "tools\art\$study"
-        if (-not (Test-Path $path)) { continue }
-        $out = (& python $path 2>&1 | Out-String)
-        if ($out -notmatch 'off-palette px: 0') { D "$study is off-palette`n$out" }
-        else { OK "$study -- 0 off-palette px" }
-    }
+    S 'kit study scripts park their output (no writes to art/concepts)'
+    # The old gate RAN study_desk_workdesk.py, which (a) draws from pre-v42 assets, (b) writes PNGs into
+    # art/concepts on every run, and (c) is the only place PowerShell saw Python's stderr as a
+    # NativeCommandError in 5.1 -- a red traceback in the middle of a green gate. Retired 2026-11-26.
+    $stray = Get-ChildItem -Path (Join-Path $repo 'tools\art') -Filter 'study_*.py' -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -ne 'study_desk_workdesk.py' }
+    if ($stray) { D ("unexpected study script(s): " + ($stray.Name -join ', ')) }
+    else { OK 'study outputs come from twin_desk.py' }
 
     S 'Unity scripts type-check (stubs, no Unity install needed)'
         Push-Location (Join-Path $repo 'tools\UnityStubs')

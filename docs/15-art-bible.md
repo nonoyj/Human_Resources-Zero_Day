@@ -300,6 +300,19 @@ edges are straight; wear is 2 scuffs on the column.
 keyboard used to be centred at x=104 and covered the arm's lower half. Band rule now: notepad x12 |
 **arm clear** | keyboard x200 / mouse x250 | sticky 268 / folder 300 | clipboard 374 | coffee 436.
 
+## 7e. The CRT glass is a character grid (2026-11-26)
+
+The monitor is where the player reads the game, so its interior is specified, not painted freehand:
+
+| Value | Detail |
+|---|---|
+| Glass rect | **142x88 px** at monitor-local `(6, 12)`, y UP. Derived by `MonitorScreen.GlassForSprite()` and asserted against `desk_layout.json` layer `monitor.screen` |
+| Font cell | 5x7 glyph + 1 px letter gap + 2 px line gap |
+| Capacity | **23 columns x 10 rows** |
+| Overflow | never. `LinesToRects` clips vertically and `FitToColumns` truncates with `~`; the test suite fails if a line crosses the glass edge |
+| Empty fields | produce **no line at all** -- the screen never invents a fact |
+| y flip | canvas is y-UP, text runs DOWN: line 1 gets the highest y. One place does this (`LinesToRects`), and `YFlipIsReal` guards it |
+
 ## 8. Open decisions (do not build on these yet)
 
 - None carried over. (The applicant backdrop-slab question was closed by removing the slab.)

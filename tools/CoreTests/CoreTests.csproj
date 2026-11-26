@@ -18,7 +18,13 @@
     <Compile Include="Program.cs" />
     <Compile Include="../../unity/Assets/Scripts/Core/**/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Tests/GeneratorInvariantTests.cs" />
+    <!-- MonitorScreen lives in the Game assembly (it needs Color32 + the json layout), so the test
+         project compiles it directly. UnityStubs supplies the tiny Unity surface it uses. -->
+    <Compile Include="../../unity/Assets/Scripts/Game/Desk/MonitorScreen.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Layout/DeskLayoutData.cs" />
+    <Compile Include="../UnityStubs/UnityStubs.cs" />
     <Compile Include="GameDataTests.cs" />
+    <Compile Include="MonitorScreenTests.cs" />
   </ItemGroup>
 
 </Project>
