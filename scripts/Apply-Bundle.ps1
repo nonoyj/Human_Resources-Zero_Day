@@ -128,7 +128,14 @@ try {
             # remember origin before anything is replaced
             $savedRemote = $null
             if (Test-Path -LiteralPath $dstGit) {
-                $savedRemote = (& git -C $WorkingCopy remote get-url origin 2>$null | Out-String).Trim()
+                # `git remote get-url origin` on a repo WITHOUT an origin prints to stderr, and PS 5.1 turns
+                # native stderr into a NativeCommandError -> the whole apply dies (BUG-036, exactly what
+                # the operator hit). get-url has no -q, so redirect the stream and trust the exit code.
+                $savedRemote = $null
+                $remoteOut = (& git -C $WorkingCopy remote get-url origin 2>&1) | Out-String
+                if ($LASTEXITCODE -eq 0 -and $remoteOut -and $remoteOut.Trim() -notmatch 'error:') {
+                    $savedRemote = $remoteOut.Trim()
+                }
                 if (-not $savedRemote) { $savedRemote = $null }
                 Remove-Item -LiteralPath $dstGit -Recurse -Force
                 OK "old .git removed"
