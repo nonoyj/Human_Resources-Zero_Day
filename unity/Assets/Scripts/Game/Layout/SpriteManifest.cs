@@ -75,7 +75,11 @@ namespace HRZeroDay.Game
             if (asset == null)
                 throw new InvalidOperationException(
                     "Resources/unity_sprites.json is missing. Run: python tools/art/publish_to_unity.py");
-            return JsonUtility.FromJson<SpriteManifest>(asset.text);
+            var manifest = JsonUtility.FromJson<SpriteManifest>(asset.text);
+            if (manifest == null || manifest.sprites == null || manifest.sprites.Count == 0)
+                throw new InvalidOperationException(
+                    "Resources/unity_sprites.json deserialized to 0 sprites -- the json and SpriteManifest disagree.");
+            return manifest;
         }
 
         public SpriteEntry Find(string sourceOrAssetPath)
@@ -83,13 +87,21 @@ namespace HRZeroDay.Game
             if (_bySource == null)
             {
                 _bySource = new Dictionary<string, SpriteEntry>(StringComparer.Ordinal);
-                foreach (var s in sprites) _bySource[s.source] = s;
+                foreach (var s in sprites)
+                {
+                    // desk_layout.json refers to layers by REPO path (art/kit/...) and portraits by Unity
+                    // path; index both, or the scene builder misses every desk layer.
+                    if (!string.IsNullOrEmpty(s.source)) _bySource[s.source] = s;
+                    if (!string.IsNullOrEmpty(s.assetPath)) _bySource[s.assetPath] = s;
+                }
             }
             SpriteEntry hit;
             if (_bySource.TryGetValue(sourceOrAssetPath, out hit)) return hit;
             for (int i = 0; i < sprites.Count; i++)
                 if (sprites[i].assetPath == sourceOrAssetPath) return sprites[i];
-            throw new ArgumentException("sprite not in manifest: " + sourceOrAssetPath);
+            throw new ArgumentException("sprite not in manifest: '" + sourceOrAssetPath +
+                "' (" + sprites.Count + " entries indexed, e.g. '" +
+                (sprites.Count > 0 ? sprites[0].source : "none") + "')");
         }
 
         public IEnumerable<SpriteEntry> OfKind(string kind)

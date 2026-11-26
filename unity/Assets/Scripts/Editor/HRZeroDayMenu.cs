@@ -39,8 +39,9 @@ namespace HRZeroDay.EditorTools
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             // camera
+            // "MainCamera" is a built-in tag, but a project that never opened the Tag Manager can reject
+            // it, and an exception here leaves a half-built scene behind. Leave the tag alone.
             var camGo = new GameObject("Main Camera");
-            camGo.tag = "MainCamera";
             var cam = camGo.AddComponent<Camera>();
             DeskSceneBuilder.ConfigureCamera(cam, layout.canvas);
 

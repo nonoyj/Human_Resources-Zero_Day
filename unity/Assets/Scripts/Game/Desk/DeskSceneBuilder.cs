@@ -30,8 +30,13 @@ namespace HRZeroDay.Game
         {
             if (layout == null) throw new System.ArgumentNullException("layout");
 
-            var existing = parent.Find(RootName);
-            if (existing != null) Object.DestroyImmediate(existing.gameObject);
+            // parent is nullable: the editor menu builds a scene with no parent, and calling Find() on a
+            // null Transform is the NullReferenceException that stopped "Build Desk Scene" on 2026-11-26.
+            if (parent != null)
+            {
+                var existing = parent.Find(RootName);
+                if (existing != null) Object.DestroyImmediate(existing.gameObject);
+            }
 
             var root = new GameObject(RootName).transform;
             root.SetParent(parent, false);
@@ -41,7 +46,14 @@ namespace HRZeroDay.Game
 
             foreach (var layer in layout.layers)
             {
-                var entry = manifest.Find(layer.sprite);
+                SpriteEntry entry;
+                try { entry = manifest.Find(layer.sprite); }
+                catch (System.ArgumentException ex)
+                {
+                    Object.DestroyImmediate(root.gameObject);
+                    throw new System.InvalidOperationException(
+                        "layer '" + layer.id + "' cannot be placed: " + ex.Message, ex);
+                }
                 var go = new GameObject("L_" + layer.id);
                 go.transform.SetParent(root, false);
 

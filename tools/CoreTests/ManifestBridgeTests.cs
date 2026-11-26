@@ -25,6 +25,7 @@ namespace HRZeroDay.Tests
             yield return CheckFrameRectsStayInsideTheStrip();
             yield return CheckEveryFrameNameIsUnique();
             yield return CheckEveryJsonKeyHasAField();
+            yield return CheckEveryLayoutLayerResolves();
         }
 
         /// <summary>
@@ -170,6 +171,49 @@ namespace HRZeroDay.Tests
                 return "FAIL  json keys with no C# field (JsonUtility drops them silently): " +
                        string.Join(", ", missing);
             return "PASS  every json key (incl. frame.rect) has a matching C# field";
+        }
+
+        /// <summary>
+        /// desk_layout.json addresses layers by REPO path (art/kit/...) while portraits use the Unity path.
+        /// Find() has to index both, and every layer must resolve -- a miss is a NullReferenceException
+        /// deep inside the scene builder, which is exactly how long the 2026-11-26 build stopped.
+        /// </summary>
+        private static string CheckEveryLayoutLayerResolves()
+        {
+            const string layoutPath = "unity/Assets/Resources/desk_layout.json";
+            if (!File.Exists(layoutPath)) return "FAIL  " + layoutPath + " is missing";
+
+            var manifest = System.Text.Json.JsonDocument.Parse(File.ReadAllText(ManifestPath));
+            var known = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var e in manifest.RootElement.GetProperty("sprites").EnumerateArray())
+            {
+                if (e.TryGetProperty("source", out var src)) known.Add(src.GetString());
+                if (e.TryGetProperty("assetPath", out var ap)) known.Add(ap.GetString());
+            }
+
+            var layout = System.Text.Json.JsonDocument.Parse(File.ReadAllText(layoutPath));
+            var missing = new List<string>();
+            int n = 0;
+            foreach (var l in layout.RootElement.GetProperty("layers").EnumerateArray())
+            {
+                var sprite = l.GetProperty("sprite").GetString();
+                n++;
+                if (!known.Contains(sprite)) missing.Add(l.GetProperty("id").GetString() + " -> " + sprite);
+            }
+            if (n == 0) return "FAIL  desk_layout.json has no layers";
+            if (missing.Count > 0)
+                return "FAIL  layers with no manifest entry: " + string.Join("; ", missing);
+
+            // data alone is not proof: Find() must INDEX both keys, or the lookup misses at runtime.
+            // (Asserted on the source because the dictionary is private and Unity-owned.)
+            var manifestSource = File.ReadAllText("unity/Assets/Scripts/Game/Layout/SpriteManifest.cs");
+            var find = manifestSource.Substring(manifestSource.IndexOf("public SpriteEntry Find", StringComparison.Ordinal));
+            find = find.Substring(0, find.IndexOf("OfKind", StringComparison.Ordinal));
+            if (!find.Contains("_bySource[s.source]"))
+                return "FAIL  Find() does not index the repo path -- every desk layer would miss";
+            if (!find.Contains("_bySource[s.assetPath]"))
+                return "FAIL  Find() does not index the Unity path -- portraits and UI would miss";
+            return "PASS  all " + n + " desk layers resolve to a manifest sprite (repo path or Unity path)";
         }
 
         private static List<(string stem, List<string> frames)> ParseManifest()
