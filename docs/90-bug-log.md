@@ -464,6 +464,40 @@ Redundant, not broken. Nothing shipped was touched; every gate re-ran green afte
 - **Prevention rule:** a gate may not run a script that WRITES into the repo. Gates read, they do not
   produce -- otherwise every run dirties the tree and the "clean tree" bundle rule trips.
 
+## BUG-038 / BUG-039 / BUG-040 / BUG-041 -- the history step, four bugs deep (v51 report)
+
+The user's apply got further every time and failed somewhere new. All four are in the same 30 lines.
+
+- **BUG-038 `refusing to fetch into branch 'refs/heads/main' checked out at ...`** — `git init` puts
+  `HEAD` on `refs/heads/main` on git builds whose default branch is `main`; fetching
+  `refs/heads/*:refs/heads/*` then writes into the checked-out branch and git refuses.
+  **This box defaults to `master`, so the rehearsal could never reproduce it.** Rule: *behaviour that
+  depends on a machine setting is never proven by one machine.*
+- **BUG-039 `git clone` was the obvious fix and is wrong** — it refuses a non-empty target, and the
+  working copy is always full of the previous version. Replaced with: `init`, then fetch into
+  `refs/hr0d-incoming/*` (a namespace that can never be checked out), then `update-ref` each branch
+  into place, then `symbolic-ref` + `reset --mixed`.
+- **BUG-040 the sequelae, all silent:**
+  - source and destination were swapped in the fetch refspec (`+refs/hr0d-incoming/*:refs/heads/*`), so
+    the fetch "succeeded" and created nothing;
+  - `%(refname:short)` strips `refs/`, so the prefix match never fired and branches landed at
+    `refs/heads/hr0d-incoming/main` — and the next check then blamed the bundle;
+  - `for-each-ref --format='%(refname) %(objectname)'` survives PowerShell as one argument but **not**
+    through `ProcessStartInfo` quoting: git received two args, expanded only the first, and the sha
+    silently vanished. Format strings are now **one token** (`'%(refname)|%(objectname)'`).
+  - the fetch was `-Quiet`, so its failure reason was hidden and reported as "the bundle has no branches".
+- **BUG-041 `Expand-Archive` refused a dot-file entry** (`Cannot find path .../.gitattributes`). Windows
+  PowerShell 5.1 extracts the same zip happily, but a script that only runs on one host cannot be
+  rehearsed — the zip is now extracted entry by entry through the `ZipFile` API.
+- **Also:** after a `-Clean` copy the tree can hold files the new `HEAD` never had (they came from the
+  *previous* version), which was reported as "files do NOT match HEAD" — alarming and wrong. A `-Clean`
+  apply now ends with `reset --hard` + `clean -fd` so the tree check means what it says.
+
+**Proof:** under `$PSNativeCommandUseErrorActionPreference = $true` (reproduces 5.1), three scenarios:
+existing repo on `main` + a stale untracked file, a second apply with `origin` present, and a fresh
+folder with no `.git`. All three end at `HEAD ... working tree clean -- files match HEAD exactly`, and
+`dotnet run --project tools/CoreTests` in the applied copy is green.
+
 ## BUG-036 / BUG-037 -- `git remote get-url origin` killed the apply, twice (v49 report)
 
 - **Symptom:** the user ran v49 and got a red PS traceback at `Apply-Bundle.ps1:135`:
