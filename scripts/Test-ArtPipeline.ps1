@@ -120,6 +120,21 @@ try {
             Write-Host ("  [FAIL] package-only namespace in stubs: " + ($offenders -join ', ')) -ForegroundColor Red
         } else { OK 'stubs declare engine/editor types only' }
 
+
+    S 'stub honesty (TextMesh has no renderer members)'
+        $stub = Get-Content (Join-Path $repo 'tools\UnityStubs\UnityStubs.cs') -Raw
+        $tm = [regex]::Match($stub, 'class TextMesh[^{]*\{(?<body>.*?)\n    \}', 'Singleline')
+        if (-not $tm.Success) { $failed++; Write-Host '  [FAIL] TextMesh stub not found' -ForegroundColor Red }
+        else {
+            # sortingOrder / sortingLayerName live on Renderer in Unity. Declaring them on TextMesh made
+            # the compile gate pass while the EDITOR failed with CS1061 and dropped into Safe Mode.
+            $bad = @('sortingOrder', 'sortingLayerName') | Where-Object { $tm.Groups['body'].Value -match ("public [\w<>\[\]]+ " + $_ + "\b") }
+            if ($bad.Count -gt 0) {
+                $failed++
+                Write-Host ("  [FAIL] TextMesh stub declares " + ($bad -join ', ') + ' -- those are Renderer members in Unity') -ForegroundColor Red
+            } else { OK 'TextMesh stub has no renderer members' }
+        }
+
     S 'applicant proportions (no floating heads, no cone skulls)'
         & python (Join-Path $repo 'tools\art\check_proportions.py')
         if ($LASTEXITCODE -ne 0) { $failed++; Write-Host '  [FAIL] applicant proportions' -ForegroundColor Red }

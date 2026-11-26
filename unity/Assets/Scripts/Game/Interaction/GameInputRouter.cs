@@ -17,7 +17,7 @@ namespace HRZeroDay.Game.Interaction
         private void Awake()
         {
             if (bootstrap == null) bootstrap = GetComponent<DeskBootstrap>();
-            if (bootstrap == null) bootstrap = FindObjectOfType<DeskBootstrap>();
+            if (bootstrap == null) bootstrap = FindFirstObjectByType<DeskBootstrap>();
         }
 
         private void Update()
@@ -74,7 +74,7 @@ namespace HRZeroDay.Game.Interaction
                 bootstrap.ShowDaySummary || bootstrap.ShowEnding) return;
 
             var cam = Camera.main;
-            if (cam == null) cam = FindObjectOfType<Camera>();
+            if (cam == null) cam = FindFirstObjectByType<Camera>();
             if (cam == null || !cam.orthographic) return;
 
             float aspect = Screen.height > 0 ? (float)Screen.width / Screen.height : 16f / 9f;

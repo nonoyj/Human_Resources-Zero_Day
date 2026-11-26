@@ -106,7 +106,9 @@ namespace HRZeroDay.Game.Interaction
             var labelMesh = label.AddComponent<TextMesh>();
             labelMesh.font = font;
             labelMesh.characterSize = 0.09f;
-            labelMesh.sortingOrder = 46;            // panel sprite is 45
+            // TextMesh has NO sortingOrder in Unity (CS1061 -> Safe Mode). The sort order lives on the
+            // Renderer, and TextMesh always arrives with a MeshRenderer beside it.
+            labelMesh.GetComponent<MeshRenderer>().sortingOrder = 46;    // panel sprite is 45
             labelMesh.text = string.Empty;
             overlay.calloutLabel = labelMesh;
 
@@ -116,7 +118,7 @@ namespace HRZeroDay.Game.Interaction
             var bodyMesh = body.AddComponent<TextMesh>();
             bodyMesh.font = font;
             bodyMesh.characterSize = 0.07f;
-            bodyMesh.sortingOrder = 46;
+            bodyMesh.GetComponent<MeshRenderer>().sortingOrder = 46;
             bodyMesh.text = string.Empty;
             overlay.calloutBody = bodyMesh;
             callout.SetActive(false);
@@ -156,7 +158,7 @@ namespace HRZeroDay.Game.Interaction
             var textGo = new GameObject("Text");
             textGo.transform.SetParent(go.transform, false);
             var text = textGo.AddComponent<SpriteRenderer>();
-            text.sortingOrder = 191;
+            text.GetComponent<MeshRenderer>().sortingOrder = 191;
             var textRect = LetterLayout.TextRect();
             textGo.transform.localPosition = new Vector3(
                 (textRect.x + textRect.w * 0.5f) / layout.canvas.pixelsPerUnit,

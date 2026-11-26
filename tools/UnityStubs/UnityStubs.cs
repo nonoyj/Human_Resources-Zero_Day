@@ -40,7 +40,9 @@ namespace UnityEngine
         public static void DestroyImmediate(Object o) { }
         public static void Destroy(Object o) { }
         // Unity 6 still has these (obsolete, not removed); GameBoot.cs and DeskSession use them.
-        public static T FindObjectOfType<T>() where T : Object { return null; }
+        public static T FindFirstObjectByType<T>() where T : Object { return null; }
+        public static T FindAnyObjectByType<T>() where T : Object { return null; }
+        public static T FindObjectOfType<T>() where T : Object { return null; }   // obsolete in Unity 6
         public static T[] FindObjectsOfType<T>() where T : Object { return new T[0]; }
     }
     public class Component : Object
@@ -167,7 +169,6 @@ namespace UnityEngine
         public static Camera main;
         public Vector3 ScreenToWorldPoint(Vector3 screen) { return new Vector3(); }
     }
-    public class SpriteRenderer : Component { public Sprite sprite; public int sortingOrder; public Color color; }
 
     public class TextMesh : Component
     {
@@ -176,11 +177,30 @@ namespace UnityEngine
         public Color color;
         public float characterSize;      // Unity 6: TextMesh.characterSize (real API)
         public Font font;                // Unity 6: TextMesh.font
-        // Unity 6 also exposes sortingOrder/sortingLayerID on TextMesh via its renderer; DeskRuntimeScene
-        // sets it to keep the callout above the desk, so the stub must allow it.
+        public TextAlignment alignment;
+        public TextAnchor anchor;
+        public float offsetZ;
+        // NO sortingOrder HERE, ON PURPOSE. TextMesh does not have one in Unity -- it lives on the
+        // Renderer -- and inventing it made the editor fail with CS1061 and drop into Safe Mode.
+        // A sort order must go through GetComponent<MeshRenderer>() (see below). ASSEMBLY-RULES.md.
+    }
+
+    public enum TextAlignment { Left = 0, Center = 1, Right = 2 }
+    public enum TextAnchor { UpperLeft = 0, UpperCenter = 1, UpperRight = 2,
+                             MiddleLeft = 3, MiddleCenter = 4, MiddleRight = 5,
+                             LowerLeft = 6, LowerCenter = 7, LowerRight = 8 }
+
+    /// <summary>Sorting order lives here, and only here -- this is what Unity actually does.</summary>
+    public class Renderer : Component
+    {
         public int sortingOrder;
         public string sortingLayerName;
+        public int sortingLayerID;
+        public bool enabled;
     }
+
+    public class MeshRenderer : Renderer { }
+    public class SpriteRenderer : Renderer { public Sprite sprite; public Color color; }
 
     public class Font : Object { }
 

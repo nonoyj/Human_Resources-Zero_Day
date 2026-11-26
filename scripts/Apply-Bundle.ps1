@@ -183,7 +183,23 @@ try {
                 $remoteOut = Git @('-C', $WorkingCopy, 'remote', 'get-url', 'origin') -Quiet
                 if ($script:GitExitCode -eq 0 -and $remoteOut.Trim()) { $savedRemote = $remoteOut.Trim() }
                 if (-not $savedRemote) { $savedRemote = $null }
-                Remove-Item -LiteralPath $dstGit -Recurse -Force
+                # Unity does not lock .git, but its file watcher and Windows' indexer can hold a handle for a
+                # second or two, and a hard Remove-Item then throws and aborts an otherwise fine apply. The
+                # player's complaint was having to CLOSE Unity to unpack a bundle, so retry first and only
+                # ask them to close the editor if every attempt fails.
+                $removed = $false
+                for ($attempt = 1; $attempt -le 5; $attempt++) {
+                    try {
+                        Remove-Item -LiteralPath $dstGit -Recurse -Force -ErrorAction Stop
+                        $removed = $true
+                        break
+                    } catch {
+                        if ($attempt -lt 5) { Start-Sleep -Milliseconds 400 }
+                    }
+                }
+                if (-not $removed) {
+                    Fail "could not replace .git -- a process still has it open. Close Unity (the editor holds the project) and re-run, or use 'git pull' instead of a bundle."
+                }
                 OK "old .git removed"
             }
 
