@@ -112,6 +112,16 @@ try {
         OK "created $WorkingCopy"
     }
 
+    # Stale leftovers from the previous version were reported as "files do NOT match HEAD", which is
+    # alarming and usually wrong: the bundle's file set is the truth. Clear untracked junk first so the
+    # tree check means what it says.
+    if (Test-Path -LiteralPath (Join-Path $WorkingCopy '.git')) {
+        $leftover = (Git @('-C', $WorkingCopy, 'status', '--porcelain') -Quiet)
+        if ($leftover.Trim()) {
+            Git @('-C', $WorkingCopy, 'clean', '-fd') -Quiet | Out-Null
+            OK "cleared leftovers from the previous version"
+        }
+    }
     if ($Reinstall -and -not $Clean) {
         S "discarding local changes (keeping .git)"
         Git @('-C', $WorkingCopy, 'reset', '--hard', 'HEAD') | Out-Null
