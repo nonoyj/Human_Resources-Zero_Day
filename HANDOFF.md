@@ -25,8 +25,11 @@ the CRT → inspect artifacts → stamp → day summary → after-hours sweep.
 | Art + stub + layout gate | `.\scripts\Test-ArtPipeline.ps1` | OK |
 | Script health | `.\scripts\Test-Scripts.ps1` | healthy |
 | **Unity will compile** | `dotnet build tools\UnityStubs\CompileCheck.csproj` | succeeded |
+| **The COMMIT works** | `python3 tools\verify_fresh_clone.py` | PASS |
 
-The fourth one is the one that matters: it is what a green local build is supposed to *mean*.
+The last one is the one that matters most: it exports `HEAD` with `git archive` into a temp folder and runs
+every other check **inside it**. Six boot failures in one day were all the same shape — a check that read my
+working directory while you ran the commit. It must be green **after** committing, and before any bundle.
 
 ---
 
