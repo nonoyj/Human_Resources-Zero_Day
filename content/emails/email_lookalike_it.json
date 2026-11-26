@@ -1,0 +1,15 @@
+{
+  "id": "email_lookalike_it",
+  "kind": "lookalike_domain",
+  "from": "HR IT Support",
+  "fromAddress": "hr-it@company-hr-support.example",
+  "subject": "Your session credentials expire today",
+  "body": "Our records show your desk session credentials expire at 17:00 today. To avoid losing your review queue, confirm your username below and we will renew the session for you.",
+  "malicious": true,
+  "earliestDay": 2,
+  "tell": {
+    "id": "domain_mismatch",
+    "textSurface": "The sender address is company-hr-support, not company-hr"
+  },
+  "twinOf": "email_legit_it"
+}

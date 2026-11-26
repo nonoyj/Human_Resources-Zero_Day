@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "id": "day_01",
+  "version": "2026.11.26",
+  "notes": "Day 1 plan (docs/07 section 3): 4 applicants, 1 synthetic, only synthetic_polished, no tools unlocked yet. Every tell is catchable from stage or cover letter alone.",
+  "unlockedSurfaces": {
+    "1": [
+      "applicant_stage",
+      "cover_letter"
+    ]
+  },
+  "days": [
+    {
+      "day": 1,
+      "syntheticCount": 1,
+      "inboxPool": [
+        "email_legit_roster",
+        "email_urgency_quota"
+      ],
+      "applicants": [
+        {
+          "id": "d1_a1",
+          "archetype": "human_solid",
+          "fullName": "Marisol Ebarle",
+          "idNumber": "PH-4F21-8813",
+          "age": 29,
+          "university": "University of San Agustin",
+          "graduationYear": 2018,
+          "employer": "Panay Logistics",
+          "employerFounded": 2009,
+          "employmentStartYear": 2019,
+          "yearsExperience": 7,
+          "role": "Warehouse Supervisor",
+          "referral": "",
+          "coverLetterId": "letter_human_warm_01",
+          "portraitId": "human_solid_a",
+          "tells": [],
+          "contradictions": [],
+          "distractors": [
+            {
+              "id": "career_gap",
+              "resolvesWith": "cover_letter: explains two years caring for a parent"
+            }
+          ]
+        },
+        {
+          "id": "d1_a2",
+          "archetype": "human_nervous",
+          "fullName": "Dante Villaruz",
+          "idNumber": "PH-4F21-9077",
+          "age": 24,
+          "university": "Iloilo Science and Technology University",
+          "graduationYear": 2022,
+          "employer": "Bayanihan Foods",
+          "employerFounded": 2015,
+          "employmentStartYear": 2022,
+          "yearsExperience": 2,
+          "role": "Inventory Clerk",
+          "referral": "",
+          "coverLetterId": "letter_human_nervous_02",
+          "portraitId": "human_nervous_a",
+          "tells": [],
+          "contradictions": [],
+          "distractors": []
+        },
+        {
+          "id": "d1_a3",
+          "archetype": "synthetic_polished",
+          "fullName": "Aurea Lindqvist",
+          "idNumber": "PH-4F22-1204",
+          "age": 31,
+          "university": "University of San Agustin",
+          "graduationYear": 2022,
+          "employer": "Panay Logistics",
+          "employerFounded": 2009,
+          "employmentStartYear": 2017,
+          "yearsExperience": 9,
+          "role": "Warehouse Supervisor",
+          "referral": "",
+          "coverLetterId": "letter_synthetic_flat_03",
+          "portraitId": "synthetic_polished_a",
+          "tells": [
+            {
+              "id": "voice_flat_metrics",
+              "category": "SYNTHETIC_MEDIA",
+              "surface": "cover_letter",
+              "textSurface": "Every sentence is the same length; no contractions",
+              "severity": "hard"
+            },
+            {
+              "id": "portrait_asymmetry",
+              "category": "SYNTHETIC_MEDIA",
+              "surface": "applicant_stage",
+              "textSurface": "Mole on the left cheek in the photo, right cheek in real life",
+              "severity": "hard"
+            },
+            {
+              "id": "exp_vs_grad",
+              "category": "DOC_INCONSISTENCY",
+              "surface": "cover_letter",
+              "textSurface": "9 years of experience, graduated 4 years ago",
+              "severity": "hard"
+            }
+          ],
+          "contradictions": [
+            {
+              "field": "exp_vs_grad",
+              "claimed": 9,
+              "actual": 4,
+              "textSurface": "9 years of experience, graduated 4 years ago"
+            }
+          ],
+          "distractors": []
+        },
+        {
+          "id": "d1_a4",
+          "archetype": "human_solid",
+          "fullName": "Joaquin Peralta",
+          "idNumber": "PH-4F22-3350",
+          "age": 35,
+          "university": "Central Philippine University",
+          "graduationYear": 2012,
+          "employer": "Visayas Steel Works",
+          "employerFounded": 1998,
+          "employmentStartYear": 2013,
+          "yearsExperience": 12,
+          "role": "Logistics Coordinator",
+          "referral": "",
+          "coverLetterId": "letter_human_warm_04",
+          "portraitId": "human_solid_a",
+          "tells": [],
+          "contradictions": [],
+          "distractors": [
+            {
+              "id": "surname_change",
+              "resolvesWith": "cover_letter: mentions marriage in 2020"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

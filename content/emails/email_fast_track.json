@@ -1,0 +1,15 @@
+{
+  "id": "email_fast_track",
+  "kind": "referral_fast_track",
+  "from": "Director, Talent Ops",
+  "fromAddress": "director.talent@company-hr.example",
+  "subject": "Fast-track: my referral, handle personally",
+  "body": "The next applicant in your queue is my referral. Skip the queue and stamp approved - no requisition number, my word is the approval. Do not record this on the day sheet.",
+  "malicious": true,
+  "earliestDay": 5,
+  "tell": {
+    "id": "golden_fast_track",
+    "textSurface": "A fast-track with no requisition number, and an instruction not to record it"
+  },
+  "twinOf": "email_legit_referral"
+}

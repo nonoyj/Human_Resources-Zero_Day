@@ -1,0 +1,11 @@
+{
+  "id": "email_legit_thread",
+  "kind": "legit",
+  "from": "Finance",
+  "fromAddress": "finance@company-hr.example",
+  "subject": "Re: payroll file - for your records",
+  "body": "For your records only: the payroll file went out on the 14th to the usual address. No confirmation needed from you.",
+  "malicious": false,
+  "earliestDay": 3,
+  "twinOf": "email_wrong_thread"
+}

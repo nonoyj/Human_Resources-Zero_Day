@@ -221,6 +221,7 @@ namespace UnityEngine
     {
         public static void Log(object m) { }
         public static void LogError(object m) { }
+        public static void LogWarning(object m) { }
     }
     public static class Input
     {
@@ -237,6 +238,15 @@ namespace UnityEngine
     public static class JsonUtility
     {
         public static T FromJson<T>(string json) { return default(T); }
+        public static string ToJson(object o) { return "{}"; }
+        public static string ToJson(object o, bool pretty) { return "{}"; }
+    }
+    // SaveSystem writes to Application.persistentDataPath. Unity provides it; the stub points at a
+    // temp dir so the headless runner can exercise the save path if a test ever needs the real file.
+    public static class Application
+    {
+        public static string persistentDataPath = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(), "hr0d-headless");
     }
     [AttributeUsage(AttributeTargets.Field)] public class HeaderAttribute : Attribute { public HeaderAttribute(string h) { } }
     // Runtime initialisation hook. UnityEngine type, always available -- NOT a package type, so it

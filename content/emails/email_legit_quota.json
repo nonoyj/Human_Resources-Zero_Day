@@ -1,0 +1,11 @@
+{
+  "id": "email_legit_quota",
+  "kind": "legit",
+  "from": "Regional Recruitment",
+  "fromAddress": "recruitment@company-hr.example",
+  "subject": "Quota tracker - week 47",
+  "body": "The tracker is updated. We are two hires short for the week and the expectation is three completed reviews per shift. No reply needed; the number updates itself when you close a day.",
+  "malicious": false,
+  "earliestDay": 1,
+  "twinOf": "email_urgency_quota"
+}

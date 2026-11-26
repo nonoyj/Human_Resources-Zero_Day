@@ -1,0 +1,11 @@
+{
+  "id": "email_legit_audit",
+  "kind": "legit",
+  "from": "Compliance Audit",
+  "fromAddress": "audit.team@company-hr.example",
+  "subject": "Audit sampling: 12 cases selected",
+  "body": "Twelve cases from this week were selected for review. Your decisions are already logged; nothing is required from you beyond keeping the console open at the normal times.",
+  "malicious": false,
+  "earliestDay": 4,
+  "twinOf": "email_credential_request"
+}

@@ -1,0 +1,13 @@
+{
+  "id": "ending_erosion",
+  "title": "TRUST EROSION",
+  "outcome": "defeat_trust",
+  "body": [
+    "Your trust score never fell in one dramatic moment. It fell the way trust does - a few wrong rejections, a few qualified people turned away, a rumour in the queue that HR rejects everyone with a gap on their page.",
+    "The honest candidates stop applying before you notice. The ones who stay are the ones who can afford to be rejected.",
+    "That is the version of a hiring desk you were supposed to prevent."
+  ],
+  "couldHaveDone": [
+    "Read the cover letter on the applicants who looked odd. Most of the things you rejected were explainable, and the explanations were one click away."
+  ]
+}
