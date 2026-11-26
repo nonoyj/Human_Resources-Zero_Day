@@ -464,6 +464,30 @@ Redundant, not broken. Nothing shipped was touched; every gate re-ran green afte
 - **Prevention rule:** a gate may not run a script that WRITES into the repo. Gates read, they do not
   produce -- otherwise every run dirties the tree and the "clean tree" bundle rule trips.
 
+## BUG-036 / BUG-037 -- `git remote get-url origin` killed the apply, twice (v49 report)
+
+- **Symptom:** the user ran v49 and got a red PS traceback at `Apply-Bundle.ps1:135`:
+  `git.exe : error: No such remote 'origin'` -> `NativeCommandError`. The apply stopped dead.
+- **Cause:** the working copy had **no `origin`**. `git remote get-url origin` reports that on **stderr**,
+  and Windows PowerShell 5.1 converts *any* native stderr into a `NativeCommandError`, which is fatal
+  because the script sets `$ErrorActionPreference = 'Stop'`. `git remote get-url` has **no `-q`**, so
+  there is no way to ask it politely.
+- **Why it happened twice:** my BUG-036 fix redirected `2>&1` on *that one call*. v49 still died at the
+  same class of call one line earlier. Redirection happens after PowerShell has already decided the
+  record is an error. The class, not the site, was the problem.
+- **Fix (BUG-037):** no native command is invoked with `&` in `Apply-Bundle.ps1` any more. There is one
+  `Git` helper that starts `git` as a `System.Diagnostics.Process` with `RedirectStandardOutput/Error`,
+  returns stdout as a string, prints stderr in grey, and leaves the exit code in `$script:GitExitCode`.
+  Ten call sites migrated. **Rule: in a 5.1 script, treat native stderr as data — start the process.**
+- **Second bug found by rehearsing:** `Clear-Host` shells out to `clear`, which exits non-zero when
+  `TERM` is unset or output is piped -- fatal under the same error handling. Removed (cosmetic).
+- **Third bug found:** the shipped bootstrap at the **repo root** was never linted, because
+  `Test-Scripts.ps1` only walked `scripts\`. It now checks the root bootstrap too — that is why three
+  releases of broken bootstrap went out green.
+- **Proof:** rehearsed with `$PSNativeCommandUseErrorActionPreference = $true` (pwsh's switch that
+  reproduces 5.1's behaviour) against a repo with **no origin**, twice in a row, plus the `-Reinstall`
+  path. All three end at `working tree clean -- files match HEAD exactly`.
+
 ## BUG-035 -- the bundle could not fix the script that applies it (found by rehearsal, 2026-11-26)
 
 - **Symptom:** after the BUG-032 fix, a *rolled-back* bootstrap still produced the old failure. The
