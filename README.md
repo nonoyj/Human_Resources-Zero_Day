@@ -22,6 +22,8 @@ A mobile cybersecurity-awareness game for Android (Unity 6.3 LTS), inspired by t
 | `docs/07-randomization-spec.md` | Seeded run generation + fairness invariants I1–I8 |
 | `docs/08-behaviour-model.md` | The applicant across the table: animation, tells, stress model |
 | `docs/09-backend-spec.md` | Backend summary (3 jobs, offline-first) |
+| `docs/15-interaction-layer.md` | Hotspot -> evidence -> stamp loop, artifact/tell map, verification |
+| `prototype/web/` | Playable browser twin of the first minute (no Unity needed) |
 | `docs/10-analytics-spec.md` | Research instrument: events, metrics, privacy guardrails |
 | `docs/SETUP-CHECKLIST.md` | Step-by-step Windows setup |
 | `docs/TROUBLESHOOT-SETUP.md` | "script not recognized" and every other setup failure |

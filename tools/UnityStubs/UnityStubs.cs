@@ -10,12 +10,15 @@ namespace UnityEngine
     {
         public Transform transform; public GameObject gameObject;
         public T GetComponent<T>() where T : Component { return null; }
+        public T GetComponentInChildren<T>() where T : Component { return null; }
+        public T[] GetComponentsInChildren<T>() where T : Component { return new T[0]; }
     }
     public class Behaviour : Component { public bool enabled; }
     public class MonoBehaviour : Behaviour { }
     public class Transform : Component
     {
-        public Vector3 position, localPosition;
+        public Vector3 position, localPosition, localScale;
+        public Quaternion localRotation;
         public void SetParent(Transform p, bool worldStays) { }
         public Transform Find(string n) { return null; }
     }
@@ -23,18 +26,33 @@ namespace UnityEngine
     {
         public Transform transform = new Transform();
         public string tag;
+        public bool activeInHierarchy = true;
         public GameObject() { }
         public GameObject(string n) { name = n; }
         public T AddComponent<T>() where T : Component, new() { return new T(); }
         public Component AddComponent(Type t) { return null; }
+        public void SetActive(bool value) { activeInHierarchy = value; }
     }
     public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public static Vector2 zero; }
-    public struct Vector3 { public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 zero; }
+    public struct Vector3 { public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 zero; public static Vector3 one; }
     public struct Vector4 { public float x, y, z, w; public Vector4(float x, float y, float z, float w) { this.x = x; this.y = y; this.z = z; this.w = w; } public static Vector4 zero; }
+    public struct Quaternion
+    {
+        public float x, y, z, w;
+        public static Quaternion identity { get { return new Quaternion(); } }
+        public static Quaternion Euler(float x, float y, float z) { return new Quaternion(); }
+    }
+    public static class Mathf
+    {
+        public static float Clamp01(float v) { return v < 0f ? 0f : (v > 1f ? 1f : v); }
+        public static int Max(int a, int b) { return a > b ? a : b; }
+        public static float Max(float a, float b) { return a > b ? a : b; }
+    }
     public struct Rect
     {
         public float x, y, width, height;
         public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; }
+        public Vector2 center { get { return new Vector2(x + width * 0.5f, y + height * 0.5f); } }
     }
     public struct Color32 { public byte r, g, b, a; public Color32(byte r, byte g, byte b, byte a) { this.r = r; this.g = g; this.b = b; this.a = a; } }
     public struct Color
@@ -54,6 +72,8 @@ namespace UnityEngine
     public class Texture2D : Object { }
     public class Sprite : Object { public Rect rect; }
     public class TextAsset : Object { public string text; }
+    public class Font : Object { }
+    public class TextMesh : Component { public string text; public Font font; public float characterSize; }
     public class Camera : Behaviour
     {
         public bool orthographic; public float orthographicSize; public CameraClearFlags clearFlags;
@@ -66,6 +86,7 @@ namespace UnityEngine
     {
         public static T Load<T>(string path) where T : Object { return null; }
         public static T[] LoadAll<T>(string path) where T : Object { return null; }
+        public static T GetBuiltinResource<T>(string path) where T : Object { return null; }
     }
     public static class Debug
     {
@@ -81,6 +102,15 @@ namespace UnityEngine
     [AttributeUsage(AttributeTargets.Field)] public class RangeAttribute : Attribute { public RangeAttribute(float a, float b) { } }
     [AttributeUsage(AttributeTargets.Field)] public class SerializeFieldAttribute : Attribute { }
     public class RequireComponent : Attribute { public RequireComponent(Type t) { } }
+}
+
+namespace UnityEngine.EventSystems
+{
+    public class PointerEventData : Object { }
+    public interface IPointerDownHandler { void OnPointerDown(PointerEventData eventData); }
+    public class EventSystem : Component { }
+    public class Physics2DRaycaster : Component { }
+    public class StandaloneInputModule : Component { }
 }
 
 namespace UnityEditor

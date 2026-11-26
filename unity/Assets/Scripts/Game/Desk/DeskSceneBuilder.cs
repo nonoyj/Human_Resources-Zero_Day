@@ -17,8 +17,12 @@ namespace HRZeroDay.Game
         {
             if (layout == null) throw new System.ArgumentNullException("layout");
 
-            var existing = parent.Find(RootName);
-            if (existing != null) Object.DestroyImmediate(existing.gameObject);
+            // BUG-024: the editor menu builds at scene root, so `parent` may legitimately be null.
+            if (parent != null)
+            {
+                var existing = parent.Find(RootName);
+                if (existing != null) Object.DestroyImmediate(existing.gameObject);
+            }
 
             var root = new GameObject(RootName).transform;
             root.SetParent(parent, false);

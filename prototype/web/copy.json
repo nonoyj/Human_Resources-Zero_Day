@@ -1,0 +1,47 @@
+{
+  "toolValid": "VALID - no flag on this check. A tool can still be wrong.",
+  "watchLonger": "Keep watching. A person blinks on their own schedule.",
+  "debriefHired": "You approved a record that could not be verified. Evidence you never opened: ",
+  "debriefHonest": "Approved an honest applicant. No tell was present.",
+  "debriefWrongful": "You rejected a real person. Nothing in this record was contradictory",
+  "debriefExplained": "; the flags you saw were explained in the cover letter.",
+  "debriefPlain": ".",
+  "debriefInsufficient": "Rejected correctly, but 'insufficient evidence' is not a reason. The evidence was: ",
+  "debriefWrongReason": "Right decision, wrong reason. The evidence was: ",
+  "debriefCorrect": "Correct. You caught: ",
+  "debriefNone": "No decision recorded.",
+  "reasonLabels": {
+    "SYNTHETIC_MEDIA": "Synthetic media (face / voice)",
+    "DOC_INCONSISTENCY": "Document inconsistency",
+    "IMPERSONATION": "Impersonation",
+    "COERCION": "Coercion",
+    "SOCIAL_ENGINEERING": "Social engineering",
+    "INSUFFICIENT": "Insufficient evidence"
+  },
+  "toolLabels": {
+    "id_registry": "ID Registry",
+    "metadata_scan": "Metadata Scan",
+    "reference_call": "Reference Call"
+  },
+  "letters": {
+    "plain": "Dear hiring panel, I am applying for the {role} posting. I worked at {employer} from {startYear} and I would be glad to walk you through the work. My referees are available if you need them.",
+    "bait": "Dear panel, please consider my application. I need an answer by Friday because my situation depends on it. I know I can do the job if given the chance.",
+    "flat": "The applicant is submitting credentials for the {role} position. The applicant has {expYears} years of experience. The applicant possesses the required baseline competencies. The applicant requests consideration at the earliest convenience."
+  },
+  "observationOnly": "No contradiction confirmed. An observation is not evidence.",
+  "nextApplicant": "NEXT APPLICANT",
+  "closeShift": "CLOSE SHIFT",
+  "continue": "CONTINUE",
+  "daySummary": "SHIFT CLOSED",
+  "runEnded": "RUN COMPLETE",
+  "daySummaryBody": "Approved {approved}, rejected {rejected}, wrongful rejections {wrongful}. Synthetics caught {caught}.",
+  "hint": "Behaviour is a prompt to look closer, never a reason to reject.",
+  "manualEmpty": "Nothing confirmed yet. Open a document or inspect the applicant.",
+  "quotaHintOff": "The floor is short-staffed. Two desks sat empty through the shift.",
+  "quotaHintOn": "Nothing unusual in the logs today.",
+  "endings": {
+    "Survived": "Five shifts survived. The archive is still yours to protect.",
+    "DefeatedPerfectEmployee": "Three synthetic hires now have clearance. The archive is compromised.",
+    "DefeatedGhostQuota": "Trust collapsed. Security has taken the desk away."
+  }
+}

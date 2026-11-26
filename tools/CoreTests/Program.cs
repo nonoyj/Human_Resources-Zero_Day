@@ -24,6 +24,7 @@ internal static class Program
         var lines = new List<string>();
         lines.AddRange(GeneratorInvariantTests.RunAll());
         lines.AddRange(GameDataTests.RunAll());        // art -> Unity data bridge
+        lines.AddRange(InteractionTests.RunAll());     // desk -> evidence -> stamp loop
         foreach (var line in lines)
         {
             Console.WriteLine(line);

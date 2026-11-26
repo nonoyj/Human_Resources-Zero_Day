@@ -17,8 +17,15 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="../../unity/Assets/Scripts/Core/**/*.cs" />
+    <!-- The interaction layer is pure C#: the headless runner compiles the same files Unity uses. -->
+    <Compile Include="../../unity/Assets/Scripts/Game/Interaction/EvidenceMap.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Interaction/EvidenceLedger.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Interaction/HotspotHitTest.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Interaction/ToolBudget.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Interaction/DeskSession.cs" />
     <Compile Include="../../unity/Assets/Scripts/Tests/GeneratorInvariantTests.cs" />
     <Compile Include="GameDataTests.cs" />
+    <Compile Include="InteractionTests.cs" />
   </ItemGroup>
 
 </Project>

@@ -2,6 +2,17 @@
 
 **Art kit v2 is in the repo (14 applicant archetypes + 9 AI artifacts).** Nothing to wait for.
 
+**NEW — the first playable minute is implemented.** See `docs/15-interaction-layer.md` for the
+hotspot / evidence / stamp layer and `prototype/web/index.html` for a browser twin you can play
+without Unity:
+
+```bash
+python3 -m http.server 8765 --bind 0.0.0.0   # then open /prototype/web/
+node prototype/web/test.mjs                  # 8 rule checks
+```
+
+The Unity project skeleton is still BE1's blocking task; the .NET test commands need the PC SDK.
+
 ---
 
 ## Step 1 — Take the bundle (2 commands)
