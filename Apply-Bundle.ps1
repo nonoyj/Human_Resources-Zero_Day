@@ -187,7 +187,10 @@ try {
             $incoming = 'refs/hr0d-incoming'
             # source -> destination. Getting this backwards is silent: the fetch "succeeds" and creates
             # nothing, which then looks like "the bundle has no branch". It did, once.
-            Git @('-C', $WorkingCopy, 'fetch', '-q', '--no-tags', $srcBundle, ('+refs/heads/*:' + $incoming + '/*')) -Quiet | Out-Null
+            # NOT -Quiet: a failed fetch must show its reason. It failed silently once and the script
+            # then blamed the bundle for having no branches.
+            Git @('-C', $WorkingCopy, 'fetch', '-q', '--no-tags', $srcBundle, ('+refs/heads/*:' + $incoming + '/*')) | Out-Null
+            if ($script:GitExitCode -ne 0) { D "fetch from history.bundle failed: $srcBundle" }
             if ($script:GitExitCode -ne 0) {
                 # older syntax fallback: fetch the single branch straight to a temp ref
                 Git @('-C', $WorkingCopy, 'fetch', '-q', $srcBundle, ('+' + 'refs/heads/' + $bBranch + ':refs/heads/' + $bBranch)) -Quiet | Out-Null
