@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.IO;
 using HRZeroDay.Game;
 using UnityEditor;
+using UnityEditor.U2D.Sprites;      // SpriteDataProviderFactories -- the only supported way to slice
 using UnityEngine;
 
 namespace HRZeroDay.EditorTools
@@ -87,46 +88,94 @@ namespace HRZeroDay.EditorTools
                 }
             }
 
-            // Multi-sprite sheets: name and place each frame explicitly
+            // Multi-sprite sheets: name and place each frame explicitly.
+            //
+            // Unity 6.3 REMOVED TextureImporter.spritesheet (it compiles with a CS0618 warning and then
+            // does nothing), so the old code silently produced zero slices -- the scene builder then
+            // threw "expected 4 sliced frames" on every applicant. The supported path is the sprite data
+            // provider; the import mode has to be set and reimported BEFORE the provider will accept
+            // sprite rects, which is why this is done in two steps rather than one.
             if (s.spriteMode == "Multiple")
             {
-                var rects = BuildSpriteRects(s);
-                if (rects != null)
-                {
-                    importer.spritesheet = rects;
-                    dirty = true;
-                }
+                if (ApplySpriteRects(s)) dirty = true;
             }
 
             if (dirty) importer.SaveAndReimport();
             return dirty;
         }
 
-        private static SpriteMetaData[] BuildSpriteRects(SpriteEntry s)
+        /// <summary>
+        /// Writes the 4 applicant frames through ISpriteEditorDataProvider. Returns true when the asset
+        /// changed. Any failure is reported loudly: a silently unsliced sheet is a broken game, not a
+        /// cosmetic problem.
+        /// </summary>
+        private static bool ApplySpriteRects(SpriteEntry s)
         {
             var w = ReadHeaderWidth(s.assetPath);
             var h = ReadHeaderHeight(s.assetPath);
-            if (w <= 0 || h <= 0) return null;
+            if (w <= 0 || h <= 0) return false;
+            if (w % 4 != 0)
+            {
+                Debug.LogError("[HR//0D] " + s.assetPath + " is " + w + "px wide -- not divisible by 4, " +
+                               "so a 4-frame strip cannot be sliced evenly.");
+                return false;
+            }
 
             var cellW = w / 4;
-            var cellH = h;
-            var names = new[] { "neutral", "breathe", "breathe_fidget", "blink" };
             var baseName = Path.GetFileNameWithoutExtension(s.assetPath).Split(new[] { "_19" }, System.StringSplitOptions.None)[0];
             if (baseName.StartsWith("app_")) baseName = baseName.Substring(4);
+            var names = new[] { "neutral", "breathe", "breathe_fidget", "blink" };
 
-            var rects = new SpriteMetaData[4];
+            var factories = new SpriteDataProviderFactories();
+            factories.Init();
+            var provider = factories.GetSpriteEditorDataProviderFromObject(
+                AssetImporter.GetAtPath(s.assetPath));
+            if (provider == null)
+            {
+                Debug.LogError("[HR//0D] no sprite data provider for " + s.assetPath +
+                               " -- cannot slice. Check that Texture Type is Sprite (2D and UI).");
+                return false;
+            }
+            provider.InitSpriteEditorDataProvider();
+
+            var rects = new SpriteRect[4];
             for (int i = 0; i < 4; i++)
             {
-                rects[i] = new SpriteMetaData
+                rects[i] = new SpriteRect
                 {
                     name = baseName + "_" + names[i],
-                    alignment = (int)SpriteAlignment.Custom,
+                    spriteID = GUID.Generate(),
+                    rect = new Rect(i * cellW, 0, cellW, h),   // Unity rect origin is bottom-left
+                    alignment = SpriteAlignment.Custom,
                     pivot = new Vector2(0.5f, 0.5f),
-                    rect = new Rect(i * cellW, 0, cellW, cellH),   // Unity's rect origin is bottom-left
                     border = Vector4.zero
                 };
             }
-            return rects;
+            provider.SetSpriteRects(rects);
+
+            var nameFileIdDataProvider = provider.GetDataProvider<ISpriteNameFileIdDataProvider>();
+            if (nameFileIdDataProvider != null)
+            {
+                var pairs = new List<SpriteNameFileIdPair>(4);
+                for (int i = 0; i < 4; i++)
+                    pairs.Add(new SpriteNameFileIdPair(rects[i].name, rects[i].spriteID));
+                nameFileIdDataProvider.SetNameFileIdPairs(pairs);
+            }
+
+            provider.Apply();
+            return true;
+        }
+
+        /// <summary>How many sprite rects the asset actually has right now (0 = unsliced).</summary>
+        private static int CountSpriteRects(string assetPath)
+        {
+            var factories = new SpriteDataProviderFactories();
+            factories.Init();
+            var provider = factories.GetSpriteEditorDataProviderFromObject(AssetImporter.GetAtPath(assetPath));
+            if (provider == null) return 0;
+            provider.InitSpriteEditorDataProvider();
+            var rects = provider.GetSpriteRects();
+            return rects == null ? 0 : rects.Length;
         }
 
         private static int ReadHeaderWidth(string path)
@@ -169,7 +218,7 @@ namespace HRZeroDay.EditorTools
                 if (importer.textureCompression != TextureImporterCompression.Uncompressed) problems.Add("compression: " + s.assetPath);
                 if (importer.spritePixelsPerUnit != s.ppu) problems.Add("PPU: " + s.assetPath);
                 if (importer.mipmapEnabled) problems.Add("mipmaps on: " + s.assetPath);
-                if (s.spriteMode == "Multiple" && importer.spritesheet == null) problems.Add("not sliced: " + s.assetPath);
+                if (s.spriteMode == "Multiple" && CountSpriteRects(s.assetPath) < 4) problems.Add("not sliced: " + s.assetPath);
             }
 
             if (problems.Count == 0)

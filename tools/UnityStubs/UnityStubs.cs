@@ -126,12 +126,10 @@ namespace UnityEditor
         public TextureWrapMode wrapMode;
         public SpriteImportMode spriteImportMode;
         public Vector4 spriteBorder;
-        public SpriteMetaData[] spritesheet;
         public void ReadTextureSettings(TextureImporterSettings s) { }
         public void SetTextureSettings(TextureImporterSettings s) { }
     }
     public class TextureImporterSettings { public SpriteMeshType spriteMeshType; }
-    public struct SpriteMetaData { public string name; public int alignment; public Vector2 pivot; public Rect rect; public Vector4 border; }
     public static class AssetDatabase
     {
         public static void StartAssetEditing() { }

@@ -12,6 +12,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="UnityStubs.cs" />
+    <Compile Include="UnityStubs.Sprites.cs" />
     <Compile Include="../../unity/Assets/Scripts/Core/**/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/**/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Editor/**/*.cs" />
