@@ -32,6 +32,7 @@ internal static class Program
         lines.AddRange(ManifestBridgeTests.RunAll());  // json -> Unity: serializable, frame names, rects
         lines.AddRange(DaylightTests.RunAll());        // day -> dusk -> night, from the shift clock
         lines.AddRange(InteractionTests.RunAll());     // hotspots, evidence ledger, tool budget
+        lines.AddRange(SweepTests.RunAll());           // after-hours sweep: one trace per wrong hire
         foreach (var line in lines)
         {
             Console.WriteLine(line);
