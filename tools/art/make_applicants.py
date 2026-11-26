@@ -113,7 +113,7 @@ class Applicant:
         self.build_idx  = (s // 2) % 4             # narrow / average / heavy / very heavy
         self.hand_size  = 4 + (s % 3)              # knuckle span in px
         # three skin families, chosen per seed: light, warm mid, deep. Painted as ramps, not flat fills.
-        self.skin_ramp  = ('skin_light', 'skin_mid', 'skin_deep')[(s // 3) % 3]
+        self.skin_ramp  = ('skin_light', 'skin_mid', 'skin_light', 'skin_deep')[(s // 3) % 4]
         self.breathe = 0
         self.blink = False
         self.fidget = 0
@@ -147,53 +147,67 @@ class Applicant:
 
         # (cast shadow is drawn last, on the desk -- see the table block at the end)
 
-        # ---------------- torso (v5: painted masses, not a rectangle)
-        # Three masses: a trapezoid chest that widens to the shoulders, ball-shaped deltoids where the
-        # arms join, and a belly that sags by build. The silhouette curve is what a shoulder actually is;
-        # the old straight-sided slab is why every applicant looked like a cardboard cut-out.
-        top = 100 - breath
-        build_w = (46, 52, 58, 62)[self.build_idx]
+        # ---------------- torso (v6: sloped shoulders + rounded arms)
+        # The reference sheet's people all share one thing: the shoulder line DROPS from the neck at
+        # roughly 20 degrees and the arm is a rounded tube. A horizontal top edge is the single strongest
+        # "this is a sprite, not a person" cue, so it is gone.
+        top = 124 - breath
+        build_w = (44, 50, 56, 60)[self.build_idx]
         torso_bot = base + 10
-        deltoid_r = (9, 11, 13, 14)[self.build_idx]
+        neck_x = self.neck_w + 3
+        shoulder_drop = 10 + self.build_idx * 2            # how far the trapezius falls before the deltoid
+        slope_w = 14                                        # width of the slope run
+
+        def torso_half(y):
+            """Half-width of the body at row y: neck -> slope -> deltoid -> waist."""
+            t = y - top
+            if t < 0:
+                return 0
+            if t < slope_w:                                  # the trapezius slope
+                k = t / float(slope_w)
+                return int(neck_x + (build_w - neck_x) * (k * k * (3 - 2 * k)))
+            body_t = (y - (top + slope_w)) / float(max(1, torso_bot - (top + slope_w)))
+            half = build_w * (1.0 - body_t * 0.16)
+            if self.build_idx >= 2 and 0.35 < body_t < 0.8:  # belly pushes the waist back out
+                half += 2 + self.build_idx * 2
+            return int(half)
 
         for y in range(top, torso_bot + 1):
-            t = (y - top) / float(max(1, torso_bot - top))
-            if t < 0.18:                                  # shoulders flare out fast
-                half = int(build_w * (0.55 + t / 0.18 * 0.45))
-            else:                                         # then the body tapers to the waist
-                half = int(build_w * (1.0 - (t - 0.18) * 0.18))
-            # belly: a heavy build pushes the waist back out
-            if self.build_idx >= 2 and 0.45 < t < 0.85:
-                half += int(2 + self.build_idx * 2)
+            half = torso_half(y)
+            if half <= 0:
+                continue
             for x in range(cx - half, cx + half + 1):
                 lit = (x - (cx - half)) / float(max(1, 2 * half))
-                tone = 3 - int(lit * 2.3)
-                if t > 0.92:
-                    tone -= 1                              # hem falls into shadow
+                tone = int(2.7 - lit * 2.1)
+                if y > torso_bot - 10:
+                    tone -= 1                                # hem in shadow
                 P.put(x, y, P.ramp('cloth_mid', max(0, tone)))
+            # soft shoulder seam: one dithered row where the slope meets the deltoid
+            if abs(y - (top + slope_w)) <= 1:
+                P.dither(cx - half, y, cx - half + 5, y,
+                         P.ramp('cloth_mid', 0), P.ramp('cloth_mid', 1), seed=y)
 
-        # cloth shading is VERTICAL falloff only. Horizontal dither bands turned the shirt into
-        # scan lines, which read as a lit monitor rather than fabric.
-
-        # deltoids: two half-ellipses that overlap the chest edge, so the arm reads as attached
+        # shoulder caps: round the top corner of the slope instead of adding a separate disc.
+        # (v6 first pass drew deltoid ellipses after the torso and they read as floating plates.)
         for side in (-1, 1):
-            dxc = cx + side * (build_w - deltoid_r // 2)
-            for (ex, ey) in ellipse(P.px and 0 or 0, 0, 0, 0, 0) if False else ellipse(None, dxc, top + 12, deltoid_r, deltoid_r + 2):
-                lit = (ex - (dxc - deltoid_r)) / float(max(1, 2 * deltoid_r))
-                P.put(ex, ey, P.ramp('cloth_mid', max(0, 2 - int(lit * 2.0))))
+            dr = (7, 8, 9, 10)[self.build_idx]
+            dcx = cx + side * (build_w - dr)
+            dcy = top + slope_w + dr - 2
+            for (ex, ey) in ellipse(None, dcx, dcy, dr, dr):
+                if ey > top + slope_w + dr:
+                    continue
+                lit = (ex - (dcx - dr)) / float(max(1, 2 * dr))
+                P.put(ex, ey, P.ramp('cloth_mid', max(0, int(2.3 - lit * 1.7))))
 
-        # rim light down the window side of the torso: warm, broken, never a solid outline
-        for y in range(top + 6, torso_bot - 2):
-            t = (y - top) / float(max(1, torso_bot - top))
-            half = int(build_w * ((0.55 + t / 0.18 * 0.45) if t < 0.18 else (1.0 - (t - 0.18) * 0.18)))
-            if y % 4:
+        # rim light down the window side of the body
+        for y in range(top + 2, torso_bot - 2):
+            half = torso_half(y)
+            if half > 0 and y % 4 == 0:
                 P.put(cx + half, y, P.ramp('rim_warm', 1))
-            if y % 7 == 0:
-                P.put(cx + half - 1, y, P.ramp('cloth_light', 3))
 
-        # one soft crease under the near armpit, human and asymmetric
-        for i in range(16):
-            P.put(cx - build_w + 8 + i // 3, top + 26 + i, P.ramp('cloth_shadow', 1))
+        # one crease where the near arm folds toward the desk
+        for i in range(14):
+            P.put(cx - build_w + 10 + i // 4, top + slope_w + 12 + i, P.ramp('cloth_shadow', 1))
 
         # ---------------- collar: four shapes, so no two applicants wear the same shirt
         if self.collar == 0:                                  # crew neck
@@ -265,13 +279,13 @@ class Applicant:
         # ---------------- arms + hands
         # sleeves overlap the torso edge by 6 px and end on the desk; fists rest in front
         shoulder = min(58, sh + 14)
-        arm_x = shoulder - 6 + 8            # sleeve centre-line
+        arm_x = build_w - 4                 # sleeve centre-line, inside the new slope
         for side in (-1, 1):
             ax = cx + side * arm_x
             edge = 'linehi' if side < 0 else 'line'
             # The sleeve GROWS out of the shoulder over 6 rows. Drawing it as a fixed block from
             # top+18 left a gap above, so only its 1 px edge showed and the arm read as a wire.
-            for y in range(top + 4, base + 3):
+            for y in range(top + slope_w + 2, base + 3):
                 half = min(7, 2 + (y - (top + 4)))
                 rect(ax - half, y, ax + half, y, self.outfit)
                 put(ax + side * half, y, edge)
@@ -305,83 +319,190 @@ class Applicant:
                 rect(hx - 9, hy + 3, hx - 8, hy + 8, self.skin_mid)
                 rect(hx - 9, hy + 3, hx - 8, hy + 8, self.skin_mid)  # thumb tucked at the side
 
+        # ---------------- head (v6: sphere + jaw, per the user's reference sheet)
+        # A human head reads as round. v5 still tapered like a column; the samples the player sent are all
+        # built from a circular cranium with a narrow jaw wedge under it, so this is a real sphere:
+        #   cranium = circle, radius chosen per seed
+        #   jaw     = a wedge that starts at the ear line and narrows to the chin
+        #   cheek   = one bulge either side of the jaw so the face is not a cone
+        hw = 27                                          # cranium radius (portrait crop, v7)
+        head_top = 6 - breath
+        head_bot = 116 - breath
+        cranium_cy = head_top + hw                       # centre of the sphere
+        jaw_top = cranium_cy + int(hw * 0.15)
+        chin_y = head_bot
+        shape = self.head_shape
+
+        def cranium_half(y):
+            dy = (y - cranium_cy) / float(hw)
+            if abs(dy) > 1.0:
+                return 0
+            return int(hw * (1.0 - dy * dy) ** 0.5)
+
+        def jaw_half(y):
+            """Width of the jaw wedge between the ear line and the chin."""
+            t = (y - jaw_top) / float(max(1, chin_y - jaw_top))
+            if t < 0:
+                return 0
+            wide = hw * (1.00 if shape == 1 else (0.94 if shape == 2 else 0.90))
+            taper = 1.0 - t ** (1.8 if shape != 1 else 2.4)
+            return max(7, int(wide * taper))                   # never a point: a chin has width
+
+        def head_half(y):
+            if y <= cranium_cy:
+                return cranium_half(y)
+            return max(cranium_half(y), jaw_half(y))
+
+        for y in range(head_top, chin_y + 1):
+            hwid = max(1, head_half(y))
+            if hwid <= 1 and y > cranium_cy:
+                continue
+            for x in range(cx - hwid, cx + hwid + 1):
+                lit = (x - (cx - hwid)) / float(max(1, 2 * hwid))
+                # spherical shading: brightest upper-left, falling off to the right and downward
+                vdy = (y - (cranium_cy - hw * 0.35)) / float(hw)
+                tone = int(3.0 - lit * 1.2 - max(0.0, vdy) * 0.5)
+                if tone < 1:
+                    tone = 1            # skin never reaches the darkest step above the jaw
+                if y > chin_y - 6:
+                    tone -= 1                                   # under the chin
+                P.put(x, y, P.ramp(self.skin_ramp, max(0, tone)))
+
+        # dithered terminator down the shadow side of the sphere -- this is what makes it read as round
+        for y in range(head_top + 4, chin_y - 2):
+            hwid = max(1, head_half(y))
+            if hwid < 4:
+                continue
+            P.dither(cx + hwid - 4, y, cx + hwid, y,
+                     P.ramp(self.skin_ramp, 1), P.ramp(self.skin_ramp, 2), seed=y)
+
+        # rim light: the window is behind-right, so the right silhouette catches it
+        for y in range(head_top + 3, chin_y - 3):
+            hwid = max(2, head_half(y))
+            if y % 3 == 0:
+                P.put(cx + hwid, y, P.ramp('rim_warm', 1))
+            if y % 5 == 0:
+                P.put(cx + hwid - 1, y, P.ramp(self.skin_ramp, 2))
+
+        # crown highlight: a short dithered arc on the top-left of the sphere
+        for k in range(-8, 9):
+            yy = cranium_cy - hw + 3 + int((k * k) / 40.0)
+            if (k + yy) & 1:
+                P.put(cx + k, yy, P.ramp(self.skin_ramp, 2))
+
+        # ears, sitting on the skull curve rather than bolted to a rectangle
         # ---------------- neck (v5: a tapered cylinder with a contact shadow, not a block)
-        for (nx, ny) in taper(cx, 84 - breath, 100 - breath, self.neck_w, self.neck_w + 2):
+        for (nx, ny) in taper(cx, chin_y - 4, 100 - breath, self.neck_w, self.neck_w + 3):
             lit = (nx - (cx - self.neck_w)) / float(max(1, 2 * self.neck_w))
             P.put(nx, ny, P.ramp(self.skin_ramp, 2 - int(lit * 2.0)))
-        for (nx, ny) in taper(cx, 84 - breath, 88 - breath, self.neck_w, self.neck_w + 1):
+        for (nx, ny) in taper(cx, chin_y - 4, chin_y + 1, self.neck_w, self.neck_w + 2):
             P.put(nx, ny, P.ramp(self.skin_ramp, 0))          # jaw casts down onto the neck
         for nx in range(cx - self.neck_w, cx + self.neck_w + 1):
-            if (nx + 84) & 1:
-                P.put(nx, 84 - breath, P.ramp(self.skin_ramp, 1))
+            if (nx + chin_y) & 1:
+                P.put(nx, chin_y - 4, P.ramp(self.skin_ramp, 1))
         if 'skin_band' in A:
             # ARTIFACT: a hard 4-row posterised step instead of a soft gradient
             rect(cx - 10, 93 - breath, cx + 10, 96 - breath, self.skin_light)
 
-        # ---------------- head (v5 painterly)
-        # A head is an egg, not a box: women and men share the same construction, the seed chooses the
-        # shape. The old 42x72 rectangle with a 14 px "lit band" was the single biggest reason these read
-        # as robots -- a flat rectangle has no cranial curve, so the eye never accepts it as a face.
-        hw = 21
-        head_top = 16 - breath
-        head_bot = 88 - breath
-        hcy = (head_top + head_bot) // 2
-        hry = (head_bot - head_top) // 2
-        shape = self.head_shape
-
-        def head_half(y):
-            """Half-width at row y, for the chosen skull shape."""
-            t = (y - head_top) / float(max(1, head_bot - head_top))
-            if shape == 0:                                    # oval
-                return int(hw * (0.72 + 0.28 * (1 - (2 * t - 1) ** 2) ** 0.5))
-            if shape == 1:                                    # square jaw
-                return hw if t < 0.72 else int(hw * (1 - (t - 0.72) * 1.4))
-            if shape == 2:                                    # round
-                return int(hw * (0.80 + 0.20 * (1 - (2 * t - 1) ** 2) ** 0.5))
-            return int(hw * (0.66 + 0.34 * (1 - (2 * t - 1) ** 2) ** 0.5))   # long
-
-        for y in range(head_top, head_bot + 1):
-            hwid = max(2, head_half(y))
-            t = (y - head_top) / float(max(1, head_bot - head_top))
-            for x in range(cx - hwid, cx + hwid + 1):
-                # light from the monitor, screen-left, slightly above
-                lit = (x - (cx - hwid)) / float(max(1, 2 * hwid))       # 0 at left edge
-                tone = 2 - int(lit * 1.9) - (1 if t > 0.80 else 0)      # jaw falls off
-                if tone < 0:
-                    tone = 0
-                P.put(x, y, P.ramp(self.skin_ramp, tone))
-
-        # dithered transition down the jaw, so the chin does not end on a hard band
-        for y in range(int(head_top + hry * 0.55), head_bot):
-            hwid = max(2, head_half(y))
-            P.dither(cx + hwid - 3, y, cx + hwid, y, P.ramp(self.skin_ramp, 1), P.ramp(self.skin_ramp, 2), seed=y)
-
-        # rim light: the window is behind-right, so the right silhouette catches it
-        for y in range(head_top + 2, head_bot - 4):
-            hwid = max(2, head_half(y))
-            if y % 3 == 0:
-                P.put(cx + hwid, y, P.ramp('rim_warm', 1))
-            if y % 4 == 0:
-                P.put(cx + hwid + 1, y, P.ramp(self.skin_ramp, 2))
-
-        # crown highlight: one short dithered arc, never a solid cap
-        P.dither(cx - hw // 2, head_top + 1, cx + hw // 3, head_top + 3,
-                 P.ramp(self.skin_ramp, 2), P.ramp(self.skin_ramp, 3), seed=7)
-
-        # ears, sitting on the skull curve rather than bolted to a rectangle
+        ear_y = jaw_top + 4
         for side in (-1, 1):
-            ex = cx + side * (head_half(int(head_top + hry * 0.9)) )
-            for i, (dy, r) in enumerate(((0, 2), (1, 2), (2, 2), (3, 1), (4, 1))):
+            ex = cx + side * max(1, head_half(ear_y) - 1)
+            for (dy, r) in ((0, 2), (1, 2), (2, 2), (3, 1), (4, 1)):
                 for k in range(-r, r + 1):
-                    P.put(ex + side * (1 + k // 2), int(head_top + hry * 0.9) + dy, P.ramp(self.skin_ramp, 2 if side < 0 else 1))
+                    P.put(ex + side * (1 + k // 2), ear_y + dy,
+                          P.ramp(self.skin_ramp, 2 if side < 0 else 1))
+            P.put(ex + side, ear_y + 2, P.ramp(self.skin_ramp, 0))      # the fold
 
         if 'ear' in A:
             # ARTIFACT: one perfectly rectangular slab, uniform colour, spanning hairline to
             # jaw -- no fold, no shadow, no taper, and it grows straight out of the hair.
-            hwid = head_half(int(head_top + hry * 0.9))
+            hwid = head_half(ear_y)
             P.rect(cx - hwid - 4, head_top + 12, cx - hwid, head_bot - 12, P.ramp('skin_mid', 2))
             P.rect(cx - hwid - 4, head_top + 12, cx - hwid - 4, head_bot - 12, P.ramp('skin_light', 3))
             P.rect(cx - hwid - 4, head_top + 12, cx - hwid, head_top + 12, P.ramp('skin_light', 3))
+
+        # ---------------- hair (v6: a cap that follows the cranium, never a rectangle)
+        # The hair block was lost in an earlier edit, which is why the v6 heads read as bald spheres.
+        # It is back, and it is now painted on the same circle the skull is: the hairline is a row slice of
+        # cranium_half(), the mass falls in strands, and the silhouette breaks in 1-2 px tufts.
+        st = self.hair_style
+        hair_key = self.hair
+        hair_dark = P.ramp('hair_shadow', 2)
+        hair_lit = P.ramp('hair_mid', 3)
+        hairline = cranium_cy - int(hw * 0.42)          # where the forehead stops
+
+        def hair_top(y):
+            """Hair sits slightly proud of the skull (1-2 px) so it has volume."""
+            # at the very top of the skull cranium_half is 0, so the cap needs its own crown width
+            base = cranium_half(y)
+            if y < head_top + 3:
+                base = max(base, int(hw * 0.55))
+            return base + (1 if y < cranium_cy else 0)
+
+        # mass over the cranium, above the hairline
+        for y in range(head_top - 1, hairline + 6):
+            hwid = hair_top(y)
+            if hwid <= 0:
+                continue
+            # the fringe dips lower on one side: every human parting is off-centre
+            dip = 3 if (y > hairline and (self.seed % 2)) else 0
+            for x in range(cx - hwid, cx + hwid + 1):
+                if y > hairline - dip and abs(x - cx) < hwid - 2 and st in (0, 1):
+                    continue                                # that is forehead, not hair
+                lit = (x - (cx - hwid)) / float(max(1, 2 * hwid))
+                if y < cranium_cy - hw * 0.5:
+                    P.put(x, y, hair_key if lit > 0.45 else hair_lit)   # lit crown
+                else:
+                    P.put(x, y, hair_key if lit > 0.30 else hair_dark)
+
+        # strands: short vertical runs that break the cap edge, denser on the shadow side
+        for i in range(9):
+            sx = cx - hw + 3 + (i * 5 + self.seed % 3)
+            length = 3 + (i * 7 + self.seed) % 5
+            for k in range(length):
+                yy = hairline - 2 - k
+                if P.alpha_at(sx, yy) and yy > head_top + 2:
+                    P.put(sx, yy, hair_lit if k % 3 == 0 else hair_key)
+
+        # length: how far the hair falls past the jaw
+        if st in (0, 1, 3):
+            fall = (6, 18, 30)[self.hair_len] if st != 0 else (4, 9, 14)[self.hair_len]
+            for side in (-1, 1):
+                for i in range(fall):
+                    y = hairline + i
+                    x0 = cx + side * (head_half(min(y, chin_y)) + (0 if i < 6 else -1))
+                    width = 2 if i < fall * 0.5 else 1
+                    for k in range(width):
+                        P.put(x0 + side * k, y, hair_key if (i + k) % 5 else hair_lit)
+                    if i % 4 == 2:                          # a tuft that escapes the mass
+                        P.put(x0 + side * (width + 1), y, hair_dark)
+
+        elif st == 2:                                        # bun
+            bun_r = 7
+            for (bx, by) in ellipse(None, cx + hw - 3, cranium_cy - hw // 2, bun_r, bun_r):
+                lit = (bx - (cx + hw - 3 - bun_r)) / float(max(1, 2 * bun_r))
+                P.put(bx, by, hair_lit if lit > 0.5 else hair_key)
+        elif st == 4:                                        # headscarf: cloth, keep the sphere curve
+            for y in range(head_top - 3, chin_y - 2):
+                hwid = head_half(min(y + 3, chin_y)) + 3
+                for x in range(cx - hwid, cx + hwid + 1):
+                    edge = abs(x - cx) > hwid - 3
+                    P.put(x, y, self.accent if not edge else 'line')
+            for y in range(head_top - 3, chin_y, 5):          # folds
+                P.dither(cx - hw, y, cx + hw // 2, y, self.accent, 'line', seed=y)
+        else:                                                # beanie
+            for y in range(head_top - 4, hairline + 2):
+                hwid = hair_top(y) + 1
+                for x in range(cx - hwid, cx + hwid + 1):
+                    P.put(x, y, hair_key if (x // 3) % 2 else hair_dark)   # knit ribs
+            for x in range(cx - hw - 1, cx + hw + 2):
+                P.put(x, hairline + 2, 'linehi')
+                P.put(x, hairline + 3, 'line')
+
+        if 'seam' in A:
+            # ARTIFACT: dead-straight line where hair meets background, no tufts
+            for x in range(cx - hw - 4, cx + hw + 5):
+                put(x, head_top - 2, 'synth')
 
         # ---------------- facial hair
         if self.facial_hair in (1, 3):
@@ -390,8 +511,8 @@ class Applicant:
             rect(cx - hw + 2, head_top + 50, cx + hw - 2, head_bot, self.hair)  # beard
             rect(cx - 8, head_top + 50, cx + 8, head_top + 56, self.skin_mid)   # mouth gap
         # ---------------- face
-        eye_y = head_top + 30
-        eye_dx = 10
+        eye_y = head_top + 42
+        eye_dx = 12
         # ---- v5 painted face: socket shadow, iris, one catchlight, tapered brow, modelled nose and mouth.
         # Flat white rectangles with black squares read as a puppet; the shadow *around* the eye is what
         # makes a face read at 32 px.
@@ -436,7 +557,7 @@ class Applicant:
         P.dither(cx - 2, eye_y + 14, cx + 3, eye_y + 15,
                  P.ramp(self.skin_ramp, 1), P.ramp(self.skin_ramp, 2), seed=cx)
         # mouth: dark line, lit lower lip, and a soft shadow beneath
-        mouth_y = eye_y + 22
+        mouth_y = eye_y + 28
         for k in range(-6, 7):
             if abs(k) < 5:
                 P.put(cx + k, mouth_y, P.ramp(self.skin_ramp, 0))

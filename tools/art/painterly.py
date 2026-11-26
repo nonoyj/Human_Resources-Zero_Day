@@ -27,9 +27,14 @@ RAMPS = {
     # Every skin ramp stops at 'orange' and most of the mass sits in paperdim/panel2, which is what makes
     # a face read as lit rather than glowing.
     'skin_shadow':  ('void', 'panel', 'panel2', 'line'),
+    # light skin
+    'skin_light':   ('panel2', 'paperdim', 'orange', 'warn'),
+    # warm mid skin
     'skin_mid':     ('void', 'panel2', 'paperdim', 'orange'),
-    'skin_light':   ('panel', 'paperdim', 'orange', 'warn'),
+    # deep skin
     'skin_deep':    ('void', 'panel', 'panel2', 'paperdim'),
+    # keep in step with make_applicants.SKIN ordering
+    'skin_shadowed': ('void', 'panel', 'panel2', 'paperdim'),
     'cloth_shadow': ('void', 'panel', 'panel2', 'line'),
     'cloth_mid':    ('panel', 'panel2', 'line', 'linehi'),
     'cloth_light':  ('panel2', 'line', 'linehi', 'muted'),
