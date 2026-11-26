@@ -94,7 +94,10 @@ $tempRoot = if ($env:TEMP) { $env:TEMP } elseif ($env:TMP) { $env:TMP } else { [
 $temp = Join-Path $tempRoot ("hr0d-boot-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
 
 try {
-    if ($Host.Name -eq 'ConsoleHost') { Clear-Host }   # Clear-Host shells out to clear/TERM; skip when piped
+    # NO Clear-Host: in pwsh 7 it shells out to `clear`, and when TERM is unset or output is piped that
+    # exits non-zero -- which under 5.1-style error handling kills the apply before it starts. A tidy
+    # console is not worth a fatal native command.
+    Write-Host ''
     S "extracting bundle"
     New-Item -ItemType Directory -Force -Path $temp | Out-Null
     Expand-Archive -LiteralPath $BundlePath -DestinationPath $temp -Force
