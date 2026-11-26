@@ -1,20 +1,13 @@
-# Handoff Folder
+# handoff/ — dated notes to the team
 
-One markdown file per cross-boundary handoff: `YYYY-MM-DD_<from>-to-<to>_<topic>.md`
-(template: `docs/04-collaboration-protocol.md` §2).
+**Status:** archive. Dated one-way notes that were written *for the team* (backend, content, FE) at a
+point in time. They are kept because the team may still be reading them and because they are the record of
+what was announced when.
 
-| Date | File | From → To | Status |
-|---|---|---|---|
-| 2026-11-25 | `2026-11-25_agent-to-team_kickoff.md` | Agent → whole team | superseded |
-| 2026-11-25 | `2026-11-25_agent-to-systems-team_master-brief.md` | Agent → AIs assisting the devs | active reference |
-| 2026-11-25 | `2026-11-25_agent-to-backend-team_backend-spec.md` | Agent → BE2 (server) | active reference |
-| 2026-11-26 | `2026-11-26_agent-to-devA_core-handoff.md` | Agent → BE1 | active (core + test adapter) |
-| 2026-11-26 | **`2026-11-26_agent-to-BE1_systems-tasks.md`** | Agent → **BE1 (systems)** | **actionable task list** |
-| 2026-11-26 | **`2026-11-26_agent-to-BE2_content-server-audio-tasks.md`** | Agent → **BE2 (server/content/audio)** | **actionable task list** |
-| 2026-11-26 | **`2026-11-26_agent-to-team_day1-status-and-next.md`** | Agent → whole team | **READ FIRST: day-1 status, risks, next** |
-| 2026-11-26 | `2026-11-26_fe-to-BE1_unity-project-created.md` | FE → BE1 | actionable: adopt, do not recreate the project |
-| 2026-11-26 | `2026-11-26_agent-to-BE1_interaction-layer.md` | Agent → BE1 | actionable: wiring, stubs, caretaker of the Core field |
-| 2026-11-26 | `2026-11-26_agent-to-team_changes-made.md` | Agent → whole team | change report for the interaction branch |
-| 2026-11-26 | **`2026-11-26_agent-to-team_unity-playable.md`** | Agent → whole team | **READ FIRST: openable project + Play mode controls** |
+**Do not treat these as current.** For the current state read:
 
-Rules: a handoff that crosses a boundary is mandatory; if it isn't written down it didn't happen.
+- [`../HANDOFF.md`](../HANDOFF.md) — one page: state, gates, next steps
+- [`../docs/ART-DIRECTION-STATE.md`](../docs/ART-DIRECTION-STATE.md) — art direction, including what failed
+- [`../docs/90-bug-log.md`](../docs/90-bug-log.md) — every failure and its cause (BUG-001…043)
+
+Anything here that contradicts those three files is out of date, and those three files win.
