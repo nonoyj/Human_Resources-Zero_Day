@@ -17,6 +17,10 @@ param([switch]$RunVerify)
 $ErrorActionPreference = 'Stop'
 $failed = 0
 $files = Get-ChildItem -Path (Join-Path (Split-Path -Parent $PSScriptRoot) 'scripts') -Filter *.ps1
+# The bootstrap at the REPO ROOT is the one that ships to Downloads and the one that bit us twice
+# (BUG-032..037). It is not under scripts\, so it was never linted. It is now.
+$rootBoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'Apply-Bundle.ps1'
+if (Test-Path -LiteralPath $rootBoot) { $files = @($files) + @(Get-Item -LiteralPath $rootBoot) }
 
 foreach ($f in $files) {
     $tokens = $null; $errors = $null

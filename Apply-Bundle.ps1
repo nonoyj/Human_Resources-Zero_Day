@@ -16,12 +16,17 @@
 .PARAMETER WorkingCopy
     Your existing checkout. Default: C:\users\user\HR-ZeroDay
 
+.PARAMETER Reinstall
+    Like -Clean (removes the local uncommitted changes so the files match the bundle commit) but KEEPS
+    the existing .git, so the history is not replaced by the one inside the zip. Use this when you are
+    running the copy of Apply-Bundle.ps1 that lives inside the working copy: PowerShell reads a script
+    before running it, so the script cannot replace the .git folder it is executing from.
+
 .PARAMETER Clean
     Also remove nesting damage (art\art, docs\docs, ...).
 
-.PARAMETER Reinstall
-    The recovery path when the file copy worked but the history did not: `git reset --hard` + `git clean -fd`
-    into the new working copy, without re-extracting. Safe to run as often as you like.
+.PARAMETER Branch
+    Branch to check out after adopting the history. Default: main.
 
 .PARAMETER NoGit
     Do not touch .git (keeps your current history).
@@ -38,7 +43,8 @@ param(
     [string]$WorkingCopy = (Join-Path $(if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }) 'HR-ZeroDay'),
     [switch]$Clean,
     [switch]$Reinstall,
-    [switch]$NoGit
+    [switch]$NoGit,
+    [string]$Branch = 'main'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -46,6 +52,36 @@ function S  ($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
 function OK ($m) { Write-Host "  [ok]   $m" -ForegroundColor Green }
 function W  ($m) { Write-Host "  [warn] $m" -ForegroundColor Yellow }
 function D  ($m) { Write-Host "  [FAIL] $m" -ForegroundColor Red; exit 1 }
+
+# --- native git, invoked so that STDOUT/STDERR are data, not errors -----------------------------
+# BUG-036/037: PS 5.1 turns any native command's stderr into a NativeCommandError, and this script runs
+# with $ErrorActionPreference='Stop', so `git remote get-url origin` on a repo with no origin (stderr:
+# "No such remote 'origin'") KILLED the apply -- twice, at line 131 and again at 135 after a partial fix.
+# No amount of redirection fixes that class: the redirect happens too late. So git is now started as a
+# PROCESS and its streams are read as text. Nothing native is invoked with '&' in this file any more.
+$script:GitExitCode = 0
+function Git {
+    param([Parameter(Mandatory = $true)][string[]]$GitArgs, [switch]$Quiet)
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName  = 'git'
+    $psi.Arguments = (($GitArgs | ForEach-Object { if ($_ -match '\\s') { '"' + $_ + '"' } else { $_ } }) -join ' ')
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError  = $true
+    $p = [System.Diagnostics.Process]::Start($psi)
+    $out = $p.StandardOutput.ReadToEnd()
+    $err = $p.StandardError.ReadToEnd()
+    $p.WaitForExit()
+    $script:GitExitCode = $p.ExitCode
+    if (-not $Quiet) {
+        if ($out.Trim()) { Write-Host $out.TrimEnd() }
+        if ($err.Trim()) { Write-Host $err.TrimEnd() -ForegroundColor DarkGray }   # diagnostics, never fatal
+    }
+    return $out
+}
+
+
 
 if (-not (Test-Path -LiteralPath $BundlePath)) { D "bundle not found: $BundlePath" }
 $BundlePath = (Resolve-Path -LiteralPath $BundlePath).Path
@@ -57,19 +93,8 @@ $keepDirs    = @('Library','Temp','Logs','obj','UserSettings','Build','Builds','
 $tempRoot = if ($env:TEMP) { $env:TEMP } elseif ($env:TMP) { $env:TMP } else { [System.IO.Path]::GetTempPath() }
 $temp = Join-Path $tempRoot ("hr0d-boot-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
 
-if ($Reinstall) {
-    # Recovery, no extraction: make the files match whatever HEAD says. This is the answer to
-    # "the apply copied files but the tree is dirty" -- and it is idempotent.
-    S "reinstalling from HEAD"
-    if (-not (Test-Path -LiteralPath (Join-Path $WorkingCopy '.git'))) { D "no .git in $WorkingCopy -- run a normal apply first" }
-    & git -C $WorkingCopy reset --hard 2>&1 | Out-Host
-    if ($LASTEXITCODE -ne 0) { D "git reset --hard failed" }
-    & git -C $WorkingCopy clean -fd 2>&1 | Out-Host
-    OK "files now match HEAD ((& git -C $WorkingCopy rev-parse --short HEAD))"
-    exit 0
-}
-
 try {
+    Clear-Host
     S "extracting bundle"
     New-Item -ItemType Directory -Force -Path $temp | Out-Null
     Expand-Archive -LiteralPath $BundlePath -DestinationPath $temp -Force
@@ -84,6 +109,14 @@ try {
         OK "created $WorkingCopy"
     }
 
+    if ($Reinstall -and -not $Clean) {
+        S "discarding local changes (keeping .git)"
+        Git @('-C', $WorkingCopy, 'reset', '--hard', 'HEAD') | Out-Null
+        Git @('-C', $WorkingCopy, 'clean', '-fd') | Out-Null
+        $rsShort = (Git @('-C', $WorkingCopy, 'rev-parse', '--short', 'HEAD') -Quiet).Trim()
+        OK "working copy reset to HEAD ($rsShort)"
+    }
+
     if ($Clean) {
         S "cleaning folder/folder duplicates"
         foreach ($d in $projectDirs) {
@@ -95,85 +128,88 @@ try {
         }
     }
 
-    if ($Clean -and -not $NoGit) {
+    # Adopt the bundle's history on EVERY apply, not just -Clean: the files are about to be
+    # overwritten wholesale, so keeping an older .git guarantees a dirty tree (BUG-019).
+    # The history ships as history.bundle -- a single file git verifies itself. Copying a .git
+    # folder recursively is what silently broke on Windows (BUG-021).
+    if (-not $NoGit) {
         S "adopting the bundle's git history"
-        # Two shipping formats, both supported:
-        #   history.bundle  a git bundle at the ZIP ROOT (Build-Bundle v45+) or inside HR-ZeroDay\
-        #   .git            a whole folder, older bundles
-        # BUG-032: this used to look for `$root\.git` only -- but $root is the extracted project and
-        # the bundle never puts .git inside it, so every -Clean apply printed "bundle has no .git" and
-        # left the old history in place, which is exactly how a correct file copy ends up "dirty".
-        $histSrc = $null; $histKind = $null
-        $histCandidates = @(
-            @{ p = (Join-Path $temp 'history.bundle');        kind = 'bundle' },
-            @{ p = (Join-Path $root.FullName 'history.bundle'); kind = 'bundle' },
-            @{ p = (Join-Path $root.FullName '.git');           kind = 'git'    }
-        )
-        foreach ($c in $histCandidates) {
-            if (Test-Path -LiteralPath $c.p) { $histSrc = $c.p; $histKind = $c.kind; break }
+        # BUG-032: the transport files sit at the ZIP ROOT (or inside the project for v45+).
+        # Testing $root only meant this branch never matched a real bundle.
+        $srcBundle = $null
+        foreach ($cand in @(
+            (Join-Path $temp 'history.bundle'),
+            (Join-Path $root.FullName 'history.bundle'),
+            (Join-Path (Join-Path $root.FullName $root.Name) 'history.bundle'))) {
+            if (Test-Path -LiteralPath $cand) { $srcBundle = $cand; break }
         }
-        $bBranch = $null
-        foreach ($bf in @((Join-Path $temp 'history.branch'), (Join-Path $root.FullName 'history.branch'))) {
-            if (Test-Path -LiteralPath $bf) { $bBranch = (Get-Content -LiteralPath $bf -Raw).Trim(); break }
-        }
-        if (-not $bBranch) { $bBranch = 'main' }
-
-        if (-not $histSrc) {
-            W "bundle has neither history.bundle nor .git -- history left untouched"
-        } else {
+        if ($srcBundle) {
             $dstGit = Join-Path $WorkingCopy '.git'
+            # NB: do NOT run git inside the extracted folder to discover the branch -- the extracted
+            # project has no .git, so git walks up to an unrelated parent repository (this bit us in
+            # testing: it reported the outer repo's branch). Build-Bundle.ps1 records the branch in
+            # history.branch instead.
+            $bBranch = $null
+            foreach ($bf in @((Join-Path $temp 'history.branch'), (Join-Path $root.FullName 'history.branch'))) {
+                if (Test-Path -LiteralPath $bf) { $bBranch = (Get-Content -LiteralPath $bf -Raw).Trim(); break }
+            }
+            if (-not $bBranch) { $bBranch = $Branch }
+            if (-not $bBranch) { $bBranch = 'main' }
+
+            # remember origin before anything is replaced
             $savedRemote = $null
             if (Test-Path -LiteralPath $dstGit) {
                 # `git remote get-url origin` on a repo WITHOUT an origin prints to stderr, and PS 5.1 turns
                 # native stderr into a NativeCommandError -> the whole apply dies (BUG-036, exactly what
                 # the operator hit). get-url has no -q, so redirect the stream and trust the exit code.
                 $savedRemote = $null
-                $remoteOut = (& git -C $WorkingCopy remote get-url origin 2>&1) | Out-String
-                if ($LASTEXITCODE -eq 0 -and $remoteOut -and $remoteOut.Trim() -notmatch 'error:') {
-                    $savedRemote = $remoteOut.Trim()
-                }
+                $remoteOut = Git @('-C', $WorkingCopy, 'remote', 'get-url', 'origin') -Quiet
+                if ($script:GitExitCode -eq 0 -and $remoteOut.Trim()) { $savedRemote = $remoteOut.Trim() }
                 if (-not $savedRemote) { $savedRemote = $null }
                 Remove-Item -LiteralPath $dstGit -Recurse -Force
                 OK "old .git removed"
             }
-            if ($histKind -eq 'git') {
-                Copy-Item -LiteralPath $histSrc -Destination $dstGit -Recurse -Force
-                OK "history copied from the bundle's .git"
-            } else {
-                & git -C $WorkingCopy init -q 2>&1 | Out-Host
-                & git -C $WorkingCopy fetch -q $histSrc "refs/heads/*:refs/heads/*" 2>&1 | Out-Host
-                if ($LASTEXITCODE -ne 0) { D "fetch from history.bundle failed: $histSrc" }
-                OK "history fetched from history.bundle"
-            }
-            & git -C $WorkingCopy symbolic-ref HEAD "refs/heads/$bBranch" 2>&1 | Out-Host
-            & git -C $WorkingCopy reset -q --mixed "refs/heads/$bBranch" 2>&1 | Out-Host
-            # If the bundle's branch does not exist the reset above failed silently and HEAD would be
-            # dangling, which reads as "0 commits" and as a dirty tree. Say so, do not limp on.
-            $headSha = (& git -C $WorkingCopy rev-parse --verify --quiet "refs/heads/$bBranch") 2>$null
-            if (-not $headSha) { D "branch '$bBranch' is not in the bundle (history.branch says otherwise)" }
-            OK "history adopted: $bBranch at $((& git -C $WorkingCopy rev-parse --short $bBranch))"
+
+            Git @('-C', $WorkingCopy, 'init', '-q') -Quiet | Out-Null
+            Git @('-C', $WorkingCopy, 'fetch', '-q', $srcBundle, 'refs/heads/*:refs/heads/*') | Out-Null
+            if ($script:GitExitCode -ne 0) { D "fetch from history.bundle failed: $srcBundle" }
+            Git @('-C', $WorkingCopy, 'symbolic-ref', 'HEAD', "refs/heads/$bBranch") | Out-Null
+            Git @('-C', $WorkingCopy, 'reset', '-q', '--mixed', "refs/heads/$bBranch") | Out-Null
+            $shortSha = (Git @('-C', $WorkingCopy, 'rev-parse', '--short', $bBranch) -Quiet).Trim()
+            OK "history adopted: $bBranch at $shortSha"
             if ($savedRemote) {
-                & git -C $WorkingCopy remote add origin $savedRemote 2>&1 | Out-Host
+                Git @('-C', $WorkingCopy, 'remote', 'add', 'origin', $savedRemote) | Out-Null
                 OK "origin preserved: $savedRemote"
             } else {
                 W "no origin in the old .git -- set it with: git remote add origin <url>"
             }
-            & git -C $WorkingCopy config core.autocrlf false 2>&1 | Out-Host
+            # hooks/config from the source repo are not needed; keep the bundle's identity out of it
+            Git @('-C', $WorkingCopy, 'config', 'core.autocrlf', 'false') -Quiet | Out-Null
+        } else {
+            W "bundle has no history.bundle (older bundle) -- history left untouched"
         }
     }
 
     S "copying project files"
     $copied = 0
-    Get-ChildItem -LiteralPath $root.FullName -Force | ForEach-Object {
-        if ($_.Name -eq '.git') { return }
-        if ($_.Name -in @('history.bundle', 'history.branch')) { return }   # transport, not project
-        if ($_.PSIsContainer -and ($keepDirs -contains $_.Name)) { W "skipped $($_.Name)\"; return }
-        $dest = Join-Path $WorkingCopy $_.Name
-        if ($_.PSIsContainer) {
+    # Snapshot the list FIRST. Deleting from a folder while Get-ChildItem is still enumerating it makes
+    # the enumerator throw mid-loop and the apply dies after a half-copy. Materialise, then act.
+    # NOTE: this is a plain foreach, so `continue` (not `return`) is the skip -- `return` here would
+    # exit the whole script silently (BUG-022).
+    $scriptCopied = $false
+    $items = @(Get-ChildItem -LiteralPath $root.FullName -Force)
+    foreach ($it in $items) {
+        if ($it.Name -eq '.git') { continue }
+        # bundle transport files, not project files
+        if ($it.Name -in @('history.bundle', 'history.branch')) { continue }
+        if ($it.Name -eq 'Apply-Bundle.ps1') { $scriptCopied = $true }
+        if ($it.PSIsContainer -and ($keepDirs -contains $it.Name)) { W "skipped $($it.Name)"; continue }
+        $dest = Join-Path $WorkingCopy $it.Name
+        if ($it.PSIsContainer) {
             if (Test-Path -LiteralPath $dest) { Remove-Item -LiteralPath $dest -Recurse -Force }
-            Copy-Item -LiteralPath $_.FullName -Destination $dest -Recurse -Force
+            Copy-Item -LiteralPath $it.FullName -Destination $dest -Recurse -Force
         } else {
-            Copy-Item -LiteralPath $_.FullName -Destination $dest -Force
+            Copy-Item -LiteralPath $it.FullName -Destination $dest -Force
         }
         $copied++
     }
@@ -195,12 +231,27 @@ try {
     Push-Location $WorkingCopy
     try {
         if ((Test-Path '.git') -and (Get-Command git -ErrorAction SilentlyContinue)) {
-            $head  = (& git rev-parse --short HEAD) 2>$null
-            $count = (& git rev-list --count HEAD) 2>$null
+            $head  = (Git @('-C', $WorkingCopy, 'rev-parse', '--short', 'HEAD') -Quiet).Trim()
+            $count = (Git @('-C', $WorkingCopy, 'rev-list', '--count', 'HEAD') -Quiet).Trim()
             OK "HEAD $head ($count commits)"
-            $st = @(& git status --porcelain) | Where-Object { $_ -and $_.Trim() }
-            if ($st) { W "working tree not clean:"; $st | ForEach-Object { Write-Host "    $_" } }
-            else { OK "working tree clean" }
+            $statusOut = Git @('-C', $WorkingCopy, 'status', '--porcelain') -Quiet
+            $st = @($statusOut -split "`n" | ForEach-Object { $_.TrimEnd() } | Where-Object { $_ -and $_.Trim() })
+            if ($st) {
+                W "working tree not clean ($($st.Count) entries) -- files do NOT match HEAD"
+                $st | Select-Object -First 12 | ForEach-Object { Write-Host "    $_" }
+                Write-Host @"
+
+  This means the .git folder could not be updated (you ran the copy of this script that lives
+  inside the working copy -- PowerShell cannot replace the folder it is running from).
+  Fix it with EITHER:
+      git reset --hard $head && git clean -fd          # keep history, make files match HEAD
+      .\scripts\Apply-Bundle.ps1 -BundlePath <zip> -Reinstall   # same thing, from the repo copy
+  or run this script from OUTSIDE the repo (e.g. from Downloads) with -Clean.
+"@ -ForegroundColor Yellow
+                Set-Location $PSScriptRoot | Out-Null
+                exit 1
+            }
+            else { OK "working tree clean -- files match HEAD exactly" }
         }
         foreach ($d in $projectDirs) {
             if (Test-Path (Join-Path (Join-Path $WorkingCopy $d) $d)) { W "still nested: $d\$d" }

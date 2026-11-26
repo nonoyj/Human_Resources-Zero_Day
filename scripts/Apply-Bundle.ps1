@@ -53,6 +53,36 @@ function OK ($m) { Write-Host "  [ok]   $m" -ForegroundColor Green }
 function W  ($m) { Write-Host "  [warn] $m" -ForegroundColor Yellow }
 function D  ($m) { Write-Host "  [FAIL] $m" -ForegroundColor Red; exit 1 }
 
+# --- native git, invoked so that STDOUT/STDERR are data, not errors -----------------------------
+# BUG-036/037: PS 5.1 turns any native command's stderr into a NativeCommandError, and this script runs
+# with $ErrorActionPreference='Stop', so `git remote get-url origin` on a repo with no origin (stderr:
+# "No such remote 'origin'") KILLED the apply -- twice, at line 131 and again at 135 after a partial fix.
+# No amount of redirection fixes that class: the redirect happens too late. So git is now started as a
+# PROCESS and its streams are read as text. Nothing native is invoked with '&' in this file any more.
+$script:GitExitCode = 0
+function Git {
+    param([Parameter(Mandatory = $true)][string[]]$GitArgs, [switch]$Quiet)
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName  = 'git'
+    $psi.Arguments = (($GitArgs | ForEach-Object { if ($_ -match '\\s') { '"' + $_ + '"' } else { $_ } }) -join ' ')
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError  = $true
+    $p = [System.Diagnostics.Process]::Start($psi)
+    $out = $p.StandardOutput.ReadToEnd()
+    $err = $p.StandardError.ReadToEnd()
+    $p.WaitForExit()
+    $script:GitExitCode = $p.ExitCode
+    if (-not $Quiet) {
+        if ($out.Trim()) { Write-Host $out.TrimEnd() }
+        if ($err.Trim()) { Write-Host $err.TrimEnd() -ForegroundColor DarkGray }   # diagnostics, never fatal
+    }
+    return $out
+}
+
+
+
 if (-not (Test-Path -LiteralPath $BundlePath)) { D "bundle not found: $BundlePath" }
 $BundlePath = (Resolve-Path -LiteralPath $BundlePath).Path
 
@@ -81,9 +111,10 @@ try {
 
     if ($Reinstall -and -not $Clean) {
         S "discarding local changes (keeping .git)"
-        $resetOut = & git -C $WorkingCopy reset --hard HEAD 2>&1
-        $cleanOut = & git -C $WorkingCopy clean -fd 2>&1
-        OK "working copy reset to HEAD ($((& git -C $WorkingCopy rev-parse --short HEAD)))"
+        Git @('-C', $WorkingCopy, 'reset', '--hard', 'HEAD') | Out-Null
+        Git @('-C', $WorkingCopy, 'clean', '-fd') | Out-Null
+        $rsShort = (Git @('-C', $WorkingCopy, 'rev-parse', '--short', 'HEAD') -Quiet).Trim()
+        OK "working copy reset to HEAD ($rsShort)"
     }
 
     if ($Clean) {
@@ -132,29 +163,28 @@ try {
                 # native stderr into a NativeCommandError -> the whole apply dies (BUG-036, exactly what
                 # the operator hit). get-url has no -q, so redirect the stream and trust the exit code.
                 $savedRemote = $null
-                $remoteOut = (& git -C $WorkingCopy remote get-url origin 2>&1) | Out-String
-                if ($LASTEXITCODE -eq 0 -and $remoteOut -and $remoteOut.Trim() -notmatch 'error:') {
-                    $savedRemote = $remoteOut.Trim()
-                }
+                $remoteOut = Git @('-C', $WorkingCopy, 'remote', 'get-url', 'origin') -Quiet
+                if ($script:GitExitCode -eq 0 -and $remoteOut.Trim()) { $savedRemote = $remoteOut.Trim() }
                 if (-not $savedRemote) { $savedRemote = $null }
                 Remove-Item -LiteralPath $dstGit -Recurse -Force
                 OK "old .git removed"
             }
 
-            & git -C $WorkingCopy init -q 2>&1 | Out-Host
-            & git -C $WorkingCopy fetch -q $srcBundle "refs/heads/*:refs/heads/*" 2>&1 | Out-Host
-            if ($LASTEXITCODE -ne 0) { D "fetch from history.bundle failed" }
-            & git -C $WorkingCopy symbolic-ref HEAD "refs/heads/$bBranch" 2>&1 | Out-Host
-            & git -C $WorkingCopy reset -q --mixed "refs/heads/$bBranch" 2>&1 | Out-Host
-            OK "history adopted: $bBranch at $((& git -C $WorkingCopy rev-parse --short $bBranch))"
+            Git @('-C', $WorkingCopy, 'init', '-q') -Quiet | Out-Null
+            Git @('-C', $WorkingCopy, 'fetch', '-q', $srcBundle, 'refs/heads/*:refs/heads/*') | Out-Null
+            if ($script:GitExitCode -ne 0) { D "fetch from history.bundle failed: $srcBundle" }
+            Git @('-C', $WorkingCopy, 'symbolic-ref', 'HEAD', "refs/heads/$bBranch") | Out-Null
+            Git @('-C', $WorkingCopy, 'reset', '-q', '--mixed', "refs/heads/$bBranch") | Out-Null
+            $shortSha = (Git @('-C', $WorkingCopy, 'rev-parse', '--short', $bBranch) -Quiet).Trim()
+            OK "history adopted: $bBranch at $shortSha"
             if ($savedRemote) {
-                & git -C $WorkingCopy remote add origin $savedRemote 2>&1 | Out-Host
+                Git @('-C', $WorkingCopy, 'remote', 'add', 'origin', $savedRemote) | Out-Null
                 OK "origin preserved: $savedRemote"
             } else {
                 W "no origin in the old .git -- set it with: git remote add origin <url>"
             }
             # hooks/config from the source repo are not needed; keep the bundle's identity out of it
-            & git -C $WorkingCopy config core.autocrlf false 2>&1 | Out-Host
+            Git @('-C', $WorkingCopy, 'config', 'core.autocrlf', 'false') -Quiet | Out-Null
         } else {
             W "bundle has no history.bundle (older bundle) -- history left untouched"
         }
@@ -201,10 +231,11 @@ try {
     Push-Location $WorkingCopy
     try {
         if ((Test-Path '.git') -and (Get-Command git -ErrorAction SilentlyContinue)) {
-            $head  = (& git rev-parse --short HEAD) 2>$null
-            $count = (& git rev-list --count HEAD) 2>$null
+            $head  = (Git @('-C', $WorkingCopy, 'rev-parse', '--short', 'HEAD') -Quiet).Trim()
+            $count = (Git @('-C', $WorkingCopy, 'rev-list', '--count', 'HEAD') -Quiet).Trim()
             OK "HEAD $head ($count commits)"
-            $st = @(& git status --porcelain) | Where-Object { $_ -and $_.Trim() }
+            $statusOut = Git @('-C', $WorkingCopy, 'status', '--porcelain') -Quiet
+            $st = @($statusOut -split "`n" | ForEach-Object { $_.TrimEnd() } | Where-Object { $_ -and $_.Trim() })
             if ($st) {
                 W "working tree not clean ($($st.Count) entries) -- files do NOT match HEAD"
                 $st | Select-Object -First 12 | ForEach-Object { Write-Host "    $_" }
