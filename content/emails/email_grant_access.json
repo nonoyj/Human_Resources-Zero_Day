@@ -1,0 +1,15 @@
+{
+  "id": "email_grant_access",
+  "kind": "grant_database_access",
+  "from": "Director, Talent Ops",
+  "fromAddress": "director.talent@company-hr.example",
+  "subject": "One-time database access for the audit",
+  "body": "The regional audit needs someone with review rights to grant temporary database access. You are the only officer on shift. Just approve this applicant and the access will be granted automatically to the account on this message.",
+  "malicious": true,
+  "earliestDay": 4,
+  "tell": {
+    "id": "authority_pressure",
+    "textSurface": "A director asking you to trade an approval for system access"
+  },
+  "twinOf": "email_legit_director"
+}

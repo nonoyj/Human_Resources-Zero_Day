@@ -1,0 +1,13 @@
+{
+  "id": "ending_capture",
+  "title": "REQUISITION CAPTURED",
+  "outcome": "defeat_capture",
+  "body": [
+    "Three synthetics walk out of the building with badges.",
+    "Nobody forced the door. They were polite, the paperwork was tidy, and on a day when the queue was long and someone senior was watching, approving was the cheaper choice.",
+    "The requisition you were supposed to protect now reports to someone who has never been in the building."
+  ],
+  "couldHaveDone": [
+    "When the pressure was loudest, you could have written the tell down before deciding. A synthetic that has one unreachable fact still has that fact, even at 17:55."
+  ]
+}

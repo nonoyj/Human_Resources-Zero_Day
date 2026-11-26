@@ -82,6 +82,29 @@ namespace HRZeroDay.Game.Interaction
             BeginCurrent();
         }
 
+        /// <summary>Resumes a run from a save file. Same seed => the same people at the same desk,
+        /// so nothing the player already saw can change under them mid-run.</summary>
+        public DeskSession(SaveData save)
+        {
+            _shift = ShiftController.FromSave(save);
+            _tools.AdvanceToDay(_shift.Day);
+            BeginCurrent();
+            _observationSeconds = 0f;
+        }
+
+        /// <summary>Copies everything needed to resume into <paramref name="save"/>.
+        /// The profile/intro flags are owned by the bootstrap, not by the shift.</summary>
+        public void WriteTo(SaveData save)
+        {
+            if (save == null) return;
+            _shift.WriteTo(save);
+            save.day = _shift.Day;
+            save.applicantIndex = _shift.CurrentIndex;
+            save.trust = _shift.Trust;
+            save.corruptionLevel = _shift.CorruptionLevel;
+            if (save.days == null) save.days = new System.Collections.Generic.List<DayRecord>();
+        }
+
         public ShiftController Shift { get { return _shift; } }
         public EvidenceLedger Ledger { get { return _ledger; } }
         public ToolBudget Tools { get { return _tools; } }
@@ -138,9 +161,13 @@ namespace HRZeroDay.Game.Interaction
             return result;
         }
 
+        /// <summary>The day number that the last CloseDay() closed (the shift has already advanced).</summary>
+        public int LastClosedDay { get; private set; }
+
         public DayResult CloseDay()
         {
             if (Finished) return null;
+            LastClosedDay = _shift.Day;
             var day = _shift.EndDay();
             if (DayClosed != null) DayClosed(day);
             return day;

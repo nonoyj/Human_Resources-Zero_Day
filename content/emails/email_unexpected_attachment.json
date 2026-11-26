@@ -1,0 +1,16 @@
+{
+  "id": "email_unexpected_attachment",
+  "kind": "unexpected_attachment",
+  "from": "Talent Pipeline",
+  "fromAddress": "pipeline@company-hr.example",
+  "subject": "Applicant summary attached - please open before review",
+  "body": "A consolidated summary of today's applicants is attached. Open it before you begin reviewing so your decisions match the shortlist.",
+  "malicious": true,
+  "earliestDay": 2,
+  "tell": {
+    "id": "unexpected_attachment",
+    "textSurface": "An unsolicited attachment that tells you what to decide before you have looked at anything"
+  },
+  "twinOf": "email_legit_attachment",
+  "attachment": "shortlist_final_v3.exe"
+}

@@ -1,0 +1,15 @@
+{
+  "id": "email_urgency_quota",
+  "kind": "urgency",
+  "from": "Operations Desk",
+  "fromAddress": "ops.desk@company-hr.example",
+  "subject": "ACTION REQUIRED: quota not met - reply within 2 hours",
+  "body": "The hiring quota for this week is not met. You are required to approve at minimum three applicants before end of shift and confirm by replying to this message. Failure to confirm will be escalated to the regional manager. This is a direct instruction from above, do not postpone.",
+  "malicious": true,
+  "earliestDay": 1,
+  "tell": {
+    "id": "authority_pressure",
+    "textSurface": "A deadline and a threat of escalation, but no name, no requisition, and it asks you to skip review"
+  },
+  "twinOf": "email_legit_quota"
+}

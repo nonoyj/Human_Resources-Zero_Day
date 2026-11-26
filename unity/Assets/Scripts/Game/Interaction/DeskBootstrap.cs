@@ -17,6 +17,12 @@ namespace HRZeroDay.Game.Interaction
         public bool autoAdvance = true;
         [Range(0.5f, 10f)] public float debriefSeconds = 3f;
 
+        /// <summary>When true, Play resumes the newest save instead of starting a fresh shift.</summary>
+        public bool resumeSavedRun = true;
+
+        public SaveData Save { get; private set; }
+        public bool ResumedFromSave { get; private set; }
+
         public DeskSession Session { get; private set; }
         public EvidencePresenter Presenter { get; private set; }
         public DecisionInputController Decision { get; private set; }
@@ -49,7 +55,19 @@ namespace HRZeroDay.Game.Interaction
             Decision = GetComponentInChildren<DecisionInputController>();
             Hud = GetComponentInChildren<GameHud>(true);
 
-            Session = new DeskSession(seed);
+            Save = resumeSavedRun ? SaveSystem.Read() : null;
+            if (Save != null)
+            {
+                ResumedFromSave = true;
+                seed = Save.runSeed;                 // the seed in the save wins, or the run changes
+                Session = new DeskSession(Save);
+            }
+            else
+            {
+                Save = new SaveData();
+                Save.runSeed = seed;
+                Session = new DeskSession(seed);
+            }
             Presenter = new EvidencePresenter(Session, layout, overlay, watchCopy);
 
             if (Decision != null)
@@ -75,6 +93,9 @@ namespace HRZeroDay.Game.Interaction
             if (string.IsNullOrEmpty(correctHeading)) correctHeading = "DECISION RECORDED";
             if (string.IsNullOrEmpty(wrongHeading)) wrongHeading = "DECISION RECORDED";
             if (Letter != null) Letter.Close();
+            if (ResumedFromSave)
+                watchCopy = "SHIFT RESUMED - DAY " + Session.Day + " / " + watchCopy;
+            PersistSave();                  // a run that is quit on day 1 must still persist
         }
 
         // --------------------------------------------------------------- player actions
@@ -138,7 +159,9 @@ namespace HRZeroDay.Game.Interaction
                 _showingDebrief = false;
                 if (Session.DayFinished || Session.Finished)
                 {
+                    var closedDay = Session.LastClosedDay;
                     LastDay = Session.CloseDay();
+                    RecordDay(LastDay, closedDay);
                     _showingDaySummary = true;
                     CloseLetter();
                     Presenter.Hide();
@@ -163,7 +186,11 @@ namespace HRZeroDay.Game.Interaction
                 Decision.Committed -= OnCommitted;
                 Decision.Reset();
             }
+            Save = new SaveData();
+            Save.runSeed = seed;
             Session = new DeskSession(seed);
+            // A restart is a new run: the old save must not resurrect itself on next launch.
+            SaveSystem.Delete();
             Presenter = new EvidencePresenter(Session, DeskLayout.Load(),
                                               GetComponentInChildren<DeskEvidenceOverlay>(), watchCopy);
             if (Decision != null)
@@ -187,6 +214,7 @@ namespace HRZeroDay.Game.Interaction
         private void OnCommitted(DecisionResult result)
         {
             LastDecision = result;
+            PersistSave();
             _showingDebrief = true;
             _debriefLeft = debriefSeconds;
             CloseLetter();
@@ -229,8 +257,47 @@ namespace HRZeroDay.Game.Interaction
             return GetComponentInChildren<StampAnimator>(true);
         }
 
+        // --------------------------------------------------------------- persistence
+        /// <summary>Snapshots the run. Cheap enough to call after every stamp (a few KB).</summary>
+        public void PersistSave()
+        {
+            if (Session == null || Save == null) return;
+            Session.WriteTo(Save);
+            // The ending is stored so a resumed finished run shows the ending, not day 1.
+            if (Session.Finished && Save.Outcome == RunOutcome.InProgress)
+                Save.Outcome = Session.Shift.Outcome;
+            SaveSystem.Write(Save);
+        }
+
+        private void RecordDay(DayResult day, int dayNumber)
+        {
+            if (day == null || Save == null) return;
+            Save.days.Add(new DayRecord
+            {
+                day = dayNumber,
+                completed = true,
+                approved = day.Approved,
+                rejected = day.Rejected,
+                wrongfulRejections = day.WrongfulRejections,
+                syntheticsHired = day.SyntheticsHired,
+                trustAtEnd = day.TrustAfter,
+            });
+            PersistSave();
+        }
+
+        private void OnApplicationPause(bool paused)
+        {
+            if (paused) PersistSave();          // Android: the app is about to be backgrounded
+        }
+
+        private void OnApplicationQuit()
+        {
+            PersistSave();
+        }
+
         private void OnDisable()
         {
+            PersistSave();
             if (Session != null) Session.ApplicantChanged -= OnApplicantChanged;
             if (Decision != null) Decision.Committed -= OnCommitted;
             var hotspots = GetComponentsInChildren<HotspotInteractor>();

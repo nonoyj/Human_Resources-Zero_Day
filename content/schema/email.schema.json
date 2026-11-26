@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hr0d.local/schema/email.schema.json",
+  "title": "HR//0D inbox item",
+  "description": "One authored email/attack event. Emails are never generated as raw text by code: they are authored, then selected and parameterised by seed (docs/07 section 7). Every malicious template must have a legit twin (same shape, safe).",
+  "type": "object",
+  "required": ["id", "kind", "from", "subject", "body", "malicious"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^email_[a-z0-9_]+$" },
+    "kind": {
+      "enum": ["lookalike_domain", "urgency", "authority", "unexpected_attachment",
+               "wrong_thread", "credential_request", "grant_database_access",
+               "referral_fast_track", "legit"]
+    },
+    "twinOf": {
+      "type": "string",
+      "description": "For legit items: the malicious template id this is the safe twin of."
+    },
+    "from": { "type": "string", "description": "Display sender, e.g. \"HR IT Support\"" },
+    "fromAddress": { "type": "string", "description": "Full address incl. the tell, e.g. hr-it@company-hr.example" },
+    "subject": { "type": "string" },
+    "body": { "type": "string", "minLength": 10 },
+    "malicious": { "type": "boolean" },
+    "tell": {
+      "type": "object",
+      "description": "I8: the sayable reason this is bad. Absent when malicious=false.",
+      "required": ["id", "textSurface"],
+      "properties": {
+        "id": { "type": "string" },
+        "textSurface": { "type": "string", "minLength": 1 }
+      }
+    },
+    "attachment": { "type": "string" },
+    "earliestDay": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "params": {
+      "type": "object",
+      "description": "Placeholders substituted per run, e.g. {{\"amount\"}}.",
+      "additionalProperties": { "type": "string" }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "malicious": { "const": true } }, "required": ["malicious"] },
+      "then": { "required": ["tell"] }
+    }
+  ]
+}

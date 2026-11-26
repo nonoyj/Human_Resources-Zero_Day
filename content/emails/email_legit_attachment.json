@@ -1,0 +1,12 @@
+{
+  "id": "email_legit_attachment",
+  "kind": "legit",
+  "from": "Talent Pipeline",
+  "fromAddress": "pipeline@company-hr.example",
+  "subject": "Reference sheet for day 2 review",
+  "body": "Attaching the field reference sheet used in onboarding. It lists what each document is supposed to contain - nothing about individual applicants.",
+  "malicious": false,
+  "earliestDay": 2,
+  "twinOf": "email_unexpected_attachment",
+  "attachment": "field_reference.pdf"
+}
