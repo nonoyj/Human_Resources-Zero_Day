@@ -42,6 +42,11 @@ The fourth one is the one that matters: it is what a green local build is suppos
 5. **My commands being wrong.** The zip is in `Downloads`; `Open-Game.ps1` ships *inside* the bundle so it
    cannot be run before the apply. `docs/BUNDLE-WORKFLOW.md` now has the two commands, in order, plus a
    symptom → cause → fix table.
+6. **Shipping a bundle without the art the game reads.** `.gitignore` excluded
+   `unity/Assets/Resources/Art/` as "derived", but `Resources.Load` cannot see outside a `Resources`
+   folder — so every bundle was missing the 85 files the game actually loads. It is committed now and the
+   gate enforces it. **Before any "just press Play", ask what the runtime reads and whether that file is
+   in the thing being shipped.**
 
 ---
 

@@ -37,6 +37,10 @@ locked handle, and Unity reimports on the next focus.
 That is the whole ritual. `GameBoot.cs` builds the desk at `AfterSceneLoad` when no `DeskBootstrap` exists,
 so an empty scene boots the game.
 
+**This only became true on 2026-11-25 (BUG-044).** Until then the runtime art lived in an ignored folder
+and Play logged `sprite not found at Resources/Art/Kit/...` on any machine that had not run the art
+scripts. The runtime mirror is committed now, so a clone is self-sufficient.
+
 The `HR//0D` menu (note: **two** slashes, `HR//0D`, not `HR`) is needed **only** when the PNGs themselves
 changed — it reimports the art kit and rewrites the scene:
 
