@@ -254,10 +254,12 @@ def torn_edge(img, seed, axis='bottom', depth=2):
 
 
 # --------------------------------------------------------------------------- the one call artists use
+# CALIBRATED DOWN 2026-11-26 (user: "the PC looks too ragged"). The original numbers turned a
+# 154x106 monitor into debris. Wear is now sparse by default and only becomes obvious at level 3.
 LEVELS = {
-    1: dict(chip=1, scuff=10),   # owned for a year
-    2: dict(chip=2, scuff=22),   # office surplus
-    3: dict(chip=3, scuff=36),   # salvage
+    1: dict(chip=1, scuff=4),    # owned for a year
+    2: dict(chip=1, scuff=9),    # office surplus  <-- the kit is authored at this level
+    3: dict(chip=2, scuff=16),   # salvage
 }
 
 

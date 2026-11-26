@@ -300,7 +300,7 @@ def kit_stamps():
             cx += 7
         _r = _wear()
         _r.chip_corners(img, 700 + (0 if name == 'approve' else 1), per_corner=2)
-        _r.scuff(img, 710 + (0 if name == 'approve' else 1), n=3,
+        _r.scuff(img, 710 + (0 if name == 'approve' else 1), n=2,
               tones=('void', 'panel'), box=(2, 2, w - 3, h - 3))
         made.append(save(img, f'stamps/stamp_{name}.png'))
     return made

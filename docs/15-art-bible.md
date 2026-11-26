@@ -189,7 +189,8 @@ is a perfect rectangle. Helper: `tools/art/ragged.py`.
 | 1 px inner lines stay straight | Wobbling an inner lit frame reads as *scribble*, not age. Only the OUTER silhouette wobbles. |
 | Paper is torn, never stepped | Sheets, letters, sticky notes: tear the EDGES (1–2 px, per side, ~30–50 %). A stepped fill makes a page look chewed. |
 | Corners chip | `notch_corner()` on at most two corners, 1–3 px deep, with an `ink`/`line` pixel at the base. |
-| Scuffs are sparse | ~1 per 900 opaque px, low contrast (`panel` / `void` on light surfaces, `linehi` on dark). Dust, not static. |
+| Scuffs are sparse | **~1 per 1,500 opaque px** (down from 900 on 2026-11-26), low contrast (`panel` / `void` on light surfaces, `linehi` on dark). Dust, not static. |
+| Big hard objects stay hard | **The monitor is drawn straight.** `ragged_rect` on a 154x106 box produces 1 px dotted edges with gaps -- it read as debris, not as a CRT. Monitors, cases and UI chrome get a *dented corner* and 3-4 scuffs; only paper and soft goods get torn silhouettes. |
 | 9-slices are never warped | Unity stretches those bands. `distress(..., nine_slice=True)` scuffs the fill only. |
 | Faces are never scuffed | Chips and scuffs go on clothing, hair and hardware. Tells must stay readable. |
 | Machinery wears at the corners only | Filing cabinet, monitor bezel, stamps: chipped/dented OUTER silhouette, crisp inner faces. Steel dents; paper frays. |
@@ -276,7 +277,8 @@ reasons, and the fixes are rules now:
 
 **Rejected in this pass (do not retry):** a centred drawer with a bar handle (reads as a tray);
 vertical panel joints at x=168/312 (they ran through the mouse and the folder); a white 3-slab folder
-stack (one bright undefined block); a mouse drawn as concentric ellipses (two coins).
+stack (one bright undefined block); a mouse drawn as concentric ellipses (two coins); a diagonal glare
+streak on the monitor glass (reads as a scratch and competes with the email text).
 
 ## 8. Open decisions (do not build on these yet)
 

@@ -32,7 +32,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "6c0255aba1fe05bb",
+      "sha256_16": "7ef595e81f1f4bc1",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -89,7 +89,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "d2b00512c7440a93",
+      "sha256_16": "c8c82e4b892d65f7",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -146,7 +146,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "f694ed77c0da1e46",
+      "sha256_16": "226e90f7302cc593",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -203,7 +203,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "c416d0b79c8dcf59",
+      "sha256_16": "bd9d8ac3bd1ab5db",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -260,7 +260,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "15f69f1e73c46ab3",
+      "sha256_16": "8045f9d824f6b3f5",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -317,7 +317,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "b67e38458c71cc9e",
+      "sha256_16": "4fa671e6ac55a38a",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -374,7 +374,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "e52f61c4dfd27d0b",
+      "sha256_16": "6a7dd97e433e445e",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -431,7 +431,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "60c95247e2861193",
+      "sha256_16": "4639bb2c5af47847",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -488,7 +488,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "fcbae2e4666daaeb",
+      "sha256_16": "db8ea925760713ca",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -545,7 +545,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "901dfe8b76d08a3a",
+      "sha256_16": "cdbadc4915e22bce",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -602,7 +602,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "4de794246409b476",
+      "sha256_16": "3593739118004b0b",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -659,7 +659,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "0befce01f671c036",
+      "sha256_16": "a35a1f0a804ec921",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -716,7 +716,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "c7967f2f72181f6a",
+      "sha256_16": "01e7b1989077eacf",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -773,7 +773,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "de5cf1a82668d2cc",
+      "sha256_16": "2a4b8b76239bc4dd",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2021,7 +2021,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "desk",
-      "sha256_16": "0c90134b185cc0be",
+      "sha256_16": "0f8933c6af5fee2f",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2078,7 +2078,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "background",
-      "sha256_16": "0d9f17f2c2d0deb2",
+      "sha256_16": "450f111178916214",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2097,7 +2097,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "background",
-      "sha256_16": "645420b24cdd86fa",
+      "sha256_16": "fb84ae0797e8cba4",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2116,7 +2116,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "background",
-      "sha256_16": "9a658b7f3de4b804",
+      "sha256_16": "1224f2e8299940bb",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",

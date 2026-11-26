@@ -497,8 +497,10 @@ def make_sheet(state: Applicant) -> Image.Image:
         frame = build_frame(state, i)
         # RAGGED (2026-11-26): the same wear rule as the rest of the game -- chipped silhouette at the
         # corners, sparse scuffs on clothing. Faces and tells are never touched.
-        chip_corners(frame, 900 + i, per_corner=2)
-        scuff(frame, 910 + i, n=10, tones=('panel', 'void'), box=(40, 120, 152, 210))
+        # 2026-11-26: halved. At 2 chips/corner + 10 scuffs the silhouette of a PERSON started to
+        # read as damaged sprite data rather than clothing.
+        chip_corners(frame, 900 + i, per_corner=1)
+        scuff(frame, 910 + i, n=5, tones=('panel', 'void'), box=(40, 120, 152, 210))
         sheet.paste(frame, (192 * i, 0))
     return sheet
 

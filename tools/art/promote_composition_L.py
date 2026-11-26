@@ -182,7 +182,7 @@ def noticeboard(img, d, x, row, w=84, h=48):
         for i in range(4, ph - 2, 5):
             d.line([x + px_ + 4, row + py_ + i, x + px_ + pw - 4, row + py_ + i], fill=rgba('panel2'))
     chip_corners(img, 902, per_corner=1)
-    scuff(img, 903, n=6, box=(x, row, x + w, row + h))
+    scuff(img, 903, n=3, box=(x, row, x + w, row + h))
 
 
 def wall_clock(img, d, cx, row, r=11, hand='textdim', tick='muted', dot='signal'):
@@ -214,7 +214,7 @@ def filing_cabinet(img, d, x, floor_row, w=44, h=76, body='panel2', face='panel'
     # contact shadow: the floor darkens where the box meets it
     for i in range(3):
         d.line([x - 2 + i, floor_row + 1 + i, x + w + 2 - i, floor_row + 1 + i], fill=rgba('void'))
-    scuff(img, 411, n=4, box=(x + 5, top + 4, x + w - 5, floor_row - 2))
+    scuff(img, 411, n=3, box=(x + 5, top + 4, x + w - 5, floor_row - 2))
 
 
 def plant_pot(img, d, x, floor_row, h=42, leaf='signaldim', tip='signal'):
@@ -508,29 +508,72 @@ def desk_work():
     coffee(img, d, 404, base + 2)
 
     # RAGGED: a desk worked at for years -- sparse, low-contrast, never noise
-    scuff(img, 301, n=22, tones=('panel', 'void'))
+    scuff(img, 301, n=14, tones=('panel', 'void'))
     return img
 
 
 # --------------------------------------------------------------------------- small sprites, 1 px crisp
 def monitor_small():
+    """The CRT. DEFINED pass, 2026-11-26.
+
+    The RAGGED pass had wrecked this: `ragged_rect(..., amp=1)` on a 154x106 box made every edge a
+    1 px dotted run with 2 px gaps, so the monitor read as debris rather than a machine. It is the
+    biggest object on screen and the player reads the game off it -- hardness is the point.
+
+    New construction, all straight, nothing dotted:
+        outer case   - ONE dented edge (bottom-right), 2 chipped corners, 1 px lit top edge
+        bezel face   - a real 5 px frame in `panel2` with a lit bevel top-left, shade bottom-right
+        glass        - `void`, 1 px `line` inner frame, one diagonal glare streak, 4 dead pixels
+        furniture    - camera dot, power LED, a small brand plate under the glass
+    Wear is now the 4 loose scuffs and ONE dent -- not the silhouette.
+    """
     w, h = MON_W, MON_H
     img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    # RAGGED: three hand-drawn boxes instead of CAD rectangles -- the bezel bulges, the glass edge
-    # steps by a pixel, one corner is chipped. Same structure, same palette, no extra colours.
-    ragged_rect(img, 0, 0, w - 1, h - 1, 'panel', 'line', seed=101, amp=1)   # outer case: worn
-    d.rectangle([1, 2, w - 2, h - 3], outline=rgba('linehi'))                 # lit inner frame: straight
-    d.rectangle([4, 5, w - 5, h - 6], fill=rgba('void'), outline=rgba('line'))# glass: straight
-    notch_corner(img, w - 1, h - 1, -1, -1, depth=2)
-    notch_corner(img, 0, 0, 1, 1, depth=1)
-    scuff(img, 104, n=14, tones=('panel', 'void'))
-    # camera dot + power LED, same as the full-size bezel
-    d.rectangle([w // 2 - 1, 2, w // 2 + 1, 3], fill=rgba('linehi'))
-    d.point((w - 6, 2), fill=rgba('signal'))
-    # NOTE (2026-11-26): no stand drawn here. The monitor is its own sprite at sorting -20 and the
-    # desk sits at +10, so a stand baked into this box could never reach the desk surface -- the
-    # monitor read as floating 12 px above the desk. The stand is desk/monitor_stand.png instead.
+
+    # ---- outer case: straight edges, a 1 px lit top and shaded bottom, one dent on the right
+    d.rectangle([0, 0, w - 1, h - 1], fill=rgba('panel2'))
+    d.rectangle([0, 0, w - 1, h - 1], outline=rgba('line'))
+    d.line([1, 0, w - 2, 0], fill=rgba('linehi'))          # case catches the room light on top
+    d.line([1, h - 1, w - 2, h - 1], fill=rgba('void'))    # and is dark underneath
+    for i in range(4):                                     # one dent, right edge, low
+        d.point((w - 1 - (i // 2), h - 12 + i), fill=rgba('void'))
+
+    # ---- bezel face: 5 px frame, bevel lit top-left / shaded bottom-right
+    bx0, by0, bx1, by1 = 1, 1, w - 2, h - 2
+    d.rectangle([bx0, by0, bx1, by1], fill=rgba('panel'), outline=rgba('line'))
+    d.line([bx0 + 1, by0 + 1, bx1 - 1, by0 + 1], fill=rgba('linehi'))
+    d.line([bx0 + 1, by0 + 1, bx0 + 1, by1 - 1], fill=rgba('linehi'))
+    d.line([bx0 + 1, by1 - 1, bx1 - 1, by1 - 1], fill=rgba('void'))
+    d.line([bx1 - 1, by0 + 1, bx1 - 1, by1 - 1], fill=rgba('void'))
+
+    # ---- glass: straight, one step darker than the frame at its edge
+    gx0, gy0, gx1, gy1 = 6, 6, w - 7, h - 13
+    d.rectangle([gx0 - 1, gy0 - 1, gx1 + 1, gy1 + 1], fill=rgba('line'))   # recess shadow
+    d.rectangle([gx0, gy0, gx1, gy1], fill=rgba('void'))
+
+    # ---- NO glare streak. A diagonal slash across the glass was drawn, reviewed and removed: it
+    # reads as a scratch, and it competes with the email text the player is reading. The CRT curve is
+    # sold by a single lit row along the glass top and a shaded row along its bottom instead.
+    d.line([gx0 + 1, gy0, gx1 - 1, gy0], fill=rgba('panel'))
+    d.line([gx0 + 1, gy1, gx1 - 1, gy1], fill=rgba('panel'))
+
+    # ---- dead pixels: 4 only, and clustered, so it reads as a failing panel not static
+    for (dpx, dpy) in ((gx1 - 18, gy0 + 12), (gx1 - 17, gy0 + 12), (gx1 - 18, gy0 + 13),
+                       (gx0 + 24, gy1 - 9)):
+        d.point((dpx, dpy), fill=rgba('panel2'))
+
+    # ---- bezel furniture: camera dot + power LED + brand plate
+    d.rectangle([w // 2 - 1, 3, w // 2 + 1, 4], fill=rgba('line'))
+    d.point((w - 9, 4), fill=rgba('signal'))
+    d.point((w - 8, 4), fill=rgba('signaldim'))
+    d.rectangle([w // 2 - 9, h - 9, w // 2 + 9, h - 6], fill=rgba('panel2'), outline=rgba('linehi'))
+    d.line([w // 2 - 7, h - 8, w // 2 + 7, h - 8], fill=rgba('panel'))
+
+    # ---- wear: 4 loose scuffs on the bezel only (never on the glass)
+    scuff(img, 104, n=4, tones=('panel', 'void'), box=(2, 2, w - 3, h - 3))
+    # NOTE: no stand here -- see monitor_stand(). Sorting means a stand inside this sprite can
+    # never reach the desk. (BUG-025)
     return img
 
 

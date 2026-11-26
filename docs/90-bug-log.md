@@ -422,3 +422,17 @@ Redundant, not broken. Nothing shipped was touched; every gate re-ran green afte
 **Docs now have an index** (`docs/README.md`) with a "deleted on purpose — do not recreate" list, and
 `README.md` links to it instead of describing files that no longer exist (it still pointed at a
 `content/` folder that was never created).
+
+## BUG-027 -- RAGGED was shredding hard objects (user: "the PC looks too ragged", 2026-11-26)
+
+- **Symptom:** the monitor read as debris -- a dotted outline with 2 px gaps, a dotted inner frame and
+  speckle, on the largest object on screen.
+- **Cause:** `ragged_rect(..., amp=1)` was applied to a 154x106 box. Its 1 px step-by-step edges are
+  designed for hand-drawn *props*; on a hard rectangle at that size every edge becomes a broken run,
+  and `scuff(n=14)` added the rest.
+- **Fix:** the monitor is now drawn straight (case → bezel face with bevel → glass → 1 dent, 2 chips,
+  4 scuffs). Global wear was recalibrated: `LEVELS` scuffs 10/22/36 -> **4/9/16**, applicants halved,
+  desk 22 -> 14, noticeboard 6 -> 3, stamps 3 -> 2, documents 10 -> 5.
+- **Rule (bible §6b):** big hard objects stay hard. Only paper and soft goods get torn silhouettes.
+- **Also rejected:** a diagonal glare streak across the glass -- it read as a scratch and competed with
+  the email text the player is reading.
