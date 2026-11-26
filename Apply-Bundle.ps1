@@ -193,14 +193,23 @@ try {
                 Git @('-C', $WorkingCopy, 'fetch', '-q', $srcBundle, ('+' + 'refs/heads/' + $bBranch + ':refs/heads/' + $bBranch)) -Quiet | Out-Null
                 if ($script:GitExitCode -ne 0) { D "fetch from history.bundle failed ($bBranch): $srcBundle" }
             }
-            $refs = Git @('-C', $WorkingCopy, 'for-each-ref', '--format=%(refname:short)|%(objectname)', $incoming) -Quiet
+            # %(refname) -- NOT %(refname:short). The short form strips `refs/`, so matching it against
+            # 'refs/hr0d-incoming/' never fires and every branch lands at refs/heads/hr0d-incoming/main
+            # instead of refs/heads/main. The next check then blames the bundle, which was fine.
+            $refs = Git @('-C', $WorkingCopy, 'for-each-ref', '--format=%(refname) %(objectname)', $incoming) -Quiet
+            $moved = 0
             foreach ($line in ($refs -split "`n")) {
                 $t = $line.Trim()
-                if (-not $t -or $t -notmatch '\|') { continue }
-                $name = $t.Substring(0, $t.LastIndexOf('|')) -replace ('^' + [regex]::Escape($incoming) + '/'), ''
-                $sha  = $t.Substring($t.LastIndexOf('|') + 1)
+                if (-not $t -or $t.IndexOf(' ') -lt 0) { continue }
+                $full = $t.Substring(0, $t.IndexOf(' '))
+                $sha  = $t.Substring($t.IndexOf(' ') + 1).Trim()
+                $prefix = $incoming + '/'
+                if (-not $full.StartsWith($prefix)) { continue }
+                $name = $full.Substring($prefix.Length)
                 Git @('-C', $WorkingCopy, 'update-ref', ('refs/heads/' + $name), $sha) -Quiet | Out-Null
+                $moved++
             }
+            if ($moved -eq 0) { D "the bundle carried no branches (nothing fetched into $incoming)" }
             Git @('-C', $WorkingCopy, 'symbolic-ref', 'HEAD', ('refs/heads/' + $bBranch)) | Out-Null
             $headSha = Git @('-C', $WorkingCopy, 'rev-parse', '--verify', '--quiet', ('refs/heads/' + $bBranch)) -Quiet
             if (-not $headSha.Trim()) { D "branch '$bBranch' is not in the bundle (history.branch says otherwise)" }
