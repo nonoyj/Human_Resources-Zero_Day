@@ -464,6 +464,44 @@ Redundant, not broken. Nothing shipped was touched; every gate re-ran green afte
 - **Prevention rule:** a gate may not run a script that WRITES into the repo. Gates read, they do not
   produce -- otherwise every run dirties the tree and the "clean tree" bundle rule trips.
 
+## BUG-031 -- the art gate needed Pillow (found on the user's PC, v44 report)
+
+- **Symptom:** the user ran the 11 gates after applying v44: 9 `[ok]`, then
+  `[FAIL] screen preview failed to render`. Everything else green.
+- **Cause:** `tools/comp/preview_screen.py` imported Pillow at module scope, and the gate ran it.
+  The user's box has stdlib Python; Pillow was never in the setup checklist because every *art* tool
+  that needs it (`twin_desk.py`, `pngcheck.py` fallback) is a human tool, not a gate.
+- **Fix:** `preview_screen.py` now degrades gracefully (`HAVE_PIL`) and gained a **`--codepage`** mode
+  that prints the glass as an ASCII grid + a content dump using nothing but stdlib. The gate runs that
+  mode into `$env:TEMP` and asserts the **shape** of the glass (20 columns x 9 rows) plus card markers
+  (`GRAD`). The pretty PNG stays a human tool.
+- **Second bug found in the same edit:** a python `str.replace` on a CRLF anchor in
+  `scripts/Test-ArtPipeline.ps1` silently did not match and aborted the previous attempt. The script is
+  **UTF-8 BOM + CRLF + ASCII-only**; edit it by line number or on raw bytes, never on a guessed string.
+- **Third bug found while fixing:** the new gate block used `$env:TEMP`, which is null under pwsh on
+  Linux and threw `Cannot bind argument to parameter 'Path' because it is null`. Now falls back to
+  `[System.IO.Path]::GetTempPath()` so the gate runs on any host.
+- **Prevention rule (same as BUG-016):** every **gate** runs on the standard library only. Pillow is a
+  nice-to-have for humans, never a dependency of a gate.
+
+## The legibility pass: four layout bugs, three caught by tests (2026-11-26)
+
+The user said the glass text was "too close to each other". The gap change was one line; the rest was
+where the real bugs were:
+
+1. `preview_screen.py` still drew columns with the old pitch while `MonitorScreen` had the new one --
+   caught by adding `ScreenMetricsTests`, which parses the python constants and compares them to C#.
+2. The letter page's rule line was 68 `-` against a 65-column budget -> `-----~`. The rule is now
+   derived from `LetterLayout.Cols`, not typed.
+3. `Cols = 66` was arithmetic I did in my head ("456/7"); the real number is `(456+2)/7 = 65`. The test
+   asserted the truncated tail and made the mistake obvious.
+4. Zero inset on the letter page clipped the title's first glyph and the body's first column against the
+   paper edge. Fixed by a **6 px inset** (`LetterLayout.TextRect()`), and the preview now renders through
+   the same numbers.
+
+Also fixed in the atlas: `[` and `]` at 5x7 read as `C` / `J` next to a following glyph (three-wide
+arms are the whole glyph). They are now two bare vertical strokes; the prompt is `> READ LETTER`.
+
 ## MonitorScreen: three API bugs caught by the first test run (2026-11-26)
 
 Written tests-first-with-code; the first `dotnet run` failed 3 of 7, all real:

@@ -32,6 +32,8 @@ namespace UnityEngine
         public string tag;
         public GameObject() { }
         public GameObject(string n) { name = n; }
+        public bool activeSelf;
+        public void SetActive(bool v) { activeSelf = v; }
         public T AddComponent<T>() where T : Component, new() { return new T(); }
         public Component AddComponent(Type t) { return null; }
     }

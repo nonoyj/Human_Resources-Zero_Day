@@ -38,8 +38,8 @@
         "h": 88,
         "glyphW": 5,
         "glyphH": 7,
-        "letterGap": 1,
-        "lineGap": 2,
+        "letterGap": 2,
+        "lineGap": 3,
         "note": "glass rect in monitor-local px, y UP, measured from monitor_small's 6,6..w-7,h-13 drawing. MonitorScreen.GlassForSprite recomputes this; GameDataTests asserts they agree."
       }
     },

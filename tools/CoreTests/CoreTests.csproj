@@ -22,11 +22,15 @@
          project compiles it directly. UnityStubs supplies the tiny Unity surface it uses. -->
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/MonitorScreen.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/MonitorScreenRaster.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Desk/LetterView.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Desk/MonitorScreenView.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Layout/DeskLayoutData.cs" />
     <Compile Include="../UnityStubs/UnityStubs.cs" />
     <Compile Include="GameDataTests.cs" />
     <Compile Include="MonitorScreenTests.cs" />
     <Compile Include="MonitorScreenRasterTests.cs" />
+    <Compile Include="LetterViewTests.cs" />
+    <Compile Include="ScreenMetricsTests.cs" />
   </ItemGroup>
 
 </Project>

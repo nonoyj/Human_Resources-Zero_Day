@@ -64,15 +64,28 @@ try {
     if ($LASTEXITCODE -ne 0) { D 'font atlas check failed' } else { OK 'font atlas palette clean, metrics match' }
 
 
-    S 'monitor screen preview is current'
+    S 'monitor screen codepage dump (stdlib only, writes to TEMP)'
 
-    # The preview is the ONLY way to see the CRT text without opening Unity. It is regenerated here
-
-    # (into art/kit/reference/, which is not shipped) so a layout regression is visible in the bundle.
-
-    & python tools/comp/preview_screen.py --zoom 4 --out screen_preview.png *> $null
-
-    if ($LASTEXITCODE -ne 0) { D 'screen preview failed to render' } else { OK 'screen preview rendered' }
+    # BUG-031: this gate used to run preview_screen.py's Pillow path, which dies on a box without
+    # Pillow -- and it wrote a PNG into art/kit/reference, so it broke the 'a gate never writes into
+    # the repo' rule as well. The gate now runs the dependency-free --codepage mode into TEMP and
+    # asserts the SHAPE of the glass (row count + column width) plus the card markers. The pretty
+    # PNG stays a human tool: python tools/comp/preview_screen.py --zoom 4 --out screen_preview.png
+    # $env:TEMP is not set on every host (it is on Windows, not under pwsh on Linux), so fall back
+    # to the .NET temp path -- this gate must run anywhere the repo does.
+    $tmpDir = if ($env:TEMP) { $env:TEMP } else { [System.IO.Path]::GetTempPath() }
+    $dump = Join-Path $tmpDir 'hr0d_screen_codepage.txt'
+    if (Test-Path $dump) { Remove-Item $dump -Force }
+    & python tools/comp/preview_screen.py --codepage $dump *> $null
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $dump)) { D 'screen codepage dump failed to render' }
+    else {
+        $rows = @(Get-Content $dump | Where-Object { $_ -like '|*|' })
+        $want = 9
+        if ($rows.Count -ne $want) { D ("glass grid is $($rows.Count) rows, expected $want (metrics drifted?)") }
+        elseif ($rows[0].Length -ne 22) { D ("glass grid is $($rows[0].Length - 2) columns, expected 20") }
+        elseif (-not (Select-String -Path $dump -Pattern 'GRAD' -Quiet)) { D 'card is missing the GRAD line' }
+        else { OK ("glass grid $($rows[0].Length - 2) x $($rows.Count), card markers present") }
+    }
 
 
     S 'kit study scripts park their output (no writes to art/concepts)'

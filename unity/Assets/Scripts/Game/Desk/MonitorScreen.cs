@@ -51,11 +51,15 @@ namespace HRZeroDay.Game
     public static class MonitorScreen
     {
         // ---------------------------------------------------------------- metrics (art px)
-        // The glyph cell is 5x7; the 1 px gap is what makes 40 columns fit the standard 4x6 font.
+        // READABILITY (user, 2026-11-26: "text too close to each other"):
+        //   letterGap 1 -> 2 : glyphs stop touching, so a word reads as a word
+        //   lineGap   2 -> 3 : descenders no longer merge with the next row's caps
+        // This trades columns (23 -> 20) and rows (10 -> 9) for legibility, which is the right
+        // trade on a 142x88 glass read at arm's length on a phone.
         public const int GlyphW = 5;
         public const int GlyphH = 7;
-        public const int LetterGap = 1;
-        public const int LineGap = 2;
+        public const int LetterGap = 2;
+        public const int LineGap = 3;
 
         /// <summary>Width in art px of a string in the bitmap font (including the trailing gap).</summary>
         public static int MeasureWidth(string s)
@@ -122,7 +126,7 @@ namespace HRZeroDay.Game
         public struct GlassRect
         {
             public int x, y, w, h;
-            public int cols => w / (GlyphW + LetterGap);
+            public int cols => (w + LetterGap) / (GlyphW + LetterGap);
             // the last line needs no trailing LineGap, so add one gap before dividing:
             // 88 px of glass holds 10 seven-px lines with nine 2 px gaps exactly.
             public int rows => (h + LineGap) / (GlyphH + LineGap);
@@ -168,33 +172,26 @@ namespace HRZeroDay.Game
                 throw new ArgumentNullException(nameof(model), "monitor screen needs an applicant");
 
             var a = model.applicant;
+            // A CARD, not a document. 20x9 cells is for the day, the trust meter, who is sitting in
+            // front of you, and the prompt that the real reading happens in the letter view
+            // (user decision 2026-11-26, option c). Long fields are abbreviated for the same reason.
             var lines = new List<LineSpec>
             {
-                new LineSpec("DAY " + model.day.ToString("00") + "   SHIFT LOG", "textdim")
+                new LineSpec("DAY " + model.day.ToString("00"), "textdim"),
+                new LineSpec(model.trustVisible ? TrustBar(model.trust) : "TRUST  --", "signal"),
+                new LineSpec(Safe(a.fullName).ToUpperInvariant(), "text")
             };
-
-            if (model.trustVisible)
-                lines.Add(new LineSpec("TRUST " + TrustBar(model.trust), "signal"));
-            else
-                lines.Add(new LineSpec("TRUST --", "muted"));
-
-            lines.Add(new LineSpec("", "void"));                       // spacer, not a rule: see Rule()
-            lines.Add(new LineSpec(Safe(a.fullName).ToUpperInvariant(), "text"));
             if (!string.IsNullOrEmpty(a.role)) lines.Add(new LineSpec(a.role, "textdim"));
             lines.Add(new LineSpec("ID " + Safe(a.idNumber), "paperdim"));
 
-            // one fact line per available field, in reading order; empty fields vanish
-            if (!string.IsNullOrEmpty(a.university))
-                lines.Add(new LineSpec("UNI " + a.university, "textdim"));
-            if (a.graduationYear > 0)
-                lines.Add(new LineSpec("GRAD " + a.graduationYear, "textdim"));
-            if (!string.IsNullOrEmpty(a.employer))
-                lines.Add(new LineSpec("EMP " + a.employer, "textdim"));
-            if (a.yearsExperience > 0)
-                lines.Add(new LineSpec("EXP " + a.yearsExperience + "Y", "textdim"));
-            if (!string.IsNullOrEmpty(a.referral))
-                lines.Add(new LineSpec("REF " + a.referral, "paperdim"));
+            var facts = new List<string>();
+            if (a.graduationYear > 0) facts.Add("GRAD " + a.graduationYear);
+            if (a.yearsExperience > 0) facts.Add("EXP " + a.yearsExperience + "Y");
+            if (facts.Count > 0) lines.Add(new LineSpec(string.Join("  ", facts), "textdim"));
 
+            if (!string.IsNullOrEmpty(a.referral)) lines.Add(new LineSpec("REF " + a.referral, "paperdim"));
+            if (!string.IsNullOrEmpty(a.coverLetterId))
+                lines.Add(new LineSpec("> READ LETTER", "warn"));
             return lines;
         }
 

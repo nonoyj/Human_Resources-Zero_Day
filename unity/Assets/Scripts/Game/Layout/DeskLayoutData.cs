@@ -28,7 +28,7 @@ namespace HRZeroDay.Game
     public class ScreenSpec
     {
         public int x, y, w, h;
-        public int glyphW = 5, glyphH = 7, letterGap = 1, lineGap = 2;
+        public int glyphW = 5, glyphH = 7, letterGap = 2, lineGap = 3;   // legibility pass 2026-11-26
     }
 
     [Serializable]

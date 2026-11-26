@@ -2174,7 +2174,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "font",
-      "sha256_16": "65dd0aeb376b28bc",
+      "sha256_16": "dfcec27b4fc47d02",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2188,6 +2188,8 @@
   ],
   "referenceSheets": [
     "art/kit/reference/contact_sheet.png",
+    "art/kit/reference/letter_preview.png",
+    "art/kit/reference/letter_scam.png",
     "art/kit/reference/palette_swatch.png",
     "art/kit/reference/screen_preview.png",
     "art/kit/reference/screen_preview_long.png",

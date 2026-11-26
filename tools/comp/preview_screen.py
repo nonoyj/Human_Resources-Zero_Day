@@ -22,11 +22,19 @@ sys.path.insert(0, os.path.join(ROOT, 'tools', 'art'))
 
 try:
     from PIL import Image
+    HAVE_PIL = True
 except ImportError:                                            # pragma: no cover
-    print('Pillow is required for the preview: pip install pillow')
-    raise SystemExit(2)
+    Image = None
+    HAVE_PIL = False
 
-GLYPH_W, GLYPH_H, LETTER_GAP, LINE_GAP = 5, 7, 1, 2
+# READABILITY (user, 2026-11-26: "text too close to each other"). Two changes, both measurable:
+#   letterGap 1 -> 2 : glyphs stop touching, so a word reads as a word instead of a bar of pixels
+#   lineGap   2 -> 3 : descenders and the caps of the next row no longer visually merge
+# Glyph metrics live in ONE place: this constant block is mirrored by MonitorScreen in C#, and
+# ScreenMetricsTests asserts the two agree, so the preview can never drift from the game.
+GLYPH_W, GLYPH_H = 5, 7
+LETTER_GAP, LINE_GAP = 2, 3
+COLUMNS, ROWS = 20, 9            # 20*7-2 = 138 <= 142 glass width; 9*7+8*3 = 87 <= 88 glass height
 
 
 def load_metrics():
@@ -52,30 +60,34 @@ def trust_bar(trust):
 
 
 def build_lines(name, role, idnum, uni, grad, emp, exp, ref, day, trust, show_trust=True):
-    lines = [(f'DAY {day:02d}   SHIFT LOG', 'textdim')]
-    lines.append(('TRUST ' + trust_bar(trust), 'signal') if show_trust else ('TRUST --', 'muted'))
-    lines.append(('', 'void'))
+    """Mirror of MonitorScreen.BuildLines: a CARD, not a document.
+
+    The full record (university, employer, letter) lives in the letter view -- user decision (c),
+    2026-11-26. What fits on the glass is: day, trust, who is in front of you, and the prompt.
+    """
+    lines = [(f'DAY {day:02d}', 'textdim')]
+    lines.append((trust_bar(trust) if show_trust else 'TRUST  --', 'signal'))
     lines.append((name.upper(), 'text'))
     if role:
         lines.append((role, 'textdim'))
     lines.append(('ID ' + idnum, 'paperdim'))
-    if uni:
-        lines.append(('UNI ' + uni, 'textdim'))
+    facts = []
     if grad:
-        lines.append((f'GRAD {grad}', 'textdim'))
-    if emp:
-        lines.append(('EMP ' + emp, 'textdim'))
+        facts.append(f'GRAD {grad}')
     if exp:
-        lines.append((f'EXP {exp}Y', 'textdim'))
+        facts.append(f'EXP {exp}Y')
+    if facts:
+        lines.append(('  '.join(facts), 'textdim'))
     if ref:
         lines.append(('REF ' + ref, 'paperdim'))
+    lines.append(('> READ LETTER', 'warn'))
     return lines
 
 
 def layout(lines, glass):
     """Mirror of MonitorScreen.LinesToRects: y-up, line 1 at the TOP, clip to rows."""
     gx, gy, gw, gh = glass
-    cols = gw // (GLYPH_W + LETTER_GAP)
+    cols = (gw + LETTER_GAP) // (GLYPH_W + LETTER_GAP)
     rows = (gh + LINE_GAP) // (GLYPH_H + LINE_GAP)
     out = []
     emitted = 0
@@ -125,6 +137,51 @@ def render(name='MARIA SANTOS', role='DATA ENTRY II', idnum='8814-2231',
     return out
 
 
+# --------------------------------------------------------------------------- codepage (no Pillow)
+# The GATE must be able to run without Pillow (verifying art never requires a pip install -- BUG-016).
+# So the preview can also emit a plain-text code page: one character per glyph cell, using '#' for ink
+# and '.' for glass. It is not pretty, but it proves the layout, the clipping and the metrics on any
+# Python 3 with no dependencies at all.
+PALETTE_KEYS = {
+    'void': ' ', 'text': '#', 'textdim': '+', 'signal': 'S', 'paperdim': 'p', 'muted': '-',
+}
+
+
+def codepage(**kw):
+    metrics = load_metrics()
+    glass = (6, 12, 142, 88)
+    lines = layout(build_lines(kw.get('name', 'MARIA SANTOS'), kw.get('role', 'DATA ENTRY II'),
+                              kw.get('idnum', '8814-2231'), kw.get('uni', 'CEBU NORMAL UNIVERSITY'),
+                              kw.get('grad', 2019), kw.get('emp', 'NORTHSTAR LOGISTICS'),
+                              kw.get('exp', 6), kw.get('ref', 'WALK-IN'),
+                              kw.get('day', 1), kw.get('trust', 100)), glass)
+    cols = (glass[2] + LETTER_GAP) // (GLYPH_W + LETTER_GAP)
+    rows = (glass[3] + LINE_GAP) // (GLYPH_H + LINE_GAP)
+    grid = [['.'] * cols for _ in range(rows)]
+    for text, colour, _x, _y in lines:
+        row = rows - 1 - (_y - glass[1]) // (GLYPH_H + LINE_GAP)
+        if row < 0:
+            continue
+        for c, ch in enumerate(text[:cols]):
+            grid[row][c] = PALETTE_KEYS.get(colour, '#') if ch != ' ' else PALETTE_KEYS.get(colour, '#')
+    # The gate also asserts the text is really there, so append an ASCII dump of the lines. A grid of
+    # '#' alone proves geometry but not content; this proves content without an image library.
+    return metrics, cols, rows, grid, lines
+
+
+def write_codepage(path, **kw):
+    metrics, cols, rows, grid, lines = codepage(**kw)
+    with open(path, 'w', encoding='ascii') as fh:
+        fh.write(f"# monitor screen, {cols}x{rows} cells, glyph {metrics['cellW']}x{metrics['cellH']}\n")
+        fh.write("# legend: # text  + textdim  S signal  p paperdim  - muted  . empty\n")
+        for r in range(rows):
+            fh.write('|' + ''.join(grid[r]).ljust(cols) + '|\n')
+        fh.write('# text content\n')
+        for text, colour, _x, _y in lines:
+            fh.write(f'{colour:9s} {text}\n')
+    return path
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--zoom', type=int, default=4)
@@ -132,7 +189,18 @@ def main():
     ap.add_argument('--name', default='MARIA SANTOS')
     ap.add_argument('--day', type=int, default=1)
     ap.add_argument('--trust', type=int, default=100)
+    ap.add_argument('--codepage', metavar='PATH',
+                    help='write a text-only code page (no Pillow needed) -- used by the gate')
     args = ap.parse_args()
+
+    if args.codepage:
+        write_codepage(args.codepage, name=args.name, day=args.day, trust=args.trust)
+        print('wrote', args.codepage)
+        return 0
+
+    if not HAVE_PIL:
+        print('preview needs Pillow; use --codepage for a dependency-free check')
+        return 2
 
     img = render(name=args.name, day=args.day, trust=args.trust)
     dest = os.path.join(ROOT, 'art', 'kit', 'reference', args.out)

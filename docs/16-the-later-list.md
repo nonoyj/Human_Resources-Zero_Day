@@ -23,7 +23,9 @@ audio, no save round-trip, no Android build. That gap — not more art — is wh
 | # | Task | Owner | Why it blocks | Done when |
 |---|---|---|---|---|
 | 1.1 | `WearOverlayBinder.cs` — spawn `fx/wear_a` / `fx/wear_b` over the background from `ShiftController.CorruptionLevel` | Agent → You copy | The drift the user approved exists only as files until something reads it | Toggling `SyntheticsHired` 0→1→2 changes the room in Play mode |
-| 1.2 | `MonitorScreenRenderer` — composite email/letter + day header + trust bar into the monitor's inner glass | Agent | The screen is the only place the player *reads* the game. Right now it's a blank rectangle | Text renders inside the bezel at 480×270, no overflow, palette-only |
+| 1.2 | **`LetterView` paper + input** — the C# is written and tested (`Game/Desk/LetterView.cs`: wrap, pagination, flag scoring); what is missing is the paper sprite and the touch/keys that open it from `> READ LETTER` | Agent (art) + You (wire) | The letter is where the game is actually played. Decision (c): the CRT keeps the card, the letter gets the full page | Tapping the prompt slides the page in; `X` closes; a flag toggles and stays toggled |
+| 1.2a | **Flag panel UI** — the five flags from `docs/17-paperwork-mechanic.md` §4 drawn on the letter page, toggled by touch | Agent → You copy | `LetterFlags`/`LetterSession.Score` are built and tested; nothing draws them yet | Tapping a flag toggles it and it stays toggled until close |
+| 1.2b | `MonitorScreenView` in the scene — day header, trust bar and applicant card on the glass | Agent → You copy | The view exists; nothing has ever instantiated it in a scene | Play mode shows the card, no overflow, palette-only |
 | 1.3 | Data contracts frozen (`05-data-contracts.md` §applicant/event/save) | Agent + A + B review | A and B cannot build screens against a moving schema this late | Two devs sign off in one PR |
 | 1.4 | Unity project created from the bundle, `ProjectSettings` committed, IL2CPP/ARM64 verified once | You | Every device bug found after this point is cheaper to fix | A debug APK installs on one phone and shows the desk scene |
 
