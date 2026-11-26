@@ -100,7 +100,21 @@ try {
     Write-Host ''
     S "extracting bundle"
     New-Item -ItemType Directory -Force -Path $temp | Out-Null
-    Expand-Archive -LiteralPath $BundlePath -DestinationPath $temp -Force
+    # Expand-Archive is a cmdlet over System.IO.Compression, and on this host it refuses entries whose
+    # name starts with a dot ('Cannot find path .../.gitattributes'). Windows PowerShell 5.1 extracts
+    # the same zip fine, but a script that only works on one host is a script nobody can rehearse.
+    # So: extract every entry by hand through the ZipFile API. Same bytes, no cmdlet quirks.
+    Add-Type -AssemblyName System.IO.Compression.FileSystem | Out-Null
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($BundlePath)
+    try {
+        foreach ($entry in $zip.Entries) {
+            if (-not $entry.Name) { continue }                      # directory entry
+            $target = Join-Path $temp ($entry.FullName -replace '/', '\')
+            $dir = Split-Path -Parent $target
+            if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+            [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $target, $true)
+        }
+    } finally { $zip.Dispose() }
     $root = Get-ChildItem -LiteralPath $temp -Directory |
             Where-Object { Test-Path (Join-Path $_.FullName 'README.md') } |
             Select-Object -First 1
