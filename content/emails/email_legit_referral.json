@@ -1,0 +1,11 @@
+{
+  "id": "email_legit_referral",
+  "kind": "legit",
+  "from": "Talent Ops",
+  "fromAddress": "talent.ops@company-hr.example",
+  "subject": "Referral procedure reminder",
+  "body": "Reminder: referrals come with a requisition number on the application itself. If the number is missing the referral is just a normal applicant - review them like anyone else.",
+  "malicious": false,
+  "earliestDay": 5,
+  "twinOf": "email_fast_track"
+}

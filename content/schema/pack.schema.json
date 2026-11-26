@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hr0d.local/schema/pack.schema.json",
+  "title": "HR//0D content pack",
+  "description": "A signed, immutable content pack. Validated by backend/validate_pack.py (invariants I1-I8) before publish. Every player-facing string lives here; no hardcoded English in scripts or prefabs.",
+  "type": "object",
+  "required": ["schemaVersion", "id", "version", "days"],
+  "additionalProperties": true,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+    "version": { "type": "string", "description": "CalVer, e.g. 2026.11.26" },
+    "minClient": { "type": "string", "description": "Oldest client build that may load this pack" },
+    "notes": { "type": "string" },
+    "unlockedSurfaces": {
+      "type": "object",
+      "description": "Day -> surfaces unlocked that day (docs/07 section 3).",
+      "additionalProperties": { "type": "array", "items": { "$ref": "#/$defs/surface" } }
+    },
+    "archetypes": {
+      "type": "object",
+      "description": "Tuning knobs only. Weights per archetype; generator reads these.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "weight": { "type": "integer", "minimum": 0 },
+          "minTells": { "type": "integer", "minimum": 0 },
+          "maxTells": { "type": "integer", "minimum": 0 },
+          "earliestDay": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "tells": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/tell" }
+    },
+    "days": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["day", "applicants"],
+        "properties": {
+          "day": { "type": "integer", "minimum": 1 },
+          "syntheticCount": { "type": "integer", "minimum": 0 },
+          "inboxPool": { "type": "array", "items": { "type": "string" } },
+          "applicants": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/applicant" } }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "surface": {
+      "enum": ["applicant_stage", "cover_letter", "resume_row", "id_tool",
+               "reference_tool", "metadata_tool", "inbox", "referral_row"]
+    },
+    "archetype": {
+      "enum": ["human_solid", "human_nervous", "human_bait",
+               "synthetic_polished", "synthetic_cloned", "synthetic_collusion"]
+    },
+    "tell": {
+      "type": "object",
+      "required": ["id", "textSurface"],
+      "description": "I8: textSurface is mandatory -- a tell must be sayable, never colour-only.",
+      "properties": {
+        "id": { "type": "string" },
+        "category": { "enum": ["SYNTHETIC_MEDIA", "DOC_INCONSISTENCY", "COERCION",
+                               "SOCIAL_ENGINEERING", "IMPERSONATION"] },
+        "surface": { "$ref": "#/$defs/surface" },
+        "textSurface": { "type": "string", "minLength": 1 },
+        "severity": { "enum": ["soft", "hard"] }
+      }
+    },
+    "applicant": {
+      "type": "object",
+      "required": ["id", "archetype", "fullName", "idNumber"],
+      "description": "No PII: every identity here is fictional and synthesised.",
+      "properties": {
+        "id": { "type": "string" },
+        "archetype": { "$ref": "#/$defs/archetype" },
+        "fullName": { "type": "string", "minLength": 2 },
+        "idNumber": { "type": "string", "minLength": 2 },
+        "age": { "type": "integer", "minimum": 16, "maximum": 80 },
+        "university": { "type": "string" },
+        "graduationYear": { "type": "integer" },
+        "employer": { "type": "string" },
+        "employerFounded": { "type": "integer" },
+        "employmentStartYear": { "type": "integer" },
+        "yearsExperience": { "type": "integer", "minimum": 0 },
+        "role": { "type": "string" },
+        "referral": { "type": "string" },
+        "coverLetterId": { "type": "string" },
+        "portraitId": { "type": "string" },
+        "tells": { "type": "array", "items": { "$ref": "#/$defs/tell" } },
+        "contradictions": {
+          "type": "array",
+          "description": "I3: claimed != actual is asserted by the validator.",
+          "items": {
+            "type": "object",
+            "required": ["field", "claimed", "actual"],
+            "properties": { "field": { "type": "string" } }
+          }
+        },
+        "distractors": {
+          "type": "array",
+          "description": "I6: every distractor must name what resolves it.",
+          "items": {
+            "type": "object",
+            "required": ["id", "resolvesWith"],
+            "properties": {
+              "id": { "type": "string" },
+              "resolvesWith": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

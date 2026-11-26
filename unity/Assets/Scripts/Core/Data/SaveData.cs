@@ -57,6 +57,9 @@ namespace HRZeroDay.Core.Data
         public int syntheticsCaught;
         public int dayApproved;
         public int dayRejected;
+        public int dayWrongful;                    // day-scoped counters, so a resumed day
+        public int daySyntheticHired;              // reports the same summary it would have
+        public int daySyntheticCaught;
 
         public List<string> approvedIds = new List<string>();
         public List<string> rejectedIds = new List<string>();

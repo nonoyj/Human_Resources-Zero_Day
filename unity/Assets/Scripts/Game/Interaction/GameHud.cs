@@ -13,12 +13,16 @@ namespace HRZeroDay.Game.Interaction
 {
     public sealed class GameHud : MonoBehaviour
     {
-        private const int LineCount = 22;
-        private const float Step = 0.68f;
+        private const int LineCount = 16;
+        private const float Step = 0.52f;
 
         private DeskBootstrap _game;
         private TextMesh[] _lines;
         private bool _bound;
+        private SpriteRenderer _panel;
+
+        private static readonly Color Ink = new Color(42f / 255f, 33f / 255f, 24f / 255f, 1f);
+        private static readonly Color PaperWhite = new Color(230f / 255f, 241f / 255f, 255f / 255f, 1f);
 
         public static GameHud Attach(DeskBootstrap game)
         {
@@ -37,6 +41,20 @@ namespace HRZeroDay.Game.Interaction
 
         private void Awake()
         {
+            // Dark backing so white HUD text stays readable where it crosses the light monitor
+            // glass (day summary / debrief). Sized to the visible lines each frame; hidden while
+            // the letter is open, where the paper is light and the HUD switches to dark ink.
+            var panelGo = new GameObject("HudPanel");
+            panelGo.transform.SetParent(transform, false);
+            _panel = panelGo.AddComponent<SpriteRenderer>();
+            var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            tex.SetPixels(new[] { new Color(1f, 1f, 1f, 1f) });
+            tex.Apply(false, true);
+            _panel.sprite = Sprite.Create(tex, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f), 1f);
+            _panel.color = new Color(0.02f, 0.03f, 0.05f, 0.78f);
+            _panel.sortingOrder = 219;   // just below the text (220), above the desk art
+            panelGo.SetActive(false);
+
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             _lines = new TextMesh[LineCount];
             for (int i = 0; i < LineCount; i++)
@@ -46,7 +64,7 @@ namespace HRZeroDay.Game.Interaction
                 go.transform.localPosition = new Vector3(0.45f, 16.25f - i * Step, -2f);
                 var text = go.AddComponent<TextMesh>();
                 text.font = font;
-                text.characterSize = 0.38f;          // ~6 px at 480x270 / 16 PPU
+                text.characterSize = 0.26f;          // compact: leaves the desk art readable
                 // TextMesh is a Component, not a Renderer -- the order goes on its MeshRenderer.
                 DeskRuntimeScene.SetTextMeshSorting(text, 220);   // above the letter page and the CRT
                 text.text = string.Empty;
@@ -58,8 +76,33 @@ namespace HRZeroDay.Game.Interaction
         {
             if (!_bound || _game == null || _game.Session == null) return;
             var lines = BuildLines();
+            bool letter = _game.LetterOpen;
+            // Letter mode: LetterView already shows the letter itself, so the HUD shows ONLY the
+            // flags, in dark ink, in the blank middle of the page (below the body, above the
+            // prompt) instead of duplicating the letter in white over cream paper.
+            float x = 0.5f;
+            float topY = letter ? 8.6f : 16.25f;
+            Color ink = letter ? Ink : PaperWhite;
+            int maxLen = 0;
             for (int i = 0; i < _lines.Length; i++)
-                if (_lines[i] != null) _lines[i].text = i < lines.Count ? lines[i] : string.Empty;
+            {
+                if (_lines[i] == null) continue;
+                _lines[i].transform.localPosition = new Vector3(x, topY - i * Step, -2f);
+                _lines[i].color = ink;
+                _lines[i].text = i < lines.Count ? lines[i] : string.Empty;
+                if (i < lines.Count && lines[i] != null && lines[i].Length > maxLen) maxLen = lines[i].Length;
+            }
+            if (_panel != null)
+            {
+                _panel.gameObject.SetActive(!letter && lines.Count > 0);
+                if (!letter && lines.Count > 0)
+                {
+                    float w = Mathf.Clamp(1f + maxLen * 0.24f, 4f, 14.5f);
+                    float h = lines.Count * Step + 0.6f;
+                    _panel.transform.localPosition = new Vector3(0.25f + w * 0.5f, 16.45f - h * 0.5f, -2.1f);
+                    _panel.transform.localScale = new Vector3(w, h, 1f);
+                }
+            }
         }
 
         private System.Collections.Generic.List<string> BuildLines()
@@ -112,14 +155,10 @@ namespace HRZeroDay.Game.Interaction
 
             if (_game.LetterOpen && s.Paperwork != null)
             {
+                // Flags only: LetterView renders title/body/signature/prompt in dark ink on paper.
+                // Duplicating the letter here in white text over cream paper made both unreadable.
                 var p = s.Paperwork;
-                Add(result, p.title);
-                Add(result, new string('-', 58));
-                var words = WrapBlock(p.body, 58, 9);
-                for (int i = 0; i < words.Count; i++) Add(result, words[i]);
-                Add(result, string.IsNullOrEmpty(p.signature) ? string.Empty : p.signature.Replace("\n", " "));
-                Add(result, new string('-', 58));
-                Add(result, "FLAG WHAT IS WRONG (1-5)     [X] BACK TO DESK");
+                Add(result, "FLAG WHAT IS WRONG (1-5):");
                 var flags = p.flags;
                 for (int i = 0; i < flags.Count && i < 5; i++)
                 {
@@ -130,19 +169,15 @@ namespace HRZeroDay.Game.Interaction
             }
 
             var v = s.Current;
+            // Compact by design: the full dossier lives in the letter. Keeping only the identity
+            // line here stops the HUD covering the monitor and the applicant across the table.
             Add(result, "HUMAN RESOURCES // ZERO DAY");
-            Add(result, "DAY " + s.Day + "/5   TRUST " + s.Trust + "   CORRUPTION " + s.CorruptionLevel +
-                        "   SUBJECT " + (s.Shift.CurrentIndex + 1) + "/" + s.Shift.Today.Count);
-            Add(result, new string('-', 58));
-            Add(result, (v.FullName ?? "APPLICANT") + "  /  " + (v.Role ?? "OPEN ROLE"));
-            Add(result, "ID " + (v.IdNumber ?? "-") + "   AGE " + v.Age);
-            Add(result, "UNIVERSITY " + (v.University ?? "-") + " " + v.GraduationYear);
-            Add(result, "EMPLOYER " + (v.Employer ?? "-") + " EST. " + v.EmployerFounded);
-            Add(result, "STARTED " + v.EmploymentStartYear + "   EXPERIENCE " + v.YearsExperience + "Y   REFERRAL " + (v.Referral ?? "-"));
-            Add(result, new string('-', 58));
-            Add(result, "CLICK THE PERSON: inspect body tells (magnifier + text)");
-            Add(result, "[L] READ COVER LETTER   [1-5] LETTER FLAGS / REASON   [6] INSUFFICIENT");
-            Add(result, "[A] APPROVE   [S] REJECT   [SPACE] CONTINUE   [H] HELP   [X] CLOSE");
+            Add(result, "DAY " + s.Day + "/5  TRUST " + s.Trust + "  CORRUPT " + s.CorruptionLevel +
+                        "  SUBJECT " + (s.Shift.CurrentIndex + 1) + "/" + s.Shift.Today.Count);
+            Add(result, (v.FullName ?? "APPLICANT") + " / " + (v.Role ?? "OPEN ROLE") + " / ID " + (v.IdNumber ?? "-"));
+            Add(result, "CLICK THE PERSON TO INSPECT");
+            Add(result, "[L] LETTER  [1-5] FLAGS/REASON  [6] INSUFFICIENT");
+            Add(result, "[A] APPROVE  [S] REJECT  [SPACE] NEXT  [H] HELP");
             if (_game.HelpVisible)
             {
                 Add(result, "");
@@ -188,14 +223,5 @@ namespace HRZeroDay.Game.Interaction
             return sb.ToString();
         }
 
-        /// <summary>First `max` wrapped lines of the letter body; pagination stays in LetterView.</summary>
-        private static System.Collections.Generic.List<string> WrapBlock(string body, int width, int max)
-        {
-            var result = new System.Collections.Generic.List<string>();
-            string wrapped = Wrap(body, width);
-            string[] parts = wrapped.Split('\n');
-            for (int i = 0; i < parts.Length && result.Count < max; i++) result.Add(parts[i]);
-            return result;
-        }
     }
 }

@@ -20,6 +20,7 @@
     <Compile Include="DaylightTests.cs" />
     <Compile Include="SweepTests.cs" />
     <Compile Include="InteractionTests.cs" />
+    <Compile Include="SaveResumeTests.cs" />
     <Compile Include="../../unity/Assets/Scripts/Core/**/*.cs" />
     <!-- The interaction layer is pure C#: the headless runner compiles the same files Unity uses. -->
     <Compile Include="../../unity/Assets/Scripts/Game/Interaction/EvidenceMap.cs" />
@@ -45,7 +46,6 @@
          anything under tools/, so the engine stubs stay package-free (ASSEMBLY-RULES.md). -->
     <Compile Include="../UnityStubs/InputSystemStubs.cs" />
     <Compile Include="GameDataTests.cs" />
-    <Compile Include="InteractionTests.cs" />
     <Compile Include="MonitorScreenTests.cs" />
     <Compile Include="MonitorScreenRasterTests.cs" />
     <Compile Include="LetterViewTests.cs" />

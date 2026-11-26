@@ -1,0 +1,11 @@
+{
+  "id": "email_legit_it",
+  "kind": "legit",
+  "from": "HR IT Support",
+  "fromAddress": "hr-it@company-hr.example",
+  "subject": "Planned maintenance Thursday 22:00",
+  "body": "The review console will be offline Thursday 22:00-23:00 for maintenance. You do not need to do anything; your open day is saved locally and resumes when the console returns.",
+  "malicious": false,
+  "earliestDay": 2,
+  "twinOf": "email_lookalike_it"
+}

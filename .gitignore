@@ -120,3 +120,11 @@ unity/Assets/AssetStoreTools*
 #   "sprite not found at Resources/Art/Kit/backgrounds/office_L0"
 # while the art sits right there in art/kit/. A file the game READS AT RUNTIME is a source file.
 # publish_to_unity.py writes this tree; the art gate verifies it byte-for-byte against art/kit.
+
+# ---------- Backend ----------
+backend/.venv/
+backend/*.db
+backend/tests/*.db
+backend/__pycache__/
+backend/.pytest_cache/
+

@@ -20,6 +20,8 @@ navigation you need; the numbering is deliberate (lower number = decided earlier
 | `07-randomization-spec.md` | Seeded run generation + the fairness invariants I1–I8 |
 | `08-behaviour-model.md` | The applicant across the table: animation, the 9 artifacts, stress model |
 | `09-backend-spec.md` | The three backend jobs, offline-first |
+| `20-backend-runbook.md` | **What the backend actually does today**, how to run/test it, what is still owed |
+| `21-content-pack-format.md` | Content JSON: schemas, the fairness gate, how to add a day/email/letter |
 | `10-analytics-spec.md` | Research instrument: events, metrics, privacy guardrails |
 | `11-core-verification.md` | How the core is proven (test plan) |
 | `15-interaction-layer.md` | Hotspot -> evidence -> stamp loop, paperwork flags and the playable browser twin |

@@ -160,6 +160,9 @@ namespace HRZeroDay.Core.Data
             c.WrongfulRejections = save.wrongfulRejections;
             c.DayApproved = save.dayApproved;
             c.DayRejected = save.dayRejected;
+            c.DayWrongful = save.dayWrongful;
+            c.DaySyntheticHired = save.daySyntheticHired;
+            c.DaySyntheticCaught = save.daySyntheticCaught;
             c.Outcome = save.Outcome;
             return c;
         }
@@ -176,6 +179,9 @@ namespace HRZeroDay.Core.Data
             save.corruptionLevel = CorruptionLevel;
             save.dayApproved = DayApproved;
             save.dayRejected = DayRejected;
+            save.dayWrongful = DayWrongful;
+            save.daySyntheticHired = DaySyntheticHired;
+            save.daySyntheticCaught = DaySyntheticCaught;
             save.Outcome = Outcome;
         }
     }

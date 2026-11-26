@@ -40,10 +40,11 @@ namespace UnityEngine
         public static void DestroyImmediate(Object o) { }
         public static void Destroy(Object o) { }
         // Unity 6 still has these (obsolete, not removed); GameBoot.cs and DeskSession use them.
-        public static T FindFirstObjectByType<T>() where T : Object { return null; }
         public static T FindAnyObjectByType<T>() where T : Object { return null; }
         public static T FindObjectOfType<T>() where T : Object { return null; }   // obsolete in Unity 6
         public static T[] FindObjectsOfType<T>() where T : Object { return new T[0]; }
+        public static T FindFirstObjectByType<T>() where T : Object { return null; }
+        public static T[] FindObjectsByType<T>(FindObjectsSortMode mode) where T : Object { return new T[0]; }
     }
     public class Component : Object
     {
@@ -55,11 +56,12 @@ namespace UnityEngine
 
     public class MonoBehaviour : Behaviour
     {
-        public static T[] FindObjectsByType<T>(FindObjectsSortMode mode) where T : Component { return new T[0]; }
         public T GetComponent<T>() where T : Component { return null; }
         public T AddComponent<T>() where T : Component { return null; }
         public static T FindObjectOfType<T>() where T : Component { return null; }
         public static T[] FindObjectsOfType<T>() where T : Component { return new T[0]; }
+        public static T FindFirstObjectByType<T>() where T : Component { return null; }
+        public static T[] FindObjectsByType<T>(FindObjectsSortMode mode) where T : Component { return new T[0]; }
         public T[] GetComponentsInChildren<T>() where T : Component { return new T[0]; }
         public T[] GetComponentsInParent<T>() where T : Component { return new T[0]; }
         public T GetComponentInChildren<T>() where T : Component { return null; }
@@ -208,7 +210,6 @@ namespace UnityEngine
     public class SpriteRenderer : Renderer { public Sprite sprite; public Color color; }
 
     public class Font : Object { }
-
     public class Collider2D : Component { public bool isTrigger; }
     public class BoxCollider2D : Collider2D { public Vector2 size; }
     public class Resources
@@ -221,6 +222,14 @@ namespace UnityEngine
     {
         public static int width = 480;
         public static int height = 270;
+    }
+
+    // UnityEditor Play-mode surface. The editor menu refuses to build the scene while in Play mode
+    // (EditorSceneManager.NewScene throws there), which is real UnityEditor API.
+    public static class EditorApplication
+    {
+        public static bool isPlaying;
+        public static void ExitPlaymode() { }
     }
 
     // UnityEditor build-settings surface. The editor menu (merged layer) registers the Desk scene in
@@ -241,6 +250,7 @@ namespace UnityEngine
     {
         public static void Log(object m) { }
         public static void LogError(object m) { }
+        public static void LogWarning(object m) { }
     }
     public static class Input
     {
@@ -257,6 +267,15 @@ namespace UnityEngine
     public static class JsonUtility
     {
         public static T FromJson<T>(string json) { return default(T); }
+        public static string ToJson(object o) { return "{}"; }
+        public static string ToJson(object o, bool pretty) { return "{}"; }
+    }
+    // SaveSystem writes to Application.persistentDataPath. Unity provides it; the stub points at a
+    // temp dir so the headless runner can exercise the save path if a test ever needs the real file.
+    public static class Application
+    {
+        public static string persistentDataPath = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(), "hr0d-headless");
     }
     [AttributeUsage(AttributeTargets.Field)] public class HeaderAttribute : Attribute { public HeaderAttribute(string h) { } }
     // Runtime initialisation hook. UnityEngine type, always available -- NOT a package type, so it
@@ -341,4 +360,3 @@ namespace UnityEngine.SceneManagement
 {
     public struct Scene { }
 }
-

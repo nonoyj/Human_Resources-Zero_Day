@@ -1,0 +1,10 @@
+{
+  "id": "email_legit_roster",
+  "kind": "legit",
+  "from": "Rosa Delgado",
+  "fromAddress": "rosa.delgado@panaylogistics.example",
+  "subject": "Tomorrow's roster",
+  "body": "Hi. Attaching the roster for tomorrow - the early shift has one extra on receiving. Nothing needed from you, just so you are not surprised when the line starts at 05:30. - Rosa",
+  "malicious": false,
+  "earliestDay": 1
+}

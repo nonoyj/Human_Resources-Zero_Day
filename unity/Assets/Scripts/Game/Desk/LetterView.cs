@@ -198,10 +198,9 @@ namespace HRZeroDay.Game
     {
         public const string RootName = "LetterView";
         private const string AtlasResource = "fonts/monitor_font_5x7";
-        // The atlas is a PNG; the glyph metrics are a SEPARATE TextAsset. Loading both from
-        // AtlasResource made every fresh letter fail with "font atlas missing" (the json is never
-        // found because the name has no extension in Resources.Load).
-        private const string MetricsResource = "fonts/monitor_font_5x7.json";
+        // Two assets, one path: Resources.Load<Texture2D>("fonts/x") resolves x.png and
+        // Resources.Load<TextAsset>("fonts/x") resolves x.json. Adding ".json" to the path makes
+        // Unity look for x.json.json and returns null -- caught in Play mode, not by syntax checks.
 
         public GameObject root;              // the panel that gets shown/hidden
         public SpriteRenderer paper;         // the page background (UI/panel 9-slice, stretched)
@@ -266,25 +265,33 @@ namespace HRZeroDay.Game
         private bool Initialise()
         {
             var tex = Resources.Load<Texture2D>(AtlasResource);
-            var metrics = Resources.Load<TextAsset>(MetricsResource);
-            if (tex == null || metrics == null)
+            var metrics = Resources.Load<TextAsset>(AtlasResource);
+            if (tex == null)
             {
-                Debug.LogError("LetterView: font atlas missing from Resources -- run make_font.py");
+                Debug.LogError("LetterView: Resources/" + AtlasResource + ".png missing. " +
+                               "Run HR//0D > Publish Art To Resources, then Import Art Kit.");
+                return false;
+            }
+            if (metrics == null)
+            {
+                Debug.LogError("LetterView: Resources/" + AtlasResource + ".json missing. " +
+                               "Run HR//0D > Publish Art To Resources.");
                 return false;
             }
             var fm = JsonUtility.FromJson<FontMetrics>(metrics.text);
-            // Same read/copy trap as MonitorScreenView: GetPixels32 throws unless the texture was imported
-            // with Read/Write Enabled, and that flag lives only in a .meta file that a fresh clone does not
-            // have. The json carries the same ink per glyph, so the page draws either way.
-            Color32[] atlasPixels = null;
-            if (tex.isReadable)
-            {
-                try { atlasPixels = tex.GetPixels32(); }
-                catch (System.Exception) { atlasPixels = null; }
-            }
-            _glyphs = new FontAtlasGlyphSource(fm, atlasPixels, tex.width,
-                                               MonitorScreenView.Palette.FromResources(),
-                                               FontAtlasGlyphSource.RowsFromMetrics(fm));
+            // ON PAPER the ink must be dark: the monitor palette's "text" is near-white (230,241,255)
+            // for a dark tube, and on cream paper (242,232,213) it is invisible -- caught in Play mode
+            // (white-on-cream letter). Mirror tools/comp/preview_letter.py PAPER_INKS here.
+            var palette = MonitorScreenView.Palette.FromResources();
+            Color32 ink = palette.ContainsKey("ink") ? palette["ink"] : new Color32(42, 33, 24, 255);
+            Color32 paperdim = palette.ContainsKey("paperdim") ? palette["paperdim"] : new Color32(138, 109, 59, 255);
+            palette["text"] = ink;
+            palette["textdim"] = ink;
+            palette["warn"] = paperdim;
+            palette["line"] = paperdim;
+            palette["muted"] = paperdim;
+            palette["signal"] = ink;
+            _glyphs = new FontAtlasGlyphSource(fm, tex.GetPixels32(), tex.width, palette);
 
             // the TEXT area inside the paper: the paper sprite itself is placed by the editor
             _page = LetterLayout.TextRect();
