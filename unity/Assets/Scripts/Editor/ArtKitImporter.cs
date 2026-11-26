@@ -25,7 +25,10 @@ namespace HRZeroDay.EditorTools
             var manifest = LoadManifest();
             if (manifest == null) return;
 
-            int changed = 0, sliced = 0;
+            // NOTE: frames are extracted in a SECOND pass, outside StartAssetEditing. Everything written
+            // inside that block is deferred, so the frame PNGs did not exist when they were imported --
+            // ImportArt Kit reported "56 frames built" and the scene builder then found none.
+            int changed = 0;
             try
             {
                 AssetDatabase.StartAssetEditing();
@@ -42,7 +45,7 @@ namespace HRZeroDay.EditorTools
                     var resPath = s.assetPath.Replace("Assets/Art/Kit/", "Assets/Resources/Art/Kit/");
                     var resImporter = AssetImporter.GetAtPath(resPath) as TextureImporter;
                     if (resImporter != null && ApplySettings(resImporter, s)) changed++;
-                    if (s.spriteMode == "Multiple") sliced += s.sprites == null ? 0 : s.sprites.Count;
+
                 }
             }
             finally
@@ -51,9 +54,19 @@ namespace HRZeroDay.EditorTools
             }
 
             AssetDatabase.Refresh();
+
+            // second pass: frames as real files, so they exist before anything tries to import them
+            int frames = 0;
+            for (int i = 0; i < manifest.sprites.Count; i++)
+            {
+                var s = manifest.sprites[i];
+                if (s.spriteMode != "Multiple") continue;
+                frames += ExtractFrames(s);
+            }
+            AssetDatabase.Refresh();
             Debug.Log(string.Format("[HR//0D] art kit import: {0} sprites checked, {1} updated, " +
                                     "{2} frames built. Verify with: python tools/art/publish_to_unity.py --verify",
-                                    manifest.sprites.Count, changed, sliced));
+                                    manifest.sprites.Count, changed, frames));
         }
 
         private static bool ApplySettings(TextureImporter importer, SpriteEntry s)
@@ -101,10 +114,7 @@ namespace HRZeroDay.EditorTools
             // threw "expected 4 sliced frames" on every applicant. The supported path is the sprite data
             // provider; the import mode has to be set and reimported BEFORE the provider will accept
             // sprite rects, which is why this is done in two steps rather than one.
-            if (s.spriteMode == "Multiple")
-            {
-                if (ExtractFrames(s) > 0) dirty = true;
-            }
+            // Multiple-mode frames are extracted after the asset-edit block, in ImportAll.
 
             if (dirty) importer.SaveAndReimport();
             return dirty;

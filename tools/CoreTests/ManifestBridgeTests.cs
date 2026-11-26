@@ -26,6 +26,7 @@ namespace HRZeroDay.Tests
             yield return CheckEveryFrameNameIsUnique();
             yield return CheckEveryJsonKeyHasAField();
             yield return CheckEveryLayoutLayerResolves();
+            yield return CheckEveryResourcesLoadHasAFile();
         }
 
         /// <summary>
@@ -214,6 +215,60 @@ namespace HRZeroDay.Tests
             if (!find.Contains("_bySource[s.assetPath]"))
                 return "FAIL  Find() does not index the Unity path -- portraits and UI would miss";
             return "PASS  all " + n + " desk layers resolve to a manifest sprite (repo path or Unity path)";
+        }
+
+        /// <summary>
+        /// Every Resources.Load in game code must have a committed file behind it. This is the check that
+        /// would have caught the missing 5x7 font atlas: the .json was published and the .png never was,
+        /// so MonitorScreenView failed on the user's machine while every local gate passed.
+        /// </summary>
+        private static string CheckEveryResourcesLoadHasAFile()
+        {
+            var problems = new List<string>();
+            var checkedCount = 0;
+
+            // C# verbatim strings: the pattern is legible, and " is escaped by doubling it.
+            var constPattern = new Regex(@"const\s+string\s+(\w+)\s*=\s*""([^""]+)""\s*;");
+            var loadPattern  = new Regex(@"Resources\.Load<(\w+)>\(\s*(?:""([^""]+)""|([A-Za-z_]\w*))\s*\)");
+
+            foreach (var file in Directory.GetFiles("unity/Assets/Scripts", "*.cs", SearchOption.AllDirectories))
+            {
+                // strip // comments: the doc comment above MonitorScreenView mentions a Resources.Load
+                // call and must not be counted as one.
+                var text = string.Join("\n", File.ReadAllLines(file).Select(line =>
+                {
+                    int cut = line.IndexOf("//", StringComparison.Ordinal);
+                    return cut < 0 ? line : line.Substring(0, cut);
+                }));
+
+                // constants matter: MonitorScreenView calls Resources.Load<Texture2D>(AtlasResource).
+                // Matching only quoted literals skipped exactly the two calls that were broken.
+                var consts = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (Match c in constPattern.Matches(text))
+                    consts[c.Groups[1].Value] = c.Groups[2].Value;
+
+                foreach (Match m in loadPattern.Matches(text))
+                {
+                    var type = m.Groups[1].Value;
+                    var path = m.Groups[2].Success ? m.Groups[2].Value : null;
+                    if (path == null)
+                    {
+                        var field = m.Groups[3].Value;
+                        if (!consts.TryGetValue(field, out path)) continue;
+                    }
+                    if (path.Contains("{")) continue;    // built at runtime
+                    checkedCount++;
+
+                    var candidates = new[] { ".png", ".json", ".asset", ".bytes", ".txt" };
+                    var found = candidates.Any(ext => File.Exists("unity/Assets/Resources/" + path + ext));
+                    if (!found)
+                        problems.Add(Path.GetFileName(file) + " -> Resources/" + path + " (" + type + ")");
+                }
+            }
+
+            if (problems.Count > 0)
+                return "FAIL  Resources.Load with no committed file: " + string.Join("; ", problems);
+            return "PASS  all " + checkedCount + " Resources.Load targets exist under Assets/Resources";
         }
 
         private static List<(string stem, List<string> frames)> ParseManifest()

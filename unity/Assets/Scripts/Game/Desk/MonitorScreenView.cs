@@ -110,13 +110,21 @@ namespace HRZeroDay.Game
             monitorLayer = monitor;
             _bg = background;
 
+            // Two assets, two extensions: Resources.Load<Texture2D>("fonts/x") resolves fonts/x.png and
+            // Resources.Load<TextAsset>("fonts/x") resolves fonts/x.json. They are not interchangeable,
+            // and before the atlas PNG was published this failed and left the CRT blank on screen.
             var tex = Resources.Load<Texture2D>(AtlasResource);
             var metricsAsset = Resources.Load<TextAsset>(AtlasResource);
-            if (tex == null || metricsAsset == null)
+            if (tex == null)
             {
-                Debug.LogError("MonitorScreenView: Resources/" + AtlasResource +
-                               " missing. Run: python tools/art/make_font.py && " +
-                               "python tools/art/publish_to_unity.py");
+                Debug.LogError("MonitorScreenView: Resources/" + AtlasResource + ".png missing. " +
+                               "Run HR//0D > Publish Art To Resources.");
+                return false;
+            }
+            if (metricsAsset == null)
+            {
+                Debug.LogError("MonitorScreenView: Resources/" + AtlasResource + ".json missing. " +
+                               "Run HR//0D > Publish Art To Resources.");
                 return false;
             }
 
