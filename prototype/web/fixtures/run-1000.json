@@ -1,0 +1,454 @@
+{
+  "schema": 1,
+  "seed": 1000,
+  "currentYear": 2026,
+  "days": {
+    "1": [
+      {
+        "id": "d1_f8eed2",
+        "name": "Arturo Ocampo",
+        "age": 52,
+        "idNo": "PH-4446-5081",
+        "university": "Polytechnic University of the Philippines",
+        "gradYear": 1996,
+        "employer": "Cebu Pacific Data Services",
+        "employerFounded": 1996,
+        "startYear": 2023,
+        "expYears": 27,
+        "referral": "Public posting",
+        "role": "Systems Administrator",
+        "tells": [],
+        "distractors": [
+          "career_gap"
+        ],
+        "sprite": "human_solid_a"
+      },
+      {
+        "id": "d1_bda3fd",
+        "name": "Ferdinand Mendoza",
+        "age": 46,
+        "idNo": "PH-8500-2713",
+        "university": "Mapua University",
+        "gradYear": 2004,
+        "employer": "Sampaguita Foods",
+        "employerFounded": 1985,
+        "startYear": 2023,
+        "expYears": 20,
+        "referral": "Public posting",
+        "role": "Systems Administrator",
+        "tells": [],
+        "distractors": [],
+        "sprite": "human_solid_a"
+      },
+      {
+        "id": "d1_ea875f",
+        "name": "Nestor Cordial",
+        "age": 28,
+        "idNo": "PH-9623-3575",
+        "university": "Mapua University",
+        "gradYear": 2022,
+        "employer": "Cebu Pacific Data Services",
+        "employerFounded": 1996,
+        "startYear": 2025,
+        "expYears": 1,
+        "referral": "Employee referral",
+        "role": "Systems Administrator",
+        "tells": [
+          "portrait_asymmetry",
+          "portrait_blend_seam"
+        ],
+        "distractors": [],
+        "sprite": "synthetic_polished_a"
+      },
+      {
+        "id": "d1_3cf946",
+        "name": "Vicente Aguilar",
+        "age": 23,
+        "idNo": "PH-5241-0507",
+        "university": "De La Salle University",
+        "gradYear": 2025,
+        "employer": "Bisaya Freight",
+        "employerFounded": 2009,
+        "startYear": 2025,
+        "expYears": 0,
+        "referral": "Recruiter agency",
+        "role": "Systems Administrator",
+        "tells": [],
+        "distractors": [
+          "career_gap"
+        ],
+        "sprite": "human_solid_a"
+      }
+    ],
+    "2": [
+      {
+        "id": "d2_f78ae0",
+        "name": "Cesar Dumagsa",
+        "age": 31,
+        "idNo": "PH-9600-7901",
+        "university": "De La Salle University",
+        "gradYear": 2019,
+        "employer": "Sampaguita Foods",
+        "employerFounded": 1985,
+        "startYear": 2020,
+        "expYears": 5,
+        "referral": "Public posting",
+        "role": "Systems Administrator",
+        "tells": [],
+        "distractors": [],
+        "sprite": "human_solid_a"
+      },
+      {
+        "id": "d2_564a43",
+        "name": "Lourdes Cordial",
+        "age": 31,
+        "idNo": "PH-4851-3023",
+        "university": "University of the Philippines",
+        "gradYear": 2016,
+        "employer": "Meridian Bank",
+        "employerFounded": 1974,
+        "startYear": 2024,
+        "expYears": 8,
+        "referral": "Internal transfer",
+        "role": "Systems Administrator",
+        "tells": [
+          "portrait_asymmetry",
+          "portrait_blend_seam"
+        ],
+        "distractors": [
+          "career_gap"
+        ],
+        "sprite": "synthetic_polished_a"
+      },
+      {
+        "id": "d2_6467e0",
+        "name": "Lourdes Dumagsa",
+        "age": 43,
+        "idNo": "PH-3087-7296",
+        "university": "University of San Carlos",
+        "gradYear": 2005,
+        "employer": "Pacific Ridge Health",
+        "employerFounded": 2003,
+        "startYear": 2023,
+        "expYears": 21,
+        "referral": "University program",
+        "role": "Systems Administrator",
+        "tells": [],
+        "distractors": [
+          "odd_lighting"
+        ],
+        "sprite": "human_solid_a"
+      },
+      {
+        "id": "d2_8540f2",
+        "name": "Araw Salazar",
+        "age": 35,
+        "idNo": "PH-5142-7627",
+        "university": "Ateneo de Manila",
+        "gradYear": 2013,
+        "employer": "Ayala Systems Group",
+        "employerFounded": 1988,
+        "startYear": 2024,
+        "expYears": 12,
+        "referral": "Recruiter agency",
+        "role": "Systems Administrator",
+        "tells": [],
+        "distractors": [
+          "odd_lighting"
+        ],
+        "sprite": "human_nervous_a"
+      }
+    ],
+    "3": [
+      {
+        "id": "d3_b2ea91",
+        "name": "Divina Pineda",
+        "age": 24,
+        "idNo": "PH-9209-5656",
+        "university": "Ateneo de Manila",
+        "gradYear": 2025,
+        "employer": "Northwind Logistics",
+        "employerFounded": 1998,
+        "startYear": 2025,
+        "expYears": 1,
+        "referral": "Employee referral",
+        "role": "Systems Administrator",
+        "tells": [],
+        "distractors": [
+          "short_stints"
+        ],
+        "sprite": "human_nervous_a"
+      },
+      {
+        "id": "d3_eb1b2c",
+        "name": "Vicente Mercado",
+        "age": 39,
+        "idNo": "PH-3680-7251",
+        "university": "De La Salle University",
+        "gradYear": 2009,
+        "employer": "Kalayaan Telecom",
+        "employerFounded": 1992,
+        "startYear": 2012,
+        "expYears": 17,
+        "referral": "University program",
+        "role": "Systems Administrator",
+        "tells": [
+          "bait_script"
+        ],
+        "distractors": [],
+        "sprite": "human_bait_a"
+      },
+      {
+        "id": "d3_d2209d",
+        "name": "Bayani Ong",
+        "age": 30,
+        "idNo": "PH-2688-3750",
+        "university": "Polytechnic University of the Philippines",
+        "gradYear": 2020,
+        "employer": "Northwind Logistics",
+        "employerFounded": 1998,
+        "startYear": 2022,
+        "expYears": 2,
+        "referral": "Director fast-track",
+        "role": "Systems Administrator",
+        "tells": [
+          "identity_clone",
+          "id_checksum"
+        ],
+        "distractors": [
+          "short_stints"
+        ],
+        "sprite": "synthetic_cloned_a"
+      },
+      {
+        "id": "d3_bea45c",
+        "name": "Vicente Delgado",
+        "age": 53,
+        "idNo": "PH-3882-1552",
+        "university": "Ateneo de Manila",
+        "gradYear": 1994,
+        "employer": "Veritas Compliance",
+        "employerFounded": 2011,
+        "startYear": 2017,
+        "expYears": 29,
+        "referral": "Internal transfer",
+        "role": "Systems Administrator",
+        "tells": [],
+        "distractors": [],
+        "sprite": "human_solid_a"
+      },
+      {
+        "id": "d3_b8259a",
+        "name": "Vicente Gallardo",
+        "age": 30,
+        "idNo": "PH-4744-3170",
+        "university": "University of San Carlos",
+        "gradYear": 2017,
+        "employer": "Pacific Ridge Health",
+        "employerFounded": 2003,
+        "startYear": 2024,
+        "expYears": 9,
+        "referral": "Director fast-track",
+        "role": "Systems Administrator",
+        "tells": [
+          "portrait_asymmetry",
+          "portrait_blend_seam"
+        ],
+        "distractors": [],
+        "sprite": "synthetic_polished_a"
+      }
+    ],
+    "4": [
+      {
+        "id": "d4_9e1ff1",
+        "name": "Remedios Manalo",
+        "age": 39,
+        "idNo": "PH-3955-9832",
+        "university": "Polytechnic University of the Philippines",
+        "gradYear": 2009,
+        "employer": "Cebu Pacific Data Services",
+        "employerFounded": 1996,
+        "startYear": 2020,
+        "expYears": 15,
+        "referral": "Director fast-track",
+        "role": "Systems Administrator",
+        "tells": [
+          "identity_clone"
+        ],
+        "distractors": [
+          "surname_change"
+        ],
+        "sprite": "synthetic_cloned_a"
+      },
+      {
+        "id": "d4_aa137a",
+        "name": "Dalisay Kasilag",
+        "age": 27,
+        "idNo": "PH-2617-3683",
+        "university": "De La Salle University",
+        "gradYear": 2021,
+        "employer": "Northwind Logistics",
+        "employerFounded": 1998,
+        "startYear": 2024,
+        "expYears": 2,
+        "referral": "Employee referral",
+        "role": "Systems Administrator",
+        "tells": [],
+        "distractors": [],
+        "sprite": "human_nervous_a"
+      },
+      {
+        "id": "d4_59a4e7",
+        "name": "Liwayway Mendoza",
+        "age": 34,
+        "idNo": "PH-2720-6636",
+        "university": "University of San Carlos",
+        "gradYear": 2014,
+        "employer": "Meridian Bank",
+        "employerFounded": 1974,
+        "startYear": 2022,
+        "expYears": 9,
+        "referral": "Recruiter agency",
+        "role": "Systems Administrator",
+        "tells": [],
+        "distractors": [],
+        "sprite": "human_nervous_a"
+      },
+      {
+        "id": "d4_186c74",
+        "name": "Tomas Delgado",
+        "age": 39,
+        "idNo": "PH-8246-7175",
+        "university": "Silliman University",
+        "gradYear": 2008,
+        "employer": "Northwind Logistics",
+        "employerFounded": 1998,
+        "startYear": 2023,
+        "expYears": 16,
+        "referral": "Public posting",
+        "role": "Systems Administrator",
+        "tells": [],
+        "distractors": [],
+        "sprite": "human_nervous_a"
+      },
+      {
+        "id": "d4_3a7a8f",
+        "name": "Nestor Delgado",
+        "age": 53,
+        "idNo": "PH-5882-9349",
+        "university": "Silliman University",
+        "gradYear": 1995,
+        "employer": "Bisaya Freight",
+        "employerFounded": 2009,
+        "startYear": 2019,
+        "expYears": 28,
+        "referral": "Recruiter agency",
+        "role": "Systems Administrator",
+        "tells": [
+          "ref_unreachable",
+          "portrait_blend_seam"
+        ],
+        "distractors": [],
+        "sprite": "synthetic_collusion_a"
+      }
+    ],
+    "5": [
+      {
+        "id": "d5_5aea01",
+        "name": "Crispin Quiambao",
+        "age": 38,
+        "idNo": "PH-9510-5954",
+        "university": "Mapua University",
+        "gradYear": 2012,
+        "employer": "Kalayaan Telecom",
+        "employerFounded": 1992,
+        "startYear": 2021,
+        "expYears": 12,
+        "referral": "Recruiter agency",
+        "role": "Systems Administrator",
+        "tells": [],
+        "distractors": [
+          "surname_change"
+        ],
+        "sprite": "human_solid_a"
+      },
+      {
+        "id": "d5_3c7402",
+        "name": "Crispin Navarro",
+        "age": 28,
+        "idNo": "PH-1678-7582",
+        "university": "University of the Philippines",
+        "gradYear": 2022,
+        "employer": "Veritas Compliance",
+        "employerFounded": 2011,
+        "startYear": 2024,
+        "expYears": 0,
+        "referral": "Recruiter agency",
+        "role": "Systems Administrator",
+        "tells": [
+          "portrait_asymmetry",
+          "portrait_blend_seam"
+        ],
+        "distractors": [],
+        "sprite": "synthetic_polished_a"
+      },
+      {
+        "id": "d5_4ad684",
+        "name": "Esperanza Lim",
+        "age": 30,
+        "idNo": "PH-8509-4848",
+        "university": "Cebu Institute of Technology",
+        "gradYear": 2017,
+        "employer": "Northwind Logistics",
+        "employerFounded": 1998,
+        "startYear": 2022,
+        "expYears": 7,
+        "referral": "University program",
+        "role": "Systems Administrator",
+        "tells": [
+          "ref_unreachable",
+          "portrait_blend_seam",
+          "voice_flat_metrics"
+        ],
+        "distractors": [],
+        "sprite": "synthetic_collusion_a"
+      },
+      {
+        "id": "d5_af1522",
+        "name": "Ferdinand Ylarde",
+        "age": 41,
+        "idNo": "PH-1574-3213",
+        "university": "Ateneo de Manila",
+        "gradYear": 2007,
+        "employer": "Ayala Systems Group",
+        "employerFounded": 1988,
+        "startYear": 2016,
+        "expYears": 19,
+        "referral": "Employee referral",
+        "role": "Systems Administrator",
+        "tells": [],
+        "distractors": [],
+        "sprite": "human_solid_a"
+      },
+      {
+        "id": "d5_83713f",
+        "name": "Joaquin Ong",
+        "age": 25,
+        "idNo": "PH-9900-8882",
+        "university": "Ateneo de Manila",
+        "gradYear": 2023,
+        "employer": "Bisaya Freight",
+        "employerFounded": 2009,
+        "startYear": 2024,
+        "expYears": 1,
+        "referral": "Employee referral",
+        "role": "Systems Administrator",
+        "tells": [],
+        "distractors": [
+          "surname_change"
+        ],
+        "sprite": "human_solid_a"
+      }
+    ]
+  }
+}
