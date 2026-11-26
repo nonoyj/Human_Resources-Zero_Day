@@ -250,6 +250,18 @@ Identity is more than a colour swap. Each applicant now also varies in:
 fixed block starting below the shoulder leaves only its 1 px edge visible and the arm reads as a wire.
 Finger separations are `skin_mid` on `skin_light`, never `skin_dark`: four dark bars read as a fence.
 
+## 7b. Floors: nothing floats (added 2026-11-26)
+
+**BUG-025.** The monitor hung 12 px above the desk. Cause was not the drawing: `monitor_small.png`
+drew a 4 px "stand" inside its own sprite, but the monitor layer sorts at **−20** and the desk layer
+at **+10**, so a stand baked into the monitor could never be seen below the desk edge.
+
+| Rule | Detail |
+|---|---|
+| Props that stand ON the desk are two layers | body sprite + `*_stand.png` (or shadow sprite) anchored separately, with the base overlapping the desk surface by 3–4 px so the desk layer covers the overhang |
+| Every prop gets a contact shadow | a dark line or 2-step band exactly where it meets the surface. No contact shadow = floating, at any resolution |
+| Check at 4×, not 1× | `twin_desk.py --zoom 4` with the right crop; a 12 px gap is invisible in a 480 px thumbnail |
+
 ## 8. Open decisions (do not build on these yet)
 
 - None carried over. (The applicant backdrop-slab question was closed by removing the slab.)

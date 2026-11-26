@@ -375,3 +375,16 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
 tree is dirty, and ships `history.bundle` + `history.branch` instead of a `.git` folder. That makes
 "the zip" and "the commit it names" the same thing by construction — BUG-019, BUG-021 and every
 variant of "bundle newer than its HEAD" cannot recur.
+
+## BUG-025 -- monitor floated 12 px above the desk (found by the user, 2026-11-26)
+
+- **Symptom:** the monitor read as hanging in mid-air; the desk surface started below it with nothing
+  joining the two.
+- **Cause:** `monitor_small.png` included a 4 px stand *inside the monitor sprite*, but the monitor
+  layer sorts at `−20` and the desk foreground at `+10`. The desk therefore always painted over any
+  part of the stand that reached the desk surface, so only the bezel showed and it looked detached.
+- **Fix:** the stand became its own layer, `desk/monitor_stand.png` (44x26, ragged neck + ellipse base
+  + contact shadow), sorting `−19`, anchored `[69, 60]` so its bottom 4 px hide behind the desk edge.
+  The monitor sprite moved from anchor y `76` to `86` to sit on the neck.
+- **Prevention rule:** a prop that stands on a surface may never rely on pixels inside its own sprite
+  crossing a *higher* sorting layer. Split it, or it silently cannot touch the floor. (Bible §7b.)

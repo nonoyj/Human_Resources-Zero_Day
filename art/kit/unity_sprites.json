@@ -19,7 +19,7 @@
     "ui": 18,
     "icons": 18,
     "stamps": 2,
-    "desk": 7,
+    "desk": 8,
     "backgrounds": 3,
     "fx": 2
   },
@@ -2021,7 +2021,26 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "desk",
-      "sha256_16": "1e805ce4dcb271c7",
+      "sha256_16": "0c90134b185cc0be",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/desk/monitor_stand.png",
+      "assetPath": "Assets/Art/Kit/desk/monitor_stand.png",
+      "width": 44,
+      "height": 26,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "702f7e66e87cbb84",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2154,6 +2173,7 @@
     "art/kit/reference/composition_preview.png",
     "art/kit/reference/contact_sheet.png",
     "art/kit/reference/palette_swatch.png",
-    "art/kit/reference/twin_desk_human_solid_a_f0_L0.png"
+    "art/kit/reference/twin_desk_human_solid_a_f0_L0.png",
+    "art/kit/reference/twin_monitor_float_check.png"
   ]
 }

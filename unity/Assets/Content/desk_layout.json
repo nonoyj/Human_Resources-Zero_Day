@@ -12,7 +12,7 @@
     "rects": "x, y, w, h measured from the anchor: x grows right, y grows UP, so y is the BOTTOM edge",
     "sortingOrder": "lower draws first (behind)"
   },
-  "notes": "composition L (approved 2026-11-26): window behind the applicant's shoulders, monitor 0.58x as a 1-px redraw, desk_foreground sorts ABOVE the applicant so keyboard/mug sit in front of him. applicant scaleFactor 0.96 is applied by DeskSceneBuilder. Anchors converted from the study's top-down rows: monitor (14,76), document (34,93), applicant (288,29); FLOOR_ROW 198, DESK_ROW 206.",
+  "notes": "composition L (approved 2026-11-26): window behind the applicant's shoulders, monitor 0.58x as a 1-px redraw, desk_foreground sorts ABOVE the applicant so keyboard/mug sit in front of him. applicant scaleFactor 0.96 is applied by DeskSceneBuilder. Anchors converted from the study's top-down rows: monitor (14,76), document (34,93), applicant (288,29); FLOOR_ROW 198, DESK_ROW 206. MONITOR FLOAT FIX (2026-11-26): the monitor sprite carried a 4 px stand stub that could never reach the desk (monitor sorts -20, desk sorts +10), so it hung 12 px in air. The stand is now its own layer, monitor_stand, anchored so its base overlaps the desk surface by 3 px; monitor moved to anchor y 86 (bottom row 184) to sit on it.",
   "layers": [
     {
       "id": "background",
@@ -28,9 +28,18 @@
       "sprite": "art/kit/desk/monitor_small.png",
       "anchor": [
         14,
-        76
+        86
       ],
       "sortingOrder": -20
+    },
+    {
+      "id": "monitor_stand",
+      "sprite": "art/kit/desk/monitor_stand.png",
+      "anchor": [
+        69,
+        60
+      ],
+      "sortingOrder": -19
     },
     {
       "id": "document",

@@ -402,8 +402,33 @@ def monitor_small():
     # camera dot + power LED, same as the full-size bezel
     d.rectangle([w // 2 - 1, 2, w // 2 + 1, 3], fill=rgba('linehi'))
     d.point((w - 6, 2), fill=rgba('signal'))
-    # stand
-    d.rectangle([w // 2 - 12, h - 4, w // 2 + 12, h - 1], fill=rgba('panel2'), outline=rgba('line'))
+    # NOTE (2026-11-26): no stand drawn here. The monitor is its own sprite at sorting -20 and the
+    # desk sits at +10, so a stand baked into this box could never reach the desk surface -- the
+    # monitor read as floating 12 px above the desk. The stand is desk/monitor_stand.png instead.
+    return img
+
+
+def monitor_stand(w=44, h=26):
+    """Neck + base + contact shadow for desk/monitor_small.png.
+
+    Anchored in desk_layout.json so its base overlaps the desk surface by ~4 px; the desk layer
+    (+10) covers the overhang, which is what makes it read as *sitting on* the desk.
+    """
+    img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    cx = w // 2
+    # contact shadow on the desk: widens and fades toward the viewer (no alpha -- 2 flat steps)
+    for i in range(3):
+        d.line([cx - 20 - i * 2, h - 2 - i, cx + 20 + i * 2, h - 2 - i], fill=rgba('void'))
+    d.line([cx - 16, h - 5, cx + 16, h - 5], fill=rgba('panel'))
+    # neck: a tapered column, hand-drawn
+    ragged_rect(img, cx - 7, 0, cx + 7, h - 6, 'panel2', 'line', seed=131, amp=1)
+    d.line([cx - 5, 1, cx - 5, h - 8], fill=rgba('linehi'))
+    # base: a flattened ellipse band, straight lit top edge
+    d.ellipse([cx - 20, h - 11, cx + 20, h - 1], fill=rgba('panel2'))
+    d.line([cx - 16, h - 7, cx + 16, h - 7], fill=rgba('linehi'))
+    d.ellipse([cx - 20, h - 11, cx + 20, h - 1], outline=rgba('line'))
+    scuff(img, 132, n=5, tones=('panel', 'void'))
     return img
 
 
@@ -450,6 +475,8 @@ def main():
     desk_work().save(p); made.append(p)
     p = out('desk/monitor_small.png')
     monitor_small().save(p); made.append(p)
+    p = out('desk/monitor_stand.png')
+    monitor_stand().save(p); made.append(p)
     p = out('desk/document_small.png')
     document_small().save(p); made.append(p)
 
