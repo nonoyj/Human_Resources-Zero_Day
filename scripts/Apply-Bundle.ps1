@@ -103,19 +103,26 @@ try {
     # folder recursively is what silently broke on Windows (BUG-021).
     if (-not $NoGit) {
         S "adopting the bundle's git history"
-        $srcBundle = Join-Path $root.FullName 'history.bundle'
-        if (-not (Test-Path -LiteralPath $srcBundle)) {
-            $nested = Join-Path (Join-Path $root.FullName $root.Name) 'history.bundle'
-            if (Test-Path -LiteralPath $nested) { $srcBundle = $nested }
+        # BUG-032: the transport files sit at the ZIP ROOT (or inside the project for v45+).
+        # Testing $root only meant this branch never matched a real bundle.
+        $srcBundle = $null
+        foreach ($cand in @(
+            (Join-Path $temp 'history.bundle'),
+            (Join-Path $root.FullName 'history.bundle'),
+            (Join-Path (Join-Path $root.FullName $root.Name) 'history.bundle'))) {
+            if (Test-Path -LiteralPath $cand) { $srcBundle = $cand; break }
         }
-        if (Test-Path -LiteralPath $srcBundle) {
+        if ($srcBundle) {
             $dstGit = Join-Path $WorkingCopy '.git'
             # NB: do NOT run git inside the extracted folder to discover the branch -- the extracted
             # project has no .git, so git walks up to an unrelated parent repository (this bit us in
             # testing: it reported the outer repo's branch). Build-Bundle.ps1 records the branch in
             # history.branch instead.
-            $branchFile = Join-Path $root.FullName 'history.branch'
-            $bBranch = if (Test-Path -LiteralPath $branchFile) { (Get-Content -LiteralPath $branchFile -Raw).Trim() } else { $Branch }
+            $bBranch = $null
+            foreach ($bf in @((Join-Path $temp 'history.branch'), (Join-Path $root.FullName 'history.branch'))) {
+                if (Test-Path -LiteralPath $bf) { $bBranch = (Get-Content -LiteralPath $bf -Raw).Trim(); break }
+            }
+            if (-not $bBranch) { $bBranch = $Branch }
             if (-not $bBranch) { $bBranch = 'main' }
 
             # remember origin before anything is replaced
@@ -170,6 +177,18 @@ try {
         $copied++
     }
     OK "$copied top-level items"
+    # Keep the copy of THIS script beside the bundle current. The operator runs .\Apply-Bundle.ps1
+    # from Downloads, which no bundle ever overwrites -- so a bug fixed in the script would never
+    # reach them (that is exactly how BUG-032 survived a release). Self-heal on every apply.
+    $selfSrc = Join-Path $temp 'Apply-Bundle.ps1'
+    if ((Test-Path -LiteralPath $selfSrc) -and $PSScriptRoot) {
+        $selfDst = Join-Path $PSScriptRoot 'Apply-Bundle.ps1'
+        if ((Test-Path -LiteralPath $selfDst) -and
+            ((Get-FileHash -LiteralPath $selfSrc).Hash -ne (Get-FileHash -LiteralPath $selfDst).Hash)) {
+            Copy-Item -LiteralPath $selfSrc -Destination $selfDst -Force
+            OK 'bootstrap refreshed (the next apply uses this version)'
+        }
+    }
 
     S "result"
     Push-Location $WorkingCopy

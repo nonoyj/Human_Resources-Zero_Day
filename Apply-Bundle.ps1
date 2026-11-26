@@ -171,6 +171,18 @@ try {
         $copied++
     }
     OK "$copied top-level items"
+    # Keep the copy of THIS script beside the bundle current. The operator runs .\Apply-Bundle.ps1
+    # from Downloads, which no bundle ever overwrites -- so a bug fixed in the script would never
+    # reach them (that is exactly how BUG-032 survived a release). Self-heal on every apply.
+    $selfSrc = Join-Path $temp 'Apply-Bundle.ps1'
+    if ((Test-Path -LiteralPath $selfSrc) -and $PSScriptRoot) {
+        $selfDst = Join-Path $PSScriptRoot 'Apply-Bundle.ps1'
+        if ((Test-Path -LiteralPath $selfDst) -and
+            ((Get-FileHash -LiteralPath $selfSrc).Hash -ne (Get-FileHash -LiteralPath $selfDst).Hash)) {
+            Copy-Item -LiteralPath $selfSrc -Destination $selfDst -Force
+            OK 'bootstrap refreshed (the next apply uses this version)'
+        }
+    }
 
     S "result"
     Push-Location $WorkingCopy
