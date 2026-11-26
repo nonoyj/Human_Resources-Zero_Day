@@ -10,11 +10,22 @@ using UnityEngine;
 namespace HRZeroDay.Game
 {
     [Serializable]
-    /// <summary>One named frame inside a Multiple-mode strip (from unity_sprites.json).</summary>
+    /// <summary>
+    /// One named frame inside a Multiple-mode strip. The JSON shape is {"name": ..., "rect": [x,y,w,h]}
+    /// -- the field MUST be an int[] called `rect`. Declaring x/y/width/height here instead deserializes
+    /// to zeros (JsonUtility ignores names that are not in the json) and the importer then throws
+    /// "Texture must have width greater than 0".
+    /// </summary>
     public class SpriteFrameRect
     {
         public string name;
-        public int x, y, width, height;
+        public int[] rect;          // [x, y, width, height], top-left origin
+
+        public int X      { get { return rect != null && rect.Length > 0 ? rect[0] : 0; } }
+        public int Y      { get { return rect != null && rect.Length > 1 ? rect[1] : 0; } }
+        public int Width  { get { return rect != null && rect.Length > 2 ? rect[2] : 0; } }
+        public int Height { get { return rect != null && rect.Length > 3 ? rect[3] : 0; } }
+        public bool IsValid { get { return Width > 0 && Height > 0; } }
     }
 
     [Serializable]

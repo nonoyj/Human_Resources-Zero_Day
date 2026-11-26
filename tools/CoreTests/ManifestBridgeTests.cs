@@ -24,6 +24,7 @@ namespace HRZeroDay.Tests
             yield return CheckFrameNamesMatchThePathBuiltByTheImporter();
             yield return CheckFrameRectsStayInsideTheStrip();
             yield return CheckEveryFrameNameIsUnique();
+            yield return CheckEveryJsonKeyHasAField();
         }
 
         /// <summary>
@@ -38,11 +39,10 @@ namespace HRZeroDay.Tests
                 // the attribute must be the line (possibly with comment between) directly before the class
                 var idx = src.IndexOf("class " + cls, StringComparison.Ordinal);
                 if (idx < 0) return "FAIL  " + cls + " is missing from SpriteManifest.cs";
+                // the attribute is the nearest [Serializable] above the class, with nothing else between
                 var before = src.Substring(0, idx);
-                var tail = before.Length > 400 ? before.Substring(before.Length - 400) : before;
-                if (!Regex.IsMatch(tail, @"\[Serializable\][\s\S]*$") ||
-                    Regex.IsMatch(tail.Substring(tail.LastIndexOf("[Serializable]", StringComparison.Ordinal) + 14),
-                                  @"\bclass\b"))
+                var attr = before.LastIndexOf("[Serializable]", StringComparison.Ordinal);
+                if (attr < 0 || before.Substring(attr).Contains("class "))
                     return "FAIL  " + cls + " is not [Serializable] -- JsonUtility will silently empty it";
             }
             return "PASS  SpriteEntry, SpriteFrameRect and SpriteManifest are all [Serializable]";
@@ -110,6 +110,66 @@ namespace HRZeroDay.Tests
                 foreach (var f in frames)
                     if (!seen.Add(f)) return "FAIL  duplicate frame name: " + f;
             return "PASS  " + seen.Count + " frame names are unique";
+        }
+
+        /// <summary>
+        /// THE bug this whole file exists for. JsonUtility is name-based and completely silent: a json key
+        /// with no matching C# field is dropped, and a C# field with no json key stays at its default.
+        /// That is how the frame rects became 0x0 and Texture2D threw. So: every key in unity_sprites.json
+        /// must exist as a field on SpriteManifest/SpriteEntry/SpriteFrameRect, and vice versa.
+        /// </summary>
+        private static string CheckEveryJsonKeyHasAField()
+        {
+            var models = new[]
+            {
+                ("SpriteManifest",   "unity/Assets/Scripts/Game/Layout/SpriteManifest.cs"),
+                ("SpriteEntry",      "unity/Assets/Scripts/Game/Layout/SpriteManifest.cs"),
+                ("SpriteFrameRect",  "unity/Assets/Scripts/Game/Layout/SpriteManifest.cs"),
+            };
+            var missing = new List<string>();
+
+            // Deliberately not modelled in C#: the importer applies Point/PPU/compression from its own
+            // code, so this block is documentation for humans and tooling, not input to the game.
+            var intentionallyIgnored = new HashSet<string>(StringComparer.Ordinal) { "import" };
+
+            var jsonKeys = new HashSet<string>(StringComparer.Ordinal) { "sprites" };
+            var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(ManifestPath));
+            foreach (var e in doc.RootElement.GetProperty("sprites").EnumerateArray())
+                foreach (var p in e.EnumerateObject())
+                {
+                    jsonKeys.Add(p.Name);
+                    if (p.Name == "sprites")
+                        foreach (var f in p.Value.EnumerateArray())
+                            foreach (var fp in f.EnumerateObject()) jsonKeys.Add("frame:" + fp.Name);
+                }
+
+            var src = File.ReadAllText("unity/Assets/Scripts/Game/Layout/SpriteManifest.cs");
+            foreach (var key in jsonKeys)
+            {
+                if (key.StartsWith("frame:", StringComparison.Ordinal))
+                {
+                    var field = key.Substring("frame:".Length);
+                    var cls = src.Substring(src.IndexOf("class SpriteFrameRect", StringComparison.Ordinal));
+                    cls = cls.Substring(0, cls.IndexOf('}'));
+                    if (!Regex.IsMatch(cls, @"public\s+[\w\[\]<>]+\s+" + field + @"\s*[;{]"))
+                        missing.Add("SpriteFrameRect." + field);
+                }
+            }
+            // the entry-level keys (source, assetPath, width, height, ppu, spriteMode, kind, ...)
+            var entry = src.Substring(src.IndexOf("class SpriteEntry", StringComparison.Ordinal));
+            entry = entry.Substring(0, entry.IndexOf("public string FileName"));
+            foreach (var key in jsonKeys.Where(k => !k.StartsWith("frame:", StringComparison.Ordinal)))
+            {
+                if (key == "sprites") continue;              // covered by the frame check
+                if (intentionallyIgnored.Contains(key)) continue;
+                if (!Regex.IsMatch(entry, @"public\s+[\w\[\]<>]+\s+" + key + @"\s*[;{]"))
+                    missing.Add("SpriteEntry." + key);
+            }
+
+            if (missing.Count > 0)
+                return "FAIL  json keys with no C# field (JsonUtility drops them silently): " +
+                       string.Join(", ", missing);
+            return "PASS  every json key (incl. frame.rect) has a matching C# field";
         }
 
         private static List<(string stem, List<string> frames)> ParseManifest()

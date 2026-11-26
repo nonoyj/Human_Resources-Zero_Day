@@ -152,11 +152,17 @@ namespace HRZeroDay.EditorTools
                 for (int i = 0; i < s.sprites.Count; i++)
                 {
                     var f = s.sprites[i];
+                    if (!f.IsValid)
+                    {
+                        Debug.LogError("[HR//0D] frame '" + f.name + "' of " + s.assetPath +
+                                       " has no usable rect -- the json and SpriteFrameRect disagree.");
+                        continue;
+                    }
                     // the json rects are top-left based; Unity texture rects are bottom-left based
-                    var y = tex.height - f.y - f.height;
-                    var px = tex.GetPixels(f.x, y, f.width, f.height);
+                    var y = tex.height - f.Y - f.Height;
+                    var px = tex.GetPixels(f.X, y, f.Width, f.Height);
 
-                    var sub = new Texture2D(f.width, f.height, TextureFormat.RGBA32, false);
+                    var sub = new Texture2D(f.Width, f.Height, TextureFormat.RGBA32, false);
                     sub.SetPixels(px);
                     sub.Apply(false, false);
 
