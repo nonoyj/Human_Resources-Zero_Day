@@ -144,6 +144,21 @@ try {
     # derived from art/kit. That is what shipped a bundle with no runtime art: Resources.Load cannot read
     # outside a Resources folder, Unity never runs python, so the folder MUST be committed. What matters is
     # not that it is uncommitted -- it is that it MATCHES art/kit, which is the check below.
+
+    S 'font atlas is imported readable (no menu needed on a fresh clone)'
+        $metas = @('unity\Assets\Resources\fonts\monitor_font_5x7.png.meta',
+                   'unity\Assets\Resources\Art\Kit\fonts\monitor_font_5x7.png.meta')
+        $badMeta = @()
+        foreach ($m in $metas) {
+            $full = Join-Path $repo $m
+            if (-not (Test-Path $full)) { $badMeta += "$m (missing)"; continue }
+            if (-not (Select-String -Path $full -Pattern 'isReadable:\s*1' -Quiet)) { $badMeta += "$m (isReadable not 1)" }
+        }
+        if ($badMeta.Count -gt 0) {
+            $failed++
+            Write-Host ("  [FAIL] " + ($badMeta -join '; ') + " -- the runtime reads this texture pixel by pixel, so it MUST be imported readable") -ForegroundColor Red
+        } else { OK 'atlas import settings committed (isReadable: 1)' }
+
     S 'runtime art mirror is committed and matches art/kit'
         $trackedCount = (& git ls-files "unity/Assets/Resources/Art" 2>$null | Measure-Object).Count
         $needed = & python -c "import json;print(len(json.load(open('art/kit/unity_sprites.json'))['sprites']))" 2>$null

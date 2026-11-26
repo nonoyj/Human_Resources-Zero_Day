@@ -25,17 +25,37 @@ namespace HRZeroDay.Game
         private readonly Color32[] _atlas;
         private readonly int _atlasW;
         private readonly Dictionary<string, Color32> _palette;
+        private readonly Dictionary<char, byte[,]> _rows = new Dictionary<char, byte[,]>();
+        private readonly int _cellW, _cellH;
 
         public int CellW { get; private set; }
         public int CellH { get; private set; }
 
         public FontAtlasGlyphSource(FontMetrics metrics, Color32[] atlasPixels, int atlasW,
                                     Dictionary<string, Color32> palette)
+            : this(metrics, atlasPixels, atlasW, palette, RowsFromMetrics(metrics))
+        {
+        }
+
+        public FontAtlasGlyphSource(FontMetrics metrics, Color32[] atlasPixels, int atlasW,
+                                    Dictionary<string, Color32> palette, byte[][,] rows)
         {
             CellW = metrics.cellW;
             CellH = metrics.cellH;
+            _cellW = metrics.cellW;
+            _cellH = metrics.cellH;
             _atlas = atlasPixels;
             _atlasW = atlasW;
+            if (rows != null)
+            {
+                for (int i = 0; i < metrics.glyphs.Count && i < rows.Length; i++)
+                {
+                    var g = metrics.glyphs[i];
+                    if (string.IsNullOrEmpty(g.ch) || rows[i] == null) continue;
+                    // FIRST glyph wins, same rule as _rects: the text metrics and the art must not disagree.
+                    if (!_rows.ContainsKey(g.ch[0])) _rows[g.ch[0]] = rows[i];
+                }
+            }
             _palette = palette ?? new Dictionary<string, Color32>();
             for (int i = 0; i < metrics.glyphs.Count; i++)
             {
@@ -47,9 +67,45 @@ namespace HRZeroDay.Game
             }
         }
 
+        /// <summary>Builds the ink table from the json's `rows` -- no texture required.</summary>
+        public static byte[][,] RowsFromMetrics(FontMetrics metrics)
+        {
+            if (metrics == null || metrics.glyphs == null) return new byte[0][,];
+            var all = new byte[metrics.glyphs.Count][,];
+            for (int i = 0; i < metrics.glyphs.Count; i++)
+            {
+                var g = metrics.glyphs[i];
+                if (g.rows == null || g.rows.Count == 0) continue;
+                int h = g.rows.Count;
+                int w = 0;
+                for (int r = 0; r < h; r++) if (g.rows[r] != null && g.rows[r].Length > w) w = g.rows[r].Length;
+                if (w == 0) continue;
+                var cell = new byte[w, h];
+                for (int r = 0; r < h; r++)
+                {
+                    var line = g.rows[r];
+                    if (line == null) continue;
+                    for (int c = 0; c < line.Length && c < w; c++)
+                        cell[c, r] = (byte)(line[c] == '#' || line[c] == 'X' || line[c] == '1' ? 1 : 0);
+                }
+                all[i] = cell;
+            }
+            return all;
+        }
+
         public bool InkAt(char ch, int gx, int gy)
         {
+            // data path first: it always exists, and it cannot be unreadable
+            byte[,] cell;
+            if (Lookup(_rows, ch, out cell))
+            {
+                if (gx < 0 || gy < 0) return false;
+                if (gx >= cell.GetLength(0) || gy >= cell.GetLength(1)) return false;
+                return cell[gx, gy] != 0;
+            }
+
             Vector2 origin;
+            if (_atlas == null) return false;
             if (!_rects.TryGetValue(ch, out origin))
             {
                 if (!_rects.TryGetValue(char.ToUpperInvariant(ch), out origin)) return false;
@@ -58,6 +114,12 @@ namespace HRZeroDay.Game
             int ay = (int)origin.y + gy;
             if (ax < 0 || ay < 0 || ax >= _atlasW || ay * _atlasW + ax >= _atlas.Length) return false;
             return _atlas[ay * _atlasW + ax].a != 0;
+        }
+
+        private static bool Lookup<T>(Dictionary<char, T> table, char ch, out T value)
+        {
+            if (table.TryGetValue(ch, out value)) return true;
+            return table.TryGetValue(char.ToUpperInvariant(ch), out value);
         }
 
         public Color32 Colour(string key)
@@ -75,7 +137,16 @@ namespace HRZeroDay.Game
     public class FontMetrics
     {
         [Serializable]
-        public class Glyph { public string ch; public int x; public int y; }
+        public class Glyph
+        {
+            public string ch;
+            public int x;
+            public int y;
+            // The glyph's ink, one string per pixel row ('#' or '.'). This is the SAME ink the atlas PNG
+            // holds -- the json is not a substitute for the art, it is a second copy of it, which is why
+            // the CRT can draw with no readable texture at all.
+            public List<string> rows = new List<string>();
+        }
 
         public int cellW = 5, cellH = 7, pad = 2, cols = 16;
         public int atlasW, atlasH;
@@ -130,7 +201,26 @@ namespace HRZeroDay.Game
 
             var metrics = JsonUtility.FromJson<FontMetrics>(metricsAsset.text);
             var palette = Palette.FromResources();
-            _glyphs = new FontAtlasGlyphSource(metrics, tex.GetPixels32(), tex.width, palette);
+            // READ/COPY PROBLEM (2026-11-25): tex.GetPixels32() throws "texture data is either not
+            // readable, corrupted or does not exist" unless the texture is imported with Read/Write
+            // Enabled, and that flag lives ONLY in a .meta file. A fresh clone has no .meta (Unity
+            // generates them on import), so the import default applies and the game died on the first
+            // Play. Two fixes, both kept:
+            //   1. the glyph metrics in the json carry the same ink, so the atlas PNG is optional;
+            //   2. if the texture IS readable, it is used and wins, so art and data cannot disagree.
+            byte[][,] rows = FontAtlasGlyphSource.RowsFromMetrics(metrics);
+            Color32[] atlasPixels = null;
+            if (tex.isReadable)
+            {
+                try { atlasPixels = tex.GetPixels32(); }
+                catch (Exception) { atlasPixels = null; }
+            }
+            if (atlasPixels == null)
+            {
+                Debug.Log("[HR//0D] font atlas is not readable (no .meta); drawing glyphs from the json " +
+                          "rows instead. Visual result is identical.");
+            }
+            _glyphs = new FontAtlasGlyphSource(metrics, atlasPixels, tex.width, palette, rows);
 
             // the glass is derived from the sprite the desk actually placed, never hard-coded
             var layout = DeskLayout.Load();

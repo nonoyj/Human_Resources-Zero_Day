@@ -146,6 +146,9 @@ namespace UnityEngine
         public Texture2D() { }
         public Texture2D(int w, int h, TextureFormat f, bool mips) { width = w; height = h; }
         public Color32[] GetPixels32() { return new Color32[width * height]; }
+        // Real Unity 6 API. Without Read/Write Enabled the getter is FALSE and GetPixels32 throws, which
+        // is exactly the failure the player hit -- so the stub has to expose the flag.
+        public bool isReadable;
         public void SetPixels32(Color32[] px) { }
         public void Apply(bool mips) { }
         public void Apply(bool updateMipmaps, bool makeNoLongerReadable) { }

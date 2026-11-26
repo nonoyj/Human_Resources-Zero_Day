@@ -206,7 +206,45 @@ def main() -> int:
         json.dump(meta, fh, indent=1, sort_keys=False)
         fh.write('\n')
     print(f'wrote {ATLAS} and {METRICS} ({len(GLYPHS)} glyphs, {meta["atlasW"]}x{meta["atlasH"]})')
+    write_import_settings(os.path.join(os.path.normpath(OUT), ATLAS))
     return 0
+
+
+# ------------------------------------------------------------------ Unity import settings
+# A texture's import flags live ONLY in its .meta file, and Unity generates that file with its defaults the
+# first time it sees the asset -- Read/Write DISABLED. The runtime reads this atlas pixel by pixel
+# (Texture2D.GetPixels32), so on a fresh clone the CRT threw "texture data is either not readable" on the
+# first Play. Committing a .meta with isReadable: 1 makes the import correct before anyone presses Play.
+# The guid is derived from the path so re-running this never churns the repository.
+def write_import_settings(atlas_path):
+    import uuid
+    meta_path = atlas_path + '.meta'
+    guid = uuid.uuid5(uuid.NAMESPACE_URL, 'hr0d/' + atlas_path.replace(os.sep, '/')).hex
+    with open(meta_path, 'w', encoding='utf-8') as fh:
+        fh.write(
+            'fileFormatVersion: 2\n'
+            'guid: %s\n'
+            'TextureImporter:\n'
+            '  internalIDToNameTable: []\n'
+            '  externalObjects: {}\n'
+            '  serializedVersion: 12\n'
+            '  mipmaps:\n'
+            '    mipMapMode: 0\n'
+            '    enableMipMap: 0\n'
+            '    sRGBTexture: 1\n'
+            '  isReadable: 1\n'          # <- the whole point
+            '  streamingMipmaps: 0\n'
+            '  wrapMode: 1\n'
+            '  filterMode: 0\n'          # point, never bilinear: a 5x7 glyph must stay crisp
+            '  aniso: 1\n'
+            '  maxTextureSize: 2048\n'
+            '  textureFormat: 1\n'
+            '  spriteMode: 0\n'
+            '  spritePixelsPerUnit: 16\n'
+            '  alphaIsTransparency: 1\n'
+            '  textureType: 0\n'
+            '  textureShape: 1\n' % guid)
+    print('wrote %s (isReadable: 1)' % os.path.basename(meta_path))
 
 
 if __name__ == '__main__':

@@ -62,6 +62,8 @@ namespace HRZeroDay.EditorTools
             // (Texture2D.GetPixels32). Unity imports textures with Read/Write DISABLED by default, which
             // throws "texture data is either not readable" the moment the CRT initialises. It is also not
             // a sprite in the manifest, so nothing else in the pipeline was configuring it.
+            // Order matters: the Resources copy is the one the game loads at runtime.
+            ConfigureFontAtlas("Assets/Resources/Art/Kit/fonts/monitor_font_5x7.png");
             ConfigureFontAtlas("Assets/Resources/fonts/monitor_font_5x7.png");
             ConfigureFontAtlas("Assets/Art/Kit/fonts/monitor_font_5x7.png");
 

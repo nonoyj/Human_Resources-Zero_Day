@@ -729,3 +729,38 @@ green while every bundle was missing 85 files the game needs.
 
 **Lesson to keep:** before any instruction of the form "just press Play", ask *what does the runtime
 actually read, and is that file in the thing I am shipping?*
+
+## BUG-045 -- the CRT crashed because a texture import flag lived in a file that was not in the repo (player report, 2026-11-25)
+
+**Symptom.** After BUG-044 was fixed the room loaded, then:
+
+```
+[HR//0D] could not start the game: Texture2D.GetPixels32: texture data is either not readable,
+corrupted or does not exist. (Texture 'monitor_font_5x7')
+```
+
+**Root cause.** `MonitorScreenView` and `LetterView` read the font atlas pixel by pixel with
+`GetPixels32()`. That requires the texture to be imported with **Read/Write Enabled**, which is a flag
+that exists **only in the texture's `.meta` file**. No `.meta` file was committed, so Unity generated one
+on import with its default — Read/Write **disabled** — and the first `GetPixels32()` threw.
+
+`ArtKitImporter.ConfigureFontAtlas()` had known about this for a while, but it is an editor menu step, and
+it configured `Assets/Resources/fonts/...` and `Assets/Art/Kit/fonts/...` — not the new runtime mirror at
+`Assets/Resources/Art/Kit/fonts/...`. So even running the menu was not guaranteed to fix it.
+
+**Fix, in depth order.**
+1. **The atlas `.meta` files are committed** with `isReadable: 1` and `filterMode: 0` (point). A fresh
+   clone now imports correctly before anyone presses Play. `make_font.py` regenerates them, so they cannot
+   drift from the atlas; the guid is derived from the path, so re-running never churns the repo.
+2. **The atlas PNG is no longer required at all.** The font json already carried `rows` per glyph — the
+   same ink as the PNG — and had done since the monitor screen was built, purely because the raster tests
+   could not decode a PNG in C#. `FontAtlasGlyphSource` now reads those rows first and only falls back to
+   the texture. `RowsFromMetrics()` is the bridge. If the atlas is readable it is used and wins, so art and
+   data still cannot disagree.
+3. `LetterView` had the identical bug and would have been the next crash — same fallback applied.
+4. **Gate:** `Test-ArtPipeline` now fails if either atlas `.meta` is missing or does not say
+   `isReadable: 1`. Verified by flipping the flag to 0 — it fails by file name.
+
+**Lesson.** A build input that lives in an uncommitted file is not a build input. Unity is especially good
+at hiding these: import settings, scene files and `.meta` guids all live in files that are easy to ignore
+"because Unity makes them".

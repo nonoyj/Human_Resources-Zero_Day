@@ -273,8 +273,18 @@ namespace HRZeroDay.Game
                 return false;
             }
             var fm = JsonUtility.FromJson<FontMetrics>(metrics.text);
-            _glyphs = new FontAtlasGlyphSource(fm, tex.GetPixels32(), tex.width,
-                                               MonitorScreenView.Palette.FromResources());
+            // Same read/copy trap as MonitorScreenView: GetPixels32 throws unless the texture was imported
+            // with Read/Write Enabled, and that flag lives only in a .meta file that a fresh clone does not
+            // have. The json carries the same ink per glyph, so the page draws either way.
+            Color32[] atlasPixels = null;
+            if (tex.isReadable)
+            {
+                try { atlasPixels = tex.GetPixels32(); }
+                catch (System.Exception) { atlasPixels = null; }
+            }
+            _glyphs = new FontAtlasGlyphSource(fm, atlasPixels, tex.width,
+                                               MonitorScreenView.Palette.FromResources(),
+                                               FontAtlasGlyphSource.RowsFromMetrics(fm));
 
             // the TEXT area inside the paper: the paper sprite itself is placed by the editor
             _page = LetterLayout.TextRect();
