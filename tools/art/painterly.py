@@ -23,23 +23,31 @@ from __future__ import annotations
 # --------------------------------------------------------------------------- ramps
 # Ordered dark -> light. Each is 3-4 existing palette entries of one hue family.
 RAMPS = {
-    # NOTE ON SKIN: 'warn' is a UI accent (255,209,102) and at full area it reads as sunburn, not skin.
-    # Every skin ramp stops at 'orange' and most of the mass sits in paperdim/panel2, which is what makes
-    # a face read as lit rather than glowing.
-    'skin_shadow':  ('void', 'panel', 'panel2', 'line'),
-    # light skin
-    'skin_light':   ('panel2', 'paperdim', 'orange', 'warn'),
-    # warm mid skin
-    'skin_mid':     ('void', 'panel2', 'paperdim', 'orange'),
-    # deep skin
-    'skin_deep':    ('void', 'panel', 'panel2', 'paperdim'),
-    # keep in step with make_applicants.SKIN ordering
-    'skin_shadowed': ('void', 'panel', 'panel2', 'paperdim'),
+    # ------------------------------------------------------------------ SKIN (v9, rewritten)
+    # THE BUG THIS FIXES: the old ramps mixed a warm tone with 'panel2'/'line' (navy UI colours) as their
+    # shadow steps, so every face was lit on one side and NAVY on the other -- at 5x it reads as a mask,
+    # and in the game it read as "robotic", which is what the player kept telling us.
+    #
+    # Skin is one four-step warm ramp -- ink (a brown-black, not a neutral black) -> paperdim -> orange ->
+    # warn -- and the three "families" are just where a face sits on it. Nothing cool is ever written into
+    # a face, so the shadow side of a head is brown, as it is in life.
+    'skin_light':   ('ink', 'paperdim', 'paperdim', 'orange'),
+    'skin_mid':     ('ink', 'paperdim', 'paperdim', 'orange'),
+    'skin_deep':    ('void', 'ink', 'ink', 'paperdim'),
+    'skin_shadow':  ('void', 'ink', 'ink', 'paperdim'),
+    # ------------------------------------------------------------------ HAIR (v9, natural only)
+    # 'warn' as a hair colour is a UI accent (255,209,102): at hair-area size it read as bleached plastic,
+    # which is the "hair too bright" note. Natural hair is a dark warm ramp, with one grey family for older
+    # applicants -- greys use the cool ramp, because grey hair really is cool.
+    'hair_black':   ('void', 'void', 'ink', 'paperdim'),
+    'hair_brown':   ('void', 'ink', 'ink', 'paperdim'),
+    'hair_grey':    ('void', 'panel2', 'line', 'muted'),   # grey hair is not white hair
+    # ------------------------------------------------------------------ cloth + light
     'cloth_shadow': ('void', 'panel', 'panel2', 'line'),
     'cloth_mid':    ('panel', 'panel2', 'line', 'linehi'),
     'cloth_light':  ('panel2', 'line', 'linehi', 'muted'),
-    'hair_shadow':  ('void', 'panel', 'panel2', 'line'),
-    'hair_mid':     ('panel2', 'line', 'linehi', 'textdim'),
+    'hair_shadow':  ('void', 'ink', 'paperdim', 'paperdim'),   # kept for the old call sites
+    'hair_mid':     ('void', 'void', 'ink', 'paperdim'),
     'metal':        ('line', 'linehi', 'muted', 'textdim'),
     'rim_cool':     ('muted', 'textdim', 'text', 'white'),
     'rim_warm':     ('orange', 'warn', 'text', 'white'),

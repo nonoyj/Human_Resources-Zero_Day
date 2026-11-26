@@ -140,7 +140,7 @@ def main() -> int:
     if args.prune:
         keep = {os.path.normpath(os.path.join(DEST_ROOT, a[len('Assets/'):]))
                 for a in full}
-        for folder in ('applicants', 'portraits', 'ui', 'icons', 'stamps', 'desk', 'backgrounds'):
+        for folder in ('applicants', 'portraits', 'ui', 'icons', 'stamps', 'desk', 'backgrounds', 'sweep'):
             d = os.path.join(DEST_ROOT, 'Art', 'Kit', folder)
             if not os.path.isdir(d):
                 continue
