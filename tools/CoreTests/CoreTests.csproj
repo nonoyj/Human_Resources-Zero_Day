@@ -17,6 +17,7 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="ManifestBridgeTests.cs" />
+    <Compile Include="DaylightTests.cs" />
     <Compile Include="../../unity/Assets/Scripts/Core/**/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Tests/GeneratorInvariantTests.cs" />
     <!-- MonitorScreen lives in the Game assembly (it needs Color32 + the json layout), so the test

@@ -30,6 +30,7 @@ internal static class Program
         lines.AddRange(ScreenMetricsTests.RunAll());   // one source of truth for the glass grid
         lines.AddRange(PaperworkTests.RunAll());       // slow-clock ruling, one-read ruling, letter generation
         lines.AddRange(ManifestBridgeTests.RunAll());  // json -> Unity: serializable, frame names, rects
+        lines.AddRange(DaylightTests.RunAll());        // day -> dusk -> night, from the shift clock
         foreach (var line in lines)
         {
             Console.WriteLine(line);

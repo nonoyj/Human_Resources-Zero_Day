@@ -9,6 +9,9 @@ namespace UnityEngine
     {
         public static int RoundToInt(float v) => (int)System.Math.Round(v);
         public static float Clamp01(float v) => v < 0f ? 0f : (v > 1f ? 1f : v);
+        public static float Clamp(float v, float lo, float hi) => v < lo ? lo : (v > hi ? hi : v);
+        public static float Lerp(float a, float b, float t) => a + (b - a) * Clamp01(t);
+        public static int Max(int a, int b) => a > b ? a : b;
     }
 
     public class Object { public string name; public static void DestroyImmediate(Object o) { } public static void Destroy(Object o) { } }
@@ -18,7 +21,15 @@ namespace UnityEngine
         public T GetComponent<T>() where T : Component { return null; }
     }
     public class Behaviour : Component { public bool enabled; }
-    public class MonoBehaviour : Behaviour { }
+    public class MonoBehaviour : Behaviour
+    {
+        public T GetComponent<T>() where T : Component { return null; }
+        public T AddComponent<T>() where T : Component { return null; }
+        public static T FindObjectOfType<T>() where T : Component { return null; }
+        public static T[] FindObjectsOfType<T>() where T : Component { return new T[0]; }
+        public T[] GetComponentsInChildren<T>() where T : Component { return new T[0]; }
+        public T[] GetComponentsInParent<T>() where T : Component { return new T[0]; }
+    }
     public class Transform : Component
     {
         public Vector3 position, localPosition;
@@ -28,6 +39,7 @@ namespace UnityEngine
     }
     public class GameObject : Object
     {
+        public T GetComponent<T>() where T : Component { return null; }
         public Transform transform = new Transform();
         public string tag;
         public GameObject() { }
@@ -89,7 +101,7 @@ namespace UnityEngine
         public bool orthographic; public float orthographicSize; public CameraClearFlags clearFlags;
         public Color backgroundColor;
     }
-    public class SpriteRenderer : Component { public Sprite sprite; public int sortingOrder; }
+    public class SpriteRenderer : Component { public Sprite sprite; public int sortingOrder; public Color color; }
     public class Collider2D : Component { public bool isTrigger; }
     public class BoxCollider2D : Collider2D { public Vector2 size; }
     public class Resources
@@ -102,7 +114,7 @@ namespace UnityEngine
         public static void Log(object m) { }
         public static void LogError(object m) { }
     }
-    public static class Time { public static float unscaledDeltaTime; }
+    public static class Time { public static float unscaledDeltaTime; public static float deltaTime; }
     public static class JsonUtility
     {
         public static T FromJson<T>(string json) { return default(T); }

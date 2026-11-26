@@ -86,6 +86,18 @@ namespace HRZeroDay.Game
                 view.Initialise(shift, monitorGo, new Color32(0x0b, 0x0e, 0x13, 0xff));
             }
 
+            // ---- time of day: day -> dusk -> night, driven by the shift clock.
+            // The three room paintings are already in the kit as L0/L1/L2, so the light can change without
+            // a single new asset. RoomLighting tints everything EXCEPT the CRT and the letter.
+            var lighting = RoomLighting.Attach(root, LoadRoomStages(manifest));
+            if (lighting != null && shift != null)
+            {
+                var driver = root.gameObject.GetComponent<DeskLightDriver>();
+                if (driver == null) driver = root.gameObject.AddComponent<DeskLightDriver>();
+                driver.lighting = lighting;
+                driver.shift = shift;
+            }
+
             // the applicant gets the idle driver and the whole 4-frame strip
             if (created.ContainsKey("applicant"))
             {
@@ -96,6 +108,32 @@ namespace HRZeroDay.Game
             }
 
             return root;
+        }
+
+        /// <summary>
+        /// The three room paintings, in order (day, dusk, night). Missing stages are allowed -- the room
+        /// still tints, it just will not swap paintings, which is better than throwing mid-build.
+        /// </summary>
+        public static Sprite[] LoadRoomStages(SpriteManifest manifest)
+        {
+            var stages = new Sprite[3];
+            var names = new[] { "L0", "L1", "L2" };
+            for (int i = 0; i < 3; i++)
+            {
+                var entry = FindQuiet(manifest, "art/kit/backgrounds/office_" + names[i] + ".png")
+                         ?? FindQuiet(manifest, "Assets/Art/Kit/backgrounds/office_" + names[i] + ".png");
+                if (entry == null) continue;
+                try { stages[i] = LoadPrimarySprite(entry); }
+                catch (System.Exception) { stages[i] = null; }
+            }
+            return stages;
+        }
+
+        private static SpriteEntry FindQuiet(SpriteManifest manifest, string path)
+        {
+            if (manifest == null) return null;
+            try { return manifest.Find(path); }
+            catch (System.ArgumentException) { return null; }
         }
 
         public static Vector3 PixelsToUnits(int px, int py, int spriteW, int spriteH, int ppu)

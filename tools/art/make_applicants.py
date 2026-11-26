@@ -97,6 +97,13 @@ class Applicant:
         self.brow       = 2 + (s % 3)                 # brow thickness 2..4 px
         self.mole       = (s // 3) % 2                # a single mole, off-centre
         self.badge_dx = 0 if 'straight_badge' in self.artifacts else ((s % 5) - 2)
+        # ---- v4 (2026-11-26, user note "more human looking"): identity beyond a jacket swap.
+        self.wardrobe = (s // 6) % 5          # suit-jacket / knit / hoodie / work-shirt / worn coat
+        self.hair_len = (s // 9) % 3          # how far the hair falls past the hairline
+        self.outfit2  = 'panel' if self.outfit in ('panel2', 'line') else 'panel2'
+        # A person's shoulders are not a rectangle: asymmetrical, one side higher, uneven wear.
+        # Synthetics are built, so they are perfectly symmetric -- that is a tell of its own.
+        self.shoulder_drop = 0 if self.synthetic else (s % 3)
         self.breathe = 0
         self.blink = False
         self.fidget = 0
@@ -138,6 +145,32 @@ class Applicant:
             rect(cx - half, y, cx + half, y, self.outfit)
             rect(cx - half, y, cx - half, y, 'linehi')       # 1 px lit edge (monitor side)
             rect(cx + half, y, cx + half, y, 'line')         # 1 px shadow edge
+
+        # ---------------- shoulders that belong to a person, not to a rectangle
+        if self.shoulder_drop:                       # humans only: one shoulder sits 1-2 px lower
+            drop = self.shoulder_drop
+            for y in range(top, top + 10):
+                rect(cx - 58, y, cx - 58, y, 'void')
+            for ye in range(top + drop, base + 10):
+                rect(cx + 55, ye, cx + 58, ye, self.outfit)
+            rect(cx + 55, top + drop, cx + 58, top + drop, 'linehi')
+        if self.wardrobe == 1:                       # knit: a soft rolled hem, no lapels
+            for x in range(cx - 40, cx + 41, 2):
+                put(x, top + 7, 'linehi')
+        elif self.wardrobe == 2:                     # hoodie: the hood lies behind the neck
+            rect(cx - 24, top - 6, cx + 24, top + 4, self.outfit2)
+            rect(cx - 24, top - 6, cx + 24, top - 5, 'line')
+            rect(cx - 14, top + 2, cx + 14, top + 3, 'line')
+        elif self.wardrobe == 3:                     # work shirt: chest pocket + pen seam
+            rect(cx + 16, top + 26, cx + 31, top + 39, self.outfit2)
+            rect(cx + 16, top + 26, cx + 31, top + 26, 'linehi')
+            rect(cx + 16, top + 39, cx + 31, top + 39, 'line')
+        elif self.wardrobe == 4:                     # worn coat: frayed hem + a repair patch
+            for x in range(cx - 52, cx + 53, 3):
+                put(x, base + 9, 'line')
+            rect(cx - 34, top + 30, cx - 22, top + 38, self.outfit2)
+            rect(cx - 34, top + 30, cx - 22, top + 30, 'linehi')
+            rect(cx - 34, top + 38, cx - 22, top + 38, 'line')
 
         # ---------------- collar: four shapes, so no two applicants wear the same shirt
         if self.collar == 0:                                  # crew neck
@@ -309,6 +342,21 @@ class Applicant:
             rect(cx - hw - 1, head_top + 11, cx + hw + 1, head_top + 14, 'linehi')   # ribbed brim
             for x in range(cx - hw, cx + hw + 1, 4):
                 put(x, head_top + 12, 'line')
+        # ---- v4: length. The crop used to stop exactly at the skull, which is why every applicant
+        # read as a mannequin in a wig. Strands now break the outline and fall past the jaw.
+        if st in (0, 1, 3):
+            fall = (6, 16, 26)[self.hair_len]
+            for side in (-1, 1):
+                x0 = cx + side * (hw - 1)
+                for i in range(fall):
+                    y = head_top + 9 + i
+                    wdt = 1 + (1 if i % 3 else 0)
+                    for k in range(wdt):
+                        put(x0 + side * k, y, self.hair if (i + k) % 4 else hi)
+                # a few stray strands beyond the mass
+                put(x0 + side * 2, head_top + 12 + (self.seed % 5), self.hair)
+                put(x0 + side * 2, head_top + 20 + (self.seed % 7), self.hair)
+
         if st not in (4,):
             rect(cx - hw + 2, head_top + 1, cx + hw - 2, head_top + 2, hi)
             rect(cx - hw + 4, head_top + 3, cx - hw + 6, head_top + 5, hi)
