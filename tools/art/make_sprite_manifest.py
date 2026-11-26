@@ -35,6 +35,9 @@ RULES = {
     'stamps':     dict(ppu=16, svc='Single', kind='stamp'),
     'desk':       dict(ppu=16, svc='Single', kind='desk'),
     'backgrounds': dict(ppu=16, svc='Single', kind='background'),
+    # wear overlays: full-screen, drawn ON TOP of the room at the same pixels-per-unit as the
+    # background, so the two align exactly when both are spawned at 0,0.
+    'fx':         dict(ppu=16, svc='Single', kind='fx'),
 }
 
 # Screens use these names in code. Keep them stable -- the twin and the scene builder both read them.

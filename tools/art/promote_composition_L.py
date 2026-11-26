@@ -42,132 +42,147 @@ def out(rel):
 
 
 # --------------------------------------------------------------------------- room props
-def window_night(img, d, x, row, w, h, accent_pips=('warn', 'orange'), sky=None):
-    """Night city with real depth: sky gradient, stars, moon with halo, three skyline bands,
-    horizon glow, then blinds. Drawn with palette steps only -- no blending, no new colours."""
-    from ragged import LCG, ragged_rect
+def window_night(img, d, x, row, w, h):
+    """Night city, v3 -- SMOOTH. No dither anywhere.
+
+    Three flat sky steps (hard boundaries read as haze layers; a checker dither read as noise),
+    a slatted blind at the top, then two silhouette bands where the FAR band is *lighter* than the
+    near band so depth comes from value, not from an extra haze rectangle.
+
+    Zones are absolute -- nothing may cross them:
+        blinds      glass_y0 .. glass_y0+BLIND_H
+        sky         below blinds .. glass_y1   (stars + moon only, and only above the tall roofs)
+        skyline     glass_y1-52 .. glass_y1    (buildings only; lit windows clipped inside each box)
+    """
+    from ragged import LCG
 
     rnd = LCG(0x51CE)
     glass_x0, glass_y0 = x + 2, row + 2
     glass_x1, glass_y1 = x + w - 2, row + h - 2
     gw, gh = glass_x1 - glass_x0 + 1, glass_y1 - glass_y0 + 1
+    BLIND_H = 13
+    CITY_H = 44                       # near-band buildings may be this tall
+    star_bottom = glass_y1 - CITY_H - 6
 
-    # ---- outer frame, hand-drawn (RAGGED) then a straight glass area
-    ragged_rect(img, x, row, x + w, row + h, 'panel2', 'linehi', seed=77, amp=1)
+    # ---- frame: straight and clean (the window is a built object, not a worn prop).
+    d.rectangle([x, row, x + w, row + h], fill=rgba('panel2'))
+    d.rectangle([x, row, x + w, row + h], outline=rgba('linehi'))
+    d.rectangle([glass_x0 - 1, glass_y0 - 1, glass_x1 + 1, glass_y1 + 1], outline=rgba('line'))
     d.rectangle([glass_x0, glass_y0, glass_x1, glass_y1], fill=rgba('void'))
 
-    # ---- sky: vertical gradient in palette steps (top darkest), then haze above the horizon
-    bands = [(0.00, 'void'), (0.58, 'void'), (0.82, 'panel'), (0.95, 'panel'),
-             (1.00, 'panel2')]
-    def colour_at(i):
-        t = max(0.0, min(1.0, i / max(1, gh - 1)))
-        prev = bands[0][1]
-        for cut, c in bands:
-            if t <= cut:
-                return prev if t < cut - 0.02 else c
-            prev = c
-        return prev
+    # ---- sky: three flat steps, darkest at the top, light pollution at the bottom.
+    band_top = glass_y0 + BLIND_H
+    # ---- sky: ONE flat tone. Value ramp does all the work: sky (lightest) > far towers > near
+    # towers (darkest). No gradient, no dither, no haze rectangle -- every tower reads against the
+    # sky because it is darker than the sky, and every near tower reads against the far ones.
+    d.rectangle([glass_x0, band_top, glass_x1, glass_y1], fill=rgba('panel2'))
+    # faint wash of city light in the last rows of sky (behind the towers, so they occlude it)
+    for y in range(glass_y1 - 9, glass_y1 - 1, 2):
+        run = glass_x0
+        while run < glass_x1:
+            seg = rnd.irange(10, 26)
+            if rnd.below(0.5):
+                d.line([run, y, min(glass_x1, run + seg), y], fill=rgba('panel'))
+            run += seg + rnd.irange(5, 13)
 
-    # Dither only within 3 rows of a band boundary -- otherwise the transition smears into a big
-    # dithered rectangle (v3 lesson). Checker across 3 rows reads as a soft gradient.
-    for i in range(gh):
-        y = glass_y0 + i
-        cur = colour_at(i)
-        look = colour_at(min(gh - 1, i + 3))
-        for x in range(glass_x0, glass_x1 + 1):
-            if cur != look and (x + y) % 2 == 0:
-                img.putpixel((x, y), rgba(look))
-            else:
-                img.putpixel((x, y), rgba(cur))
-
-    # ------------------------------------------------------------------ zoned sky
-    # The window is split into fixed zones so nothing can overlap wrongly:
-    #   STAR_ZONE  rows above skyline_top-2 : stars, moon, wisps only
-    #   SKYLINE    rows below that          : silhouettes only, windows clipped inside each building
-    skyline_top = glass_y1 - 40
-
-    # ---- stars: only above the skyline, never touching each other
+    # ---- stars: upper sky only, never adjacent, three brightness tiers.
+    # Sky is panel2 now, so stars must be LIGHTER than panel2 -- textdim / text / white, with
+    # muted only for the dimmest, or the field disappears into the background.
     placed = set()
-    for _ in range(gh + gh // 2):
-        sx, sy = rnd.irange(glass_x0 + 2, glass_x1 - 2), rnd.irange(glass_y0 + max(14, gh // 3) + 4,
-                                                                    skyline_top - 2)
+    for _ in range(int(gw * 0.62)):
+        sx = rnd.irange(glass_x0 + 2, glass_x1 - 2)
+        sy = rnd.irange(band_top + 3, star_bottom)
         if any((sx + dx, sy + dy) in placed for dx in range(-3, 4) for dy in range(-3, 4)):
             continue
         placed.add((sx, sy))
-        t = (sy - glass_y0) / max(1, skyline_top - glass_y0)
-        if t < 0.45 and rnd.below(0.5):
+        r = rnd.below(0.6)
+        if r < 0.22:                                   # bright: a 2 px cross
+            img.putpixel((sx, sy), rgba('text'))
+            if sx + 1 < glass_x1:
+                img.putpixel((sx + 1, sy), rgba('textdim'))
+            img.putpixel((sx, sy - 1), rgba('textdim'))
+        elif r < 0.62:
             img.putpixel((sx, sy), rgba('textdim'))
-        elif rnd.below(0.6):
-            img.putpixel((sx, sy), rgba('linehi'))
-    # one thin cloud wisp
-    wy = skyline_top - 10
-    wx = glass_x0 + 12
-    for k in range(28):
-        if rnd.below(0.75):
-            img.putpixel((min(glass_x1 - 2, wx + k), wy), rgba('panel2'))
-    for k in range(14):
-        if rnd.below(0.5):
-            img.putpixel((min(glass_x1 - 2, wx + 6 + k), wy + 1), rgba('panel2'))
+        else:
+            img.putpixel((sx, sy), rgba('muted' if rnd.below(0.6) else 'linehi'))
 
-    # ---- moon: crescent, high on the left, one halo step
-    mx, my, mr = glass_x0 + 26, glass_y0 + 26, 6
-    d.ellipse([mx - mr - 2, my - mr - 2, mx + mr + 2, my + mr + 2], fill=rgba('panel2'))
-    d.ellipse([mx - mr, my - mr, mx + mr, my + mr], fill=rgba('textdim'))
-    d.ellipse([mx - mr + 3, my - mr - 3, mx + mr + 3, my + mr - 3], fill=rgba('void'))
+    # ---- moon: crescent, one halo step, high on the left under the blinds
+    mx, my, mr = glass_x0 + 25, band_top + 17, 6
+    d.ellipse([mx - mr - 2, my - mr - 2, mx + mr + 2, my + mr + 2], fill=rgba('line'))
+    d.ellipse([mx - mr, my - mr, mx + mr, my + mr], fill=rgba('text'))
+    d.ellipse([mx - mr + 3, my - mr - 3, mx + mr + 3, my + mr - 3], fill=rgba('panel2'))
 
-    # ---- skyline: two bands only. The far "haze" band that used to sit here merged into a grey
-    # slab across the middle of the window, so it is gone -- depth now comes from the sky gradient,
-    # the horizon glow lines and the gap-separated silhouettes.
+    # ---- skyline: FAR band first (lighter, shorter), then NEAR band (darkest, tallest)
     base = glass_y1
 
-    def band(tone, lo, hi, wmin, wmax, gap, lit_p, lit_tones):
-        bx = glass_x0 + rnd.irange(-6, 0)
-        while bx < glass_x1 + 6:
+    def band(tone, lo, hi, wmin, wmax, gap, lit_p, lit_tones,
+             setback_p=0.0, antenna_p=0.0, rim=None):
+        bx = glass_x0 + rnd.irange(-10, 0)
+        while bx < glass_x1 + 4:
             bw = rnd.irange(wmin, wmax)
             bh = rnd.irange(lo, hi)
             top = base - bh
             x0b, x1b = max(glass_x0, bx), min(glass_x1, bx + bw)
-            if x1b > x0b:
+            if x1b - x0b >= 3:
                 d.rectangle([x0b, top, x1b, base], fill=rgba(tone))
-                # rooftop furniture, always inside the skyline zone
-                if rnd.below(0.45) and top - 4 > skyline_top - 2:
-                    if rnd.below(0.5):
-                        d.rectangle([x0b + 1, top - 3, x1b - 1, top - 1], fill=rgba(tone))
-                    else:
-                        ax = max(glass_x0 + 1, min(glass_x1 - 1, (x0b + x1b) // 2))
-                        d.line([ax, top - 5, ax, top - 1], fill=rgba(tone))
-                        img.putpixel((ax, top - 6), rgba('danger'))
-                if lit_p > 0:      # windows: inside the building, never on its bottom edge
-                    for wy in range(top + 3, base - 4, 4):
+                if rim:                          # rim-lit roof edge: how a low-value block stays readable
+                    d.line([x0b, top, x1b, top], fill=rgba(rim))
+                if rnd.below(setback_p) and (x1b - x0b) >= 7:   # stepped roof: narrower storey
+                    inset = rnd.irange(1, max(1, (x1b - x0b) // 3))
+                    d.rectangle([x0b + inset, top - rnd.irange(3, 7), x1b - inset, top - 1],
+                                fill=rgba(tone))
+                if rnd.below(antenna_p):
+                    ax = max(glass_x0 + 1, min(glass_x1 - 1, (x0b + x1b) // 2 + rnd.irange(-2, 2)))
+                    top_a = top - rnd.irange(4, 8)
+                    d.line([ax, top_a, ax, top - 1], fill=rgba(tone))
+                    img.putpixel((ax, top_a - 1), rgba('danger'))
+                if lit_p > 0:
+                    for wy in range(top + 3, base - 3, 4):
                         for wx in range(x0b + 2, x1b - 1, 3):
                             if rnd.below(lit_p):
                                 img.putpixel((wx, wy), rgba(rnd.pick(lit_tones)))
-            bx += bw + rnd.irange(gap, gap + 4)
+            bx += bw + rnd.irange(gap, gap + 3)
 
-    band('panel2', 8, 22, 8, 15, 2, 0.22, ('orange', 'warn'))   # mid, behind
-    band('void', 14, 36, 11, 20, 1, 0.10, ('orange',))          # near, in front and taller
+    # three value planes: sky haze -> far towers (panel2, rim-lit) -> near towers (void, darkest).
+    band('panel', 14, 28, 9, 16, 1, 0.20, ('orange', 'warn'),
+         setback_p=0.30, antenna_p=0.30, rim='line')
+    band('void', 16, CITY_H, 9, 20, 0, 0.11, ('orange',),
+         setback_p=0.35, antenna_p=0.55, rim='linehi')
 
-    # ---- blinds: pulled a third of the way down, slats slightly irregular
-    slat_bottom = glass_y0 + max(14, gh // 3)
-    for by in range(glass_y0 + 1, slat_bottom, 4):
-        d.line([glass_x0, by, glass_x1, by], fill=rgba('panel2'))
-        if rnd.below(0.4):
-            img.putpixel((rnd.irange(glass_x0, glass_x1), by), rgba('panel2'))
+
+    # ---- blinds: slats, pulled to BLIND_H, lit from inside
+    slat_bottom = band_top - 1
+    for by in range(glass_y0, slat_bottom, 3):
+        d.line([glass_x0, by, glass_x1, by], fill=rgba('panel'))
+        img.putpixel((rnd.irange(glass_x0, glass_x1), by), rgba('panel2'))
     d.line([glass_x0, slat_bottom, glass_x1, slat_bottom], fill=rgba('linehi'))
-    d.line([glass_x0 + gw // 2, glass_y0 + 1, glass_x0 + gw // 2, glass_y1 - 1], fill=rgba('line'))
+    d.line([glass_x0, slat_bottom + 1, glass_x1, slat_bottom + 1], fill=rgba('void'))
 
-    # ---- sill
-    d.line([x - 3, row + h, x + w + 3, row + h], fill=rgba('linehi'))
-    d.line([x - 3, row + h + 1, x + w + 3, row + h + 1], fill=rgba('void'))
+    # ---- centre mullion + sill
+    d.line([glass_x0 + gw // 2, glass_y0, glass_x0 + gw // 2, glass_y1], fill=rgba('line'))
+    d.line([x - 2, row + h, x + w + 2, row + h], fill=rgba('linehi'))
+    d.line([x - 2, row + h + 1, x + w + 2, row + h + 1], fill=rgba('void'))
 
 
 def noticeboard(img, d, x, row, w=84, h=48):
-    d.rectangle([x, row, x + w, row + h], fill=rgba('panel2'), outline=rgba('linehi'))
-    for (px_, py_, pw, ph) in ((8, 6, 24, 18), (40, 5, 30, 14), (13, 29, 26, 15), (48, 24, 22, 19)):
-        d.rectangle([x + px_, row + py_, x + px_ + pw, row + py_ + ph], fill=rgba('void'), outline=rgba('line'))
+    """Cork board: ragged outer silhouette, crooked papers, one curling corner."""
+    from ragged import LCG, ragged_rect, chip_corners, scuff
+    rnd = LCG(0xB0A2D)
+    ragged_rect(img, x, row, x + w, row + h, 'panel2', 'linehi', seed=901, amp=1)
+    # pins row along the top rail
+    d.line([x + 2, row + 2, x + w - 2, row + 2], fill=rgba('line'))
+    for (px_, py_, pw, ph, tilt) in ((8, 6, 24, 18, 0), (40, 5, 30, 14, 1),
+                                     (13, 27, 26, 15, -1), (48, 22, 22, 19, 1)):
+        for i in range(ph):                                    # papers are never perfectly level
+            off = tilt if (i + py_) % 7 < 4 else 0
+            d.line([x + px_ + off, row + py_ + i, x + px_ + pw + off, row + py_ + i],
+                   fill=rgba('void'))
+        d.rectangle([x + px_, row + py_, x + px_ + pw, row + py_ + ph], outline=rgba('line'))
         d.point((x + px_ + pw // 2, row + py_), fill=rgba('danger'))
         for i in range(4, ph - 2, 5):
             d.line([x + px_ + 4, row + py_ + i, x + px_ + pw - 4, row + py_ + i], fill=rgba('panel2'))
+    chip_corners(img, 902, per_corner=1)
+    scuff(img, 903, n=6, box=(x, row, x + w, row + h))
 
 
 def wall_clock(img, d, cx, row, r=11, hand='textdim', tick='muted', dot='signal'):
@@ -181,22 +196,33 @@ def wall_clock(img, d, cx, row, r=11, hand='textdim', tick='muted', dot='signal'
 
 
 def filing_cabinet(img, d, x, floor_row, w=44, h=76, body='panel2', face='panel', edge='line'):
+    """Three-drawer cabinet: worn OUTER silhouette only -- the drawer faces stay crisp, because a
+    steel box dents at its corners, it does not fray like paper."""
+    from ragged import ragged_rect, notch_corner, scuff
     top = floor_row - h
-    d.rectangle([x, top, x + w, floor_row], fill=rgba(body), outline=rgba(edge))
-    d.rectangle([x + 2, top + 2, x + w - 2, floor_row - 2], outline=rgba(edge))
+    ragged_rect(img, x, top, x + w, floor_row, body, edge, seed=410, amp=1)
+    notch_corner(img, x, top, 1, 1, depth=2, tone='void')
+    notch_corner(img, x + w, floor_row, -1, -1, depth=2, tone='void')
     d.line([x + 2, top + 2, x + w - 2, top + 2], fill=rgba('linehi'))
     for i in range(3):
         dy = top + 6 + i * 23
         d.rectangle([x + 5, dy, x + w - 5, dy + 18], fill=rgba(face), outline=rgba(edge))
         d.line([x + 13, dy + 9, x + w - 13, dy + 9], fill=rgba('linehi'))
         d.point((x + w // 2, dy + 9), fill=rgba('textdim'))
-    d.rectangle([x - 2, floor_row, x + w + 2, floor_row + 2], fill=rgba('void'))
+        d.line([x + 5, dy, x + w - 5, dy], fill=rgba('linehi'))     # handle rail catch-light
+    d.rectangle([x - 2, floor_row, x + w + 2, floor_row + 1], fill=rgba('void'))
+    # contact shadow: the floor darkens where the box meets it
+    for i in range(3):
+        d.line([x - 2 + i, floor_row + 1 + i, x + w + 2 - i, floor_row + 1 + i], fill=rgba('void'))
+    scuff(img, 411, n=4, box=(x + 5, top + 4, x + w - 5, floor_row - 2))
 
 
 def plant_pot(img, d, x, floor_row, h=42, leaf='signaldim', tip='signal'):
+    """Contact shadow added 2026-11-26: a pot with no shadow floats in front of the wall."""
     pot_top = floor_row - h
     d.rectangle([x, pot_top + 14, x + 18, floor_row], fill=rgba('panel2'), outline=rgba('line'))
     d.line([x, pot_top + 14, x + 18, pot_top + 14], fill=rgba('linehi'))
+    d.line([x - 2, floor_row + 1, x + 20, floor_row + 1], fill=rgba('void'))
     for (dx, dy) in ((0, 14), (-7, 9), (7, 10), (-3, 20), (4, 21), (-9, 16), (9, 17), (-5, 25), (6, 24)):
         d.line([x + 9, pot_top + 14, x + 9 + dx, pot_top + 14 - dy], fill=rgba(leaf))
         d.point((x + 9 + dx, pot_top + 14 - dy), fill=rgba(tip))
@@ -236,7 +262,16 @@ def room(level=0):
     seam = 'panel2' if level < 2 else 'dangerdim'
     for x in range(0, W, 56):
         d.line([x, 16, x, FLOOR_ROW - 1], fill=rgba(seam))
-    d.line([0, 16, W - 1, 16], fill=rgba(seam))
+    # hand-drawn wall head: 1 px steps, so the wall/ceiling join is not a ruled line
+    from ragged import LCG as _LCG
+    _r = _LCG(0x1A11)
+    _y = 16
+    for _x in range(0, W):
+        if _r.below(0.06):
+            _y = max(15, min(17, _y + _r.pick((-1, 1))))
+        img.putpixel((_x, _y), rgba(seam))
+        if _y < 17:
+            img.putpixel((_x, _y + 1), rgba(wall))
 
     pips = ('warn', 'orange')
     if level == 1:
@@ -245,14 +280,13 @@ def room(level=0):
         pips = ('danger', 'dangerdim')
     # Bigger city, per user 2026-11-26: frame runs from just below the shoulder line (row 145) all the
     # way above the head (row 8) and reads as a proper skyline behind him.
-    window_night(img, d, 244, 8, 224, 137, accent_pips=pips,
-                 sky='panel2' if level < 2 else 'dangerdim')
+    window_night(img, d, 244, 8, 224, 137)
     noticeboard(img, d, 20, 22, 84, 48)
     wall_clock(img, d, 126, 44,
                hand='textdim' if level == 0 else ('danger' if level == 1 else 'dangerdim'),
                dot='signal' if level == 0 else 'danger')
     filing_cabinet(img, d, 206, FLOOR_ROW)
-    plant_pot(img, d, 258, FLOOR_ROW,
+    plant_pot(img, d, 252, FLOOR_ROW,
               leaf='signaldim' if level == 0 else 'line', tip='signal' if level == 0 else 'linehi')
 
     # floor strip

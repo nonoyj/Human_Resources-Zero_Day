@@ -48,6 +48,10 @@ try {
     & python tools/art/make_applicants.py --check
     if ($LASTEXITCODE -ne 0) { D 'applicant palette check failed' } else { OK 'applicant palette clean' }
 
+    S 'wear overlays (corruption drift)'
+    & python tools/art/make_wear_overlays.py --check
+    if ($LASTEXITCODE -ne 0) { D 'wear overlay check failed' } else { OK 'wear overlays palette clean' }
+
     if (-not $SkipCompile) {
         S 'art bible is present and referenced'
     if (-not (Test-Path (Join-Path $repo 'docs\15-art-bible.md'))) { D 'docs/15-art-bible.md missing' }
