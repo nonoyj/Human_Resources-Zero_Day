@@ -23,9 +23,46 @@ $Home0 = if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
 function Info ($m) { Write-Host "  $m" }
 function Step ($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
 
+# One-liner for the operator: copy the CURRENT bootstrap from the repo into Downloads.
+# The repo copy is updated by every bundle; Downloads only ever holds a copy of it.
+function Refresh-Bootstrap {
+    $src = Join-Path $PSScriptRoot 'Apply-Bundle.ps1'
+    $dst = Join-Path $Home0 'Downloads\Apply-Bundle.ps1'
+    if (-not (Test-Path -LiteralPath $src)) { Write-Host "  missing $src" -ForegroundColor Red; return }
+    Copy-Item -LiteralPath $src -Destination $dst -Force
+    Write-Host "  bootstrap refreshed: $dst ($((Get-Item -LiteralPath $dst).Length) bytes)" -ForegroundColor Green
+}
+
 Write-Host @'
   HR//0D  workspace setup
 '@ -ForegroundColor DarkCyan
+
+# The one-liner only helps if it survives the session, so it is written into the profile once.
+try {
+    $prof = $PROFILE.CurrentUserAllHosts
+    $profDir = Split-Path -Parent $prof
+    if (-not (Test-Path -LiteralPath $profDir)) { New-Item -ItemType Directory -Force -Path $profDir | Out-Null }
+    $needle = 'function Refresh-Bootstrap'
+    $existing = if (Test-Path -LiteralPath $prof) { Get-Content -LiteralPath $prof -Raw } else { '' }
+    if ($existing -notmatch [regex]::Escape($needle)) {
+        $repoScripts = $PSScriptRoot
+        Add-Content -LiteralPath $prof -Value @"
+
+# HR//0D: copy the current bundle bootstrap from the repo into Downloads.
+function Refresh-Bootstrap {
+    `$src = Join-Path '$repoScripts' 'Apply-Bundle.ps1'
+    `$dst = Join-Path `$env:USERPROFILE 'Downloads\Apply-Bundle.ps1'
+    if (-not (Test-Path -LiteralPath `$src)) { Write-Host "  run this from C:\users\user\HR-ZeroDay first" -ForegroundColor Red; return }
+    Copy-Item -LiteralPath `$src -Destination `$dst -Force
+    Write-Host "  bootstrap refreshed: `$dst (`$((Get-Item -LiteralPath `$dst).Length) bytes)" -ForegroundColor Green
+}
+"@
+        Info "profile updated: $prof"
+    } else { Info "profile already has Refresh-Bootstrap" }
+} catch {
+    Info "could not update the profile ($($_.Exception.Message)) -- use the Copy-Item form instead"
+}
+
 
 # ---------------------------------------------------------------- folders
 Step 'folder contract'

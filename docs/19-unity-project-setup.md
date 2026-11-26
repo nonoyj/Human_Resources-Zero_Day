@@ -9,6 +9,27 @@ with a project that cannot build. So we generate them once from the pinned edito
 
 ---
 
+## 0a. If you have to refresh the bootstrap (one line, no dragging)
+
+From **inside the repo** (so this always reads the version that actually shipped):
+
+```powershell
+cd C:\users\user\HR-ZeroDay
+.\scripts\setup-workspace.ps1      # once per machine: defines Refresh-Bootstrap in your profile
+Refresh-Bootstrap
+```
+
+`setup-workspace.ps1` is idempotent and only writes the helper if the profile lacks it. Without the
+profile shortcut, the same thing in one line:
+
+```powershell
+Copy-Item .\scripts\Apply-Bundle.ps1 "$env:USERPROFILE\Downloads\Apply-Bundle.ps1" -Force
+```
+
+Why this works: `scripts/Apply-Bundle.ps1` and the zip-root `Apply-Bundle.ps1` are the **same bytes**
+(`Test-Scripts.ps1` asserts this now), and the in-repo copy is updated by every bundle. So the repo is
+the source of truth and Downloads is just a launcher. No more "open the zip and find the file".
+
 ## 0. What you need before you start
 
 - Unity **Hub** installed.
