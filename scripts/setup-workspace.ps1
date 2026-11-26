@@ -26,10 +26,23 @@ function Step ($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
 # One-liner for the operator: copy the CURRENT bootstrap from the repo into Downloads.
 # The repo copy is updated by every bundle; Downloads only ever holds a copy of it.
 function Refresh-Bootstrap {
-    $src = Join-Path $PSScriptRoot 'Apply-Bundle.ps1'
-    $dst = Join-Path $Home0 'Downloads\Apply-Bundle.ps1'
-    if (-not (Test-Path -LiteralPath $src)) { Write-Host "  missing $src" -ForegroundColor Red; return }
-    Copy-Item -LiteralPath $src -Destination $dst -Force
+    $here = (Get-Location).Path
+    $found = $null
+    while ($here) {
+        $cand = Join-Path $here 'scripts\Apply-Bundle.ps1'
+        if (Test-Path -LiteralPath $cand) { $found = $cand; break }
+        $parent = Split-Path -Parent $here
+        if ($parent -eq $here) { break }
+        $here = $parent
+    }
+    if (-not $found) {
+        Write-Host "  no scripts\Apply-Bundle.ps1 above $((Get-Location).Path) -- cd into the repo first" -ForegroundColor Red
+        return
+    }
+    $dstDir = Join-Path $Home0 'Downloads'
+    if (-not (Test-Path -LiteralPath $dstDir)) { New-Item -ItemType Directory -Force -Path $dstDir | Out-Null }
+    $dst = Join-Path $dstDir 'Apply-Bundle.ps1'
+    Copy-Item -LiteralPath $found -Destination $dst -Force
     Write-Host "  bootstrap refreshed: $dst ($((Get-Item -LiteralPath $dst).Length) bytes)" -ForegroundColor Green
 }
 
@@ -50,11 +63,26 @@ try {
 
 # HR//0D: copy the current bundle bootstrap from the repo into Downloads.
 function Refresh-Bootstrap {
-    `$src = Join-Path '$repoScripts' 'Apply-Bundle.ps1'
-    `$dst = Join-Path `$env:USERPROFILE 'Downloads\Apply-Bundle.ps1'
-    if (-not (Test-Path -LiteralPath `$src)) { Write-Host "  run this from C:\users\user\HR-ZeroDay first" -ForegroundColor Red; return }
-    Copy-Item -LiteralPath `$src -Destination `$dst -Force
-    Write-Host "  bootstrap refreshed: `$dst (`$((Get-Item -LiteralPath `$dst).Length) bytes)" -ForegroundColor Green
+    # Walk UP from wherever you are: the helper is used from Downloads, from the repo, from a scene
+    # folder, and assuming one of those was the bug in the first version of this script.
+    $here = (Get-Location).Path
+    $found = $null
+    while ($here) {
+        $cand = Join-Path $here 'scripts\Apply-Bundle.ps1'
+        if (Test-Path -LiteralPath $cand) { $found = $cand; break }
+        $parent = Split-Path -Parent $here
+        if ($parent -eq $here) { break }
+        $here = $parent
+    }
+    if (-not $found) {
+        Write-Host "  no scripts\Apply-Bundle.ps1 above $((Get-Location).Path) -- cd into the repo first" -ForegroundColor Red
+        return
+    }
+    $dstDir = Join-Path $env:USERPROFILE 'Downloads'
+    if (-not (Test-Path -LiteralPath $dstDir)) { New-Item -ItemType Directory -Force -Path $dstDir | Out-Null }
+    $dst = Join-Path $dstDir 'Apply-Bundle.ps1'
+    Copy-Item -LiteralPath $found -Destination $dst -Force
+    Write-Host "  bootstrap refreshed: $dst ($((Get-Item -LiteralPath $dst).Length) bytes)" -ForegroundColor Green
 }
 "@
         Info "profile updated: $prof"
@@ -102,7 +130,24 @@ if (-not (Test-Path (Join-Path $Root '.git'))) {
 } else {
     Step 'pulling latest'
     Push-Location $Root
-    try { git pull --ff-only } catch { Write-Host "  [warn] pull failed: $($_.Exception.Message)" -ForegroundColor Yellow }
+    try {
+        # A bundle-built history has no upstream, so `git pull` answers "no tracking information" --
+        # which reads like a failure but is a one-time wiring gap. Wire it, then pull. Nobody should
+        # have to run `git branch --set-upstream-to` by hand to get a green setup.
+        $up = (git rev-parse --abbrev-ref '@{u}' 2>$null)
+        if (-not $up) {
+            $remotes = (git remote) 2>$null
+            if ($remotes -contains 'origin') {
+                git fetch origin --quiet 2>$null
+                if ((git rev-parse --abbrev-ref 'origin/main' 2>$null)) {
+                    git branch --set-upstream-to=origin/main main 2>&1 | Out-Null
+                    Write-Host "  linked main -> origin/main (one-time)" -ForegroundColor DarkGray
+                }
+            }
+        }
+        git pull --ff-only 2>&1 | ForEach-Object { Write-Host "  $_" }
+        if ($LASTEXITCODE -ne 0) { Write-Host "  [warn] pull did not fast-forward -- see the lines above" -ForegroundColor Yellow }
+    } catch { Write-Host "  [warn] pull failed: $($_.Exception.Message)" -ForegroundColor Yellow }
     finally { Pop-Location }
 }
 
@@ -147,7 +192,9 @@ if (-not (Test-Path $linkPath)) {
 } else { Info 'shortcut already exists' }
 
 # ---------------------------------------------------------------- report
-Write-Host "`n================ DONE ================" -ForegroundColor Cyan
+Write-Host "`n. $PROFILE.CurrentUserAllHosts
+
+================ DONE ================" -ForegroundColor Cyan
 Write-Host @"
 Repo:      $Root
 Read next: $Root\README.md
