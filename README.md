@@ -17,6 +17,8 @@ A mobile cybersecurity-awareness game for Android (Unity 6.3 LTS), inspired by t
 | `docs/16-the-later-list.md` | Everything still owed, ordered and owner-tagged |
 | `docs/06-decisions.md` | Every locked decision, with dates |
 | `docs/15-art-bible.md` | Palette, composition and art rules |
+| `docs/15-interaction-layer.md` | Hotspot -> evidence -> stamp loop; artifact/tell map and verification |
+| `prototype/web/` | Playable browser twin of the first minute (no Unity needed) |
 | `unity/` | The Unity project (Assets + Content; no Library) |
 | `art/kit/` | Shipped pixel art. `art/kit/reference/` holds the renders you look at |
 | `art/concepts/` | Only the two approved mood references + the 5× window crop |

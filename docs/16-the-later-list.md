@@ -18,6 +18,26 @@ audio, no save round-trip, no Android build. That gap — not more art — is wh
 
 ---
 
+## 0a. Landed on the interaction branch (2026-11-26, pending merge)
+
+The `arena/c1faebb9-human-resources-zero-day` branch adds the first playable minute. It does **not**
+remove any task from this list; it partial-covers 3.1, 3.6 and 3.7 and adds the wiring those tasks
+need:
+
+- `Game/Interaction/**` — pure evidence ledger, safe-area hotspot geometry, tool budgets (2/2/1),
+  truth-free session DTO, magnifier/callout presenter, stamp + reason flow and a drop-in bootstrap.
+- `ScoringService.DecisionInput.PaperworkTrustDelta` — one defaulted field that lets the five letter
+  flags pay/take trust through the existing `ShiftController.Submit` path.
+- `HR//0D > Build Desk Scene` — now creates the hotspot interactors, padded colliders, EventSystem
+  with a 2D raycaster, evidence overlay, stamp and bootstrap in `Desk.unity`.
+- `prototype/web/` — a playable twin of the same minute (9 rule checks, no Unity, no backend).
+
+Still owed from those rows: the real Field Manual, day-summary and endings screens, 48 dp inspect
+list, tool-result panel, save round-trip and an on-device APK. See `docs/15-interaction-layer.md`
+and the BE1 handoff before starting any of them.
+
+---
+
 ## 1. Blocking before anything else (do these in order)
 
 | # | Task | Owner | Why it blocks | Done when |

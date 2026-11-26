@@ -24,6 +24,7 @@ internal static class Program
         var lines = new List<string>();
         lines.AddRange(GeneratorInvariantTests.RunAll());
         lines.AddRange(GameDataTests.RunAll());        // art -> Unity data bridge
+        lines.AddRange(InteractionTests.RunAll());     // desk -> evidence -> stamp loop
         lines.AddRange(MonitorScreenTests.RunAll());   // the CRT glass is a real character grid
         lines.AddRange(MonitorScreenRasterTests.RunAll()); // glyph atlas -> pixels, clipped and tinted
         lines.AddRange(LetterViewTests.RunAll());      // paperwork: wrap, paginate, flag scoring

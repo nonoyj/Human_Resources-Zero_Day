@@ -12,6 +12,7 @@ namespace UnityEngine
         public static float Clamp(float v, float lo, float hi) => v < lo ? lo : (v > hi ? hi : v);
         public static float Lerp(float a, float b, float t) => a + (b - a) * Clamp01(t);
         public static int Max(int a, int b) => a > b ? a : b;
+        public static float Max(float a, float b) => a > b ? a : b;
     }
 
     public class Object { public string name; public static void DestroyImmediate(Object o) { } public static void Destroy(Object o) { } }
@@ -19,6 +20,8 @@ namespace UnityEngine
     {
         public Transform transform; public GameObject gameObject;
         public T GetComponent<T>() where T : Component { return null; }
+        public T GetComponentInChildren<T>() where T : Component { return null; }
+        public T[] GetComponentsInChildren<T>() where T : Component { return new T[0]; }
     }
     public class Behaviour : Component { public bool enabled; }
     public class MonoBehaviour : Behaviour
@@ -34,6 +37,7 @@ namespace UnityEngine
     {
         public Vector3 position, localPosition;
         public Vector3 localScale = new Vector3(1f, 1f, 1f);
+        public Quaternion localRotation;
         public void SetParent(Transform p, bool worldStays) { }
         public Transform Find(string n) { return null; }
     }
@@ -42,20 +46,28 @@ namespace UnityEngine
         public T GetComponent<T>() where T : Component { return null; }
         public Transform transform = new Transform();
         public string tag;
+        public bool activeInHierarchy = true;
         public GameObject() { }
         public GameObject(string n) { name = n; }
         public bool activeSelf;
-        public void SetActive(bool v) { activeSelf = v; }
+        public void SetActive(bool v) { activeSelf = v; activeInHierarchy = v; }
         public T AddComponent<T>() where T : Component, new() { return new T(); }
         public Component AddComponent(Type t) { return null; }
     }
     public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public static Vector2 zero; }
-    public struct Vector3 { public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 zero; }
+    public struct Vector3 { public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 zero; public static Vector3 one; }
     public struct Vector4 { public float x, y, z, w; public Vector4(float x, float y, float z, float w) { this.x = x; this.y = y; this.z = z; this.w = w; } public static Vector4 zero; }
+    public struct Quaternion
+    {
+        public float x, y, z, w;
+        public static Quaternion identity { get { return new Quaternion(); } }
+        public static Quaternion Euler(float x, float y, float z) { return new Quaternion(); }
+    }
     public struct Rect
     {
         public float x, y, width, height;
         public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; }
+        public Vector2 center { get { return new Vector2(x + width * 0.5f, y + height * 0.5f); } }
     }
     public struct Color32 { public byte r, g, b, a; public Color32(byte r, byte g, byte b, byte a) { this.r = r; this.g = g; this.b = b; this.a = a; } }
     public struct Color
@@ -96,6 +108,8 @@ namespace UnityEngine
         { return new Sprite { texture = tex, rect = r }; }
     }
     public class TextAsset : Object { public string text; }
+    public class Font : Object { }
+    public class TextMesh : Component { public string text; public Font font; public float characterSize; }
     public class Camera : Behaviour
     {
         public bool orthographic; public float orthographicSize; public CameraClearFlags clearFlags;
@@ -108,6 +122,7 @@ namespace UnityEngine
     {
         public static T Load<T>(string path) where T : Object { return null; }
         public static T[] LoadAll<T>(string path) where T : Object { return null; }
+        public static T GetBuiltinResource<T>(string path) where T : Object { return null; }
     }
     public static class Debug
     {
@@ -123,6 +138,15 @@ namespace UnityEngine
     [AttributeUsage(AttributeTargets.Field)] public class RangeAttribute : Attribute { public RangeAttribute(float a, float b) { } }
     [AttributeUsage(AttributeTargets.Field)] public class SerializeFieldAttribute : Attribute { }
     public class RequireComponent : Attribute { public RequireComponent(Type t) { } }
+}
+
+namespace UnityEngine.EventSystems
+{
+    public class PointerEventData : Object { }
+    public interface IPointerDownHandler { void OnPointerDown(PointerEventData eventData); }
+    public class EventSystem : Component { }
+    public class Physics2DRaycaster : Component { }
+    public class StandaloneInputModule : Component { }
 }
 
 namespace UnityEditor

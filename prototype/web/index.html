@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HR//0D - interaction twin</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">HR<span class="slash">//</span>0D</span><span class="brand-sub">INTERACTION TWIN</span></div>
+    <div class="status">
+      <div class="stat"><span class="label">SHIFT</span><strong id="dayLabel">1 / 5</strong></div>
+      <div class="stat"><span class="label">SEED</span><strong id="seedLabel">1000</strong></div>
+      <div class="stat trust"><span class="label">TRUST</span><strong id="trustLabel">100</strong><div class="trust-track"><div id="trustFill"></div></div></div>
+      <div class="stat"><span class="label">HIRED AI</span><strong id="strikeLabel">0 / 3</strong></div>
+    </div>
+    <label class="motion"><input type="checkbox" id="motionToggle"> reduce motion</label>
+  </header>
+
+  <main class="layout">
+    <section class="stage-wrap">
+      <div class="stage" id="stage">
+        <canvas id="desk" width="480" height="270" aria-label="The interview desk"></canvas>
+        <div class="hotspot-layer" id="hotspotLayer"></div>
+
+        <div class="monitor-ui">
+          <div class="monitor-head">
+            <div><span class="kicker">CANDIDATE FILE</span><h1 id="candidateName">--</h1></div>
+            <div class="portrait-slot"><canvas id="portrait" width="48" height="48"></canvas></div>
+          </div>
+          <div class="tabs" role="tablist">
+            <button class="tab active" data-tab="resume" type="button">RESUME</button>
+            <button class="tab" data-tab="letter" type="button">COVER LETTER</button>
+            <button class="tab" data-tab="tools" type="button">VERIFY</button>
+          </div>
+          <div class="sheet" id="sheet"></div>
+          <div class="tool-row" id="toolRow"></div>
+        </div>
+
+        <div class="evidence-box" id="evidenceBox" hidden>
+          <div class="evidence-head"><span id="evidenceTag">OBSERVATION</span><button id="evidenceClose" type="button" aria-label="close evidence">x</button></div>
+          <div class="evidence-body"><canvas id="magnifier" width="160" height="90" hidden></canvas><p id="evidenceText"></p></div>
+        </div>
+
+        <div class="decision-bar">
+          <div class="reason"><label for="reasonSelect">REASON FOR REJECTION</label><select id="reasonSelect"></select></div>
+          <button class="stamp approve" id="approveBtn" type="button">APPROVE</button>
+          <button class="stamp reject" id="rejectBtn" type="button">REJECT</button>
+          <button class="inspect" id="inspectBtn" type="button">EXAMINE</button>
+        </div>
+
+        <div class="modal" id="modal" hidden>
+          <div class="modal-card">
+            <span class="kicker" id="modalKicker">DECISION LOGGED</span>
+            <h2 id="modalTitle">--</h2>
+            <p id="modalBody"></p>
+            <div class="modal-meta" id="modalMeta"></div>
+            <button class="primary" id="modalAction" type="button">NEXT APPLICANT</button>
+          </div>
+        </div>
+      </div>
+      <p class="hint" id="hint"></p>
+    </section>
+
+    <aside class="side">
+      <section class="card">
+        <h2>FIELD NOTES <span id="noteCount">0</span></h2>
+        <div id="notes" class="notes"></div>
+      </section>
+      <section class="card rules">
+        <h2>HOW TO PLAY</h2>
+        <ol>
+          <li>Read the file on the monitor. Open the resume and the letter.</li>
+          <li>Press EXAMINE and inspect the person across the table. Body tells open a magnifier; face tells open a callout.</li>
+          <li>Open the cover letter and flag anything wrong. A wrong flag costs trust; a right one pays it back.</li>
+          <li>Each verification tool has a small daily budget. A <em>VALID</em> result is not proof.</li>
+          <li>Reject with the category of evidence you actually found. Nervousness is never a reason.</li>
+        </ol>
+        <p class="fineprint">Interaction twin: the same layout JSON and rules as the Unity desk. Content is a seeded fixture, not the shipping APK.</p>
+      </section>
+    </aside>
+  </main>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

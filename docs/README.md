@@ -22,6 +22,7 @@ navigation you need; the numbering is deliberate (lower number = decided earlier
 | `09-backend-spec.md` | The three backend jobs, offline-first |
 | `10-analytics-spec.md` | Research instrument: events, metrics, privacy guardrails |
 | `11-core-verification.md` | How the core is proven (test plan) |
+| `15-interaction-layer.md` | Hotspot -> evidence -> stamp loop, paperwork flags and the playable browser twin |
 
 ## Art
 
