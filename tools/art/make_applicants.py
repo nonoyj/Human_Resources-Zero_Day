@@ -109,7 +109,7 @@ class Applicant:
         # head: 0 = oval, 1 = square jaw, 2 = round, 3 = long. neck/build are separate so no two
         # applicants share a silhouette even when they share a face colour.
         self.head_shape = s % 4
-        self.neck_w     = 7 + (s % 3)              # 7..9 half-width
+        self.neck_w     = 9 + (s % 3)              # 9..11 half-width (a neck, not a stalk)
         self.build_idx  = (s // 2) % 4             # narrow / average / heavy / very heavy
         self.hand_size  = 4 + (s % 3)              # knuckle span in px
         # three skin families, chosen per seed: light, warm mid, deep. Painted as ramps, not flat fills.
@@ -151,7 +151,7 @@ class Applicant:
         # The reference sheet's people all share one thing: the shoulder line DROPS from the neck at
         # roughly 20 degrees and the arm is a rounded tube. A horizontal top edge is the single strongest
         # "this is a sprite, not a person" cue, so it is gone.
-        top = 124 - breath
+        top = 92 - breath
         build_w = (44, 50, 56, 60)[self.build_idx]
         torso_bot = base + 10
         neck_x = self.neck_w + 3
@@ -178,9 +178,13 @@ class Applicant:
                 continue
             for x in range(cx - half, cx + half + 1):
                 lit = (x - (cx - half)) / float(max(1, 2 * half))
-                tone = int(2.7 - lit * 2.1)
+                tonef = 2.7 - lit * 2.1
                 if y > torso_bot - 10:
-                    tone -= 1                                # hem in shadow
+                    tonef -= 0.9                             # hem in shadow
+                tone = int(tonef)
+                bayer = ((0.00, 0.50), (0.75, 0.25))[y & 1][x & 1]
+                if (tonef - tone) > bayer:
+                    tone += 1
                 P.put(x, y, P.ramp('cloth_mid', max(0, tone)))
             # soft shoulder seam: one dithered row where the slope meets the deltoid
             if abs(y - (top + slope_w)) <= 1:
@@ -285,10 +289,19 @@ class Applicant:
             edge = 'linehi' if side < 0 else 'line'
             # The sleeve GROWS out of the shoulder over 6 rows. Drawing it as a fixed block from
             # top+18 left a gap above, so only its 1 px edge showed and the arm read as a wire.
-            for y in range(top + slope_w + 2, base + 3):
-                half = min(7, 2 + (y - (top + 4)))
-                rect(ax - half, y, ax + half, y, self.outfit)
-                put(ax + side * half, y, edge)
+            # rounded cap at the top so the sleeve grows out of the shoulder instead of ending in a
+            # square tab (v8 showed two rectangles floating at the shoulder line)
+            for y in range(top + slope_w, base + 3):
+                grow = (y - (top + slope_w)) / 6.0
+                half = int(min(8, 3 + grow * 6))
+                lit = 1.0 if side < 0 else 0.0
+                for k in range(-half, half + 1):
+                    rel = (k + half) / float(max(1, 2 * half))
+                    tone = int(2.2 - rel * 1.6) if side < 0 else int(2.0 - (1 - rel) * 1.5)
+                    P.put(ax + k, y, P.ramp('cloth_mid', max(0, tone)))
+                # outer edge catches the window
+                if y % 4 == 0:
+                    P.put(ax + side * half, y, P.ramp('rim_warm', 1))
             # seam where the sleeve meets the torso, so the two masses read as separate
             sy0 = top + 16
             rect(ax - side * 7, sy0, ax - side * 7, base + 2, 'line')
@@ -325,12 +338,12 @@ class Applicant:
         #   cranium = circle, radius chosen per seed
         #   jaw     = a wedge that starts at the ear line and narrows to the chin
         #   cheek   = one bulge either side of the jaw so the face is not a cone
-        hw = 27                                          # cranium radius (portrait crop, v7)
-        head_top = 6 - breath
+        hw = 26                                          # cranium radius (v8)
+        head_top = 10 - breath
         head_bot = 116 - breath
         cranium_cy = head_top + hw                       # centre of the sphere
         jaw_top = cranium_cy + int(hw * 0.15)
-        chin_y = head_bot
+        chin_y = min(head_bot, cranium_cy + int(hw * 1.15))   # jaw length ~1.15 radii
         shape = self.head_shape
 
         def cranium_half(y):
@@ -344,9 +357,9 @@ class Applicant:
             t = (y - jaw_top) / float(max(1, chin_y - jaw_top))
             if t < 0:
                 return 0
-            wide = hw * (1.00 if shape == 1 else (0.94 if shape == 2 else 0.90))
-            taper = 1.0 - t ** (1.8 if shape != 1 else 2.4)
-            return max(7, int(wide * taper))                   # never a point: a chin has width
+            wide = hw * (1.00 if shape == 1 else (0.99 if shape == 2 else 0.96))
+            taper = 1.0 - (t ** 2.6) * 0.72                    # stays wide, then tucks at the chin
+            return max(9, int(wide * taper))                   # never a point: a chin has width
 
         def head_half(y):
             if y <= cranium_cy:
@@ -359,13 +372,20 @@ class Applicant:
                 continue
             for x in range(cx - hwid, cx + hwid + 1):
                 lit = (x - (cx - hwid)) / float(max(1, 2 * hwid))
-                # spherical shading: brightest upper-left, falling off to the right and downward
+                # spherical shading: brightest upper-left, falling off to the right and downward.
+                # ORDERED DITHER (2x2 Bayer) instead of int(): stepping with int() put the whole gradient
+                # on one column, which read as a hard seam down the middle of every face.
                 vdy = (y - (cranium_cy - hw * 0.35)) / float(hw)
-                tone = int(3.0 - lit * 1.2 - max(0.0, vdy) * 0.5)
+                tonef = 2.9 - lit * 1.35 - max(0.0, vdy) * 0.55
+                if y > chin_y - 6:
+                    tonef -= 0.7
+                tone = int(tonef)
+                frac = tonef - tone
+                bayer = ((0.00, 0.50), (0.75, 0.25))[y & 1][x & 1]
+                if frac > bayer:
+                    tone += 1
                 if tone < 1:
                     tone = 1            # skin never reaches the darkest step above the jaw
-                if y > chin_y - 6:
-                    tone -= 1                                   # under the chin
                 P.put(x, y, P.ramp(self.skin_ramp, max(0, tone)))
 
         # dithered terminator down the shadow side of the sphere -- this is what makes it read as round
@@ -392,14 +412,25 @@ class Applicant:
 
         # ears, sitting on the skull curve rather than bolted to a rectangle
         # ---------------- neck (v5: a tapered cylinder with a contact shadow, not a block)
-        for (nx, ny) in taper(cx, chin_y - 4, 100 - breath, self.neck_w, self.neck_w + 3):
+        # NOTE: this runs AFTER the head block, so its top rows would paint over the chin. The fix is the
+        # re-assert pass at the end of this block (see 'restore the chin' below).
+        neck_bottom = top + 6 - breath
+        for (nx, ny) in taper(cx, chin_y - 2, neck_bottom, self.neck_w - 2, self.neck_w + 3):
             lit = (nx - (cx - self.neck_w)) / float(max(1, 2 * self.neck_w))
             P.put(nx, ny, P.ramp(self.skin_ramp, 2 - int(lit * 2.0)))
-        for (nx, ny) in taper(cx, chin_y - 4, chin_y + 1, self.neck_w, self.neck_w + 2):
+        for (nx, ny) in taper(cx, chin_y - 2, chin_y + 3, self.neck_w - 2, self.neck_w):
             P.put(nx, ny, P.ramp(self.skin_ramp, 0))          # jaw casts down onto the neck
         for nx in range(cx - self.neck_w, cx + self.neck_w + 1):
             if (nx + chin_y) & 1:
-                P.put(nx, chin_y - 4, P.ramp(self.skin_ramp, 1))
+                P.put(nx, chin_y - 3, P.ramp(self.skin_ramp, 1))
+
+        # restore the chin: the jaw's own colours, so no pale band sits under it
+        for yy in range(chin_y, min(chin_y + 4, neck_bottom)):
+            hwid = max(1, head_half(yy))
+            for x in range(cx - hwid, cx + hwid + 1):
+                lit = (x - (cx - hwid)) / float(max(1, 2 * hwid))
+                tone = int(2.6 - lit * 1.4) - 1
+                P.put(x, yy, P.ramp(self.skin_ramp, max(0, tone)))
         if 'skin_band' in A:
             # ARTIFACT: a hard 4-row posterised step instead of a soft gradient
             rect(cx - 10, 93 - breath, cx + 10, 96 - breath, self.skin_light)
@@ -491,13 +522,20 @@ class Applicant:
             for y in range(head_top - 3, chin_y, 5):          # folds
                 P.dither(cx - hw, y, cx + hw // 2, y, self.accent, 'line', seed=y)
         else:                                                # beanie
-            for y in range(head_top - 4, hairline + 2):
-                hwid = hair_top(y) + 1
+            cap_top = head_top - 2
+            for y in range(cap_top, hairline + 4):
+                # the cap follows the skull: full width at the crown, tucking in at the brim
+                hwid = hair_top(max(y, head_top))
+                if y < head_top + 4:
+                    hwid = max(hwid, int(hw * 0.72))
                 for x in range(cx - hwid, cx + hwid + 1):
-                    P.put(x, y, hair_key if (x // 3) % 2 else hair_dark)   # knit ribs
-            for x in range(cx - hw - 1, cx + hw + 2):
-                P.put(x, hairline + 2, 'linehi')
-                P.put(x, hairline + 3, 'line')
+                    rib = ((x - cx + hw) // 3) % 2 == 0
+                    P.put(x, y, hair_key if rib else hair_dark)
+                P.put(cx - hwid, y, 'line')                   # edge stays on the silhouette
+                P.put(cx + hwid, y, 'line')
+            for x in range(cx - hair_top(hairline) - 1, cx + hair_top(hairline) + 2):
+                P.put(x, hairline + 3, 'linehi')              # brim
+                P.put(x, hairline + 4, 'line')
 
         if 'seam' in A:
             # ARTIFACT: dead-straight line where hair meets background, no tufts
@@ -511,8 +549,8 @@ class Applicant:
             rect(cx - hw + 2, head_top + 50, cx + hw - 2, head_bot, self.hair)  # beard
             rect(cx - 8, head_top + 50, cx + 8, head_top + 56, self.skin_mid)   # mouth gap
         # ---------------- face
-        eye_y = head_top + 42
-        eye_dx = 12
+        eye_y = cranium_cy + int(hw * 0.08)
+        eye_dx = 10
         # ---- v5 painted face: socket shadow, iris, one catchlight, tapered brow, modelled nose and mouth.
         # Flat white rectangles with black squares read as a puppet; the shadow *around* the eye is what
         # makes a face read at 32 px.
@@ -548,7 +586,7 @@ class Applicant:
             for k in range(-4, 5):
                 h = 2 if abs(k) < 3 else 1
                 for d in range(h):
-                    P.put(bx + k, eye_y - 4 - lift - d + self.brow // 2, self.hair if d == 0 else P.ramp('hair_mid', 1))
+                    P.put(bx + k, eye_y - 6 - lift - d + self.brow // 2, self.hair if d == 0 else P.ramp('hair_mid', 1))
         # nose: one shadowed side plus a dithered tip; the lit side is left as skin
         for i in range(9):
             P.put(cx + 1, eye_y + 6 + i, P.ramp(self.skin_ramp, 1))

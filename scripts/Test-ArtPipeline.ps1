@@ -120,6 +120,11 @@ try {
             Write-Host ("  [FAIL] package-only namespace in stubs: " + ($offenders -join ', ')) -ForegroundColor Red
         } else { OK 'stubs declare engine/editor types only' }
 
+    S 'applicant proportions (no floating heads, no cone skulls)'
+        & python (Join-Path $repo 'tools\art\check_proportions.py')
+        if ($LASTEXITCODE -ne 0) { $failed++; Write-Host '  [FAIL] applicant proportions' -ForegroundColor Red }
+        else { OK 'applicant proportions are human' }
+
     S 'generated art is not committed'
         $tracked = & git ls-files "unity/Assets/Resources/Art" 2>$null
         if ($tracked) {
