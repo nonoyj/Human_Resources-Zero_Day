@@ -62,10 +62,20 @@ namespace HRZeroDay.Game
                 sr.sortingOrder = layer.sortingOrder;
 
                 // scaleFactor (json, optional): the applicant is drawn at 0.96 of its authored size.
-                // Nearest-neighbour only -- a Point-filtered sprite scaled bilinearly would blur.
+                // Multiple-mode strips store the FULL strip width in entry.width (768 px for four
+                // 192 px frames). Using that to place the pivot pushed the applicant 41 units to the
+                // right -- off a 30-unit-wide camera. Always position by the sprite actually drawn.
                 float scale = layer.scaleFactor > 0f ? layer.scaleFactor : 1f;
-                int drawW = Mathf.RoundToInt(entry.width * scale);
-                int drawH = Mathf.RoundToInt(entry.height * scale);
+                int artW = entry.width;
+                int artH = entry.height;
+                if (entry.spriteMode == "Multiple" && entry.sprites != null &&
+                    entry.sprites.Count > 0 && entry.sprites[0].IsValid)
+                {
+                    artW = entry.sprites[0].Width;
+                    artH = entry.sprites[0].Height;
+                }
+                int drawW = Mathf.RoundToInt(artW * scale);
+                int drawH = Mathf.RoundToInt(artH * scale);
                 go.transform.localScale = new Vector3(scale, scale, 1f);
 
                 go.transform.localPosition = PixelsToUnits(layer.anchor[0], layer.anchor[1],
