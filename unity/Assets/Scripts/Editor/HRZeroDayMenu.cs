@@ -18,9 +18,26 @@ namespace HRZeroDay.EditorTools
     {
         private const string ScenePath = "Assets/Scenes/Desk.unity";
 
+        // Scene creation and asset import cannot run during Play mode: EditorSceneManager.NewScene
+        // throws "This cannot be used during play mode", and asset changes made in Play mode are
+        // discarded when it exits. Exit Play mode and ask the user to run the menu again in Edit
+        // mode (ExitPlaymode is async, so the setup cannot continue in the same call).
+        private static bool BlockIfPlaying(string action)
+        {
+            if (!EditorApplication.isPlaying) return false;
+            EditorApplication.ExitPlaymode();
+            Debug.LogError("[HR//0D] Cannot " + action + " during Play mode. Exiting Play mode -- " +
+                           "run it again once the editor is back in Edit mode.");
+            EditorUtility.DisplayDialog("HR//0D",
+                "You are in Play mode.\n\n" + action + " needs Edit mode.\n\n" +
+                "Play mode is exiting -- run the menu again once it stops.", "OK");
+            return true;
+        }
+
         [MenuItem("HR//0D/Setup Project (one click)", false, 0)]
         public static void SetupProject()
         {
+            if (BlockIfPlaying("Setup Project")) return;
             S("publishing art to Resources");
             ArtKitPublishMenu.PublishSilent();
             S("configuring sprite import settings and extracting frames");
@@ -43,6 +60,7 @@ namespace HRZeroDay.EditorTools
 
         private static void BuildDeskScene(bool silent)
         {
+            if (BlockIfPlaying("Build Desk Scene")) return;
             var layoutAsset = AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/Resources/desk_layout.json");
             if (layoutAsset == null)
             {
@@ -83,6 +101,7 @@ namespace HRZeroDay.EditorTools
         [MenuItem("HR//0D/Open Desk Scene", false, 2)]
         public static void OpenDeskScene()
         {
+            if (BlockIfPlaying("Open Desk Scene")) return;
             if (!File.Exists(Path.Combine(Directory.GetCurrentDirectory(), ScenePath)))
             {
                 EditorUtility.DisplayDialog("HR//0D", "No scene yet. Run HR//0D > Build Desk Scene.", "OK");
