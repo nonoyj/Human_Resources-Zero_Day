@@ -230,20 +230,60 @@ def plant_pot(img, d, x, floor_row, h=42, leaf='signaldim', tip='signal'):
 
 
 def desk_front(img, d, level=0):
-    """The desk surface + front face at the bottom of the screen. Same band in every corruption level."""
+    """The desk: surface band + front face. Same construction in every corruption level.
+
+    DEFINED 2026-11-26. The old front face was three flat bands with a tick mark every 44 px, which
+    read as "underdefined wall". A desk seen from the player's side is a piece of furniture, so it now
+    has: a bevelled front lip (3 steps), a lit top edge that catches the monitor glow, a recessed
+    knee-well shadow at the ends, and an apron with one drawer + handle -- the single most recognisable
+    desk cue that fits in 18 px of height.
+    """
+    LIP = 4                              # lit lip thickness, rows DESK_ROW..DESK_ROW+LIP
+    APRON_TOP = DESK_ROW + LIP + 1
     d.rectangle([0, DESK_ROW, W - 1, H - 1], fill=rgba('panel2'))
-    d.rectangle([0, DESK_ROW + 38, W - 1, H - 1], fill=rgba('panel'))
+
+    # ---- front lip: three bevelled steps, so the edge catches light instead of being a line
     seam = 'line' if level < 2 else 'dangerdim'
     d.line([0, DESK_ROW, W - 1, DESK_ROW], fill=rgba(seam))
-    d.line([0, DESK_ROW + 1, W - 1, DESK_ROW + 1], fill=rgba('panel'))
-    d.line([0, DESK_ROW + 38, W - 1, DESK_ROW + 38], fill=rgba('line'))
-    for x in range(0, W, 44):
-        d.line([x, DESK_ROW + 39, x, H - 1], fill=rgba('void'))
-    # warm rim only from the off-screen lamp on the left (bible §2)
+    d.line([0, DESK_ROW + 1, W - 1, DESK_ROW + 1], fill=rgba('linehi'))
+    d.line([0, DESK_ROW + 2, W - 1, DESK_ROW + 2], fill=rgba('line'))
+
+    # ---- apron: one step darker than the lip, with a drawer reserved in the middle
+    d.rectangle([0, APRON_TOP, W - 1, H - 1], fill=rgba('panel'))
+    d.line([0, APRON_TOP, W - 1, APRON_TOP], fill=rgba('void'))
+
+    # ---- knee-well shadow at both ends: the desk darkens where it turns away from the lamp
+    for i in range(26):
+        tone = 'void' if i < 12 else 'panel'
+        d.line([0, APRON_TOP + 1 + i, W - 1, APRON_TOP + 1 + i], fill=rgba('panel'))
+    for i in range(30):
+        d.line([i, APRON_TOP + 2, i, H - 1], fill=rgba('void'))
+        d.line([W - 1 - i, APRON_TOP + 2, W - 1 - i, H - 1], fill=rgba('void'))
+    # re-light the middle of the apron so the darkening reads as a gradient, not a frame
+    for i in range(30, W // 2):
+        d.line([i, APRON_TOP + 2, i, H - 1], fill=rgba('panel'))
+        d.line([W - 1 - i, APRON_TOP + 2, W - 1 - i, H - 1], fill=rgba('panel'))
+
+    # ---- apron detail: two panel joints and a horizontal rail.
+    # A centred drawer was tried first and read as a TRAY holding the papers (the props sit directly
+    # above it) -- so the front face stays quiet and reads by its planes instead: lip, apron, rail,
+    # kick shadow. Definition comes from value steps, not from added clutter.
+    d.line([0, APRON_TOP + 9, W - 1, APRON_TOP + 9], fill=rgba('line'))
+    d.line([0, APRON_TOP + 10, W - 1, APRON_TOP + 10], fill=rgba('panel2'))
+    # NOTE: vertical panel joints were tried at x=168/312 and deleted -- they ran straight through
+    # the mouse and the folder, which is exactly the "scrambled" read we were fixing.
+    # kick shadow along the floor: the darkest plane, so the desk has a base
+    d.rectangle([0, H - 7, W - 1, H - 1], fill=rgba('void'))
+    d.line([0, H - 8, W - 1, H - 8], fill=rgba('line'))
+
+    # ---- warm rim only from the off-screen lamp on the left (bible §2)
     if level == 0:
-        d.line([0, DESK_ROW, 148, DESK_ROW], fill=rgba('glow_amber'))   # lamp falloff on the desk edge
+        d.line([0, DESK_ROW, 148, DESK_ROW], fill=rgba('glow_amber'))    # lamp falloff on the lip
         d.line([0, DESK_ROW + 1, 96, DESK_ROW + 1], fill=rgba('paperdim'))
-        d.line([0, DESK_ROW + 2, 54, DESK_ROW + 2], fill=rgba('warn'))  # warmest right under the lamp
+        d.line([0, DESK_ROW + 2, 54, DESK_ROW + 2], fill=rgba('warn'))   # warmest under the lamp
+        for i in range(40):                                              # spill onto the apron
+            d.line([0, APRON_TOP + 1 + i // 4, 42 - i, APRON_TOP + 1 + i // 4],
+                   fill=rgba('panel2' if i > 18 else 'panel'))
     elif level == 2:
         d.line([0, DESK_ROW, 132, DESK_ROW], fill=rgba('dangerdim'))
 
@@ -305,35 +345,83 @@ def room(level=0):
 
 
 # --------------------------------------------------------------------------- desk work
-def keyboard(img, d, cx, row, w=92, h=24):
+def keyboard(img, d, cx, row, w=88, h=26):
+    """DEFINED desk pass (2026-11-26). The old keyboard was 3 rows of identical key holes, which
+    merged into a grille. Now: lit top face, recessed key well, staggered key rows, a real space
+    bar, and a shadow under the front lip so it sits on the desk instead of floating on it."""
     x = cx - w // 2
-    d.rectangle([x, row, x + w, row + h], fill=rgba('panel'), outline=rgba('linehi'))
-    d.rectangle([x + 1, row + 1, x + w - 1, row + h - 1], outline=rgba('line'))
-    for r_ in range(3):
-        for c_ in range(13):
-            bx = x + 5 + c_ * 6
-            by = row + 4 + r_ * 4
-            if bx + 4 < x + w - 4:
-                d.rectangle([bx, by, bx + 4, by + 2], fill=rgba('line'))
-    d.rectangle([x + 24, row + h - 5, x + w - 24, row + h - 2], fill=rgba('line'))
+    # contact shadow on the desk
+    d.line([x + 2, row + h + 2, x + w - 2, row + h + 2], fill=rgba('void'))
+    d.line([x + 6, row + h + 3, x + w - 6, row + h + 3], fill=rgba('panel'))
+    # body: lit top edge, dark well, shadowed bottom
+    d.rectangle([x, row, x + w, row + h], fill=rgba('panel2'), outline=rgba('line'))
+    d.line([x + 1, row + 1, x + w - 1, row + 1], fill=rgba('linehi'))
+    d.rectangle([x + 1, row + 2, x + w - 1, row + h - 1], outline=rgba('line'))
+    # key well: a recessed plane, one step darker than the body
+    wx0, wy0, wx1, wy1 = x + 4, row + 4, x + w - 4, row + h - 5
+    d.rectangle([wx0, wy0, wx1, wy1], fill=rgba('void'))
+    d.line([wx0, wy0, wx1, wy0], fill=rgba('line'))
+    # staggered keys: back row is full width, front rows inset (that is what a keyboard looks like)
+    rows = ((wx0 + 1, 13, 6), (wx0 + 3, 12, 6), (wx0 + 5, 11, 6))
+    for i, (kx, count, step) in enumerate(rows):
+        ky = wy0 + 2 + i * 5
+        for c_ in range(count):
+            bx = kx + c_ * step
+            if bx + 4 > wx1:
+                break
+            d.rectangle([bx, ky, bx + 4, ky + 3], fill=rgba('panel'))
+            d.line([bx, ky, bx + 4, ky], fill=rgba('linehi'))      # lit key top
+    # space bar + two modifiers
+    d.rectangle([cx - 16, wy1 - 5, cx + 16, wy1 - 2], fill=rgba('panel'))
+    d.line([cx - 16, wy1 - 5, cx + 16, wy1 - 5], fill=rgba('linehi'))
+    d.rectangle([wx0 + 1, wy1 - 5, wx0 + 7, wy1 - 2], fill=rgba('panel'))
+    d.rectangle([wx1 - 7, wy1 - 5, wx1 - 1, wy1 - 2], fill=rgba('panel'))
+    # front lip
+    d.line([x, row + h - 2, x + w, row + h - 2], fill=rgba('line'))
     d.line([x, row + h, x + w, row + h], fill=rgba('void'))
 
 
 def mouse(img, d, x, row):
-    d.ellipse([x, row, x + 13, row + 18], fill=rgba('panel'), outline=rgba('linehi'))
-    d.line([x + 6, row + 2, x + 6, row + 7], fill=rgba('line'))
-    d.line([x - 4, row + 1, x + 1, row + 4], fill=rgba('line'))
+    """Mouse built from row spans so it has a real silhouette. The previous version was a pale disc
+    on a dark disc, which read as two coins. Crown is narrow, body is wide, and the split runs only
+    down the front third -- that is what makes it read as a mouse and not an oval."""
+    d.line([x + 1, row + 19, x + 12, row + 19], fill=rgba('void'))       # contact shadow
+    # BODY TONE: 'line', not 'panel2' -- the desk surface itself is panel2, so the first version of
+    # this mouse was the same value as the desk and only its edges showed (it read as a plus sign).
+    spans = ((4, 11), (2, 13), (1, 14), (1, 14), (0, 15), (0, 15), (0, 15), (0, 15),
+             (0, 15), (1, 14), (1, 14), (2, 13), (3, 12), (4, 11), (5, 10), (6, 9))
+    for i, (a, b) in enumerate(spans):
+        d.line([x + a, row + i, x + b, row + i], fill=rgba('line'))
+    d.line([x + 4, row, x + 11, row], fill=rgba('linehi'))               # lit crown
+    d.line([x + 1, row + 2, x + 1, row + 13], fill=rgba('linehi'))       # lit left edge
+    d.line([x + 14, row + 3, x + 14, row + 13], fill=rgba('panel2'))     # shaded right edge
+    d.line([x + 7, row + 1, x + 7, row + 6], fill=rgba('void'))          # button split
+    d.line([x, row + 7, x + 15, row + 7], fill=rgba('linehi'))           # button/body seam
+    d.point((x + 7, row + 9), fill=rgba('linehi'))                       # scroll notch
+    d.line([x - 6, row + 1, x - 1, row + 2], fill=rgba('line'))          # cable
 
 
 def coffee(img, d, x, row):
-    d.rectangle([x, row, x + 22, row + 24], fill=rgba('panel'), outline=rgba('linehi'))
-    d.line([x + 1, row + 1, x + 21, row + 1], fill=rgba('ink'))
-    d.line([x + 22, row + 4, x + 28, row + 7], fill=rgba('linehi'))
-    d.line([x + 28, row + 7, x + 28, row + 15], fill=rgba('linehi'))
-    d.line([x + 28, row + 15, x + 22, row + 18], fill=rgba('linehi'))
-    for i, sx in enumerate((x + 5, x + 11, x + 17)):
-        d.line([sx, row - 4, sx + 1, row - 9 - i], fill=rgba('line'))
-        d.point((sx + 1, row - 10 - i), fill=rgba('linehi'))
+    """Mug: cylinder with a lit rim, liquid line, handle, two-step contact shadow, 1 wisp of steam.
+    The old one was a rectangle with a wire handle -- the biggest single 'undefined' blob on the desk."""
+    d.ellipse([x - 1, row + 22, x + 23, row + 27], fill=rgba('void'))          # contact shadow
+    d.rectangle([x, row + 2, x + 22, row + 24], fill=rgba('panel2'))
+    d.line([x, row + 2, x, row + 24], fill=rgba('linehi'))                    # lit left edge
+    d.line([x + 22, row + 2, x + 22, row + 24], fill=rgba('line'))            # shadow right edge
+    d.ellipse([x, row, x + 22, row + 6], fill=rgba('panel2'), outline=rgba('linehi'))
+    d.ellipse([x + 2, row + 2, x + 20, row + 5], fill=rgba('ink'))            # coffee inside
+    d.line([x + 4, row + 3, x + 12, row + 3], fill=rgba('paperdim'))          # surface catch-light
+    # handle: a C, not a loop of wire
+    d.line([x + 23, row + 8, x + 27, row + 9], fill=rgba('linehi'))
+    d.line([x + 27, row + 9, x + 27, row + 16], fill=rgba('linehi'))
+    d.line([x + 27, row + 16, x + 23, row + 17], fill=rgba('linehi'))
+    d.line([x + 24, row + 10, x + 25, row + 10], fill=rgba('line'))
+    d.line([x + 24, row + 15, x + 25, row + 15], fill=rgba('line'))
+    # steam: two soft columns, tapering
+    for i, sx in enumerate((x + 7, x + 14)):
+        d.line([sx, row - 3 - i, sx + 1, row - 8], fill=rgba('line'))
+        d.point((sx + 1, row - 9), fill=rgba('linehi'))
+        d.point((sx + 2, row - 11), fill=rgba('line'))
 
 
 def notepad_and_pen(img, d, x, row):
@@ -347,12 +435,30 @@ def notepad_and_pen(img, d, x, row):
 
 
 def folder_stack(img, d, x, row):
+    """Manila folder with papers inside -- not a stack of white slabs.
+
+    The old version was three overlapping white rectangles, which at phone size read as one bright
+    undefined block: the single loudest thing on the desk. Now the FOLDER is the silhouette (paperdim,
+    with a tab) and only a thin edge of paper shows, so the mass stays quiet.
+    """
+    # contact shadow
+    d.line([x + 2, row + 32, x + 60, row + 32], fill=rgba('void'))
+    d.line([x + 6, row + 33, x + 56, row + 33], fill=rgba('panel'))
+    # paper peeking out of the folder: offset left and only 4 px proud, so it reads as a sheet
+    # INSIDE the folder rather than a card floating above it
+    d.rectangle([x + 2, row + 6, x + 50, row + 20], fill=rgba('paper'), outline=rgba('paperdim'))
+    d.line([x + 2, row + 6, x + 50, row + 6], fill=rgba('paperdim'))
     for i in range(3):
-        col = 'paper' if i == 2 else 'paperdim'
-        d.rectangle([x + i, row + 22 - i * 4, x + 62 + i, row + 38 - i * 4], fill=rgba(col), outline=rgba('ink'))
-    d.rectangle([x + 2, row + 12, x + 66, row + 24], fill=rgba('paper'), outline=rgba('ink'))
-    for i in range(3):
-        d.line([x + 8, row + 16 + i * 4, x + 58 - i * 10, row + 16 + i * 4], fill=rgba('paperdim'))
+        d.line([x + 5 + i, row + 10 + i * 3, x + 44 - i * 7, row + 10 + i * 3], fill=rgba('paperdim'))
+    # folder body with a tab on the back edge
+    d.rectangle([x + 4, row + 10, x + 12, row + 17], fill=rgba('paperdim'), outline=rgba('ink'))
+    d.rectangle([x, row + 14, x + 58, row + 30], fill=rgba('paperdim'), outline=rgba('ink'))
+    d.line([x + 1, row + 15, x + 57, row + 15], fill=rgba('warn'))      # lit folder edge
+    d.line([x + 1, row + 29, x + 57, row + 29], fill=rgba('ink'))
+    # label block on the folder face (text is TMP in game; this is the plate)
+    d.rectangle([x + 6, row + 19, x + 30, row + 26], fill=rgba('paper'), outline=rgba('ink'))
+    d.line([x + 8, row + 21, x + 26, row + 21], fill=rgba('paperdim'))
+    d.line([x + 8, row + 24, x + 21, row + 24], fill=rgba('paperdim'))
 
 
 def sticky_notes(img, d, x, row):
@@ -370,19 +476,39 @@ def clipboard(img, d, x, row):
 
 
 def desk_work():
-    """Everything lying on the desk. Local rows: 0 = DESK_ROW."""
+    """Everything lying on the desk. Local rows: 0 = DESK_ROW.
+
+    LAYOUT RULE (2026-11-26, "defining desk" pass). The old desk was eight small props spread evenly
+    across the whole width, so nothing led and everything competed. Now it reads as three GROUPS with
+    gaps between them, ordered by how the player actually works:
+
+        LEFT  (work area)  notepad + pen | keyboard + mouse
+        RIGHT (paperwork)  folder stack + sticky notes | clipboard
+        EDGE  (comfort)    mug
+
+    Props are also bigger (keyboard 88 px wide, mug 24 px tall) so they read at phone size, and every
+    one carries a contact shadow -- an object with no shadow on a surface is the main reason the desk
+    looked undefined rather than cluttered.
+    """
     img = Image.new('RGBA', (W, DESK_H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    base = 8
-    notepad_and_pen(img, d, 14, base)
-    keyboard(img, d, cx=100, row=base + 2)
-    mouse(img, d, 152, base + 6)
-    sticky_notes(img, d, 180, base + 2)
-    folder_stack(img, d, 200, base - 2)
-    clipboard(img, d, 330, base - 6)
-    coffee(img, d, 408, base + 2)
-    # RAGGED: a desk that has been worked at for years -- sparse scuffs, no noise
-    scuff(img, 301, n=26, tones=('panel', 'void'))
+    base = 6
+
+    # ---- GROUP 1: work area, left
+    notepad_and_pen(img, d, 12, base + 2)
+    keyboard(img, d, cx=104, row=base + 1)
+    mouse(img, d, 162, base + 4)
+
+    # ---- GROUP 2: paperwork, right of centre
+    sticky_notes(img, d, 186, base + 3)
+    folder_stack(img, d, 208, base - 2)
+    clipboard(img, d, 330, base - 4)
+
+    # ---- GROUP 3: comfort, far right
+    coffee(img, d, 404, base + 2)
+
+    # RAGGED: a desk worked at for years -- sparse, low-contrast, never noise
+    scuff(img, 301, n=22, tones=('panel', 'void'))
     return img
 
 

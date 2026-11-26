@@ -85,3 +85,13 @@ tools/UnityStubs/obj/
 
 # local toolchain (not shipped)
 .tooling/
+
+# ---------- local toolchain (2026-11-26) ----------
+# The .NET SDK / PowerShell tarballs must NEVER live inside the workspace: 4,644 files blew the
+# 10,000-file / 128 MB snapshot budget and silently dropped 4,283 files from the session. Install
+# them under /tmp (or outside the repo) and leave .tooling with only its .keep marker.
+.tooling/*
+!.tooling/.keep
+.dotnet/
+.nuget/
+tooling-history/

@@ -388,3 +388,16 @@ variant of "bundle newer than its HEAD" cannot recur.
   The monitor sprite moved from anchor y `76` to `86` to sit on the neck.
 - **Prevention rule:** a prop that stands on a surface may never rely on pixels inside its own sprite
   crossing a *higher* sorting layer. Split it, or it silently cannot touch the floor. (Bible §7b.)
+
+## BUG-026 -- workspace snapshot over budget, 4,283 files silently dropped (2026-11-26)
+
+- **Symptom:** the Workspace panel showed *"577.4 MB across 5,177 files, past the 128 MB / 10,000-file
+  limit. 4,283 files were not saved."*
+- **Cause:** the agent toolchain (.NET SDK 8.0.404 + PowerShell 7.4.6) was installed into
+  `/home/user/.tooling/` -- 4,644 files / 569 MB *inside the workspace*, which is snapshot-capped.
+- **Fix:** the SDK now installs to `/tmp/tc` (outside the workspace), `.tooling/` is reduced to a
+  `.keep` marker and gitignored, and the retained old bundles were pruned (only the current version is
+  kept on disk). Workspace is back to ~16 MB / 319 files.
+- **Prevention rule:** never install a toolchain, package cache or SDK under `/home/user`. If a tool
+  needs to persist between turns and is larger than a few MB, it belongs in `/tmp` or `/opt`, not the
+  repo -- the snapshot is a deliverable, not a scratch disk.

@@ -262,6 +262,22 @@ at **+10**, so a stand baked into the monitor could never be seen below the desk
 | Every prop gets a contact shadow | a dark line or 2-step band exactly where it meets the surface. No contact shadow = floating, at any resolution |
 | Check at 4×, not 1× | `twin_desk.py --zoom 4` with the right crop; a 12 px gap is invisible in a 480 px thumbnail |
 
+## 7c. The desk must read as furniture (locked 2026-11-26)
+
+User feedback: *"the desk looks too scrambled or too undefined"*. Both were true, for two different
+reasons, and the fixes are rules now:
+
+| Problem | Cause | Rule |
+|---|---|---|
+| Scrambled | eight small props spread evenly across 480 px, each competing | Props are **grouped** with gaps: work area (notepad, keyboard, mouse) → paperwork (sticky notes, folder, clipboard) → comfort (mug). Never place a prop in every band. |
+| Undefined | props had no contact shadow, and the front face was flat bands with tick marks | **Every prop gets a contact shadow.** The desk front is lip (3 bevelled rows) → apron → rail → kick shadow. Definition comes from value steps, never from added clutter. |
+| "Everything the same" | surface tone equals prop tone | A prop may never use the surface's own tone as its body: the mouse was `panel2` on a `panel2` desk and read as a plus sign. Use one step off. |
+| Fake depth | drawer drawn under the props read as a tray | No horizontal panel line directly under a prop cluster. |
+
+**Rejected in this pass (do not retry):** a centred drawer with a bar handle (reads as a tray);
+vertical panel joints at x=168/312 (they ran through the mouse and the folder); a white 3-slab folder
+stack (one bright undefined block); a mouse drawn as concentric ellipses (two coins).
+
 ## 8. Open decisions (do not build on these yet)
 
 - None carried over. (The applicant backdrop-slab question was closed by removing the slab.)
