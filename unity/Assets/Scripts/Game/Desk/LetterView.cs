@@ -198,10 +198,9 @@ namespace HRZeroDay.Game
     {
         public const string RootName = "LetterView";
         private const string AtlasResource = "fonts/monitor_font_5x7";
-        // The atlas is a PNG; the glyph metrics are a SEPARATE TextAsset. Loading both from
-        // AtlasResource made every fresh letter fail with "font atlas missing" (the json is never
-        // found because the name has no extension in Resources.Load).
-        private const string MetricsResource = "fonts/monitor_font_5x7.json";
+        // Two assets, one path: Resources.Load<Texture2D>("fonts/x") resolves x.png and
+        // Resources.Load<TextAsset>("fonts/x") resolves x.json. Adding ".json" to the path makes
+        // Unity look for x.json.json and returns null -- caught in Play mode, not by syntax checks.
 
         public GameObject root;              // the panel that gets shown/hidden
         public SpriteRenderer paper;         // the page background (UI/panel 9-slice, stretched)
@@ -266,10 +265,17 @@ namespace HRZeroDay.Game
         private bool Initialise()
         {
             var tex = Resources.Load<Texture2D>(AtlasResource);
-            var metrics = Resources.Load<TextAsset>(MetricsResource);
-            if (tex == null || metrics == null)
+            var metrics = Resources.Load<TextAsset>(AtlasResource);
+            if (tex == null)
             {
-                Debug.LogError("LetterView: font atlas missing from Resources -- run make_font.py");
+                Debug.LogError("LetterView: Resources/" + AtlasResource + ".png missing. " +
+                               "Run HR//0D > Publish Art To Resources, then Import Art Kit.");
+                return false;
+            }
+            if (metrics == null)
+            {
+                Debug.LogError("LetterView: Resources/" + AtlasResource + ".json missing. " +
+                               "Run HR//0D > Publish Art To Resources.");
                 return false;
             }
             var fm = JsonUtility.FromJson<FontMetrics>(metrics.text);

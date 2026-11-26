@@ -47,7 +47,7 @@ namespace HRZeroDay.Game.Interaction
                 var text = go.AddComponent<TextMesh>();
                 text.font = font;
                 text.characterSize = 0.38f;          // ~6 px at 480x270 / 16 PPU
-                text.sortingOrder = 220;            // above the letter page and the CRT
+                go.GetComponent<Renderer>().sortingOrder = 220;   // above the letter page and the CRT
                 text.text = string.Empty;
                 _lines[i] = text;
             }

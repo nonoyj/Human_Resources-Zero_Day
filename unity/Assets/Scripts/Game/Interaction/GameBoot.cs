@@ -15,13 +15,13 @@ namespace HRZeroDay.Game.Interaction
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void StartGame()
         {
-            if (UnityEngine.Object.FindObjectOfType<DeskBootstrap>() != null) return;
+            if (UnityEngine.Object.FindFirstObjectByType<DeskBootstrap>() != null) return;
 
             try
             {
                 var layout = DeskLayout.Load();
                 var cam = Camera.main;
-                if (cam == null) cam = UnityEngine.Object.FindObjectOfType<Camera>();
+                if (cam == null) cam = UnityEngine.Object.FindFirstObjectByType<Camera>();
                 if (cam == null)
                 {
                     var camGo = new GameObject("Main Camera");

@@ -42,6 +42,8 @@ namespace UnityEngine
         // Unity 6 still has these (obsolete, not removed); GameBoot.cs and DeskSession use them.
         public static T FindObjectOfType<T>() where T : Object { return null; }
         public static T[] FindObjectsOfType<T>() where T : Object { return new T[0]; }
+        public static T FindFirstObjectByType<T>() where T : Object { return null; }
+        public static T[] FindObjectsByType<T>(FindObjectsSortMode mode) where T : Object { return new T[0]; }
     }
     public class Component : Object
     {
@@ -58,6 +60,8 @@ namespace UnityEngine
         public T AddComponent<T>() where T : Component { return null; }
         public static T FindObjectOfType<T>() where T : Component { return null; }
         public static T[] FindObjectsOfType<T>() where T : Component { return new T[0]; }
+        public static T FindFirstObjectByType<T>() where T : Component { return null; }
+        public static T[] FindObjectsByType<T>(FindObjectsSortMode mode) where T : Component { return new T[0]; }
         public T[] GetComponentsInChildren<T>() where T : Component { return new T[0]; }
         public T[] GetComponentsInParent<T>() where T : Component { return new T[0]; }
         public T GetComponentInChildren<T>() where T : Component { return null; }
@@ -167,7 +171,9 @@ namespace UnityEngine
         public static Camera main;
         public Vector3 ScreenToWorldPoint(Vector3 screen) { return new Vector3(); }
     }
-    public class SpriteRenderer : Component { public Sprite sprite; public int sortingOrder; public Color color; }
+    public enum FindObjectsSortMode { None, InstanceID }
+    public class Renderer : Component { public int sortingOrder; }
+    public class SpriteRenderer : Renderer { public Sprite sprite; public Color color; }
 
     public class TextMesh : Component
     {
@@ -183,7 +189,6 @@ namespace UnityEngine
     }
 
     public class Font : Object { }
-
     public class Collider2D : Component { public bool isTrigger; }
     public class BoxCollider2D : Collider2D { public Vector2 size; }
     public class Resources
@@ -316,4 +321,3 @@ namespace UnityEngine.SceneManagement
 {
     public struct Scene { }
 }
-
