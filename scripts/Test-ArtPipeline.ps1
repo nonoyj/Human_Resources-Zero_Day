@@ -105,6 +105,13 @@ try {
         } finally { Pop-Location }
     }
 
+    S 'generated art is not committed'
+        $tracked = & git ls-files "unity/Assets/Resources/Art" 2>$null
+        if ($tracked) {
+            Write-Host "         " + ($tracked -join ', ') -ForegroundColor DarkGray
+            $failed++; Write-Host '  [FAIL] Resources/Art is derived from art/kit -- it must stay out of git' -ForegroundColor Red
+        } else { OK 'Resources/Art is generated locally, not committed' }
+
     Write-Host ''
     if ($failed -eq 0) {
         Write-Host 'ART PIPELINE OK' -ForegroundColor Green
@@ -114,3 +121,4 @@ try {
     exit 1
 }
 finally { Pop-Location }
+

@@ -11,7 +11,7 @@ namespace UnityEngine
         public static float Clamp01(float v) => v < 0f ? 0f : (v > 1f ? 1f : v);
     }
 
-    public class Object { public string name; public static void DestroyImmediate(Object o) { } }
+    public class Object { public string name; public static void DestroyImmediate(Object o) { } public static void Destroy(Object o) { } }
     public class Component : Object
     {
         public Transform transform; public GameObject gameObject;
@@ -70,6 +70,12 @@ namespace UnityEngine
         public Color32[] GetPixels32() { return new Color32[width * height]; }
         public void SetPixels32(Color32[] px) { }
         public void Apply(bool mips) { }
+        public void Apply(bool updateMipmaps, bool makeNoLongerReadable) { }
+        // real Unity signatures: GetPixels(x, y, w, h) is bottom-left based and returns Color[]
+        public Color[] GetPixels(int x, int y, int w, int h) { return new Color[w * h]; }
+        public void SetPixels(Color[] px) { }
+        public bool LoadImage(byte[] data) { return true; }
+        public byte[] EncodeToPNG() { return new byte[0]; }
     }
     public class Sprite : Object
     {
@@ -135,6 +141,7 @@ namespace UnityEditor
         public static void StartAssetEditing() { }
         public static void StopAssetEditing() { }
         public static void Refresh() { }
+        public static void ImportAsset(string p) { }
         public static T LoadAssetAtPath<T>(string p) where T : UnityEngine.Object { return null; }
     }
     public static class EditorUtility

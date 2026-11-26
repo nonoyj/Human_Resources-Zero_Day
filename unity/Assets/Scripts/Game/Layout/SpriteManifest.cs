@@ -10,6 +10,13 @@ using UnityEngine;
 namespace HRZeroDay.Game
 {
     [Serializable]
+    /// <summary>One named frame inside a Multiple-mode strip (from unity_sprites.json).</summary>
+    public class SpriteFrameRect
+    {
+        public string name;
+        public int x, y, width, height;
+    }
+
     public class SpriteEntry
     {
         public string source;        // art/kit/...  (repo path, used by tools)
@@ -20,6 +27,7 @@ namespace HRZeroDay.Game
         public string spriteMode;    // Single | Multiple
         public string kind;          // applicant | portrait | ui | icon | stamp | desk | background
         public string sha256_16;
+        public List<SpriteFrameRect> sprites;   // Multiple-mode frames, in reading order
 
         public string FileName
         {

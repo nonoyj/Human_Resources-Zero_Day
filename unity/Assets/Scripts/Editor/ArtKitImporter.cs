@@ -9,7 +9,6 @@ using System.Collections.Generic;
 using System.IO;
 using HRZeroDay.Game;
 using UnityEditor;
-using UnityEditor.U2D.Sprites;      // SpriteDataProviderFactories -- the only supported way to slice
 using UnityEngine;
 
 namespace HRZeroDay.EditorTools
@@ -36,7 +35,7 @@ namespace HRZeroDay.EditorTools
                     var importer = AssetImporter.GetAtPath(path) as TextureImporter;
                     if (importer == null) continue;                        // not imported yet
                     if (ApplySettings(importer, s)) changed++;
-                    if (s.spriteMode == "Multiple") sliced++;
+                    if (s.spriteMode == "Multiple") sliced += s.sprites == null ? 0 : s.sprites.Count;
                 }
             }
             finally
@@ -46,7 +45,7 @@ namespace HRZeroDay.EditorTools
 
             AssetDatabase.Refresh();
             Debug.Log(string.Format("[HR//0D] art kit import: {0} sprites checked, {1} updated, " +
-                                    "{2} sliced strips. Verify with: python tools/art/publish_to_unity.py --verify",
+                                    "{2} frames built. Verify with: python tools/art/publish_to_unity.py --verify",
                                     manifest.sprites.Count, changed, sliced));
         }
 
@@ -97,7 +96,7 @@ namespace HRZeroDay.EditorTools
             // sprite rects, which is why this is done in two steps rather than one.
             if (s.spriteMode == "Multiple")
             {
-                if (ApplySpriteRects(s)) dirty = true;
+                if (ExtractFrames(importer, s) > 0) dirty = true;
             }
 
             if (dirty) importer.SaveAndReimport();
@@ -105,77 +104,94 @@ namespace HRZeroDay.EditorTools
         }
 
         /// <summary>
-        /// Writes the 4 applicant frames through ISpriteEditorDataProvider. Returns true when the asset
-        /// changed. Any failure is reported loudly: a silently unsliced sheet is a broken game, not a
-        /// cosmetic problem.
+        /// Builds the 4 animation frames of a Multiple-mode strip as child sprite assets.
+        ///
+        /// WHY NOT SPRITE SLICING: Unity 6.3 removed TextureImporter.spritesheet, and the replacement,
+        /// UnityEditor.U2D.Sprites, lives in the 2D Sprite package, which is not referenced by this
+        /// assembly -- so the import failed with CS0234 on the user's machine even though the stub-based
+        /// compile check passed. Rather than making the whole editor assembly depend on a package for
+        /// one feature, each frame becomes a real Sprite sub-asset: same pivot, same PPU, same Point
+        /// filter, addressed as <file>.png/name, which is exactly what a sliced sheet gives you but
+        /// which no package can remove. Frame rects and names come from unity_sprites.json, so the
+        /// python pipeline stays the single source of truth.
         /// </summary>
-        private static bool ApplySpriteRects(SpriteEntry s)
+        private static int ExtractFrames(TextureImporter sheetImporter, SpriteEntry s)
         {
-            var w = ReadHeaderWidth(s.assetPath);
-            var h = ReadHeaderHeight(s.assetPath);
-            if (w <= 0 || h <= 0) return false;
-            if (w % 4 != 0)
-            {
-                Debug.LogError("[HR//0D] " + s.assetPath + " is " + w + "px wide -- not divisible by 4, " +
-                               "so a 4-frame strip cannot be sliced evenly.");
-                return false;
-            }
+            if (s.sprites == null || s.sprites.Count == 0) return 0;
 
-            var cellW = w / 4;
-            var baseName = Path.GetFileNameWithoutExtension(s.assetPath).Split(new[] { "_19" }, System.StringSplitOptions.None)[0];
-            if (baseName.StartsWith("app_")) baseName = baseName.Substring(4);
-            var names = new[] { "neutral", "breathe", "breathe_fidget", "blink" };
-
-            var factories = new SpriteDataProviderFactories();
-            factories.Init();
-            var provider = factories.GetSpriteEditorDataProviderFromObject(
-                AssetImporter.GetAtPath(s.assetPath));
-            if (provider == null)
+            var full = Path.Combine(Directory.GetCurrentDirectory(), s.assetPath);
+            if (!File.Exists(full)) return 0;
+            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            var made = 0;
+            try
             {
-                Debug.LogError("[HR//0D] no sprite data provider for " + s.assetPath +
-                               " -- cannot slice. Check that Texture Type is Sprite (2D and UI).");
-                return false;
-            }
-            provider.InitSpriteEditorDataProvider();
-
-            var rects = new SpriteRect[4];
-            for (int i = 0; i < 4; i++)
-            {
-                rects[i] = new SpriteRect
+                if (!tex.LoadImage(File.ReadAllBytes(full)))
                 {
-                    name = baseName + "_" + names[i],
-                    spriteID = GUID.Generate(),
-                    rect = new Rect(i * cellW, 0, cellW, h),   // Unity rect origin is bottom-left
-                    alignment = SpriteAlignment.Custom,
-                    pivot = new Vector2(0.5f, 0.5f),
-                    border = Vector4.zero
-                };
-            }
-            provider.SetSpriteRects(rects);
+                    Debug.LogError("[HR//0D] could not decode " + s.assetPath);
+                    return 0;
+                }
 
-            var nameFileIdDataProvider = provider.GetDataProvider<ISpriteNameFileIdDataProvider>();
-            if (nameFileIdDataProvider != null)
+                var dir = Path.GetDirectoryName(s.assetPath).Replace('\\', '/');
+                var stem = Path.GetFileNameWithoutExtension(s.assetPath);
+                for (int i = 0; i < s.sprites.Count; i++)
+                {
+                    var f = s.sprites[i];
+                    // the json rects are top-left based; Unity texture rects are bottom-left based
+                    var y = tex.height - f.y - f.height;
+                    var px = tex.GetPixels(f.x, y, f.width, f.height);
+
+                    var sub = new Texture2D(f.width, f.height, TextureFormat.RGBA32, false);
+                    sub.SetPixels(px);
+                    sub.Apply(false, false);
+
+                    var png = sub.EncodeToPNG();
+                    UnityEngine.Object.DestroyImmediate(sub);
+
+                    var framePath = dir + "/frames/" + stem + "__" + f.name + ".png";
+                    var frameDir = Path.GetDirectoryName(framePath);
+                    if (!Directory.Exists(frameDir)) Directory.CreateDirectory(frameDir);
+                    File.WriteAllBytes(framePath, png);
+
+                    AssetDatabase.ImportAsset(framePath);
+                    var fi = AssetImporter.GetAtPath(framePath) as TextureImporter;
+                    if (fi != null)
+                    {
+                        fi.textureType = TextureImporterType.Sprite;
+                        fi.spritePixelsPerUnit = s.ppu;
+                        fi.filterMode = FilterMode.Point;
+                        fi.textureCompression = TextureImporterCompression.Uncompressed;
+                        fi.mipmapEnabled = false;
+                        fi.alphaIsTransparency = true;
+                        fi.wrapMode = TextureWrapMode.Clamp;
+                        fi.SaveAndReimport();
+
+                        var settings = new TextureImporterSettings();
+                        fi.ReadTextureSettings(settings);
+                        settings.spriteMeshType = SpriteMeshType.FullRect;
+                        fi.SetTextureSettings(settings);
+                        fi.SaveAndReimport();
+                    }
+                    made++;
+                }
+            }
+            finally
             {
-                var pairs = new List<SpriteNameFileIdPair>(4);
-                for (int i = 0; i < 4; i++)
-                    pairs.Add(new SpriteNameFileIdPair(rects[i].name, rects[i].spriteID));
-                nameFileIdDataProvider.SetNameFileIdPairs(pairs);
+                UnityEngine.Object.DestroyImmediate(tex);
             }
-
-            provider.Apply();
-            return true;
+            return made;
         }
 
-        /// <summary>How many sprite rects the asset actually has right now (0 = unsliced).</summary>
-        private static int CountSpriteRects(string assetPath)
+        private static int CountExtractedFrames(SpriteEntry s)
         {
-            var factories = new SpriteDataProviderFactories();
-            factories.Init();
-            var provider = factories.GetSpriteEditorDataProviderFromObject(AssetImporter.GetAtPath(assetPath));
-            if (provider == null) return 0;
-            provider.InitSpriteEditorDataProvider();
-            var rects = provider.GetSpriteRects();
-            return rects == null ? 0 : rects.Length;
+            var dir = Path.GetDirectoryName(s.assetPath).Replace('\\', '/');
+            var stem = Path.GetFileNameWithoutExtension(s.assetPath);
+            var prefix = dir + "/frames/" + stem + "__";
+            if (!Directory.Exists("Assets")) return 0;
+            var folder = Path.GetDirectoryName(prefix);
+            if (!Directory.Exists(folder)) return 0;
+            var n = 0;
+            foreach (var f in Directory.GetFiles(folder, stem + "__*.png")) n++;
+            return n;
         }
 
         private static int ReadHeaderWidth(string path)
@@ -218,7 +234,7 @@ namespace HRZeroDay.EditorTools
                 if (importer.textureCompression != TextureImporterCompression.Uncompressed) problems.Add("compression: " + s.assetPath);
                 if (importer.spritePixelsPerUnit != s.ppu) problems.Add("PPU: " + s.assetPath);
                 if (importer.mipmapEnabled) problems.Add("mipmaps on: " + s.assetPath);
-                if (s.spriteMode == "Multiple" && CountSpriteRects(s.assetPath) < 4) problems.Add("not sliced: " + s.assetPath);
+                if (s.spriteMode == "Multiple" && CountExtractedFrames(s) < 4) problems.Add("frames not built: " + s.assetPath);
             }
 
             if (problems.Count == 0)
