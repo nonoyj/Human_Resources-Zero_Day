@@ -107,9 +107,7 @@ try {
     if (-not $root) { D "bundle does not contain a project folder (no README.md inside)" }
     OK "project found in bundle: $($root.Name)"
 
-    # NB: do NOT create the folder when a git clone is coming -- `git clone` refuses a non-empty target,
-    # and an empty one would put HEAD on the machine's default branch (see BUG-038).
-    if ((-not (Test-Path -LiteralPath $WorkingCopy)) -and -not (Test-Path -LiteralPath (Join-Path $temp 'history.bundle'))) {
+    if (-not (Test-Path -LiteralPath $WorkingCopy)) {
         New-Item -ItemType Directory -Force -Path $WorkingCopy | Out-Null
         OK "created $WorkingCopy"
     }
@@ -175,15 +173,38 @@ try {
                 OK "old .git removed"
             }
 
-            # BUG-038: the old sequence was  git init + fetch refs/heads/*:refs/heads/*  and it dies with
-            #   fatal: refusing to fetch into branch 'refs/heads/main' checked out at 'C:/Users/User/HR-ZeroDay'
-            # because `git init` already points HEAD at refs/heads/main on git builds whose default branch
-            # is main (ours here is master, which is why the rehearsal never caught it -- behaviour that
-            # depends on a machine setting can never be proven by one machine).
-            # A bundle is a repository, so CLONE it. No ref juggling, no HEAD state to argue with.
-            Git @('clone', '-q', '--branch', $bBranch, $srcBundle, $WorkingCopy) | Out-Null
-            if ($script:GitExitCode -ne 0) { D "clone from history.bundle failed ($bBranch): $srcBundle" }
-            OK "history cloned: $bBranch"
+            # BUG-038/039: two traps in a row here, both machine-dependent:
+            #   a) `git init` + `fetch refs/heads/*:refs/heads/*` dies with
+            #      "refusing to fetch into branch 'refs/heads/main' checked out at ..." on installs whose
+            #      default branch is main (ours here defaults to master, which is why rehearsing on this
+            #      box proved nothing -- behaviour that depends on a machine setting is never proven by
+            #      one machine);
+            #   b) `git clone <bundle> <workingcopy>` refuses a non-empty folder, and the working copy is
+            #      ALWAYS full of the previous version.
+            # So: init, fetch into a namespace that can never be checked out, then move the refs by hand.
+            # Nothing is ever "checked out into", so there is nothing for git to refuse.
+            Git @('-C', $WorkingCopy, 'init', '-q') -Quiet | Out-Null
+            $incoming = 'refs/hr0d-incoming'
+            Git @('-C', $WorkingCopy, 'fetch', '-q', '--no-tags', $srcBundle, ('+' + $incoming + '/*:refs/heads/*')) -Quiet | Out-Null
+            if ($script:GitExitCode -ne 0) {
+                # older syntax fallback: fetch the single branch straight to a temp ref
+                Git @('-C', $WorkingCopy, 'fetch', '-q', $srcBundle, ('+' + 'refs/heads/' + $bBranch + ':refs/heads/' + $bBranch)) -Quiet | Out-Null
+                if ($script:GitExitCode -ne 0) { D "fetch from history.bundle failed ($bBranch): $srcBundle" }
+            }
+            $refs = Git @('-C', $WorkingCopy, 'for-each-ref', '--format=%(refname:short)|%(objectname)', $incoming) -Quiet
+            foreach ($line in ($refs -split "`n")) {
+                $t = $line.Trim()
+                if (-not $t -or $t -notmatch '\|') { continue }
+                $name = $t.Substring(0, $t.LastIndexOf('|')) -replace ('^' + [regex]::Escape($incoming) + '/'), ''
+                $sha  = $t.Substring($t.LastIndexOf('|') + 1)
+                Git @('-C', $WorkingCopy, 'update-ref', ('refs/heads/' + $name), $sha) -Quiet | Out-Null
+            }
+            Git @('-C', $WorkingCopy, 'symbolic-ref', 'HEAD', ('refs/heads/' + $bBranch)) | Out-Null
+            $headSha = Git @('-C', $WorkingCopy, 'rev-parse', '--verify', '--quiet', ('refs/heads/' + $bBranch)) -Quiet
+            if (-not $headSha.Trim()) { D "branch '$bBranch' is not in the bundle (history.branch says otherwise)" }
+            Git @('-C', $WorkingCopy, 'reset', '-q', '--mixed', ('refs/heads/' + $bBranch)) | Out-Null
+            $shortSha = (Git @('-C', $WorkingCopy, 'rev-parse', '--short', $bBranch) -Quiet).Trim()
+            OK "history adopted: $bBranch at $shortSha"
             # hooks/config from the source repo are not needed; keep the bundle's identity out of it
             Git @('-C', $WorkingCopy, 'config', 'core.autocrlf', 'false') -Quiet | Out-Null
             if ($savedRemote) {
