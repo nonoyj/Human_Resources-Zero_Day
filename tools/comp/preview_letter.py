@@ -9,7 +9,7 @@ unity/Assets/Scripts/Game/Desk/LetterView.cs. If this looks wrong here, it will 
     python tools/comp/preview_letter.py --scam --zoom 3 --out letter_scam.png
 """
 from __future__ import annotations
-import argparse, json, os, sys
+import argparse, json, os, random, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 KIT = os.path.join(ROOT, 'art', 'kit')
@@ -100,10 +100,20 @@ def render(scam=False, title='COVER LETTER  MARIA SANTOS'):
                 img.paste(Image.new('RGBA', (GLYPH_W, GLYPH_H), ink), (pen, y), g)
             pen += GLYPH_W + LETTER_GAP
         y += GLYPH_H + LINE_GAP
-    # page frame on the paper stock
+    # page frame on the paper stock -- 2 px, ragged on the bottom edge only (bible 6b: soft goods keep
+    # torn edges, read-critical objects stay straight). Deterministic: same seed, same tear.
     from PIL import ImageDraw
     d = ImageDraw.Draw(img)
     d.rectangle([0, 0, PAGE_W - 1, PAGE_H - 1], outline=pal['ink'])
+    rng = random.Random(0x5EED)
+    x = 3
+    while x < PAGE_W - 3:
+        if rng.random() < 0.35:
+            step = rng.choice((1, 2, 3))
+            d.rectangle([x, PAGE_H - 3 - step, x + step - 1, PAGE_H - 2], fill=pal['paper'])
+            x += step + 2
+        else:
+            x += 1
     return img
 
 
