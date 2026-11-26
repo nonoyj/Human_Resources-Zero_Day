@@ -65,7 +65,9 @@ Write-Host "==> opening $project" -ForegroundColor Cyan
 Write-Host "    $Unity" -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "  When the editor is up: press Play. That is all -- GameBoot builds the desk itself." -ForegroundColor Green
-Write-Host "  Menu (only needed when the art PNGs changed): HR//0D > Setup Project (one click)" -ForegroundColor DarkGray
+Write-Host "  Or use HR//0D > Open Game (play) and skip the click." -ForegroundColor DarkGray
+Write-Host "  To replay after an update: Stop, then Play. Unity never has to be closed." -ForegroundColor DarkGray
+Write-Host "  Menu is only needed when the art PNGs changed: HR//0D > Reload Art Kit (open editor)" -ForegroundColor DarkGray
 Write-Host ""
 
 $args = @('-projectPath', $project)

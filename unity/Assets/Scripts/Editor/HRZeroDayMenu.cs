@@ -55,6 +55,42 @@ namespace HRZeroDay.EditorTools
 
         private static void S(string message) { Debug.Log("[HR//0D] " + message + "\n"); }
 
+        // ---------------------------------------------------------------------------------------
+        // Play-mode convenience, added 2026-11-25.
+        //
+        // The player's question: "do I always have to exit unity? It has very long loading times and
+        // doing that all the time is tiring." No -- the cycle he actually needs is Play -> Stop -> Play,
+        // because edits made in Play mode are DISCARDED by Unity when Play ends. Stopping is what
+        // recompiles; the editor itself never has to close.
+        //
+        // These two menu items remove the last two reasons to leave the editor:
+        //   Open Game        open the desk scene (or build it if it is missing) and enter Play mode.
+        //   Reload Art Kit   re-run the publish + import steps without quitting, for when the PNGs
+        //                    changed under an open editor (Unity does not reload them on focus).
+        // ---------------------------------------------------------------------------------------
+        [MenuItem("HR//0D/Open Game (play)", false, 3)]
+        public static void OpenGame()
+        {
+            if (EditorApplication.isPlaying) { EditorApplication.ExitPlaymode(); return; }
+            if (!File.Exists(Path.Combine(Directory.GetCurrentDirectory(), ScenePath)))
+            {
+                Debug.Log("[HR//0D] no Desk scene yet -- building it first.");
+                BuildDeskScene(true);
+            }
+            EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            EditorApplication.isPlaying = true;
+        }
+
+        [MenuItem("HR//0D/Reload Art Kit (open editor)", false, 12)]
+        public static void ReloadArtKit()
+        {
+            if (BlockIfPlaying("Reload Art Kit")) return;
+            ArtKitPublishMenu.PublishSilent();
+            ArtKitImporter.ImportSilent();
+            AssetDatabase.Refresh();
+            Debug.Log("[HR//0D] art kit republished and reimported. Press Play.");
+        }
+
         [MenuItem("HR//0D/Build Desk Scene", false, 1)]
         public static void BuildDeskScene() { BuildDeskScene(false); }
 

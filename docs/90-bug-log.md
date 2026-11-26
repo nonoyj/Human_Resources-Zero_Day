@@ -846,6 +846,13 @@ in the game; `SpriteRenderer`s set their order directly with a comment saying wh
 (a) any `SpriteRenderer` asks for a `MeshRenderer`, or (b) any `*.sortingOrder =` lands on a `TextMesh`.
 Verified by re-injecting pattern (b) — the gate fails by name.
 
+## BUG-049 -- the merge (2026-11-25)
+
+See below: the merged tree broke the gates in ways neither branch did. One `Renderer` hierarchy; a
+missing `EditorApplication` stub; a save test that serialised `{}` because `System.Text.Json` ignores
+public fields without `IncludeFields`; and `GetComponent<Renderer>()` reintroduced for a `TextMesh`.
+The merge gates are now the same five as a release: compile, tests, scripts, art, fresh clone.
+
 ## The real fix: stop finding these one crash at a time
 
 Six boot failures in one day (BUG-042, 044, 045, 046, 047, 048) all had the same shape: **my checks read
@@ -862,3 +869,27 @@ gate and failed on his machine.
 If a clean checkout cannot verify itself, the script fails here instead of on the player's machine. This is
 now the last step before any bundle is built, and it is the first thing to run when a bug report arrives
 that "works here".
+
+## BUG-049 -- the merge that "worked here" and broke on the peer's machine class
+
+Found while reconciling `origin/main` (19 upstream commits) on 2026-11-25. Nothing crashed at Play;
+these were found by running the gates on the **merged** tree, which is the only place they show up.
+
+1. **Two `Renderer` hierarchies in the stub.** The peer branch and this one had each added
+   `Renderer` / `SpriteRenderer` / `FindObjectsSortMode` / `FindObjectsByType`. Merged text compiled to
+   four `CS0111` (member already defined) errors. Rule that already existed, restated: *one* hierarchy,
+   modelled on Unity's real one, in `tools/UnityStubs/UnityStubs.cs`.
+2. **`EditorApplication` was missing** from the stubs, so the peer's new Play-mode guard in
+   `HRZeroDayMenu` made `CompileCheck` fail with `CS0103`. A stub that lacks a type the game genuinely
+   uses is a broken gate, not a strict one.
+3. **The peer's save tests proved nothing.** `tools/CoreTests/SaveResumeTests.cs` round-tripped `SaveData`
+   through `System.Text.Json`, which **ignores public fields** unless `IncludeFields = true`. Every
+   round-trip serialised to `{}`, and 3 of 5 tests failed with "seed changed: 0". `SaveData` is
+   fields-only on purpose (`JsonUtility`'s rule), so the mirror, not the data, was wrong.
+4. **The renderer mistake came back.** The peer's `DeskRuntimeScene` called
+   `label.GetComponent<Renderer>().sortingOrder` for a `TextMesh`. `GetComponent<Renderer>` on a
+   `TextMesh` is not guaranteed to return the `MeshRenderer` that carries the order. BUG-048's
+   `SetTextMeshSorting` was re-applied over their newer file rather than the other way round.
+
+**Lesson.** A merge has its own gate list: compile, tests, scripts, art, fresh clone -- on the merged
+tree, before pushing. Two branches can each be green and the join be broken.

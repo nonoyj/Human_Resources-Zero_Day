@@ -27,6 +27,11 @@ the CRT → inspect artifacts → stamp → day summary → after-hours sweep.
 | **Unity will compile** | `dotnet build tools\UnityStubs\CompileCheck.csproj` | succeeded |
 | **The COMMIT works** | `python3 tools\verify_fresh_clone.py` | PASS |
 
+**Unity does not have to be closed.** Replay after an update = **Stop, then Play**. Editing in Play mode and
+expecting the change to stay is the mistake; Unity throws Play-mode edits away, which is what makes the
+relaunch feel necessary. `HR//0D > Open Game (play)` opens/boots the scene without a click, and
+`HR//0D > Reload Art Kit (open editor)` re-publishes art under a running editor.
+
 The last one is the one that matters most: it exports `HEAD` with `git archive` into a temp folder and runs
 every other check **inside it**. Six boot failures in one day were all the same shape — a check that read my
 working directory while you ran the commit. It must be green **after** committing, and before any bundle.
