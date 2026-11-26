@@ -66,9 +66,8 @@ namespace HRZeroDay.Game.Interaction
             var overlay = GetComponentInChildren<DeskEvidenceOverlay>();
             if (overlay != null)
             {
-                var layout = DeskLayout.Load();
-                var region = new Rect(14f, 52f, 192f, 108f);
-                overlay.ShowCallout(region, result.IsCorrect ? correctHeading : wrongHeading,
+                overlay.ShowCallout(Presenter.DocumentRect(),
+                                    result.IsCorrect ? correctHeading : wrongHeading,
                                     result.DebriefLine);
             }
             if (autoAdvance == false) return;

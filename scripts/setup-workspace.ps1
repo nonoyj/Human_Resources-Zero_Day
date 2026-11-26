@@ -23,9 +23,74 @@ $Home0 = if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
 function Info ($m) { Write-Host "  $m" }
 function Step ($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
 
+# One-liner for the operator: copy the CURRENT bootstrap from the repo into Downloads.
+# The repo copy is updated by every bundle; Downloads only ever holds a copy of it.
+function Refresh-Bootstrap {
+    $here = (Get-Location).Path
+    $found = $null
+    while ($here) {
+        $cand = Join-Path $here 'scripts\Apply-Bundle.ps1'
+        if (Test-Path -LiteralPath $cand) { $found = $cand; break }
+        $parent = Split-Path -Parent $here
+        if ($parent -eq $here) { break }
+        $here = $parent
+    }
+    if (-not $found) {
+        Write-Host "  no scripts\Apply-Bundle.ps1 above $((Get-Location).Path) -- cd into the repo first" -ForegroundColor Red
+        return
+    }
+    $dstDir = Join-Path $Home0 'Downloads'
+    if (-not (Test-Path -LiteralPath $dstDir)) { New-Item -ItemType Directory -Force -Path $dstDir | Out-Null }
+    $dst = Join-Path $dstDir 'Apply-Bundle.ps1'
+    Copy-Item -LiteralPath $found -Destination $dst -Force
+    Write-Host "  bootstrap refreshed: $dst ($((Get-Item -LiteralPath $dst).Length) bytes)" -ForegroundColor Green
+}
+
 Write-Host @'
   HR//0D  workspace setup
 '@ -ForegroundColor DarkCyan
+
+# The one-liner only helps if it survives the session, so it is written into the profile once.
+try {
+    $prof = $PROFILE.CurrentUserAllHosts
+    $profDir = Split-Path -Parent $prof
+    if (-not (Test-Path -LiteralPath $profDir)) { New-Item -ItemType Directory -Force -Path $profDir | Out-Null }
+    $needle = 'function Refresh-Bootstrap'
+    $existing = if (Test-Path -LiteralPath $prof) { Get-Content -LiteralPath $prof -Raw } else { '' }
+    if ($existing -notmatch [regex]::Escape($needle)) {
+        $repoScripts = $PSScriptRoot
+        Add-Content -LiteralPath $prof -Value @"
+
+# HR//0D: copy the current bundle bootstrap from the repo into Downloads.
+function Refresh-Bootstrap {
+    # Walk UP from wherever you are: the helper is used from Downloads, from the repo, from a scene
+    # folder, and assuming one of those was the bug in the first version of this script.
+    $here = (Get-Location).Path
+    $found = $null
+    while ($here) {
+        $cand = Join-Path $here 'scripts\Apply-Bundle.ps1'
+        if (Test-Path -LiteralPath $cand) { $found = $cand; break }
+        $parent = Split-Path -Parent $here
+        if ($parent -eq $here) { break }
+        $here = $parent
+    }
+    if (-not $found) {
+        Write-Host "  no scripts\Apply-Bundle.ps1 above $((Get-Location).Path) -- cd into the repo first" -ForegroundColor Red
+        return
+    }
+    $dstDir = Join-Path $env:USERPROFILE 'Downloads'
+    if (-not (Test-Path -LiteralPath $dstDir)) { New-Item -ItemType Directory -Force -Path $dstDir | Out-Null }
+    $dst = Join-Path $dstDir 'Apply-Bundle.ps1'
+    Copy-Item -LiteralPath $found -Destination $dst -Force
+    Write-Host "  bootstrap refreshed: $dst ($((Get-Item -LiteralPath $dst).Length) bytes)" -ForegroundColor Green
+}
+"@
+        Info "profile updated: $prof"
+    } else { Info "profile already has Refresh-Bootstrap" }
+} catch {
+    Info "could not update the profile ($($_.Exception.Message)) -- use the Copy-Item form instead"
+}
+
 
 # ---------------------------------------------------------------- folders
 Step 'folder contract'
@@ -65,7 +130,29 @@ if (-not (Test-Path (Join-Path $Root '.git'))) {
 } else {
     Step 'pulling latest'
     Push-Location $Root
-    try { git pull --ff-only } catch { Write-Host "  [warn] pull failed: $($_.Exception.Message)" -ForegroundColor Yellow }
+    try {
+        # A bundle-built history has no upstream, so `git pull` answers "no tracking information".
+        # Order matters and I got it wrong once: --set-upstream-to needs origin/main to EXIST, and it
+        # only exists after a fetch. Fetch, confirm, then link, then pull -- and say which step failed.
+        $remotes = (git remote) 2>$null
+        if ($remotes -contains 'origin') {
+            git fetch origin 2>&1 | ForEach-Object { Write-Host "  $_" }
+            $hasRemoteBranch = (git rev-parse --verify --quiet 'refs/remotes/origin/main') 2>$null
+            if (-not $hasRemoteBranch) {
+                Write-Host "  [warn] origin/main does not exist on the remote yet -- nothing to pull" -ForegroundColor Yellow
+            } else {
+                $up = (git rev-parse --abbrev-ref '@{u}' 2>$null)
+                if (-not $up) {
+                    git branch --set-upstream-to=origin/main main 2>&1 | Out-Null
+                    Write-Host "  linked main -> origin/main (one-time)" -ForegroundColor DarkGray
+                }
+            }
+        } else {
+            Write-Host "  [warn] no 'origin' remote -- skipping pull" -ForegroundColor Yellow
+        }
+        git pull --ff-only 2>&1 | ForEach-Object { Write-Host "  $_" }
+        if ($LASTEXITCODE -ne 0) { Write-Host "  [warn] pull did not fast-forward -- see the lines above" -ForegroundColor Yellow }
+    } catch { Write-Host "  [warn] pull failed: $($_.Exception.Message)" -ForegroundColor Yellow }
     finally { Pop-Location }
 }
 
@@ -110,7 +197,9 @@ if (-not (Test-Path $linkPath)) {
 } else { Info 'shortcut already exists' }
 
 # ---------------------------------------------------------------- report
-Write-Host "`n================ DONE ================" -ForegroundColor Cyan
+Write-Host "`n. $PROFILE.CurrentUserAllHosts
+
+================ DONE ================" -ForegroundColor Cyan
 Write-Host @"
 Repo:      $Root
 Read next: $Root\README.md

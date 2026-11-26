@@ -12,49 +12,66 @@
     "rects": "x, y, w, h measured from the anchor: x grows right, y grows UP, so y is the BOTTOM edge",
     "sortingOrder": "lower draws first (behind)"
   },
-  "notes": [
-    "Applicant sprites are 192x216 and sit on the right half, feet at the desk edge (y=18).",
-    "The monitor occupies the left half: bezel at x=14, the email sheet overlaps its lower edge.",
-    "Hotspot rects are in APPLICANT-LOCAL pixels (0,0 = bottom-left of the 192x216 sprite) so they",
-    "survive the sprite being moved. tools/comp/twin_desk.py draws them for visual verification."
-  ],
+  "notes": "composition L (approved 2026-11-26): window behind the applicant's shoulders, monitor 0.58x as a 1-px redraw, desk_foreground sorts ABOVE the applicant so keyboard/mug sit in front of him. applicant scaleFactor 0.96 is applied by DeskSceneBuilder. Anchors converted from the study's top-down rows: monitor (14,76), document (34,93), applicant (288,29); FLOOR_ROW 198, DESK_ROW 206. MONITOR FLOAT FIX (2026-11-26): the monitor sprite carried a 4 px stand stub that could never reach the desk (monitor sorts -20, desk sorts +10), so it hung 12 px in air. The stand is now its own layer, monitor_stand, anchored so its base overlaps the desk surface by 3 px; monitor moved to anchor y 86 (bottom row 184) to sit on it. BAND FIX (2026-11-26): desk_foreground is 480x19 at the bottom of the screen, so the arm and everything above the lip stay unclipped. document moved to [38,100] to sit inside the glass.",
   "layers": [
     {
       "id": "background",
-      "sprite": "art/kit/backgrounds/office_L1.png",
+      "sprite": "art/kit/backgrounds/office_L0.png",
       "anchor": [
         0,
         0
       ],
-      "sortingOrder": -20
+      "sortingOrder": -30
     },
     {
       "id": "monitor",
-      "sprite": "art/kit/desk/monitor_bezel.png",
+      "sprite": "art/kit/desk/monitor_small.png",
       "anchor": [
         14,
-        52
+        86
       ],
-      "sortingOrder": -10
+      "sortingOrder": -20,
+      "screen": {
+        "x": 6,
+        "y": 12,
+        "w": 142,
+        "h": 88,
+        "glyphW": 5,
+        "glyphH": 7,
+        "letterGap": 2,
+        "lineGap": 3,
+        "note": "glass rect in monitor-local px, y UP, measured from monitor_small's 6,6..w-7,h-13 drawing. MonitorScreen.GlassForSprite recomputes this; GameDataTests asserts they agree."
+      }
+    },
+    {
+      "id": "monitor_stand",
+      "sprite": "art/kit/desk/monitor_stand.png",
+      "anchor": [
+        63,
+        60
+      ],
+      "sortingOrder": -19,
+      "notes": "56x34: mount plate at top meets the bezel bottom, base foot overlaps the desk by 4 px"
     },
     {
       "id": "document",
-      "sprite": "art/kit/desk/document_sheet.png",
+      "sprite": "art/kit/desk/document_small.png",
       "anchor": [
-        44,
-        6
+        38,
+        100
       ],
-      "sortingOrder": -5
+      "sortingOrder": -15
     },
     {
       "id": "applicant",
       "sprite": "art/kit/applicants/app_human_solid_a_192x216.png",
       "anchor": [
-        280,
-        18
+        288,
+        29
       ],
       "sortingOrder": 0,
       "frameSprite": "human_solid_a_neutral",
+      "scaleFactor": 0.96,
       "animator": {
         "frames": [
           "neutral",
@@ -65,6 +82,16 @@
         "fps": 4,
         "loop": true
       }
+    },
+    {
+      "id": "desk",
+      "sprite": "art/kit/desk/desk_foreground.png",
+      "anchor": [
+        0,
+        0
+      ],
+      "sortingOrder": 10,
+      "notes": "480x64: props on the desk surface (placed around the monitor arm at x 63..119) + the front lip at rows 251-269. Sorts +10 so props sit in front of the applicant -- correct depth. The transparent upper band draws nothing, so it clips nothing."
     }
   ],
   "deskEdgeY": 18,

@@ -18,6 +18,7 @@ import sys
 
 # Pillow is needed to DRAW art, but never to CHECK it (BUG-016: a fresh Windows box has no
 # Pillow, so the verification command must not import it). Reading is done by pngcheck.py.
+
 try:
     from PIL import Image, ImageDraw
     HAVE_PIL = True
@@ -51,6 +52,9 @@ PALETTE = {
     'synthdim':  (0xb3, 0x9d, 0xff),
     'ok':        (0x6e, 0xe7, 0xc8),
     'paperdim':  (0x8a, 0x6d, 0x3b),
+    'glow_teal': (0x0c, 0x3d, 0x38),   # approved glow step 1/3 (2026-11-26): mint light falling off
+    'glow_amber': (0x5c, 0x4a, 0x20),  # approved glow step 2/3: warm lamp falloff
+    'glow_red':  (0x4a, 0x15, 0x20),   # approved glow step 3/3: breach/corruption falloff
     'paper':     (0xf2, 0xe8, 0xd5),
     'ink':       (0x2a, 0x21, 0x18),
 }
@@ -92,6 +96,24 @@ def nine_slice(w, h, fill='panel', border='line', inner=None, corner=3, accent=N
     return img
 
 
+def _wear():
+    """ragged.py imports PALETTE from this module, so wear helpers must be imported lazily."""
+    import os as _o, sys as _s
+    _s.path.insert(0, _o.path.dirname(_o.path.abspath(__file__)))
+    import ragged
+    return ragged
+
+
+def _chip(img, seed):
+    """One-pixel corner knock-off: the most wear a 9-slice may carry without tiling badly."""
+    nc = _wear().notch_corner
+    nc(img, 0, 0, 1, 1, depth=1)
+    nc(img, img.width - 1, 0, -1, 1, depth=1)
+    nc(img, 0, img.height - 1, 1, -1, depth=1)
+    nc(img, img.width - 1, img.height - 1, -1, -1, depth=1)
+    return img
+
+
 def kit_nine_slices():
     made = []
     made.append(save(nine_slice(24, 24, 'panel', 'line', corner=3), 'ui/panel_9slice.png'))
@@ -100,6 +122,14 @@ def kit_nine_slices():
     made.append(save(nine_slice(16, 16, 'void', 'line', corner=2), 'ui/inset_9slice.png'))
     # tooltip: paper stock with ink border
     made.append(save(nine_slice(20, 16, 'paper', 'ink', corner=2), 'ui/tooltip_9slice.png'))
+
+    # 9-slices: the border must stay intact for tiling, so only the four corner pixels may be
+    # knocked off (bible 6b: a 9-slice is never warped).
+    made.append(save(_chip(nine_slice(24, 24, 'panel', 'line', corner=3), 720), 'ui/panel_9slice.png'))
+    made.append(save(_chip(nine_slice(24, 24, 'panel2', 'linehi', corner=3, accent='signal'), 721),
+                     'ui/panel_active_9slice.png'))
+    made.append(save(_chip(nine_slice(24, 24, 'panel', 'dangerdim', corner=3, accent='danger'), 722),
+                     'ui/panel_danger_9slice.png'))
 
     for state, fill, border, label in (
         ('idle',    'panel2', 'line',    None),
@@ -241,8 +271,12 @@ ICONS = {
 
 def kit_icons():
     made = []
-    for name, pat in ICONS.items():
+    for i, (name, pat) in enumerate(ICONS.items()):
         img = _icon(pat)
+        # icons are stencil-cut cards: wear the CORNERS only, never the glyph (1-2 px chips)
+        nc = _wear().notch_corner
+        nc(img, 0, 0, 1, 1, depth=1)
+        nc(img, img.width - 1, img.height - 1, -1, -1, depth=1)
         made.append(save(img, f'icons/{name}.png'))
         img2 = _icon(pat, 'signal')
         made.append(save(img2, f'icons/{name}_active.png'))
@@ -264,6 +298,10 @@ def kit_stamps():
         for i in range(6 if name == 'approve' else 5):
             d.rectangle([cx, 7, cx + 4, h - 8], fill=rgba(col))
             cx += 7
+        _r = _wear()
+        _r.chip_corners(img, 700 + (0 if name == 'approve' else 1), per_corner=2)
+        _r.scuff(img, 710 + (0 if name == 'approve' else 1), n=2,
+              tones=('void', 'panel'), box=(2, 2, w - 3, h - 3))
         made.append(save(img, f'stamps/stamp_{name}.png'))
     return made
 
@@ -321,6 +359,17 @@ def kit_desk():
 
 # --------------------------------------------------------------------------- backgrounds (3 corruption levels)
 def kit_backgrounds():
+    """RETIRED 2026-11-26.
+
+    This used to paint backgrounds/office_L0..L2.png. Composition L now owns those files
+    (tools/art/promote_composition_L.py), and having two generators write the same path meant that
+    re-running this script silently reverted the approved room. One path, one owner (BUG-024).
+    """
+    print('  backgrounds/ delegated to promote_composition_L.py (composition L owns them)')
+    return []
+
+
+def _old_kit_backgrounds():
     made = []
     W, H = 480, 270
     for level, accent in ((0, 'signaldim'), (1, 'warn'), (2, 'danger')):

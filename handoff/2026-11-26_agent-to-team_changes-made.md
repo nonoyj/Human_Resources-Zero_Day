@@ -1,17 +1,18 @@
 # Changes made — 2026-11-26
 
 **Author:** Agent (Arena) · **Branch:** `arena/c1faebb9-human-resources-zero-day`
-**Commit:** `2bc441a feat(game): add desk interaction layer and playable twin`
-**Scope:** client / gameplay interaction only. **No backend files were changed** — the backend is owned by the user.
+**Commits:** `2bc441a` (interaction layer), `d0b0735` (this report), plus the merge/reconciliation
+commit on this branch. **Scope:** client / gameplay interaction only. **No backend files changed.**
 
 ---
 
 ## 1. One-line summary
 
-The desk went from a static scene to a playable loop: the player can inspect nine art hotspots,
-see a 2x magnifier ring for body tells or a text callout for face tells, use limited verification
-tools, pick a rejection reason, stamp a decision, see the consequence and move to the next applicant.
-A browser twin makes the same minute playable without Unity.
+The desk went from a static scene to a playable loop: inspect nine art hotspots, get a 2x magnifier
+ring for body tells or a text callout for face tells, use limited verification tools, flag a cover
+letter, pick a rejection reason, stamp, see the consequence and move on. A browser twin makes the
+same minute playable without Unity. Everything was reconciled with the newer `main` (80-sprite kit,
+composition L, day/night room, wear overlays, five paperwork flags).
 
 ---
 
@@ -23,99 +24,100 @@ A browser twin makes the same minute playable without Unity.
 |---|---|
 | `EvidenceMap.cs` | Maps each art artifact / catalog tell to a reveal style and day-gated surface; defines the 2/2/1 tool limits. Pure C#. |
 | `EvidenceLedger.cs` | Records only what the player actually opened; art-only observations never become evidence; feeds `DecisionInput`. Pure C#. |
-| `HotspotHitTest.cs` | Screen -> safe-area canvas -> applicant-local rect; padded hit targets; `mirror` vs timed `no_blink` overlap resolution. Pure C#. |
-| `ToolBudget.cs` | Per-day tool use counts. Never decides whether a record is genuine. Pure C#. |
-| `DeskSession.cs` | Owns `ShiftController` + ledger + budget; exposes a truth-free `ApplicantViewData`; raises applicant/decision/day events. Pure C#. |
-| `HotspotInteractor.cs` | `IPointerDownHandler` on each `HS_*` object; touch-friendly, Input-System-compatible. |
-| `EvidencePresenter.cs` | Turns a ledger result into a magnifier or callout request; all wording comes from `TellCatalog` / layout labels / content fields. |
-| `DeskEvidenceOverlay.cs` | World-space ring + callout using kit sprites and `TextMesh`; hides on `OnDisable`. |
-| `StampAnimator.cs` | APPROVE / REJECT stamp pop with reduce-motion support and no coroutine leak. |
-| `DecisionInputController.cs` | Reason dropdown, stamp buttons, one-shot double-tap guard, routes to pure scoring. |
-| `DeskBootstrap.cs` | Drop-in wiring: seeded session, hotspot events, applicant sprite swap, debrief and advance. |
+| `HotspotHitTest.cs` | Screen -> safe-area canvas -> applicant-local rect; padded targets; `mirror` vs timed `no_blink` overlap. Pure C#. |
+| `ToolBudget.cs` | Per-day tool counts. Never decides whether a record is genuine. Pure C#. |
+| `DeskSession.cs` | Owns `ShiftController` + ledger + tool budget + generated `Paperwork`; exposes truth-free view data. |
+| `HotspotInteractor.cs` | `IPointerDownHandler` on each `HS_*`; Input-System-compatible. |
+| `EvidencePresenter.cs` | Ledger result -> magnifier or callout; uses composition L `scaleFactor 0.96` and the layout's document rect. |
+| `DeskEvidenceOverlay.cs` | World-space ring + callout using kit sprites and `TextMesh`. |
+| `StampAnimator.cs` | Stamp pop with reduce-motion and no coroutine leak. |
+| `DecisionInputController.cs` | Reason dropdown, stamp buttons, double-tap guard. |
+| `DeskBootstrap.cs` | Drop-in wiring, seeded session, debrief and advance. |
 
 ### Modified engine-side files
 
 | File | Change |
 |---|---|
-| `unity/Assets/Scripts/Editor/HRZeroDayMenu.cs` | `Build Desk Scene` now adds `HotspotInteractor` to all nine hotspots, pads colliders, creates EventSystem + `Physics2DRaycaster`, ring/callout/stamp props, `DecisionInputController` and `DeskBootstrap`. |
-| `unity/Assets/Scripts/Game/Desk/DeskSceneBuilder.cs` | BUG-024 fix: `Build(layout, null)` no longer dereferences a null parent. |
-| `tools/UnityStubs/UnityStubs.cs` | Added stubs for EventSystems, `TextMesh`, `Quaternion`, `Mathf`, `GetComponentsInChildren`, built-in resources, etc., so the new Unity scripts type-check headlessly. |
-| `tools/CoreTests/CoreTests.csproj`, `Program.cs` | Compile and run the five pure interaction files; added `InteractionTests`. |
-| `tools/CoreTests/InteractionTests.cs` | 9 new tests: reveal coverage, locked presentation mapping, honest humans, synthetic provability, day gating, dedupe, hit-test geometry, tool budget, full stamp loop. |
+| `unity/Assets/Scripts/Core/Rules/ScoringService.cs` | Added `DecisionInput.PaperworkTrustDelta` (default 0) and folded it into `TrustDelta`. Only frozen-API change; needs Dev A sign-off. |
+| `unity/Assets/Scripts/Editor/HRZeroDayMenu.cs` | Builds hotspots with interactors, pads colliders, creates EventSystem + 2D raycaster, ring/callout/stamp props and bootstrap components. Coexists with `ArtKitPublishMenu.cs`. |
+| `unity/Assets/Scripts/Game/Desk/DeskSceneBuilder.cs` | Main's BUG-024 fix and `scaleFactor` handling preserved; our duplicate fix removed during merge. |
+| `tools/UnityStubs/UnityStubs.cs` | Merged stub sets; added EventSystems, TextMesh, Quaternion, `Mathf.Max(float,float)`, built-in resources; removed duplicate `Mathf`/`SetActive` declarations. |
+| `tools/CoreTests/CoreTests.csproj`, `Program.cs` | Added 10 interaction tests alongside main's expanded suite. |
+| `tools/CoreTests/InteractionTests.cs` | 10 tests: reveal coverage, presentation map, honest humans, synthetic provability, day gating, dedupe, hit-test geometry, tool budget, full stamp loop, paperwork flag lock/trust. |
 
 ### Playable browser twin — `prototype/web/`
 
 | File | What it does |
 |---|---|
-| `index.html`, `style.css` | The 480x270 desk at 16:9 with monitor UI, evidence box, reason select, stamp buttons, notes panel and modal. |
-| `app.js` | Renders shipped sprites from `desk_layout.json` + `unity_sprites.json`; handles examine mode, tabs, tools, magnifier crop, debrief/day/ending flow. |
-| `rules.js` | DOM-free mirror of the C# interaction rules and scoring service. |
-| `copy.json` | Temporary player-facing content file (move to BE2's `content/` later). |
-| `make_fixture.py`, `fixtures/run-1000.json`, `fixtures/run-1000.key.json` | Deterministic applicant data generated from `prototype/generator_sim.py`; public fixture has no truth flag, key is used only by scoring/tests. |
-| `test.mjs`, `package.json` | 8 dependency-free rule checks; `npm test` / `node test.mjs`. |
+| `index.html`, `style.css` | 480x270 desk, monitor panel aligned to composition L, evidence box, reason select, stamps, flags panel, notes, modal. |
+| `app.js` | Renders shipped sprites from layout/manifest; applicant scale, L0/L1/L2 room by shift, wear overlays for corruption, examine mode, tools, magnifier crop, five letter flags, debrief flow. |
+| `rules.js` | DOM-free mirror of C# interaction rules, scoring and paperwork flags. |
+| `copy.json` | Temporary player-facing content: debrief, tools, letters, signature, five flag labels. |
+| `make_fixture.py`, `fixtures/run-1000*.json` | Deterministic data from `prototype/generator_sim.py`; public fixture has no truth flag. |
+| `test.mjs`, `package.json` | 9 dependency-free rule checks. |
 
 ### Documentation
 
 | File | Change |
 |---|---|
-| `docs/15-interaction-layer.md` | New: architecture, artifact/tell map, fairness contract, verification commands, known gaps. |
-| `handoff/2026-11-26_agent-to-BE1_interaction-layer.md` | New: integration steps for BE1, content ask for BE2, risk register and evidence. |
+| `docs/15-interaction-layer.md` | Architecture, fairness contract, composition L / paperwork integration, verification, gaps. |
+| `handoff/2026-11-26_agent-to-BE1_interaction-layer.md` | Integration steps for BE1 (adopt, not create), content ask for BE2, risk register, evidence. |
 | `handoff/2026-11-26_agent-to-team_changes-made.md` | This file. |
-| `docs/90-bug-log.md` | BUG-024 logged before the fix, with symptom, root cause, fix and prevention rule. |
-| `docs/NEXT-STEPS.md`, `README.md` | Links to the interaction layer and the browser twin. |
+| `docs/90-bug-log.md` | BUG-024 logged before the fix, positioned between BUG-023 and BUG-025. |
+| `README.md`, `docs/README.md` | Links to the interaction layer and the browser twin. |
+| `docs/NEXT-STEPS.md` | Deleted on current `main` (superseded by `docs/16-the-later-list.md`); our link migrated to `docs/README.md`. |
 
 ---
 
-## 3. Bugs found and fixed
+## 3. Bugs and integration defects fixed
 
-- **BUG-024** — `HR//0D > Build Desk Scene` threw `NullReferenceException` because
-  `DeskSceneBuilder.Build(layout, null)` called `parent.Find(...)` on a null parent. Logged first,
-  then fixed by skipping the rebuild lookup when no parent is supplied. Regression check: stub
-  compile + the editor menu must log `built Assets/Scenes/Desk.unity`.
+- **BUG-024** — `Build(layout, null)` dereferenced a null parent. Logged first; main later fixed it
+  independently. The duplicate fix was removed in the merge; the log entry is kept.
+- **Merge-defects:** duplicate `Mathf` type and duplicate `GameObject.SetActive` signature in the
+  combined `UnityStubs.cs`; stale hardcoded monitor/document rect and unscaled applicant hotspot
+  geometry after composition L; stale `NEXT-STEPS.md` references. All corrected.
+- **Core API:** paperwork trust had no path to `ShiftController.Submit`; added a defaulted field to
+  `DecisionInput` rather than a second trust mutation point.
 
 ---
 
 ## 4. Verification actually run here
 
 ```
-$ (cd prototype/web && node test.mjs)
-8 interaction-twin checks passed
-
-$ python3 tools/art/make_art_kit.py --check
-PASS: every pixel is palette-conformant, no partial alpha
-
-$ python3 tools/comp/twin_desk.py --verify
-PASS: 4 layers + 9 hotspots resolve on a 480x270 canvas
-
-$ tree-sitter C# syntax pass
-31 C# files, 0 syntax errors
-
-$ curl http://127.0.0.1:8765/prototype/web/
-HTTP 200  (live preview: "HR//0D interaction twin")
+node prototype/web/test.mjs                         -> 9/9 pass
+python3 tools/art/make_sprite_manifest.py --verify   -> PASS (80 sprites, 8 reference sheets)
+python3 tools/art/publish_to_unity.py --verify       -> PASS (byte-identical Unity copy)
+python3 tools/comp/twin_desk.py --verify             -> PASS (6 layers + 9 hotspots)
+python3 tools/art/make_art_kit.py --check            -> PASS (80 sprites)
+python3 tools/art/make_applicants.py --check         -> PASS (28 sprites)
+python3 tools/art/make_wear_overlays.py --check      -> PASS (2 overlays)
+python3 tools/art/make_font.py --check               -> PASS (61 glyphs)
+python3 tools/art/selfcheck_pngcheck.py              -> RESULT: PASS
+tree-sitter C# syntax pass                           -> 49 files, 0 errors
+curl /prototype/web/                                 -> HTTP 200 (live preview)
 ```
 
-**Not run here:** `dotnet build tools/UnityStubs/CompileCheck.csproj` and
-`dotnet run --project tools/CoreTests`. This sandbox has no .NET SDK. BE1 must run both on the PC
-before merging; 9 new C# tests are waiting there.
+**Not run:** `dotnet build tools/UnityStubs/CompileCheck.csproj` and
+`dotnet run --project tools/CoreTests` — no .NET SDK in this sandbox. BE1 must run both on the PC.
 
 ---
 
 ## 5. What is deliberately not done
 
-- No Unity project skeleton (`ProjectSettings/`, `Packages/`, `.meta`) — still BE1 task 1.
+- No `ProjectSettings/` / `Packages/` in the repo yet — the user created the Unity project locally;
+  BE1 adopts it with `scripts/Adopt-UnityProject.ps1` (`docs/19-unity-project-setup.md`).
 - No backend, server, API or telemetry changes — owned by the user.
 - No Field Manual / day-summary / endings screens — FE work.
-- Hotspot touch targets use 6 px collider padding, not literal 48 dp; a full-width inspect list is
-  the proper fix and is documented in `docs/15-interaction-layer.md`.
-- The C# interaction code has not been opened in a real Unity Editor yet.
+- Hotspots use 6 px collider padding, not literal 48 dp; an inspect-list UI is the proper fix.
+- Unity overlay text uses the built-in font, not the new 5x7 monitor atlas.
 
 ---
 
 ## 6. Definition of done for the next person
 
-1. Create the Unity project skeleton.
+1. Adopt the Unity project (`Adopt-UnityProject.ps1`), do not create a second one.
 2. Run both `dotnet` commands above; green = integration can start.
-3. `HR//0D > Import Art Kit` -> `Verify Art Import` -> `Build Desk Scene`.
-4. Play: applicant breathes; EXAMINE shows hotspots; body tap = ring, face tap = callout; stamp
-   shows consequence and advances.
+3. `Publish Art To Resources` -> `Import Art Kit` -> `Verify Art Import` -> `Build Desk Scene`.
+4. Play: applicant breathes at composition-L scale; EXAMINE shows hotspots; body tap = ring, face tap
+   = callout; the letter offers five flags; stamp shows consequence and advances.
 5. Build a throwaway APK before adding more UI.

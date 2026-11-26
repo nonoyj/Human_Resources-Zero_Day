@@ -31,7 +31,11 @@ There is **no** `ProjectSettings/`, **no** `Packages/`, **no** `.unity` scene. U
 `Assets/` folder — a project needs those two folders. That is deliberate: **BE1's first task is to create
 the project**, because doing it wrong costs a day of merge pain.
 
-### BE1's first task — create the Unity project (exact steps)
+### BE1's first task — create the Unity project (SUPERSEDED: FE did it; see `docs/19`)
+
+> **2026-11-26:** the user created the project so the week would not be blocked. This section is kept for
+> reference only — the live steps are in `docs/19-unity-project-setup.md`, and BE1's replaced task 1 is
+> in `handoff/2026-11-26_fe-to-BE1_unity-project-created.md`.
 
 ```powershell
 # 1. create a throwaway project with the pinned editor
@@ -62,7 +66,9 @@ Verify before committing: `git status` must not list `Library/`, and `ProjectVer
 
 ### BE1 — Systems (10 tasks, in order)
 
-1. Create the Unity project skeleton (above) — **blocks everyone**, do it first.
+1. ~~Create the Unity project skeleton~~ — **DONE by FE on 2026-11-26** (`docs/19-unity-project-setup.md`).
+   Do **not** create a second one. Adopt the repo instead: see
+   `handoff/2026-11-26_fe-to-BE1_unity-project-created.md`.
 2. Drop in `UnityTestAdapter.cs` from `handoff/2026-11-26_agent-to-devA_core-handoff.md`; open Test Runner
    → EditMode → 15 green.
 3. `SaveSystem`: atomic write (`tmp` → `File.Replace`), autosave on every transition, corrupt-file

@@ -64,6 +64,14 @@ namespace HRZeroDay.Game.Interaction
 
         public void Hide() { _overlay.Hide(); }
 
+        /// <summary>The document sheet in canvas pixels, read from the layout + sprite manifest.</summary>
+        public Rect DocumentRect()
+        {
+            var doc = _layout.Layer("document");
+            var entry = SpriteManifest.Load().Find(doc.sprite);
+            return new Rect(doc.anchor[0], doc.anchor[1], entry.width, entry.height);
+        }
+
         private string Label(string artifact)
         {
             foreach (var hp in _layout.hotspots)
@@ -82,14 +90,18 @@ namespace HRZeroDay.Game.Interaction
             var applicant = _layout.Layer("applicant");
             float ax = applicant.anchor[0];
             float ay = applicant.anchor[1];
+            // Composition L draws the applicant at 0.96 of authored size. Hotspot rects are in
+            // authored sprite pixels, so the magnifier must use the same scale as the scene builder.
+            float scale = applicant.scaleFactor > 0f ? applicant.scaleFactor : 1f;
             foreach (var hp in _layout.hotspots)
             {
                 if (hp.artifact != artifact || hp.rect == null || hp.rect.Length != 4) continue;
                 var p = HotspotHitTest.LocalToCanvas(
-                    new PixelRect(hp.rect[0], hp.rect[1], hp.rect[2], hp.rect[3]), ax, ay);
+                    new PixelRect(hp.rect[0] * scale, hp.rect[1] * scale,
+                                  hp.rect[2] * scale, hp.rect[3] * scale), ax, ay);
                 return new Rect(p.X, p.Y, p.Width, p.Height);
             }
-            return new Rect(ax, ay, 192f, 216f);
+            return new Rect(ax, ay, 192f * scale, 216f * scale);
         }
     }
 }

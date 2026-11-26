@@ -53,23 +53,64 @@ $badChar = [char[]](':','*','?','"','<','>','|')
 if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
 
 S "collecting files from $root"
+
+# Collect the TRACKED tree, not the folder on disk. That guarantees the zip holds exactly the commit
+# it names -- no scratch folders, no stray test output, no "bundle is newer than its HEAD" (BUG-019/021).
+# It also means a bundle build requires a clean working tree, which is checked right below.
+$st = @(& git -C $root status --porcelain) | Where-Object { $_ -and $_.Trim() }
+if ($st) {
+    W "working tree is dirty ($($st.Count) entries) -- a bundle must be exactly one commit"
+    $st | Select-Object -First 8 | ForEach-Object { Write-Host "    $_" }
+    D "commit or stash first"
+}
+OK "working tree clean"
+
+$tracked = ((& git -C $root ls-files) 2>$null)
+if (-not $tracked) { D "git ls-files returned nothing" }
 $files, $skipped = @(), @()
-foreach ($f in (Get-ChildItem -LiteralPath $root -Recurse -File -Force)) {
-    $rel = $f.FullName.Substring($root.Length).TrimStart('\', '/')
-    $parts = $rel -split '[\\/]'
+foreach ($rel in $tracked) {
+    if (-not $rel) { continue }
+    $relNorm = $rel -replace '/', '\'
+    $parts = $relNorm -split '\\'
     if ($parts | Where-Object { $skipDir -contains $_ }) { continue }
-    if ($skipExt -contains $f.Extension.ToLower()) { continue }
-    if ($rel.IndexOfAny($badChar) -ge 0) { $skipped += $rel; continue }
-    $files += $f
+    if ($skipExt -contains ([System.IO.Path]::GetExtension($relNorm).ToLower())) { continue }
+    if ($relNorm.IndexOfAny($badChar) -ge 0) { $skipped += $relNorm; continue }
+    # Join-Path with the original '/' form: git ls-files always reports forward slashes and .NET
+    # accepts them on Windows too. Normalising to '\\' breaks every non-Windows run (BUG-023).
+    $full = Join-Path $root $rel
+    # -Force: dot-files (.gitattributes, .gitignore) are "hidden" to Get-Item on Linux/macOS
+    if (Test-Path -LiteralPath $full) { $files += (Get-Item -LiteralPath $full -Force) }
 }
 OK "$($files.Count) files selected"
 if ($skipped.Count) { W "$($skipped.Count) files skipped (unwritable on Windows)" }
 
 S "checking prerequisites"
-foreach ($req in @('README.md', 'scripts\Apply-Bundle.ps1', '.git')) {
+foreach ($req in @('README.md', 'scripts\Apply-Bundle.ps1')) {
     if (-not (Test-Path -LiteralPath (Join-Path $root $req))) { D "missing $req" }
 }
-OK "README.md, scripts\Apply-Bundle.ps1 and .git present"
+OK "README.md and scripts\Apply-Bundle.ps1 present"
+
+# ---------------------------------------------------------------------------------------------
+# History travels as a git bundle, NOT as a copied .git folder.
+# BUG-021: Copy-Item -Recurse of a .git folder silently produced an unusable repository on Windows
+# (files copied, refs not readable) and the apply ended with HEAD/fists disagreeing. A git bundle is
+# one file that git itself verifies ("The bundle records a complete history").
+# NOTE: 'git bundle create --all' segfaults in this environment -- always name the ref explicitly.
+# ---------------------------------------------------------------------------------------------
+S "writing git history bundle"
+$bundleTmp = Join-Path ([System.IO.Path]::GetTempPath()) ("hr0d-history-" + [Guid]::NewGuid().ToString('N').Substring(0, 8) + ".bundle")
+$gitTop = ($gitOutput = (& git -C $root rev-parse --show-toplevel 2>$null) | Out-String).Trim()
+if (-not $gitTop) { D "not a git repo: $root" }
+$branchName = ((& git -C $root rev-parse --abbrev-ref HEAD 2>$null) | Out-String).Trim()
+& git -C $root bundle create $bundleTmp $branchName | Out-Host
+if ($LASTEXITCODE -ne 0) { D "git bundle create failed" }
+$bundleCheck = (& git -C $root bundle verify $bundleTmp 2>&1 | Out-String)
+if ($bundleCheck -notmatch 'complete history') { D "git bundle verify did not confirm a complete history`n$bundleCheck" }
+OK "history bundle: $branchName, $([math]::Round((Get-Item $bundleTmp).Length / 1MB, 2)) MB, verified"
+
+$branchFileTmp = Join-Path ([System.IO.Path]::GetTempPath()) ("hr0d-branch-" + [Guid]::NewGuid().ToString('N').Substring(0, 8) + ".txt")
+Set-Content -LiteralPath $branchFileTmp -Value $branchName -NoNewline -Encoding ascii
+OK "branch recorded: $branchName"
 
 S "writing $zip"
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -81,6 +122,22 @@ try {
         [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
             $archive, $f.FullName, $entry, [System.IO.Compression.CompressionLevel]::Optimal)
     }
+    [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+        $archive, $bundleTmp, 'history.bundle',
+        [System.IO.Compression.CompressionLevel]::Optimal)
+    # NOTE: the transport files ship at the ZIP ROOT only. Both bootstraps look for them there (the
+    # whole zip is extracted to a temp folder first), and shipping them inside HR-ZeroDay\ made the
+    # OLD bootstrap copy them into the working copy as untracked files -- a dirty tree it then
+    # reported as 'the .git could not be updated' (BUG-035).
+    [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+        $archive, $branchFileTmp, 'history.branch',
+        [System.IO.Compression.CompressionLevel]::Optimal)
+    # the rescue script needs no extraction at all -- it reads the .zip directly
+    $fixSrc = Join-Path $root 'scripts\Fix-Repo.ps1'
+    if (Test-Path -LiteralPath $fixSrc) {
+        [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+            $archive, $fixSrc, 'Fix-Repo.ps1', [System.IO.Compression.CompressionLevel]::Optimal)
+    }
     # the bootstrap must be reachable from the folder the operator stands in
     [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
         $archive, (Join-Path $root 'scripts\Apply-Bundle.ps1'), 'Apply-Bundle.ps1',
@@ -88,6 +145,8 @@ try {
 }
 finally { $archive.Dispose() }
 OK "archive closed"
+Remove-Item -LiteralPath $bundleTmp -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $branchFileTmp -Force -ErrorAction SilentlyContinue
 
 S "verifying the archive"
 $check = [System.IO.Compression.ZipFile]::OpenRead($zip)
@@ -96,8 +155,11 @@ try {
 } finally { $check.Dispose() }
 
 if ($names -notcontains 'Apply-Bundle.ps1')                        { D "bootstrap missing at zip root" }
+if ($names -notcontains 'Fix-Repo.ps1')                            { D "rescue script missing from zip root" }
 if ($names -notcontains 'HR-ZeroDay/scripts/Apply-Bundle.ps1')     { D "bootstrap missing inside HR-ZeroDay" }
-if (-not ($names | Where-Object { $_ -like 'HR-ZeroDay/.git/*' }))  { D "git history missing from zip" }
+if ($names -notcontains 'history.bundle')                          { D "history.bundle missing from zip root" }
+if ($names -notcontains 'history.branch')                          { D "history.branch missing from zip root" }
+if ($names | Where-Object { $_ -like 'HR-ZeroDay/.git/*' })        { D ".git leaked into the zip (must ship as history.bundle)" }
 $leak = $names | Where-Object { $_ -match '/(\.local|\.nuget|\.dotnet|\.tooling|node_modules|Library)/' }
 if ($leak) { D "tooling cache leaked into the zip: $($leak | Select-Object -First 3)" }
 $bad = $names | Where-Object { $_.IndexOfAny($badChar) -ge 0 }

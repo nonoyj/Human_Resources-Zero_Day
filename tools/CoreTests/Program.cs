@@ -25,6 +25,13 @@ internal static class Program
         lines.AddRange(GeneratorInvariantTests.RunAll());
         lines.AddRange(GameDataTests.RunAll());        // art -> Unity data bridge
         lines.AddRange(InteractionTests.RunAll());     // desk -> evidence -> stamp loop
+        lines.AddRange(MonitorScreenTests.RunAll());   // the CRT glass is a real character grid
+        lines.AddRange(MonitorScreenRasterTests.RunAll()); // glyph atlas -> pixels, clipped and tinted
+        lines.AddRange(LetterViewTests.RunAll());      // paperwork: wrap, paginate, flag scoring
+        lines.AddRange(ScreenMetricsTests.RunAll());   // one source of truth for the glass grid
+        lines.AddRange(PaperworkTests.RunAll());       // slow-clock ruling, one-read ruling, letter generation
+        lines.AddRange(ManifestBridgeTests.RunAll());  // json -> Unity: serializable, frame names, rects
+        lines.AddRange(DaylightTests.RunAll());        // day -> dusk -> night, from the shift clock
         foreach (var line in lines)
         {
             Console.WriteLine(line);

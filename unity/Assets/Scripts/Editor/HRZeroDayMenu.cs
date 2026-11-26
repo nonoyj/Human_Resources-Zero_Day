@@ -42,8 +42,9 @@ namespace HRZeroDay.EditorTools
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             // camera
+            // "MainCamera" is a built-in tag, but a project that never opened the Tag Manager can reject
+            // it, and an exception here leaves a half-built scene behind. Leave the tag alone.
             var camGo = new GameObject("Main Camera");
-            camGo.tag = "MainCamera";
             var cam = camGo.AddComponent<Camera>();
             DeskSceneBuilder.ConfigureCamera(cam, layout.canvas);
 
@@ -187,8 +188,31 @@ namespace HRZeroDay.EditorTools
             var applicant = AssetDatabase.LoadAssetAtPath<TextureImporter>(
                 "Assets/Art/Kit/applicants/app_human_solid_a_192x216.png");
             if (applicant == null) { Debug.LogError("[HR//0D] art not imported at all"); problems++; }
-            else if (applicant.spriteImportMode != SpriteImportMode.Multiple)
-            { Debug.LogError("[HR//0D] applicant strip is not sliced -- run HR//0D > Import Art Kit"); problems++; }
+            else
+            {
+                var manifest = AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/Resources/unity_sprites.json");
+                var entry = manifest == null ? null
+                    : JsonUtility.FromJson<SpriteManifest>(manifest.text)
+                        .Find("Assets/Art/Kit/applicants/app_human_solid_a_192x216.png");
+                int frames = 0;
+                if (entry != null && entry.sprites != null)
+                {
+                    for (int i = 0; i < entry.sprites.Count; i++)
+                    {
+                        var p = "Assets/Resources/Art/Kit/applicants/frames/app_human_solid_a_192x216__" +
+                                entry.sprites[i].name + ".png";
+                        if (AssetDatabase.LoadAssetAtPath<Texture2D>(p) != null) frames++;
+                    }
+                }
+                if (frames < 4)
+                { Debug.LogError("[HR//0D] applicant frames missing (" + frames + "/4) -- run HR//0D > Import Art Kit"); problems++; }
+            }
+
+            var atlas = AssetImporter.GetAtPath("Assets/Resources/fonts/monitor_font_5x7.png") as TextureImporter;
+            if (atlas == null)
+            { Debug.LogError("[HR//0D] font atlas not imported -- run HR//0D > Import Art Kit"); problems++; }
+            else if (!atlas.isReadable)
+            { Debug.LogError("[HR//0D] font atlas is not Read/Write -- the CRT cannot read its glyphs. Run HR//0D > Import Art Kit"); problems++; }
 
             if (problems == 0)
                 Debug.Log("[HR//0D] pipeline self-check PASS -- data files present, applicant strip sliced.");

@@ -48,14 +48,69 @@ try {
     & python tools/art/make_applicants.py --check
     if ($LASTEXITCODE -ne 0) { D 'applicant palette check failed' } else { OK 'applicant palette clean' }
 
+    S 'wear overlays (corruption drift)'
+    & python tools/art/make_wear_overlays.py --check
+    if ($LASTEXITCODE -ne 0) { D 'wear overlay check failed' } else { OK 'wear overlays palette clean' }
+
     if (-not $SkipCompile) {
-        S 'Unity scripts type-check (stubs, no Unity install needed)'
+        S 'art bible is present and referenced'
+    if (-not (Test-Path (Join-Path $repo 'docs\15-art-bible.md'))) { D 'docs/15-art-bible.md missing' }
+    else { OK 'docs/15-art-bible.md present' }
+
+    S 'monitor font atlas'
+
+    & python tools/art/make_font.py --check
+
+    if ($LASTEXITCODE -ne 0) { D 'font atlas check failed' } else { OK 'font atlas palette clean, metrics match' }
+
+
+    S 'monitor screen codepage dump (stdlib only, writes to TEMP)'
+
+    # BUG-031: this gate used to run preview_screen.py's Pillow path, which dies on a box without
+    # Pillow -- and it wrote a PNG into art/kit/reference, so it broke the 'a gate never writes into
+    # the repo' rule as well. The gate now runs the dependency-free --codepage mode into TEMP and
+    # asserts the SHAPE of the glass (row count + column width) plus the card markers. The pretty
+    # PNG stays a human tool: python tools/comp/preview_screen.py --zoom 4 --out screen_preview.png
+    # $env:TEMP is not set on every host (it is on Windows, not under pwsh on Linux), so fall back
+    # to the .NET temp path -- this gate must run anywhere the repo does.
+    $tmpDir = if ($env:TEMP) { $env:TEMP } else { [System.IO.Path]::GetTempPath() }
+    $dump = Join-Path $tmpDir 'hr0d_screen_codepage.txt'
+    if (Test-Path $dump) { Remove-Item $dump -Force }
+    & python tools/comp/preview_screen.py --codepage $dump *> $null
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $dump)) { D 'screen codepage dump failed to render' }
+    else {
+        $rows = @(Get-Content $dump | Where-Object { $_ -like '|*|' })
+        $want = 9
+        if ($rows.Count -ne $want) { D ("glass grid is $($rows.Count) rows, expected $want (metrics drifted?)") }
+        elseif ($rows[0].Length -ne 22) { D ("glass grid is $($rows[0].Length - 2) columns, expected 20") }
+        elseif (-not (Select-String -Path $dump -Pattern 'GRAD' -Quiet)) { D 'card is missing the GRAD line' }
+        else { OK ("glass grid $($rows[0].Length - 2) x $($rows.Count), card markers present") }
+    }
+
+
+    S 'kit study scripts park their output (no writes to art/concepts)'
+    # The old gate RAN study_desk_workdesk.py, which (a) draws from pre-v42 assets, (b) writes PNGs into
+    # art/concepts on every run, and (c) is the only place PowerShell saw Python's stderr as a
+    # NativeCommandError in 5.1 -- a red traceback in the middle of a green gate. Retired 2026-11-26.
+    $stray = Get-ChildItem -Path (Join-Path $repo 'tools\art') -Filter 'study_*.py' -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -ne 'study_desk_workdesk.py' }
+    if ($stray) { D ("unexpected study script(s): " + ($stray.Name -join ', ')) }
+    else { OK 'study outputs come from twin_desk.py' }
+
+    S 'Unity scripts type-check (stubs, no Unity install needed)'
         Push-Location (Join-Path $repo 'tools\UnityStubs')
         try {
-            & dotnet build -v q --nologo 2>&1 | Out-String | Write-Host
+            & dotnet build -v q --nologo | Out-Host
             if ($LASTEXITCODE -ne 0) { D 'Game/Editor scripts do not compile' } else { OK 'Game + Editor compile' }
         } finally { Pop-Location }
     }
+
+    S 'generated art is not committed'
+        $tracked = & git ls-files "unity/Assets/Resources/Art" 2>$null
+        if ($tracked) {
+            Write-Host "         " + ($tracked -join ', ') -ForegroundColor DarkGray
+            $failed++; Write-Host '  [FAIL] Resources/Art is derived from art/kit -- it must stay out of git' -ForegroundColor Red
+        } else { OK 'Resources/Art is generated locally, not committed' }
 
     Write-Host ''
     if ($failed -eq 0) {
@@ -66,3 +121,4 @@ try {
     exit 1
 }
 finally { Pop-Location }
+

@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { EvidenceLedger, Session, ToolBudget, TELLS, isUnlocked, toolResult } from './rules.js';
+import { EvidenceLedger, Session, ToolBudget, TELLS, isUnlocked, toolResult, buildFlags, paperworkDelta } from './rules.js';
 
 const read = (p) => JSON.parse(readFileSync(new URL(p, import.meta.url), 'utf8'));
 const run = read('fixtures/run-1000.json');
@@ -98,6 +98,23 @@ test('tools are capped 2/2/1 and can say VALID for an AI', () => {
   assert.match(valid.wording, /VALID/);
   const flagged = toolResult('reference_call', { tells: ['ref_unreachable'] }, copy);
   assert.equal(flagged.ok, false);
+});
+
+test('paperwork flags stay hidden, lock at stamp and pay trust', () => {
+  const flags = buildFlags('This is urgent. [NAME] must reply today. Regards, someone', 'Employee referral');
+  assert.equal(flags.length, 5);
+  assert.equal(flags.find(f => f.id === 'paper_urgency').isReal, true);
+  assert.equal(flags.find(f => f.id === 'paper_mass_template').isReal, true);
+  assert.equal(flags.find(f => f.id === 'paper_missing_signature').isReal, false);
+  assert.equal(flags.find(f => f.id === 'paper_wrong_reference').isReal, false);
+  const picked = new Set(['paper_urgency', 'paper_wrong_reference']);
+  const delta = paperworkDelta(flags, picked);
+  assert.equal(delta, 4 - 5, 'wrong flag was not charged against the right one');
+
+  const session = new Session(run, keys, copy);
+  const before = session.trust;
+  session.stamp('APPROVE', null, 5, delta);
+  assert.equal(session.trust, Math.min(100, before + 2 + delta), 'flag delta did not reach trust');
 });
 
 test('first playable minute: inspect, reject with reason, next applicant', () => {

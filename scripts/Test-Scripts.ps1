@@ -17,6 +17,10 @@ param([switch]$RunVerify)
 $ErrorActionPreference = 'Stop'
 $failed = 0
 $files = Get-ChildItem -Path (Join-Path (Split-Path -Parent $PSScriptRoot) 'scripts') -Filter *.ps1
+# The bootstrap at the REPO ROOT is the one that ships to Downloads and the one that bit us twice
+# (BUG-032..037). It is not under scripts\, so it was never linted. It is now.
+$rootBoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'Apply-Bundle.ps1'
+if (Test-Path -LiteralPath $rootBoot) { $files = @($files) + @(Get-Item -LiteralPath $rootBoot) }
 
 foreach ($f in $files) {
     $tokens = $null; $errors = $null
@@ -50,6 +54,20 @@ if ($RunVerify) {
     Write-Host "`n==> running Setup-DevEnvironment.ps1 -Verify" -ForegroundColor Cyan
     & (Join-Path $PSScriptRoot 'Setup-DevEnvironment.ps1') -Verify
     $failed += $LASTEXITCODE
+}
+
+# The zip-root bootstrap is a COPY of scripts\Apply-Bundle.ps1 (Build-Bundle.ps1 writes it, and
+# self-refresh compares hashes against it). If the two ever differ, one of them is stale and the
+# operator can silently run an old script -- which is how BUG-032..041 kept resurfacing.
+$rootCopy = Join-Path (Split-Path -Parent $PSScriptRoot) 'Apply-Bundle.ps1'
+$scriptCopy = Join-Path $PSScriptRoot 'Apply-Bundle.ps1'
+if ((Test-Path -LiteralPath $rootCopy) -and (Test-Path -LiteralPath $scriptCopy)) {
+    if ((Get-FileHash -LiteralPath $rootCopy).Hash -ne (Get-FileHash -LiteralPath $scriptCopy).Hash) {
+        $failed++
+        Write-Host 'FAIL  Apply-Bundle.ps1 differs between the repo root and scripts\' -ForegroundColor Red
+        Write-Host '    Fix: copy scripts\Apply-Bundle.ps1 over the root copy (Build-Bundle does this).'
+    }
+    else { Write-Host 'PASS  root bootstrap is byte-identical to scripts\Apply-Bundle.ps1' -ForegroundColor Green }
 }
 
 if ($failed -gt 0) { Write-Host "`n$failed problem(s) found." -ForegroundColor Red; exit 1 }

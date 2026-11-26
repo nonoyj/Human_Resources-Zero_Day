@@ -171,3 +171,68 @@ git log --oneline -1 ; git status --short
 python tools\art\make_art_kit.py --check
 python tools\art\make_applicants.py --check
 ```
+
+---
+
+## Retiring bundles: the first push to GitHub
+
+Bundles exist only because there was no remote. Once the repo is on GitHub, `git pull` / `git push`
+replace them.
+
+### Bundle anatomy (since v26)
+
+| File | Purpose |
+|---|---|
+| `HR-ZeroDay/history.bundle` | the entire git history, verified by `git bundle verify` |
+| `HR-ZeroDay/history.branch` | which branch to check out (`main`) |
+| `Apply-Bundle.ps1` (zip root and `HR-ZeroDay/`) | bootstrap; rebuilds `.git` from the bundle, keeps your `origin` |
+
+### The bootstrap is the one file a bundle cannot fix on its own (BUG-035)
+
+`.\Apply-Bundle.ps1` lives in **Downloads**, outside the repo, and nothing in a zip overwrites a file
+that is already there. So a bug in the bootstrap survives every release — BUG-032 shipped twice that
+way. Two guards now exist:
+
+1. **Self-refresh.** Right after the copy, a fixed bootstrap rewrites the copy that ran it. From the
+   next apply onward the Downloads script is always the current one. (The *first* apply of a fixed
+   bundle still runs the old copy — that is physics, not a bug.)
+2. **One-time replacement.** If the old copy prints `bundle has no .git`, do this **once** (it is the
+   only step that needs the old script): delete the stale copy and pull the fixed one out of the zip
+   with Explorer or 7-Zip — `Apply-Bundle.ps1` at the zip root — then run the normal command below.
+   After that, self-refresh keeps it current forever.
+
+| Situation | Use |
+|---|---|
+| Normal update | `.\Apply-Bundle.ps1 -BundlePath .\HR-ZeroDay-bundle-vN.zip -Clean` |
+| Files copied, tree dirty | `.\Apply-Bundle.ps1 -Reinstall` (no extraction, `reset --hard` + `clean -fd`) |
+| `.git` is damaged / detached | `Fix-Repo.ps1 -BundlePath .\HR-ZeroDay-bundle-vN.zip` (reads the zip directly, no extraction) |
+
+A `.git` folder is **never** shipped -- copying one recursively is what broke v22 (BUG-021).
+
+```powershell
+cd C:\users\user\HR-ZeroDay
+.\scripts\Connect-Remote.ps1                     # dry run: connect, fetch, report. changes nothing.
+.\scripts\Connect-Remote.ps1 -Push               # push when the remote is empty or behind you
+.\scripts\Connect-Remote.ps1 -Push -ReplaceRemoteHistory   # only if GitHub made a README commit
+```
+
+### Why a plain `git push` can be rejected even though you have access
+
+Being a collaborator grants **permission**; git still has to **authenticate** (prove who you are) on
+every push, and the histories must be related:
+
+| Symptom | Real cause | Fix |
+|---|---|---|
+| `could not read Username` / `Authentication failed` | no credential yet | just push: Git Credential Manager opens a browser; sign in once (no token needed) |
+| `Updates were rejected because the remote contains work you do not have` | GitHub auto-created a README/initial commit, so the two histories share no ancestor | `-Push -ReplaceRemoteHistory`, then set the default branch in Settings if it is `master` |
+| `Permission denied` / `protected branch` | you are a member but not a writer, or `main` is protected | ask the owner; do not force |
+
+### Credentials: which one do you need?
+
+- **Browser sign-in (default, recommended).** Git for Windows installs Git Credential Manager; the
+  first push opens a window, you authorise once, and the token is cached in Windows Credential Manager.
+- **Personal Access Token** only when there is no browser (headless/CI). Fine-grained token,
+  Contents = Read and write. Paste it when git asks for a *password*.
+- **SSH** for a permanent key-based setup: `-UseSsh` after uploading `~/.ssh/id_ed25519.pub`.
+
+Never put a token in a file inside the repo, and never paste it into a handoff doc.

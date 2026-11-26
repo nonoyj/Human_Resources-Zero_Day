@@ -259,6 +259,123 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
   If a check can be written against the standard library, write it that way — a green check that
   requires an install is not a green check.
 
+## BUG-017 — the twin renderer drew every applicant upside-down
+
+- **Found:** 2026-11-26 while building `tools/comp/twin_desk.py`; caught by looking at the render, not by a test.
+- **Severity:** P2 — offline renderer only, no shipped art affected. Would have poisoned every future
+  layout decision made against the twin.
+- **Root cause:** `pngcheck.read_rgba` already returns rows **top-down** (PNG order normalised). The
+  slicer re-flipped them as if they came from a bottom-up source, so each frame was mirrored vertically.
+- **Fix:** splice `pixels[row * w + ox + col]` straight through; no flip. Only the frame crop needed
+  changing, not the strip geometry.
+- **Prevention rule:** **know which direction your byte rows run before writing any blit.** Add a
+  deliberately asymmetric test sprite (a 3-pixel notch in one corner) whenever a new blitter appears.
+
+## BUG-018 — `[MenuItem("x", priority = N)]` is not valid C#
+
+- **Found:** 2026-11-26 by `tools/UnityStubs` (the stub compile), **before any Unity install existed**.
+- **Severity:** P1 — the whole Editor menu (and therefore the art importer and scene builder) would have
+  failed to compile on the first project open, blocking Dev B.
+- **Root cause:** C# attributes do not accept named arguments to a constructor unless the attribute
+  declares a settable property of that name. Unity's `MenuItem` has **no** `priority` property — only
+  positional ctor parameters.
+- **Fix:** `[MenuItem("HR//0D/Build Desk Scene", false, 20)]` — the third positional parameter *is* the
+  priority. Verified by stubbing the four real ctor overloads and compiling.
+- **Prevention rule:** **the Unity-facing code must compile without Unity.** `tools/UnityStubs` +
+  `.\scripts\Test-ArtPipeline.ps1` do this in ~6 s; it has already paid for itself three times
+  (also caught a missing `using`, an ambiguous `TextAsset`, and `Color32` -> `Color`).
+
+## BUG-019 — applying a bundle without `-Clean` left the files newer than HEAD
+
+- **Found:** 2026-11-26 by the user while applying v21: files landed correctly (`Test-Path` -> `True`)
+  but `git log` still showed `dc55e59` and `git status` listed 6 modified/untracked entries.
+- **Severity:** P1 — the exact "is my copy right?" doubt the bundle exists to remove. It also made the
+  new `Connect-Remote.ps1` look broken when it was merely uncommitted.
+- **Root cause:** `.git` was only adopted when `-Clean` was passed, but the file copy always ran. So a
+  non-Clean apply overwrote the working tree while keeping the older history — dirty by construction.
+- **Fix:** `Apply-Bundle.ps1` now adopts the bundle's `.git` on **every** apply (unless `-NoGit`),
+  saves and restores the user's `origin` URL (a bundle's `.git` has no remote), and runs
+  `git reset --mixed HEAD` so index and files agree.
+- **Prevention rule:** **the file copy and the history copy must be one operation.** If a step can
+  leave files and HEAD disagreeing, it must not exist.
+
+## BUG-020 — `git fetch ... 2>&1 | Out-String` kills the script in PowerShell 5.1
+
+- **Found:** 2026-11-26 by the user on Windows PowerShell 5.1 (`Connect-Remote.ps1` printed `==> fetching`
+  then `NativeCommandError` and stopped, even though the fetch itself had succeeded).
+- **Severity:** P1 — the runbook died at the moment it was supposed to report good news.
+- **Root cause:** PS 5.1 wraps a native command's **first stderr line** in an `ErrorRecord`; with
+  `$ErrorActionPreference = 'Stop'` and a redirection/pipe (`2>&1 |`), that record is *terminating*.
+  Git writes progress and `From https://…` to stderr by design. PowerShell 7 changed this behaviour,
+  which is why the sandbox never reproduced it.
+- **Fix:** never redirect a native command's stderr when the script may run on 5.1 — use
+  `& git fetch origin --prune | Out-Host`, and set `$ErrorActionPreference = 'Continue'` before native
+  calls, checking `$LASTEXITCODE` instead of relying on exceptions. Also dropped a stale `$branch`
+  reference that printed `git push -u origin ` with no branch name.
+- **Prevention rule:** **test on the operator's shell, not the one you have.** The sandbox has
+  PowerShell 7; the user has 5.1. Any stderr redirection of a native tool is a 5.1 landmine.
+  `.\scripts\Test-Scripts.ps1` only catches *parse* errors — it cannot catch this class.
+
+## BUG-021 — a copied `.git` folder produced a working copy that was dirty no matter what
+
+- **Found:** 2026-11-26 while reproducing the user's v22 apply: files arrived (including the *new*
+  `Apply-Bundle.ps1`) but `git log` still showed the OLD commit and `git status` listed 8 entries.
+- **Severity:** P1 — every bundle after the first was untrustworthy, and the GitHub push published a
+  snapshot whose own scripts were older than the files next to them.
+- **Root cause:** three independent faults, all in "copy `.git` with `Copy-Item -Recurse`":
+  1. the copy loop set `ErrorActionPreference='Stop'`, so the first file Windows refused (a locked
+     `.git/index`) aborted the whole `.git` copy inside `try{}catch{}` — the exception was swallowed and
+     the swap silently never happened;
+  2. a replaced `.git` was therefore never introduced, leaving HEAD old while files were new;
+  3. later, discovering the branch by running `git` inside the *extracted* folder resolved to an
+     unrelated parent repository (the test sandbox), returning an empty branch name.
+- **Fix:** history no longer travels as a `.git` folder. `Build-Bundle.ps1` writes a **git bundle**
+  (`git bundle create … main`, verified with `git bundle verify` → *"records a complete history"*) plus a
+  literal `history.branch` file. `Apply-Bundle.ps1` then does `git init` + `git fetch history.bundle`
+  + `symref HEAD` + `reset --mixed`, preserving the user's `origin`, and excludes the two transport
+  files from the file copy. `-Reinstall` added for "match the files to HEAD without touching a remote".
+  `Apply-Bundle` now **exits 1 and prints the fix** when the tree is dirty instead of warning politely.
+- **Proven on three scenarios:** stale `.git` + real origin → `history adopted: main at a70342c`,
+  `origin preserved`, `working tree clean -- files match HEAD exactly`; empty folder → same, with a
+  `no origin` hint; running the repo's own script copy → clean.
+- **Prevention rule:** **never package a `.git` directory.** Ship a bundle file that git validates, and
+  make the transport self-describing (a `history.branch` literal) instead of inferring state by running
+  git in a folder that may not be a repo. Also: never let a `catch {}` swallow the loop that performs a
+  required swap.
+
+## BUG-022 — `return` inside a `foreach` exited the whole apply script
+
+- **Found:** 2026-11-26 while regression-testing the BUG-021 rewrite: the apply printed
+  `==> copying project files` and then simply stopped, exit code 0, no error.
+- **Severity:** P1 — a silent half-apply. The worst possible failure: no message, no non-zero exit.
+- **Root cause:** the copy loop was converted from `Get-ChildItem | ForEach-Object { ... return }` to a
+  plain `foreach ($it in $items) { ... }` but the `return` statements were kept. In a `ForEach-Object`
+  block `return` skips one item; in a plain `foreach` inside a script it returns from the *script*.
+- **Fix:** `continue` for skips, `foreach` kept for the early-exit-free structure. The comment in the
+  code now says so explicitly.
+- **Prevention rule:** after changing a pipeline block into a `foreach` statement (or back), grep the
+  block for `return`. They are not interchangeable.
+
+## BUG-023 — `Get-Item` silently refuses dot-files off Windows
+
+- **Found:** 2026-11-26 by the user-visible symptom `Could not find item /home/user/.gitattributes`,
+  thrown by the *first* tracked file during bundle build.
+- **Severity:** P2 — build-tooling only; Windows (where the team builds) is unaffected because
+  "hidden" there is an attribute, not a leading dot.
+- **Root cause:** on Linux/macOS PowerShell reports dot-prefixed names as hidden, and `Get-Item` (like
+  `Get-ChildItem` without `-Force`) skips hidden items and then complains the path does not exist.
+- **Fix:** `Get-Item -LiteralPath $full -Force`. Also kept the forward-slash form from `git ls-files`
+  instead of rewriting it to `\` (BUG-023b: that normalisation broke every non-Windows run).
+- **Prevention rule:** **any code path that touches dot-files must use `-Force`.** The Windows-only
+  habit hides this class of bug until someone runs the script in CI or on a Mac.
+
+## Bundle build is now exact (closing the whole class)
+
+`Build-Bundle.ps1` collects **`git ls-files`** (the tracked tree), refuses to build when the working
+tree is dirty, and ships `history.bundle` + `history.branch` instead of a `.git` folder. That makes
+"the zip" and "the commit it names" the same thing by construction — BUG-019, BUG-021 and every
+variant of "bundle newer than its HEAD" cannot recur.
+
 ## BUG-024 — `HR//0D > Build Desk Scene` throws NullReferenceException before creating anything
 
 - **Found:** 2026-11-26 by the agent while wiring the interaction layer (type-check review).
@@ -270,9 +387,267 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
 - **Root cause:** the builder's "rebuild an existing desk" path was written assuming a parent
   transform always exists; the editor menu legitimately passes `null` to build at the root.
 - **Fix:** treat `parent == null` as the root case: skip the `Find` and parent the new root with
-  `SetParent(null, false)`. Regression test: the headless scene-geometry check calls
-  `Build(null-parent)` through the stub compiler, and the editor menu log must name the scene.
+  `SetParent(null, false)`. (The same fix landed independently on `main`; kept here so the number
+  in this log is not reused.)
 - **Regression test:** `dotnet build tools/UnityStubs/CompileCheck.csproj` plus a manual
   `HR//0D > Build Desk Scene` in Unity; the Console must end with `built Assets/Scenes/Desk.unity`.
 - **Prevention rule:** **every API with an optional parent must be called with null at least once in
   a test.** A helper that only works from one call site is not a helper.
+
+## BUG-025 -- monitor floated 12 px above the desk (found by the user, 2026-11-26)
+
+- **Symptom:** the monitor read as hanging in mid-air; the desk surface started below it with nothing
+  joining the two.
+- **Cause:** `monitor_small.png` included a 4 px stand *inside the monitor sprite*, but the monitor
+  layer sorts at `−20` and the desk foreground at `+10`. The desk therefore always painted over any
+  part of the stand that reached the desk surface, so only the bezel showed and it looked detached.
+- **Fix:** the stand became its own layer, `desk/monitor_stand.png` (44x26, ragged neck + ellipse base
+  + contact shadow), sorting `−19`, anchored `[69, 60]` so its bottom 4 px hide behind the desk edge.
+  The monitor sprite moved from anchor y `76` to `86` to sit on the neck.
+- **Prevention rule:** a prop that stands on a surface may never rely on pixels inside its own sprite
+  crossing a *higher* sorting layer. Split it, or it silently cannot touch the floor. (Bible §7b.)
+
+## BUG-026 -- workspace snapshot over budget, 4,283 files silently dropped (2026-11-26)
+
+- **Symptom:** the Workspace panel showed *"577.4 MB across 5,177 files, past the 128 MB / 10,000-file
+  limit. 4,283 files were not saved."*
+- **Cause:** the agent toolchain (.NET SDK 8.0.404 + PowerShell 7.4.6) was installed into
+  `/home/user/.tooling/` -- 4,644 files / 569 MB *inside the workspace*, which is snapshot-capped.
+- **Fix:** the SDK now installs to `/tmp/tc` (outside the workspace), `.tooling/` is reduced to a
+  `.keep` marker and gitignored, and the retained old bundles were pruned (only the current version is
+  kept on disk). Workspace is back to ~16 MB / 319 files.
+- **Prevention rule:** never install a toolchain, package cache or SDK under `/home/user`. If a tool
+  needs to persist between turns and is larger than a few MB, it belongs in `/tmp` or `/opt`, not the
+  repo -- the snapshot is a deliverable, not a scratch disk.
+
+## Repo clean-up (2026-11-26) -- what was removed and why
+
+Redundant, not broken. Nothing shipped was touched; every gate re-ran green after the sweep.
+
+| Removed | Why |
+|---|---|
+| `tools/art/make_artifact_legend.py`, `make_character_spread.py`, `make_composition_preview.py` | One-off contact-sheet scripts with no caller and no gate. All three were superseded by `twin_desk.py` |
+| `art/kit/reference/{applicants_sheet,artifact_legend,character_spread,composition_preview,window_detail}.png` | Their outputs. The live previews are `twin_desk_*.png` (which the gates verify) |
+| `art/concepts/study_K_*.png`, `study_L_*.png`, `study_contact_sheet_JK.png` | Studies A–K were deleted when L was promoted; these three were the leftovers. The generator stays (`study_desk_workdesk.py` is referenced by a gate) |
+| `docs/PROJECT-STATUS.md` | Pinned `dfea20f` / 53 files. Had been false for weeks — the most confusing file in the repo |
+| `docs/NEXT-STEPS.md` | Superseded by `docs/16-the-later-list.md` |
+| `docs/03-title-shortlist.md` | Title is locked |
+| `docs/05-design-suggestions.md` | Superseded by `docs/06-decisions.md` |
+| `docs/92-retrospective.md` | Once-off, already acted on |
+| `.cache/`, `.dotnet/`, `.local/`, `.nuget/` at the workspace root | Toolchain droppings (BUG-026) |
+| `tools/art/__pycache__/` | Build droppings |
+
+**Docs now have an index** (`docs/README.md`) with a "deleted on purpose — do not recreate" list, and
+`README.md` links to it instead of describing files that no longer exist (it still pointed at a
+`content/` folder that was never created).
+
+## BUG-027 -- RAGGED was shredding hard objects (user: "the PC looks too ragged", 2026-11-26)
+
+- **Symptom:** the monitor read as debris -- a dotted outline with 2 px gaps, a dotted inner frame and
+  speckle, on the largest object on screen.
+- **Cause:** `ragged_rect(..., amp=1)` was applied to a 154x106 box. Its 1 px step-by-step edges are
+  designed for hand-drawn *props*; on a hard rectangle at that size every edge becomes a broken run,
+  and `scuff(n=14)` added the rest.
+- **Fix:** the monitor is now drawn straight (case → bezel face with bevel → glass → 1 dent, 2 chips,
+  4 scuffs). Global wear was recalibrated: `LEVELS` scuffs 10/22/36 -> **4/9/16**, applicants halved,
+  desk 22 -> 14, noticeboard 6 -> 3, stamps 3 -> 2, documents 10 -> 5.
+- **Rule (bible §6b):** big hard objects stay hard. Only paper and soft goods get torn silhouettes.
+- **Also rejected:** a diagonal glare streak across the glass -- it read as a scratch and competed with
+  the email text the player is reading.
+
+## BUG-028 / BUG-029 -- document overflowed the CRT; the arm was not an arm (2026-11-26)
+
+- **BUG-028:** document layer anchor `[34,93]` put the 108x63 sheet at rows 114-177 while the monitor
+  glass ends at row 171 -- 6 px of paper hung out of the screen. Sheet resized to 96x54, anchor moved
+  to `[38,100]`. Prevention: measure against the glass rect (`x+6, y+6 .. x+w-7, y+h-13`).
+- **BUG-029:** `monitor_stand.png` was a ragged column + ellipse with dotted edges, no articulation.
+  Redrawn 56x34: base plate / lower column / joint collar / leaning upper column / mount plate.
+  Anchor `[63,60]` so its mount meets the bezel bottom at row 184 and its foot overlaps the desk.
+- Also this pass: desk props re-laid around the arm (keyboard moved off x=104 to x=200), coffee
+  cleared off the clipboard, notepad pen shortened (a 15 px diagonal read as a scratch).
+
+## BUG-030 -- Test-ArtPipeline threw a red traceback in 5.1 (found on the user's PC, 2026-11-26)
+
+- **Symptom:** the gate printed a green `[ok]` list, then `python.exe : Traceback (most recent call last):`
+  with `NativeCommandError` at `Test-ArtPipeline.ps1:64`.
+- **Cause:** the gate RAN `tools/art/study_desk_workdesk.py`. That script is a leftover from composition
+  study L: it draws from `desk/monitor_bezel.png` and `desk/document_sheet.png` (pre-v42 assets), and it
+  rewrites `art/concepts/study_*.png` on every gate run -- so the working tree went dirty every time the
+  gate ran. In PowerShell 5.1 any stderr from a native command surfaces as a NativeCommandError, which
+  looks like a failure even when the exit code is 0.
+- **Fix:** retired the script and its three output PNGs; the gate now checks that no stray `study_*.py`
+  exists. `twin_desk.py` already renders the same 480x270 view and is verified byte-for-byte, so nothing
+  was lost. Also removed the three one-off art scripts that survived the earlier sweep (they had been
+  re-added to the index by the bundle round-trip).
+- **Prevention rule:** a gate may not run a script that WRITES into the repo. Gates read, they do not
+  produce -- otherwise every run dirties the tree and the "clean tree" bundle rule trips.
+
+## BUG-038 / BUG-039 / BUG-040 / BUG-041 -- the history step, four bugs deep (v51 report)
+
+The user's apply got further every time and failed somewhere new. All four are in the same 30 lines.
+
+- **BUG-038 `refusing to fetch into branch 'refs/heads/main' checked out at ...`** — `git init` puts
+  `HEAD` on `refs/heads/main` on git builds whose default branch is `main`; fetching
+  `refs/heads/*:refs/heads/*` then writes into the checked-out branch and git refuses.
+  **This box defaults to `master`, so the rehearsal could never reproduce it.** Rule: *behaviour that
+  depends on a machine setting is never proven by one machine.*
+- **BUG-039 `git clone` was the obvious fix and is wrong** — it refuses a non-empty target, and the
+  working copy is always full of the previous version. Replaced with: `init`, then fetch into
+  `refs/hr0d-incoming/*` (a namespace that can never be checked out), then `update-ref` each branch
+  into place, then `symbolic-ref` + `reset --mixed`.
+- **BUG-040 the sequelae, all silent:**
+  - source and destination were swapped in the fetch refspec (`+refs/hr0d-incoming/*:refs/heads/*`), so
+    the fetch "succeeded" and created nothing;
+  - `%(refname:short)` strips `refs/`, so the prefix match never fired and branches landed at
+    `refs/heads/hr0d-incoming/main` — and the next check then blamed the bundle;
+  - `for-each-ref --format='%(refname) %(objectname)'` survives PowerShell as one argument but **not**
+    through `ProcessStartInfo` quoting: git received two args, expanded only the first, and the sha
+    silently vanished. Format strings are now **one token** (`'%(refname)|%(objectname)'`).
+  - the fetch was `-Quiet`, so its failure reason was hidden and reported as "the bundle has no branches".
+- **BUG-041 `Expand-Archive` refused a dot-file entry** (`Cannot find path .../.gitattributes`). Windows
+  PowerShell 5.1 extracts the same zip happily, but a script that only runs on one host cannot be
+  rehearsed — the zip is now extracted entry by entry through the `ZipFile` API.
+- **Also:** after a `-Clean` copy the tree can hold files the new `HEAD` never had (they came from the
+  *previous* version), which was reported as "files do NOT match HEAD" — alarming and wrong. A `-Clean`
+  apply now ends with `reset --hard` + `clean -fd` so the tree check means what it says.
+
+**Proof:** under `$PSNativeCommandUseErrorActionPreference = $true` (reproduces 5.1), three scenarios:
+existing repo on `main` + a stale untracked file, a second apply with `origin` present, and a fresh
+folder with no `.git`. All three end at `HEAD ... working tree clean -- files match HEAD exactly`, and
+`dotnet run --project tools/CoreTests` in the applied copy is green.
+
+## BUG-036 / BUG-037 -- `git remote get-url origin` killed the apply, twice (v49 report)
+
+- **Symptom:** the user ran v49 and got a red PS traceback at `Apply-Bundle.ps1:135`:
+  `git.exe : error: No such remote 'origin'` -> `NativeCommandError`. The apply stopped dead.
+- **Cause:** the working copy had **no `origin`**. `git remote get-url origin` reports that on **stderr**,
+  and Windows PowerShell 5.1 converts *any* native stderr into a `NativeCommandError`, which is fatal
+  because the script sets `$ErrorActionPreference = 'Stop'`. `git remote get-url` has **no `-q`**, so
+  there is no way to ask it politely.
+- **Why it happened twice:** my BUG-036 fix redirected `2>&1` on *that one call*. v49 still died at the
+  same class of call one line earlier. Redirection happens after PowerShell has already decided the
+  record is an error. The class, not the site, was the problem.
+- **Fix (BUG-037):** no native command is invoked with `&` in `Apply-Bundle.ps1` any more. There is one
+  `Git` helper that starts `git` as a `System.Diagnostics.Process` with `RedirectStandardOutput/Error`,
+  returns stdout as a string, prints stderr in grey, and leaves the exit code in `$script:GitExitCode`.
+  Ten call sites migrated. **Rule: in a 5.1 script, treat native stderr as data — start the process.**
+- **Second bug found by rehearsing:** `Clear-Host` shells out to `clear`, which exits non-zero when
+  `TERM` is unset or output is piped -- fatal under the same error handling. Removed (cosmetic).
+- **Third bug found:** the shipped bootstrap at the **repo root** was never linted, because
+  `Test-Scripts.ps1` only walked `scripts\`. It now checks the root bootstrap too — that is why three
+  releases of broken bootstrap went out green.
+- **Proof:** rehearsed with `$PSNativeCommandUseErrorActionPreference = $true` (pwsh's switch that
+  reproduces 5.1's behaviour) against a repo with **no origin**, twice in a row, plus the `-Reinstall`
+  path. All three end at `working tree clean -- files match HEAD exactly`.
+
+## BUG-035 -- the bundle could not fix the script that applies it (found by rehearsal, 2026-11-26)
+
+- **Symptom:** after the BUG-032 fix, a *rolled-back* bootstrap still produced the old failure. The
+  bundle was correct; the script reading it was not.
+- **Cause:** `.\Apply-Bundle.ps1` lives in **Downloads**, outside the repo. No bundle can overwrite a
+  file that is already there, so the bootstrap that runs is the one the operator downloaded the *first*
+  time. Every bootstrap bug so far survived a release because of this.
+- **Second cause, found while rehearsing:** shipping `history.bundle` inside `HR-ZeroDay\` made the
+  **old** bootstrap copy it into the working copy as an untracked file, which it then reported as
+  "working tree not clean" -- a third way to look broken while being fine.
+- **Fix:** (a) transport files ship at the **zip root only**; (b) a current bootstrap **refreshes itself**
+  in place after the copy, so from the next apply onward Downloads always holds the current version;
+  (c) `docs/BUNDLE-WORKFLOW.md` documents the one-time manual replacement and the three recovery
+  commands (`-Clean`, `-Reinstall`, `Fix-Repo.ps1`).
+- **Rehearsal (proof, not assertion):** built v47, put the *old* bootstrap in a scratch Downloads,
+  applied -> reproduced the user's exact output (`bundle has no .git`, old HEAD, dirty); replaced the
+  bootstrap from the zip; applied again -> `HEAD 127c4ed (78 commits)`, `working tree clean`, and
+  `dotnet run --project tools/CoreTests` -> **56 PASS** in the applied copy.
+  `-Reinstall` was separately verified to clean a dirty tree (`reset --hard` + `clean -fd`).
+
+## BUG-032 / BUG-033 / BUG-034 -- the apply copied files but could never adopt the history (v45 report)
+
+The user applied v45 correctly and the apply **still** reported `HEAD 0b52098` (the v44 commit) and a
+dirty tree. The files were right; three separate defects meant the history step could never work.
+
+- **BUG-032 — the bootstrap looked for the history in a place the bundle never puts it.**
+  `Build-Bundle.ps1` ships `history.bundle` / `history.branch` at the **zip root**; `Apply-Bundle.ps1`
+  (the root bootstrap) builds `$root` = the extracted *project folder* and then tested
+  `$root\.git`. There is no such folder in any bundle, so every `-Clean` apply printed
+  `bundle has no .git; history left untouched` and left the old `HEAD` in place. The v45 manifest even
+  *proves* the files were fine (`history.bundle present`).
+  **Fix:** the bootstrap now accepts `history.bundle` at the zip root, inside the project, or a whole
+  `.git` folder (older bundles), and fetches from the bundle with `git fetch <file> refs/heads/*:...`.
+  `Build-Bundle.ps1` now writes the transport files in **both** locations and fails the build if either
+  is missing.
+- **BUG-033 — "history adopted" could be a lie.** `git symbolic-ref` + `reset --mixed` were run without
+  checking that the branch actually exists in the bundle; a miss would leave `HEAD` dangling (which
+  reads as `0 commits`). Now the script verifies `refs/heads/<branch>` exists and **fails loudly**.
+- **BUG-034 — no recovery path.** The script's own advice was `git reset --hard && git clean -fd`, which
+  the user would have to type. There is now **`-Reinstall`**: does exactly that, no extraction, idempotent.
+
+**Also fixed here:** `scripts/Build-Bundle.ps1` shipped `history.bundle` at the root only, and the
+tree-check message in `Apply-Bundle.ps1` pointed at a symptom instead of the cause. Both now say what
+actually happened.
+
+**Prevention rule:** a bundle is only "correct" when a clean machine, given nothing but the zip, ends at
+the same `HEAD` as the box that built it. `history.bundle present` in the manifest is not that proof --
+only the post-apply `HEAD` check is.
+
+## BUG-031 -- the art gate needed Pillow (found on the user's PC, v44 report)
+
+- **Symptom:** the user ran the 11 gates after applying v44: 9 `[ok]`, then
+  `[FAIL] screen preview failed to render`. Everything else green.
+- **Cause:** `tools/comp/preview_screen.py` imported Pillow at module scope, and the gate ran it.
+  The user's box has stdlib Python; Pillow was never in the setup checklist because every *art* tool
+  that needs it (`twin_desk.py`, `pngcheck.py` fallback) is a human tool, not a gate.
+- **Fix:** `preview_screen.py` now degrades gracefully (`HAVE_PIL`) and gained a **`--codepage`** mode
+  that prints the glass as an ASCII grid + a content dump using nothing but stdlib. The gate runs that
+  mode into `$env:TEMP` and asserts the **shape** of the glass (20 columns x 9 rows) plus card markers
+  (`GRAD`). The pretty PNG stays a human tool.
+- **Second bug found in the same edit:** a python `str.replace` on a CRLF anchor in
+  `scripts/Test-ArtPipeline.ps1` silently did not match and aborted the previous attempt. The script is
+  **UTF-8 BOM + CRLF + ASCII-only**; edit it by line number or on raw bytes, never on a guessed string.
+- **Third bug found while fixing:** the new gate block used `$env:TEMP`, which is null under pwsh on
+  Linux and threw `Cannot bind argument to parameter 'Path' because it is null`. Now falls back to
+  `[System.IO.Path]::GetTempPath()` so the gate runs on any host.
+- **Prevention rule (same as BUG-016):** every **gate** runs on the standard library only. Pillow is a
+  nice-to-have for humans, never a dependency of a gate.
+
+## The legibility pass: four layout bugs, three caught by tests (2026-11-26)
+
+The user said the glass text was "too close to each other". The gap change was one line; the rest was
+where the real bugs were:
+
+1. `preview_screen.py` still drew columns with the old pitch while `MonitorScreen` had the new one --
+   caught by adding `ScreenMetricsTests`, which parses the python constants and compares them to C#.
+2. The letter page's rule line was 68 `-` against a 65-column budget -> `-----~`. The rule is now
+   derived from `LetterLayout.Cols`, not typed.
+3. `Cols = 66` was arithmetic I did in my head ("456/7"); the real number is `(456+2)/7 = 65`. The test
+   asserted the truncated tail and made the mistake obvious.
+4. Zero inset on the letter page clipped the title's first glyph and the body's first column against the
+   paper edge. Fixed by a **6 px inset** (`LetterLayout.TextRect()`), and the preview now renders through
+   the same numbers.
+
+Also fixed in the atlas: `[` and `]` at 5x7 read as `C` / `J` next to a following glyph (three-wide
+arms are the whole glyph). They are now two bare vertical strokes; the prompt is `> READ LETTER`.
+
+## MonitorScreen: three API bugs caught by the first test run (2026-11-26)
+
+Written tests-first-with-code; the first `dotnet run` failed 3 of 7, all real:
+`rows` was off by one (88 px of glass holds **10** lines, not 9 -- the last line needs no trailing gap);
+`LinesToRects` put line 1 at the BOTTOM of the glass because canvas space is y-UP while text runs DOWN
+(it would have rendered the page upside down, and nothing would have thrown); `TrustBar` reflowed from
+16 chars to 15 when the value hit 100 (now zero-padded to 3 digits).
+
+## Monitor screen, part 2 (2026-11-26) -- glyph atlas + raster + view
+
+- **Font:** `tools/art/make_font.py` generates `art/kit/fonts/monitor_font_5x7.png` + `.json` (56 glyphs,
+  110x34, padding 2). Generated, gated, palette-only -- NOT a TMP asset, because TMP font assets cannot
+  be built headlessly and cannot land on a 5x7 grid at 480x270.
+- **Why the json carries the glyph rows:** the first version of the raster tests decoded the PNG by hand
+  in C# and the Deflate stream failed on a real file. The metrics now include `rows` (the same ink as
+  the PNG), so tests verify coverage and clipping from data and never need an image decoder. The PNG
+  remains the thing Unity renders.
+- **Raster/view split:** `MonitorScreenRaster` (pure, Color32[] in/out, tested) and `MonitorScreenView`
+  (MonoBehaviour: owns the Texture2D, repaints only when day/trust/applicant change).
+- **Colour path:** `Resources/palette.json` (generated from `make_art_kit.PALETTE`) so the runtime tint
+  can never invent a colour outside the bible's palette.
+- **Gate additions:** `make_font.py --check` and `preview_screen.py` now run in `Test-ArtPipeline.ps1`,
+  so a broken atlas or a text-layout regression fails the gate and is visible in the bundle as
+  `art/kit/reference/screen_preview.png`.

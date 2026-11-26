@@ -13,27 +13,22 @@ A mobile cybersecurity-awareness game for Android (Unity 6.3 LTS), inspired by t
 
 | Path | Purpose |
 |---|---|
-| `docs/` | Source of truth: decisions, roadmap, tech stack, protocols |
-| `docs/00-open-questions.md` | Every unresolved decision + recommendation + status |
-| `docs/01-roadmap-14-days.md` | The 14-day phase plan and task assignments |
-| `docs/02-tech-stack.md` | Unity project spec, folder layout, data & save formats |
-| `docs/03-title-shortlist.md` | Name candidates and recommendation |
-| `docs/04-collaboration-protocol.md` | Git workflow, handoff MD format, bug log discipline |
-| `docs/07-randomization-spec.md` | Seeded run generation + fairness invariants I1–I8 |
-| `docs/08-behaviour-model.md` | The applicant across the table: animation, tells, stress model |
-| `docs/09-backend-spec.md` | Backend summary (3 jobs, offline-first) |
-| `docs/15-interaction-layer.md` | Hotspot -> evidence -> stamp loop, artifact/tell map, verification |
+| `docs/` | Source of truth — **see `docs/README.md` for the index** |
+| `docs/16-the-later-list.md` | Everything still owed, ordered and owner-tagged |
+| `docs/06-decisions.md` | Every locked decision, with dates |
+| `docs/15-art-bible.md` | Palette, composition and art rules |
+| `docs/15-interaction-layer.md` | Hotspot -> evidence -> stamp loop; artifact/tell map and verification |
 | `prototype/web/` | Playable browser twin of the first minute (no Unity needed) |
-| `docs/10-analytics-spec.md` | Research instrument: events, metrics, privacy guardrails |
-| `docs/SETUP-CHECKLIST.md` | Step-by-step Windows setup |
-| `docs/TROUBLESHOOT-SETUP.md` | "script not recognized" and every other setup failure |
-| `docs/PUSH-TO-GITHUB.md` | Push this history to the team remote |
-| `docs/tooling-setup-database.md` | Verified installers D01–D17 with sizes and paths |
-| `docs/DOWNLOADS.md` | Short download checklist |
-| `unity/` | The Unity project (created once the editor version is confirmed) |
-| `art/` | Generated pixel art (sprites, backgrounds, UI, portraits) |
-| `content/` | JSON content: applicants, emails, warnings, field-manual entries |
-| `prototype/` | Optional browser playable slice for fast design validation |
+| `unity/` | The Unity project (Assets + Content; no Library) |
+| `art/kit/` | Shipped pixel art. `art/kit/reference/` holds the renders you look at |
+| `art/concepts/` | Only the two approved mood references + the 5× window crop |
+| `tools/` | Generators and tests (`tools/art/`, `tools/comp/`, `tools/CoreTests`) |
+| `scripts/` | PowerShell 5.1 tooling: gates, bundle build, git push |
+| `handoff/` | Dated agent→team handoff markdown |
+| `prototype/` | Applicant-generator fairness simulation (run before content changes) |
+
+> **Not in the repo, on purpose:** `content/` does not exist yet — JSON content is a later-list item
+> (4.1). Builds (`*.zip`, `*.apk`) and the local toolchain (`/tmp`, `.tooling/`) are never committed.
 
 ## Status
 

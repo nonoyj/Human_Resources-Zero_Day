@@ -17,6 +17,7 @@ namespace HRZeroDay.EditorTools
     {
         private const string KitRoot = "Assets/Art/Kit";
         private const string ManifestPath = "Assets/Resources/unity_sprites.json";
+        private const string ResourcesKit = "Assets/Resources/Art/Kit";
 
         [MenuItem("HR//0D/Import Art Kit", false, 10)]
         public static void ImportAll()
@@ -24,7 +25,10 @@ namespace HRZeroDay.EditorTools
             var manifest = LoadManifest();
             if (manifest == null) return;
 
-            int changed = 0, sliced = 0;
+            // NOTE: frames are extracted in a SECOND pass, outside StartAssetEditing. Everything written
+            // inside that block is deferred, so the frame PNGs did not exist when they were imported --
+            // ImportArt Kit reported "56 frames built" and the scene builder then found none.
+            int changed = 0;
             try
             {
                 AssetDatabase.StartAssetEditing();
@@ -35,7 +39,13 @@ namespace HRZeroDay.EditorTools
                     var importer = AssetImporter.GetAtPath(path) as TextureImporter;
                     if (importer == null) continue;                        // not imported yet
                     if (ApplySettings(importer, s)) changed++;
-                    if (s.spriteMode == "Multiple") sliced++;
+                    // The game loads Resources/Art/Kit, not Assets/Art/Kit. Both copies have to agree or the
+                    // build silently ships bilinear PPU-100 textures -- the art gate compares the PNGs, not
+                    // the .meta files, so this was invisible.
+                    var resPath = s.assetPath.Replace("Assets/Art/Kit/", "Assets/Resources/Art/Kit/");
+                    var resImporter = AssetImporter.GetAtPath(resPath) as TextureImporter;
+                    if (resImporter != null && ApplySettings(resImporter, s)) changed++;
+
                 }
             }
             finally
@@ -44,9 +54,44 @@ namespace HRZeroDay.EditorTools
             }
 
             AssetDatabase.Refresh();
+
+            // The glyph atlas is a plain Texture2D that the runtime reads pixel-by-pixel
+            // (Texture2D.GetPixels32). Unity imports textures with Read/Write DISABLED by default, which
+            // throws "texture data is either not readable" the moment the CRT initialises. It is also not
+            // a sprite in the manifest, so nothing else in the pipeline was configuring it.
+            ConfigureFontAtlas("Assets/Resources/fonts/monitor_font_5x7.png");
+            ConfigureFontAtlas("Assets/Art/Kit/fonts/monitor_font_5x7.png");
+
+            // second pass: frames as real files, so they exist before anything tries to import them
+            int frames = 0;
+            for (int i = 0; i < manifest.sprites.Count; i++)
+            {
+                var s = manifest.sprites[i];
+                if (s.spriteMode != "Multiple") continue;
+                frames += ExtractFrames(s);
+            }
+            AssetDatabase.Refresh();
             Debug.Log(string.Format("[HR//0D] art kit import: {0} sprites checked, {1} updated, " +
-                                    "{2} sliced strips. Verify with: python tools/art/publish_to_unity.py --verify",
-                                    manifest.sprites.Count, changed, sliced));
+                                    "{2} frames built. Verify with: python tools/art/publish_to_unity.py --verify",
+                                    manifest.sprites.Count, changed, frames));
+        }
+
+        /// <summary>
+        /// Font atlas: readable, Point filtered, uncompressed, no mipmaps, Clamp. Asked for by name
+        /// because it is not in the sprite manifest.
+        /// </summary>
+        private static void ConfigureFontAtlas(string path)
+        {
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null) return;
+            bool dirty = false;
+            if (!importer.isReadable) { importer.isReadable = true; dirty = true; }
+            if (importer.filterMode != FilterMode.Point) { importer.filterMode = FilterMode.Point; dirty = true; }
+            if (importer.textureCompression != TextureImporterCompression.Uncompressed)
+            { importer.textureCompression = TextureImporterCompression.Uncompressed; dirty = true; }
+            if (importer.mipmapEnabled) { importer.mipmapEnabled = false; dirty = true; }
+            if (!importer.wrapMode.Equals(TextureWrapMode.Clamp)) { importer.wrapMode = TextureWrapMode.Clamp; dirty = true; }
+            if (dirty) importer.SaveAndReimport();
         }
 
         private static bool ApplySettings(TextureImporter importer, SpriteEntry s)
@@ -87,46 +132,123 @@ namespace HRZeroDay.EditorTools
                 }
             }
 
-            // Multi-sprite sheets: name and place each frame explicitly
-            if (s.spriteMode == "Multiple")
-            {
-                var rects = BuildSpriteRects(s);
-                if (rects != null)
-                {
-                    importer.spritesheet = rects;
-                    dirty = true;
-                }
-            }
+            // Multi-sprite sheets: name and place each frame explicitly.
+            //
+            // Unity 6.3 REMOVED TextureImporter.spritesheet (it compiles with a CS0618 warning and then
+            // does nothing), so the old code silently produced zero slices -- the scene builder then
+            // threw "expected 4 sliced frames" on every applicant. The supported path is the sprite data
+            // provider; the import mode has to be set and reimported BEFORE the provider will accept
+            // sprite rects, which is why this is done in two steps rather than one.
+            // Multiple-mode frames are extracted after the asset-edit block, in ImportAll.
 
             if (dirty) importer.SaveAndReimport();
             return dirty;
         }
 
-        private static SpriteMetaData[] BuildSpriteRects(SpriteEntry s)
+        /// <summary>
+        /// Builds the 4 animation frames of a Multiple-mode strip as child sprite assets.
+        ///
+        /// WHY NOT SPRITE SLICING: Unity 6.3 removed TextureImporter.spritesheet, and the replacement,
+        /// UnityEditor.U2D.Sprites, lives in the 2D Sprite package, which is not referenced by this
+        /// assembly -- so the import failed with CS0234 on the user's machine even though the stub-based
+        /// compile check passed. Rather than making the whole editor assembly depend on a package for
+        /// one feature, each frame is written out as its own PNG next to the strip
+        /// (frames/<stem>__<frame>.png) and imported as a Single sprite: same PPU, same Point filter,
+        /// same pivot, and addressable as Resources/Art/Kit/applicants/frames/<stem>__<frame>.
+        /// Frame rects and names come from unity_sprites.json, so the python pipeline stays the single
+        /// source of truth.
+        /// </summary>
+        private static int ExtractFrames(SpriteEntry s)
         {
-            var w = ReadHeaderWidth(s.assetPath);
-            var h = ReadHeaderHeight(s.assetPath);
-            if (w <= 0 || h <= 0) return null;
+            if (s.sprites == null || s.sprites.Count == 0) return 0;
 
-            var cellW = w / 4;
-            var cellH = h;
-            var names = new[] { "neutral", "breathe", "breathe_fidget", "blink" };
-            var baseName = Path.GetFileNameWithoutExtension(s.assetPath).Split(new[] { "_19" }, System.StringSplitOptions.None)[0];
-            if (baseName.StartsWith("app_")) baseName = baseName.Substring(4);
-
-            var rects = new SpriteMetaData[4];
-            for (int i = 0; i < 4; i++)
+            // Prefer the published copy (the one the game loads); fall back to the authoring copy.
+            // Both are checked as absolute paths: the editor's working directory is the project root,
+            // but never assume it.
+            var published = Path.Combine(Directory.GetCurrentDirectory(),
+                                         ResourcesKit + s.assetPath.Substring("Assets/Art/Kit".Length));
+            var full = File.Exists(published)
+                ? published
+                : Path.Combine(Directory.GetCurrentDirectory(), s.assetPath);
+            if (!File.Exists(full)) return 0;
+            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            var made = 0;
+            try
             {
-                rects[i] = new SpriteMetaData
+                if (!tex.LoadImage(File.ReadAllBytes(full)))
                 {
-                    name = baseName + "_" + names[i],
-                    alignment = (int)SpriteAlignment.Custom,
-                    pivot = new Vector2(0.5f, 0.5f),
-                    rect = new Rect(i * cellW, 0, cellW, cellH),   // Unity's rect origin is bottom-left
-                    border = Vector4.zero
-                };
+                    Debug.LogError("[HR//0D] could not decode " + s.assetPath);
+                    return 0;
+                }
+
+                var dir = (ResourcesKit + "/" + Path.GetDirectoryName(
+                              s.assetPath.Substring("Assets/Art/Kit/".Length)).Replace('\\', '/')).TrimEnd('/');
+                var stem = Path.GetFileNameWithoutExtension(s.assetPath);
+                for (int i = 0; i < s.sprites.Count; i++)
+                {
+                    var f = s.sprites[i];
+                    if (!f.IsValid)
+                    {
+                        Debug.LogError("[HR//0D] frame '" + f.name + "' of " + s.assetPath +
+                                       " has no usable rect -- the json and SpriteFrameRect disagree.");
+                        continue;
+                    }
+                    // the json rects are top-left based; Unity texture rects are bottom-left based
+                    var y = tex.height - f.Y - f.Height;
+                    var px = tex.GetPixels(f.X, y, f.Width, f.Height);
+
+                    var sub = new Texture2D(f.Width, f.Height, TextureFormat.RGBA32, false);
+                    sub.SetPixels(px);
+                    sub.Apply(false, false);
+
+                    var png = sub.EncodeToPNG();
+                    UnityEngine.Object.DestroyImmediate(sub);
+
+                    var framePath = dir + "/frames/" + stem + "__" + f.name + ".png";
+                    var frameDir = Path.GetDirectoryName(framePath);
+                    if (!Directory.Exists(frameDir)) Directory.CreateDirectory(frameDir);
+                    File.WriteAllBytes(framePath, png);
+
+                    AssetDatabase.ImportAsset(framePath);
+                    var fi = AssetImporter.GetAtPath(framePath) as TextureImporter;
+                    if (fi != null)
+                    {
+                        fi.textureType = TextureImporterType.Sprite;
+                        fi.spritePixelsPerUnit = s.ppu;
+                        fi.filterMode = FilterMode.Point;
+                        fi.textureCompression = TextureImporterCompression.Uncompressed;
+                        fi.mipmapEnabled = false;
+                        fi.alphaIsTransparency = true;
+                        fi.wrapMode = TextureWrapMode.Clamp;
+                        fi.SaveAndReimport();
+
+                        var settings = new TextureImporterSettings();
+                        fi.ReadTextureSettings(settings);
+                        settings.spriteMeshType = SpriteMeshType.FullRect;
+                        fi.SetTextureSettings(settings);
+                        fi.SaveAndReimport();
+                    }
+                    made++;
+                }
             }
-            return rects;
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(tex);
+            }
+            return made;
+        }
+
+        private static int CountExtractedFrames(SpriteEntry s)
+        {
+            var dir = Path.GetDirectoryName(s.assetPath).Replace('\\', '/');
+            var stem = Path.GetFileNameWithoutExtension(s.assetPath);
+            var prefix = dir + "/frames/" + stem + "__";
+            if (!Directory.Exists("Assets")) return 0;
+            var folder = Path.GetDirectoryName(prefix);
+            if (!Directory.Exists(folder)) return 0;
+            var n = 0;
+            foreach (var f in Directory.GetFiles(folder, stem + "__*.png")) n++;
+            return n;
         }
 
         private static int ReadHeaderWidth(string path)
@@ -169,7 +291,7 @@ namespace HRZeroDay.EditorTools
                 if (importer.textureCompression != TextureImporterCompression.Uncompressed) problems.Add("compression: " + s.assetPath);
                 if (importer.spritePixelsPerUnit != s.ppu) problems.Add("PPU: " + s.assetPath);
                 if (importer.mipmapEnabled) problems.Add("mipmaps on: " + s.assetPath);
-                if (s.spriteMode == "Multiple" && importer.spritesheet == null) problems.Add("not sliced: " + s.assetPath);
+                if (s.spriteMode == "Multiple" && CountExtractedFrames(s) < 4) problems.Add("frames not built: " + s.assetPath);
             }
 
             if (problems.Count == 0)
@@ -191,7 +313,26 @@ namespace HRZeroDay.EditorTools
                 Debug.LogError("[HR//0D] " + ManifestPath + " missing. Run: python tools/art/publish_to_unity.py");
                 return null;
             }
-            return JsonUtility.FromJson<SpriteManifest>(asset.text);
+            var manifest = JsonUtility.FromJson<SpriteManifest>(asset.text);
+            // JsonUtility does not throw on a shape mismatch: it returns an empty object, and a missing
+            // [Serializable] on a nested class silently yields entries with null fields. That is exactly
+            // how "0 sprites checked" shipped, so treat an empty/garbage manifest as an error.
+            if (manifest == null || manifest.sprites == null || manifest.sprites.Count == 0)
+            {
+                Debug.LogError("[HR//0D] " + ManifestPath + " deserialized to 0 sprites. The json and " +
+                               "SpriteManifest disagree (usually a missing [Serializable]).");
+                return null;
+            }
+            var broken = 0;
+            for (int i = 0; i < manifest.sprites.Count; i++)
+                if (string.IsNullOrEmpty(manifest.sprites[i].assetPath)) broken++;
+            if (broken > 0)
+            {
+                Debug.LogError("[HR//0D] " + broken + " of " + manifest.sprites.Count +
+                               " manifest entries have no assetPath -- the json is not being read correctly.");
+                return null;
+            }
+            return manifest;
         }
     }
 }

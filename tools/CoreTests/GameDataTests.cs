@@ -17,6 +17,8 @@ namespace HRZeroDay.Tests
 {
     public static class GameDataTests
     {
+        private static readonly List<string> _scratch = new List<string>();
+
         private static string RepoRoot()
         {
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
@@ -42,6 +44,7 @@ namespace HRZeroDay.Tests
             yield return DeskLayoutMatchesBrief();
             yield return PublishedArtIsCurrent();
             yield return EveryArtifactReachesATell();
+            yield return DeskFrontLayerSortsAboveApplicant();
         }
 
         private static string ManifestCoversEverySprite()
@@ -218,6 +221,34 @@ namespace HRZeroDay.Tests
                 default:
                     return false;
             }
+        }
+
+        // ---- composition L (approved 2026-11-26) -----------------------------------------------
+        // The desk must sort ABOVE the applicant so the keyboard and mug read as sitting in front of
+        // him, and the applicant must be drawn at the approved 0.96 while still bigger than the screen.
+        public static string DeskFrontLayerSortsAboveApplicant()
+        {
+            using var json = LoadJson("unity/Assets/Content/desk_layout.json", _scratch);
+            if (json == null) return "FAIL  desk_layers unreadable";
+            int deskOrder = int.MinValue, appOrder = int.MinValue;
+            double appScale = 1.0;
+            foreach (var layer in json.RootElement.GetProperty("layers").EnumerateArray())
+            {
+                var id = layer.GetProperty("id").GetString();
+                var order = layer.GetProperty("sortingOrder").GetInt32();
+                if (id == "desk") deskOrder = order;
+                if (id == "applicant")
+                {
+                    appOrder = order;
+                    if (layer.TryGetProperty("scaleFactor", out var sc)) appScale = sc.GetDouble();
+                }
+            }
+            if (deskOrder == int.MinValue) return "FAIL  desk_layers no desk layer";
+            if (deskOrder <= appOrder)
+                return $"FAIL  desk_layers desk sorts {deskOrder} but applicant {appOrder} -- the keyboard would sit behind him";
+            if (appScale <= 0.9 || appScale >= 1.0)
+                return $"FAIL  desk_layers applicant scaleFactor {appScale} is not the approved 0.96";
+            return "PASS  DeskFrontLayerSortsAboveApplicant (composition L)";
         }
     }
 }

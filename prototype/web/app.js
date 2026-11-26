@@ -3,7 +3,7 @@
  * Renders the shipped desk sprites using the same desk_layout.json as Unity and drives the
  * playable minute through rules.js (a mirror of the C# interaction layer). No backend needed.
  */
-import { REASONS, ARTIFACTS, TELLS, Session, HotspotHitTest } from './rules.js';
+import { REASONS, TELLS, Session, HotspotHitTest, buildFlags, paperworkDelta } from './rules.js';
 
 const $ = (id) => document.getElementById(id);
 const url = (p, base = import.meta.url) => new URL(p, base).href;
@@ -15,6 +15,7 @@ const state = {
   copy: null, layout: null, manifest: null, byPath: new Map(), images: new Map(),
   run: null, keys: null, session: null, tab: 'resume', examining: false,
   reduceMotion: false, frame: 0, lastFrame: performance.now(), placed: 0, phase: null,
+  flags: [], flagged: new Set(), letterText: '',
 };
 
 const desk = $('desk');
@@ -58,16 +59,17 @@ function buildHotspots() {
   const layer = $('hotspotLayer');
   layer.innerHTML = '';
   const app = state.layout.layers.find(l => l.id === 'applicant');
+  const scale = app.scaleFactor > 0 ? app.scaleFactor : 1;   // composition L: 0.96
   for (const hp of state.layout.hotspots) {
     const el = document.createElement('div');
     el.className = 'hotspot';
     el.dataset.artifact = hp.artifact;
     el.title = hp.label;
     const [x, y, w, h] = hp.rect;
-    el.style.left = `${(app.anchor[0] + x) / 480 * 100}%`;
-    el.style.top = `${(270 - (app.anchor[1] + y + h)) / 270 * 100}%`;
-    el.style.width = `${w / 480 * 100}%`;
-    el.style.height = `${h / 270 * 100}%`;
+    el.style.left = `${(app.anchor[0] + x * scale) / 480 * 100}%`;
+    el.style.top = `${(270 - (app.anchor[1] + (y + h) * scale)) / 270 * 100}%`;
+    el.style.width = `${w * scale / 480 * 100}%`;
+    el.style.height = `${h * scale / 270 * 100}%`;
     el.innerHTML = `<span>${hp.label}</span>`;
     el.addEventListener('click', (e) => { e.stopPropagation(); inspect(hp.artifact); });
     layer.appendChild(el);
@@ -131,6 +133,9 @@ function refreshApplicant() {
   $('seedLabel').textContent = String(seed);
   state.placed = 0;
   state.toolLog = [];
+  state.flags = [];
+  state.flagged = new Set();
+  state.letterText = '';
   hideEvidence();
   renderPortrait(a);
   renderSheet();
@@ -162,10 +167,21 @@ function renderSheet() {
     sheet.innerHTML = rows.map(([k, v]) => `<div class="row"><span>${k}</span><b>${esc(v)}</b></div>`).join('');
   } else if (state.tab === 'letter') {
     const kind = a.sprite.startsWith('synthetic') ? 'flat' : a.sprite === 'human_bait_a' ? 'bait' : 'plain';
+    const signature = state.copy.letterSignature.replace('{name}', a.name);
     const text = state.copy.letters[kind]
       .replace('{role}', a.role).replace('{employer}', a.employer)
-      .replace('{startYear}', a.startYear).replace('{expYears}', a.expYears);
-    sheet.innerHTML = `<p>${esc(text)}</p>`;
+      .replace('{startYear}', a.startYear).replace('{expYears}', a.expYears) + '\n' + signature;
+    state.letterText = text;
+    state.flags = buildFlags(text, a.referral);
+    const rows = state.flags.map(f =>
+      `<button type="button" class="flag ${state.flagged.has(f.id) ? 'on' : ''}" data-flag="${f.id}">` +
+      `[${state.flagged.has(f.id) ? 'X' : ' '}] ${esc(state.copy.flagLabels[f.id])}</button>`).join('');
+    sheet.innerHTML = `<p>${esc(text).replace(/\n/g, '<br>')}</p><div class="flags">${rows}</div>`;
+    sheet.querySelectorAll('.flag').forEach(button => button.addEventListener('click', () => {
+      const id = button.dataset.flag;
+      if (state.flagged.has(id)) state.flagged.delete(id); else state.flagged.add(id);
+      renderSheet();
+    }));
   } else {
     sheet.innerHTML = `<p>Three checks per shift. A check that finds nothing reports VALID - that result does not prove a person is genuine.</p><div id="toolLog"></div>`;
     renderToolLog();
@@ -227,7 +243,9 @@ function labelFor(artifact) {
 function showMagnifier(artifact, result) {
   const hp = state.layout.hotspots.find(h => h.artifact === artifact);
   const app = state.layout.layers.find(l => l.id === 'applicant');
-  const region = HotspotHitTest.localToCanvas(hp.rect, app.anchor[0], app.anchor[1]);
+  const scale = app.scaleFactor > 0 ? app.scaleFactor : 1;
+  const scaled = hp.rect.map(v => v * scale);
+  const region = HotspotHitTest.localToCanvas(scaled, app.anchor[0], app.anchor[1]);
   mag.width = region.w * 4;
   mag.height = region.h * 4;
   mctx.imageSmoothingEnabled = false;
@@ -272,7 +290,8 @@ function renderStatus() {
 function commit(decision) {
   if (state.phase || state.session.finished || state.session.dayFinished) return;
   const reason = $('reasonSelect').value;
-  const result = state.session.stamp(decision, reason, state.placed);
+  const letterDelta = paperworkDelta(state.flags, state.flagged);
+  const result = state.session.stamp(decision, reason, state.placed, letterDelta);
   if (!result) return;
   state.examining = false;
   $('hotspotLayer').style.display = 'none';
@@ -280,7 +299,8 @@ function commit(decision) {
   hideEvidence();
   state.phase = 'debrief';
   showModal('DECISION LOGGED', result.debriefLine,
-            `TRUST ${signed(result.trustDelta)}  |  FOUND ${state.session.ledger.foundCount}  |  MISSED ${result.missedEvidence.length}`,
+            `TRUST ${signed(result.trustDelta)}  |  FOUND ${state.session.ledger.foundCount}  |  ` +
+            `MISSED ${result.missedEvidence.length}  |  FLAGS ${signed(letterDelta)}`,
             state.session.dayFinished ? state.copy.closeShift : state.copy.nextApplicant);
 }
 
@@ -347,11 +367,12 @@ function drawScene() {
   const s = state.session;
   if (!s) return;
   const { canvas, layers } = state.layout;
+  // Composition L: the room gets darker as shifts pass; corruption is a separate wear overlay.
+  const room = s.day >= 3 ? 2 : s.day === 2 ? 1 : 0;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   for (const layer of [...layers].sort((a, b) => a.sortingOrder - b.sortingOrder)) {
     let source = layer.sprite;
-    if (layer.id === 'background' && s.corruption > 0)
-      source = `art/kit/backgrounds/office_L${Math.min(2, s.corruption)}.png`;
+    if (layer.id === 'background') source = `art/kit/backgrounds/office_L${room}.png`;
     if (layer.id === 'applicant' && s.current)
       source = `art/kit/applicants/app_${s.current.sprite}_192x216.png`;
     const entry = state.byPath.get(source);
@@ -362,8 +383,19 @@ function drawScene() {
       const frame = entry.sprites[Math.min(state.frame, entry.sprites.length - 1)];
       [sx, sy, w, h] = frame.rect;
     }
-    const y = canvas.height - layer.anchor[1] - h;
-    ctx.drawImage(img, sx, sy, w, h, layer.anchor[0], y, w, h);
+    const scale = layer.scaleFactor > 0 ? layer.scaleFactor : 1;
+    const dw = Math.round(w * scale), dh = Math.round(h * scale);
+    const y = canvas.height - layer.anchor[1] - dh;
+    ctx.drawImage(img, sx, sy, w, h, layer.anchor[0], y, dw, dh);
+
+    if (layer.id === 'background' && s.corruption > 0) {
+      const wear = s.corruption >= 2 ? ['wear_a', 'wear_b'] : ['wear_a'];
+      for (const name of wear) {
+        const p = `art/kit/fx/${name}.png`;
+        const overlay = state.images.get(p);
+        if (overlay) ctx.drawImage(overlay, 0, 0, canvas.width, canvas.height);
+      }
+    }
   }
 }
 

@@ -19,6 +19,12 @@ namespace HRZeroDay.Core.Rules
         public List<string> ToolsUsed = new List<string>();
         public int SecondsOnCard;
         public int StampsUndone;
+        /// <summary>
+        /// Trust owed/taken by the paperwork flags the player committed before stamping.
+        /// Default 0 keeps every existing caller and test unchanged. Added 2026-11-26 so the
+        /// letter mechanic can pay trust through the one place trust is changed (Submit).
+        /// </summary>
+        public int PaperworkTrustDelta;
     }
 
     public sealed class DecisionResult
@@ -44,6 +50,13 @@ namespace HRZeroDay.Core.Rules
         public const int TrustInsufficientReason = -2;
 
         public static DecisionResult Evaluate(DecisionInput input)
+        {
+            var result = EvaluateCore(input);
+            result.TrustDelta += input.PaperworkTrustDelta;
+            return result;
+        }
+
+        private static DecisionResult EvaluateCore(DecisionInput input)
         {
             var a = input.Applicant;
             var r = new DecisionResult();

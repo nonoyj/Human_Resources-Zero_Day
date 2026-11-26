@@ -91,6 +91,20 @@ class Canvas:
                         self.px[ty * self.w + xx] = colour
 
 
+def scale_nearest(src, sw, sh, nw, nh):
+    """Nearest-neighbour scale -- keeps pixel art crisp; no filtering ever.
+
+    read_rgba returns a LIST of (r, g, b, a) tuples, not a byte buffer (seed the BUG-017 lesson:
+    check the container before indexing it)."""
+    out = [None] * (nw * nh)
+    for y in range(nh):
+        sy = min(sh - 1, y * sh // nh)
+        row = sy * sw
+        for x in range(nw):
+            out[y * nw + x] = src[row + min(sw - 1, x * sw // nw)]
+    return out
+
+
 def slice_sprite(path, entry, frame_index):
     """Crop frame `frame_index` out of a Multiple-mode strip."""
     w, h, pixels = read_rgba(os.path.join(ROOT, path))
@@ -120,14 +134,21 @@ def render(layout, by_path, applicant=None, frame=0, corruption=0, hotspots=Fals
         else:
             _w, _h, src = read_rgba(os.path.join(ROOT, path))
             sw, sh = entry['width'], entry['height']
+        scale = layer.get('scaleFactor', 1.0)
+        if scale != 1.0:
+            nw, nh = max(1, int(sw * scale)), max(1, int(sh * scale))
+            src = scale_nearest(src, sw, sh, nw, nh)
+            sw, sh = nw, nh
         cv.blit(src, sw, sh, layer['anchor'][0], layer['anchor'][1])
 
     if hotspots:
         app = next(L for L in layout['layers'] if L['id'] == 'applicant')
         ax, ay = app['anchor']
+        sc = app.get('scaleFactor', 1.0)
         for hp in layout['hotspots']:
             x, y, w, h = hp['rect']
-            cv.rect_outline(ax + x, ay + y, w, h, (255, 71, 87, 255))
+            cv.rect_outline(ax + int(x * sc), ay + int(y * sc),
+                            int(w * sc), int(h * sc), (255, 71, 87, 255))
     return cv
 
 

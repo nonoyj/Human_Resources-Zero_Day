@@ -5,7 +5,17 @@ using System.Collections.Generic;
 
 namespace UnityEngine
 {
-    public class Object { public string name; public static void DestroyImmediate(Object o) { } }
+    public static class Mathf
+    {
+        public static int RoundToInt(float v) => (int)System.Math.Round(v);
+        public static float Clamp01(float v) => v < 0f ? 0f : (v > 1f ? 1f : v);
+        public static float Clamp(float v, float lo, float hi) => v < lo ? lo : (v > hi ? hi : v);
+        public static float Lerp(float a, float b, float t) => a + (b - a) * Clamp01(t);
+        public static int Max(int a, int b) => a > b ? a : b;
+        public static float Max(float a, float b) => a > b ? a : b;
+    }
+
+    public class Object { public string name; public static void DestroyImmediate(Object o) { } public static void Destroy(Object o) { } }
     public class Component : Object
     {
         public Transform transform; public GameObject gameObject;
@@ -14,24 +24,35 @@ namespace UnityEngine
         public T[] GetComponentsInChildren<T>() where T : Component { return new T[0]; }
     }
     public class Behaviour : Component { public bool enabled; }
-    public class MonoBehaviour : Behaviour { }
+    public class MonoBehaviour : Behaviour
+    {
+        public T GetComponent<T>() where T : Component { return null; }
+        public T AddComponent<T>() where T : Component { return null; }
+        public static T FindObjectOfType<T>() where T : Component { return null; }
+        public static T[] FindObjectsOfType<T>() where T : Component { return new T[0]; }
+        public T[] GetComponentsInChildren<T>() where T : Component { return new T[0]; }
+        public T[] GetComponentsInParent<T>() where T : Component { return new T[0]; }
+    }
     public class Transform : Component
     {
-        public Vector3 position, localPosition, localScale;
+        public Vector3 position, localPosition;
+        public Vector3 localScale = new Vector3(1f, 1f, 1f);
         public Quaternion localRotation;
         public void SetParent(Transform p, bool worldStays) { }
         public Transform Find(string n) { return null; }
     }
     public class GameObject : Object
     {
+        public T GetComponent<T>() where T : Component { return null; }
         public Transform transform = new Transform();
         public string tag;
         public bool activeInHierarchy = true;
         public GameObject() { }
         public GameObject(string n) { name = n; }
+        public bool activeSelf;
+        public void SetActive(bool v) { activeSelf = v; activeInHierarchy = v; }
         public T AddComponent<T>() where T : Component, new() { return new T(); }
         public Component AddComponent(Type t) { return null; }
-        public void SetActive(bool value) { activeInHierarchy = value; }
     }
     public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public static Vector2 zero; }
     public struct Vector3 { public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 zero; public static Vector3 one; }
@@ -41,12 +62,6 @@ namespace UnityEngine
         public float x, y, z, w;
         public static Quaternion identity { get { return new Quaternion(); } }
         public static Quaternion Euler(float x, float y, float z) { return new Quaternion(); }
-    }
-    public static class Mathf
-    {
-        public static float Clamp01(float v) { return v < 0f ? 0f : (v > 1f ? 1f : v); }
-        public static int Max(int a, int b) { return a > b ? a : b; }
-        public static float Max(float a, float b) { return a > b ? a : b; }
     }
     public struct Rect
     {
@@ -66,11 +81,32 @@ namespace UnityEngine
     public enum TextureImporterType { Default, Sprite, NormalMap }
     public enum TextureImporterCompression { Uncompressed, Compressed, CompressedHQ, CompressedLQ }
     public enum SpriteImportMode { None, Single, Multiple, Polygon }
+    public enum TextureFormat { RGBA32, RGB24, Alpha8 }
     public enum SpriteMeshType { FullRect, Tight }
     public enum SpriteAlignment { Center, TopLeft, TopCenter, TopRight, LeftCenter, RightCenter, BottomLeft, BottomCenter, BottomRight, Custom }
     public enum CameraClearFlags { Skybox, SolidColor, Depth, Nothing }
-    public class Texture2D : Object { }
-    public class Sprite : Object { public Rect rect; }
+    public class Texture2D : Object
+    {
+        public int width, height;
+        public FilterMode filterMode;
+        public Texture2D() { }
+        public Texture2D(int w, int h, TextureFormat f, bool mips) { width = w; height = h; }
+        public Color32[] GetPixels32() { return new Color32[width * height]; }
+        public void SetPixels32(Color32[] px) { }
+        public void Apply(bool mips) { }
+        public void Apply(bool updateMipmaps, bool makeNoLongerReadable) { }
+        // real Unity signatures: GetPixels(x, y, w, h) is bottom-left based and returns Color[]
+        public Color[] GetPixels(int x, int y, int w, int h) { return new Color[w * h]; }
+        public void SetPixels(Color[] px) { }
+        public bool LoadImage(byte[] data) { return true; }
+        public byte[] EncodeToPNG() { return new byte[0]; }
+    }
+    public class Sprite : Object
+    {
+        public Rect rect; public Texture2D texture;
+        public static Sprite Create(Texture2D tex, Rect r, Vector2 pivot, float ppu)
+        { return new Sprite { texture = tex, rect = r }; }
+    }
     public class TextAsset : Object { public string text; }
     public class Font : Object { }
     public class TextMesh : Component { public string text; public Font font; public float characterSize; }
@@ -79,7 +115,7 @@ namespace UnityEngine
         public bool orthographic; public float orthographicSize; public CameraClearFlags clearFlags;
         public Color backgroundColor;
     }
-    public class SpriteRenderer : Component { public Sprite sprite; public int sortingOrder; }
+    public class SpriteRenderer : Component { public Sprite sprite; public int sortingOrder; public Color color; }
     public class Collider2D : Component { public bool isTrigger; }
     public class BoxCollider2D : Collider2D { public Vector2 size; }
     public class Resources
@@ -93,7 +129,7 @@ namespace UnityEngine
         public static void Log(object m) { }
         public static void LogError(object m) { }
     }
-    public static class Time { public static float unscaledDeltaTime; }
+    public static class Time { public static float unscaledDeltaTime; public static float deltaTime; }
     public static class JsonUtility
     {
         public static T FromJson<T>(string json) { return default(T); }
@@ -129,20 +165,20 @@ namespace UnityEditor
         public TextureImporterCompression textureCompression;
         public bool mipmapEnabled;
         public bool alphaIsTransparency;
+        public bool isReadable;
         public TextureWrapMode wrapMode;
         public SpriteImportMode spriteImportMode;
         public Vector4 spriteBorder;
-        public SpriteMetaData[] spritesheet;
         public void ReadTextureSettings(TextureImporterSettings s) { }
         public void SetTextureSettings(TextureImporterSettings s) { }
     }
     public class TextureImporterSettings { public SpriteMeshType spriteMeshType; }
-    public struct SpriteMetaData { public string name; public int alignment; public Vector2 pivot; public Rect rect; public Vector4 border; }
     public static class AssetDatabase
     {
         public static void StartAssetEditing() { }
         public static void StopAssetEditing() { }
         public static void Refresh() { }
+        public static void ImportAsset(string p) { }
         public static T LoadAssetAtPath<T>(string p) where T : UnityEngine.Object { return null; }
     }
     public static class EditorUtility

@@ -3,7 +3,19 @@
 // Owner: Dev A. Called by Editor/HRZeroDayMenu.cs ("HR//0D > Build Desk Scene") in the Editor, and
 // usable at runtime for tests. Everything it places comes from the same json the twin renderer
 // (tools/comp/twin_desk.py) draws, so the two can never disagree about placement.
+//
+// Layer contract (desk_layout.json, composition L approved 2026-11-26):
+//   sortingOrder -30 background   the room (window, board, clock, cabinet, plant, desk front)
+//                -20 monitor      desk/monitor_small.png  -- 1 px redraw at the approved 0.58 scale
+//                -15 document     desk/document_small.png -- 1 px redraw at 0.56
+//                  0 applicant    the 4-frame strip, scaleFactor 0.96
+//                -19 monitor_stand  desk/monitor_stand.png -- the arm; base tucks behind the desk
+//                -19 MonitorScreen  runtime CRT text texture, child of the monitor layer
+//                 10 desk         desk/desk_foreground.png -- sorts ABOVE the applicant on purpose,
+//                                 so keyboard/mug/clipboard read as sitting in front of him.
+// anchor is the BOTTOM-LEFT corner in canvas pixels, y up.
 using System.Collections.Generic;
+using HRZeroDay.Core.Data;
 using UnityEngine;
 
 namespace HRZeroDay.Game
@@ -12,12 +24,14 @@ namespace HRZeroDay.Game
     {
         public const string RootName = "DeskRoot";
 
-        /// <summary>Builds (or rebuilds) the desk under `parent`. Returns the root transform.</summary>
-        public static Transform Build(DeskLayout layout, Transform parent)
+        /// <summary>Builds (or rebuilds) the desk under `parent`. Returns the root transform.
+        /// Pass a ShiftController to have the CRT screen wired to the live run (MonitorScreenView).</summary>
+        public static Transform Build(DeskLayout layout, Transform parent, ShiftController shift = null)
         {
             if (layout == null) throw new System.ArgumentNullException("layout");
 
-            // BUG-024: the editor menu builds at scene root, so `parent` may legitimately be null.
+            // parent is nullable: the editor menu builds a scene with no parent, and calling Find() on a
+            // null Transform is the NullReferenceException that stopped "Build Desk Scene" on 2026-11-26.
             if (parent != null)
             {
                 var existing = parent.Find(RootName);
@@ -32,17 +46,56 @@ namespace HRZeroDay.Game
 
             foreach (var layer in layout.layers)
             {
-                var entry = manifest.Find(layer.sprite);
+                SpriteEntry entry;
+                try { entry = manifest.Find(layer.sprite); }
+                catch (System.ArgumentException ex)
+                {
+                    Object.DestroyImmediate(root.gameObject);
+                    throw new System.InvalidOperationException(
+                        "layer '" + layer.id + "' cannot be placed: " + ex.Message, ex);
+                }
                 var go = new GameObject("L_" + layer.id);
                 go.transform.SetParent(root, false);
 
                 var sr = go.AddComponent<SpriteRenderer>();
                 sr.sprite = LoadPrimarySprite(entry);
                 sr.sortingOrder = layer.sortingOrder;
+
+                // scaleFactor (json, optional): the applicant is drawn at 0.96 of its authored size.
+                // Nearest-neighbour only -- a Point-filtered sprite scaled bilinearly would blur.
+                float scale = layer.scaleFactor > 0f ? layer.scaleFactor : 1f;
+                int drawW = Mathf.RoundToInt(entry.width * scale);
+                int drawH = Mathf.RoundToInt(entry.height * scale);
+                go.transform.localScale = new Vector3(scale, scale, 1f);
+
                 go.transform.localPosition = PixelsToUnits(layer.anchor[0], layer.anchor[1],
-                                                           entry.width, entry.height,
+                                                           drawW, drawH,
                                                            layout.canvas.pixelsPerUnit);
                 created[layer.id] = go;
+            }
+
+            // the monitor gets the live CRT text layer (added 2026-11-26)
+            if (created.ContainsKey("monitor"))
+            {
+                var monitorGo = created["monitor"];
+                var screen = new GameObject(MonitorScreenView.RootName);
+                screen.transform.SetParent(monitorGo.transform, false);
+                screen.AddComponent<SpriteRenderer>();
+                var view = screen.AddComponent<MonitorScreenView>();
+                // the glass texture is created by the view; the background is the CRT's dead-tube tone
+                view.Initialise(shift, monitorGo, new Color32(0x0b, 0x0e, 0x13, 0xff));
+            }
+
+            // ---- time of day: day -> dusk -> night, driven by the shift clock.
+            // The three room paintings are already in the kit as L0/L1/L2, so the light can change without
+            // a single new asset. RoomLighting tints everything EXCEPT the CRT and the letter.
+            var lighting = RoomLighting.Attach(root, LoadRoomStages(manifest));
+            if (lighting != null && shift != null)
+            {
+                var driver = root.gameObject.GetComponent<DeskLightDriver>();
+                if (driver == null) driver = root.gameObject.AddComponent<DeskLightDriver>();
+                driver.lighting = lighting;
+                driver.shift = shift;
             }
 
             // the applicant gets the idle driver and the whole 4-frame strip
@@ -55,6 +108,32 @@ namespace HRZeroDay.Game
             }
 
             return root;
+        }
+
+        /// <summary>
+        /// The three room paintings, in order (day, dusk, night). Missing stages are allowed -- the room
+        /// still tints, it just will not swap paintings, which is better than throwing mid-build.
+        /// </summary>
+        public static Sprite[] LoadRoomStages(SpriteManifest manifest)
+        {
+            var stages = new Sprite[3];
+            var names = new[] { "L0", "L1", "L2" };
+            for (int i = 0; i < 3; i++)
+            {
+                var entry = FindQuiet(manifest, "art/kit/backgrounds/office_" + names[i] + ".png")
+                         ?? FindQuiet(manifest, "Assets/Art/Kit/backgrounds/office_" + names[i] + ".png");
+                if (entry == null) continue;
+                try { stages[i] = LoadPrimarySprite(entry); }
+                catch (System.Exception) { stages[i] = null; }
+            }
+            return stages;
+        }
+
+        private static SpriteEntry FindQuiet(SpriteManifest manifest, string path)
+        {
+            if (manifest == null) return null;
+            try { return manifest.Find(path); }
+            catch (System.ArgumentException) { return null; }
         }
 
         public static Vector3 PixelsToUnits(int px, int py, int spriteW, int spriteH, int ppu)
@@ -78,16 +157,33 @@ namespace HRZeroDay.Game
             return all[0];
         }
 
+        /// <summary>
+        /// The 4 animation frames of an applicant strip: neutral, breathe, breathe_fidget, blink.
+        /// These are child files generated by HR//0D &gt; Import Art Kit (frames/&lt;stem&gt;__&lt;name&gt;.png),
+        /// not slices of the sheet -- Unity 6 removed the slicing API and the package that replaced it
+        /// is not worth a dependency for four frames per applicant.
+        /// </summary>
         public static Sprite[] LoadFrames(SpriteEntry entry)
         {
-            var all = Resources.LoadAll<Sprite>(UnityPathToResources(entry));
-            if (all == null || all.Length < 4)
+            if (entry.sprites == null || entry.sprites.Count < 4)
                 throw new System.InvalidOperationException(
-                    "expected 4 sliced frames for " + entry.assetPath + ", got " +
-                    (all == null ? 0 : all.Length));
-            System.Array.Sort(all, (a, b) => string.CompareOrdinal(a.name, b.name));
+                    entry.assetPath + " has no frame list in the manifest -- regenerate with " +
+                    "tools/art/make_sprite_manifest.py");
+
+            var dir = UnityPathToResources(entry);
+            dir = dir.Substring(0, dir.LastIndexOf('/')) + "/frames/" + entry.FileNameNoExt + "__";
+
             var frames = new Sprite[4];
-            for (int i = 0; i < 4; i++) frames[i] = all[i];
+            for (int i = 0; i < 4; i++)
+            {
+                var path = dir + entry.sprites[i].name;
+                var sprite = Resources.Load<Sprite>(path);
+                if (sprite == null)
+                    throw new System.InvalidOperationException(
+                        "frame not found at Resources/" + path +
+                        ". Run HR//0D > Publish Art To Resources, then Import Art Kit.");
+                frames[i] = sprite;
+            }
             return frames;
         }
 

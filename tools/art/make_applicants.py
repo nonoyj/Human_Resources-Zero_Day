@@ -27,6 +27,8 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ragged import chip_corners, scuff   # RAGGED style pass (docs/15-art-bible.md)
 
 # Pillow draws; it never verifies (BUG-016).
 try:
@@ -86,7 +88,22 @@ class Applicant:
             self.facial_hair = 1 + (s % 3)          # moustache / beard / both
         self.build = 40 + (s % 5) * 4               # shoulder half-width 40..56
         self.age_lines = (s % 6 == 2)
+        # ---- detail traits (v3, 2026-11-26): identity is more than a colour swap.
+        self.collar     = s % 4                       # crew / v-neck / turtleneck / shirt+tie
+        self.glasses_shape = (s // 13) % 2            # rect / round
+        self.accessory  = s % 5                       # none / watch / earrings / pen / ring
+        self.desk_prop  = (s // 4) % 4                # mug / pen / note / phone
+        self.folds      = 1 + (s % 3)                 # 1..3 fabric fold lines
+        self.brow       = 2 + (s % 3)                 # brow thickness 2..4 px
+        self.mole       = (s // 3) % 2                # a single mole, off-centre
         self.badge_dx = 0 if 'straight_badge' in self.artifacts else ((s % 5) - 2)
+        # ---- v4 (2026-11-26, user note "more human looking"): identity beyond a jacket swap.
+        self.wardrobe = (s // 6) % 5          # suit-jacket / knit / hoodie / work-shirt / worn coat
+        self.hair_len = (s // 9) % 3          # how far the hair falls past the hairline
+        self.outfit2  = 'panel' if self.outfit in ('panel2', 'line') else 'panel2'
+        # A person's shoulders are not a rectangle: asymmetrical, one side higher, uneven wear.
+        # Synthetics are built, so they are perfectly symmetric -- that is a tell of its own.
+        self.shoulder_drop = 0 if self.synthetic else (s % 3)
         self.breathe = 0
         self.blink = False
         self.fidget = 0
@@ -112,8 +129,10 @@ class Applicant:
         sh = self.build
 
         # ---------------- chair back
-        rect(cx - 56, 116, cx + 56, base + 6, 'panel')
-        rect(cx - 56, 116, cx + 56, 120, 'panel2')
+        # REMOVED 2026-11-26 (composition L): the applicant used to carry a lighter slab behind him.
+        # It read as a rectangle pasted into the room and forced every background change to fight it.
+        # The room now supplies whatever is behind him (see art/kit/backgrounds/office_L*.png).
+        # The chair itself lives in desk/table_and_chair.png.
 
         # (cast shadow is drawn last, on the desk -- see the table block at the end)
 
@@ -127,17 +146,86 @@ class Applicant:
             rect(cx - half, y, cx - half, y, 'linehi')       # 1 px lit edge (monitor side)
             rect(cx + half, y, cx + half, y, 'line')         # 1 px shadow edge
 
-        # collar: crew neck -- a dark band over the shirt, then the throat above it
-        rect(cx - 15, top, cx + 15, top + 3, 'line')
-        rect(cx - 13, top + 3, cx + 13, top + 8, self.skin_dark)
-        rect(cx - 13, top + 3, cx + 13, top + 6, self.skin_mid)
-        rect(cx - 15, top, cx - 6, top + 2, 'linehi')
+        # ---------------- shoulders that belong to a person, not to a rectangle
+        if self.shoulder_drop:                       # humans only: one shoulder sits 1-2 px lower
+            drop = self.shoulder_drop
+            for y in range(top, top + 10):
+                rect(cx - 58, y, cx - 58, y, 'void')
+            for ye in range(top + drop, base + 10):
+                rect(cx + 55, ye, cx + 58, ye, self.outfit)
+            rect(cx + 55, top + drop, cx + 58, top + drop, 'linehi')
+        if self.wardrobe == 1:                       # knit: a soft rolled hem, no lapels
+            for x in range(cx - 40, cx + 41, 2):
+                put(x, top + 7, 'linehi')
+        elif self.wardrobe == 2:                     # hoodie: the hood lies behind the neck
+            rect(cx - 24, top - 6, cx + 24, top + 4, self.outfit2)
+            rect(cx - 24, top - 6, cx + 24, top - 5, 'line')
+            rect(cx - 14, top + 2, cx + 14, top + 3, 'line')
+        elif self.wardrobe == 3:                     # work shirt: chest pocket + pen seam
+            rect(cx + 16, top + 26, cx + 31, top + 39, self.outfit2)
+            rect(cx + 16, top + 26, cx + 31, top + 26, 'linehi')
+            rect(cx + 16, top + 39, cx + 31, top + 39, 'line')
+        elif self.wardrobe == 4:                     # worn coat: frayed hem + a repair patch
+            for x in range(cx - 52, cx + 53, 3):
+                put(x, base + 9, 'line')
+            rect(cx - 34, top + 30, cx - 22, top + 38, self.outfit2)
+            rect(cx - 34, top + 30, cx - 22, top + 30, 'linehi')
+            rect(cx - 34, top + 38, cx - 22, top + 38, 'line')
+
+        # ---------------- collar: four shapes, so no two applicants wear the same shirt
+        if self.collar == 0:                                  # crew neck
+            rect(cx - 15, top, cx + 15, top + 3, 'line')
+            rect(cx - 13, top + 3, cx + 13, top + 8, self.skin_dark)
+            rect(cx - 13, top + 3, cx + 13, top + 6, self.skin_mid)
+            rect(cx - 15, top, cx - 6, top + 2, 'linehi')
+        elif self.collar == 1:                                # v-neck
+            rect(cx - 15, top, cx + 15, top + 2, 'line')
+            for i in range(9):                                # the V: two descending 1 px edges
+                rect(cx - 12 + i, top + 2 + i, cx - 12 + i, top + 2 + i, self.skin_mid)
+                rect(cx + 12 - i, top + 2 + i, cx + 12 - i, top + 2 + i, self.skin_mid)
+                rect(cx - 13 + i, top + 2 + i, cx - 13 + i, top + 2 + i, 'linehi')
+                rect(cx + 13 - i, top + 2 + i, cx + 13 - i, top + 2 + i, 'line')
+            rect(cx - 4, top + 2, cx + 4, top + 11, self.skin_dark)
+        elif self.collar == 2:                                # turtleneck
+            rect(cx - 13, top - 4, cx + 13, top + 9, self.outfit)
+            rect(cx - 13, top - 4, cx + 13, top - 3, 'linehi')
+            rect(cx - 13, top + 8, cx + 13, top + 9, 'line')
+            for x in range(cx - 12, cx + 13, 3):              # ribbing
+                rect(x, top - 2, x, top + 7, 'line')
+            rect(cx - 11, top - 2, cx + 11, top + 2, self.skin_dark)
+        else:                                                 # collared shirt + tie
+            rect(cx - 16, top, cx + 16, top + 2, 'line')
+            rect(cx - 12, top + 2, cx - 2, top + 10, 'linehi')        # left collar leaf
+            rect(cx + 2, top + 2, cx + 12, top + 10, 'line')          # right leaf, in shade
+            rect(cx - 11, top + 3, cx - 3, top + 8, self.skin_dark)
+            rect(cx + 3, top + 3, cx + 11, top + 8, self.skin_mid)
+            rect(cx - 2, top + 6, cx + 2, top + 9, self.accent)       # knot
+            for i in range(14):                                       # tie taper
+                wdt = max(1, 4 - i // 5)
+                rect(cx - wdt, top + 9 + i, cx + wdt, top + 9 + i, self.accent)
+            rect(cx - 2, top + 9, cx - 2, top + 22, 'linehi')
+
+        # ---------------- fabric folds: 1..3 soft creases, never crossing the badge
+        for f in range(self.folds):
+            fx = cx - 30 + f * 17 + (self.seed % 3)
+            fy = top + 34 + f * 9
+            length = 12 + (self.seed + f * 7) % 10
+            for k in range(length):
+                if fy + k < base:
+                    rect(fx, fy + k, fx, fy + k, 'line' if (k // 3) % 2 else 'panel')
+            rect(fx, fy + length // 2, fx + 1, fy + length // 2, 'linehi')
         # lanyard + badge
         bx = cx + self.badge_dx
         if 'straight_badge' not in A:
-            # humans hang imperfectly: the lanyard drifts 1 px and the card sits a touch off-axis
-            rect(bx - 1, top + 16, bx + 3, top + 30, self.accent)
-            rect(bx - 2, top + 30, bx + 2, top + 40, self.accent)
+            # humans hang imperfectly: a proper V lanyard off both shoulders, converging on the
+            # card, with a 1 px drift so the two straps are never exactly symmetric.
+            for i in range(30):
+                lx = cx - 12 + ((bx - 4) - (cx - 12)) * i // 30
+                rx = cx + 12 + ((bx + 4) - (cx + 12)) * i // 30
+                rect(lx, top + 4 + i, lx + 1, top + 4 + i, self.accent)
+                rect(rx, top + 5 + i, rx + 1, top + 5 + i, self.accent)
+                if i % 7 == 3:
+                    put(rx + 1, top + 5 + i, 'line')
             rect(bx - 10, top + 41, bx + 2, top + 57, 'paper')     # left half of the card
             rect(bx + 1, top + 43, bx + 9, top + 59, 'paper')      # right half drops 2 px = tilt
             rect(bx - 10, top + 41, bx + 8, top + 42, 'paperdim')
@@ -157,10 +245,18 @@ class Applicant:
         arm_x = shoulder - 6 + 8            # sleeve centre-line
         for side in (-1, 1):
             ax = cx + side * arm_x
-            rect(ax - 7, top + 18, ax + 7, base + 2, self.outfit)
             edge = 'linehi' if side < 0 else 'line'
-            rect(ax + (side * 7), top + 18, ax + (side * 7), base + 2, edge)
-            rect(ax - 7, top + 18, ax + 7, top + 19, 'linehi')       # shoulder seam catch-light
+            # The sleeve GROWS out of the shoulder over 6 rows. Drawing it as a fixed block from
+            # top+18 left a gap above, so only its 1 px edge showed and the arm read as a wire.
+            for y in range(top + 4, base + 3):
+                half = min(7, 2 + (y - (top + 4)))
+                rect(ax - half, y, ax + half, y, self.outfit)
+                put(ax + side * half, y, edge)
+            # seam where the sleeve meets the torso, so the two masses read as separate
+            sy0 = top + 16
+            rect(ax - side * 7, sy0, ax - side * 7, base + 2, 'line')
+            put(ax - side * 7, sy0 - 1, 'linehi')
+            rect(ax - 7, top + 9, ax + 7, top + 10, 'linehi')        # shoulder catch-light
         fidget = self.fidget
         for side in (-1, 1):
             hx = cx + side * arm_x
@@ -177,10 +273,13 @@ class Applicant:
                 rect(hx - 9, hy + 6, hx + 9, hy + 6, self.skin_light)
             else:
                 # four fingers + a thumb, each separated by a 1 px shadow gap
+                # restored 2026-11-26: the shorter variant read as a grille on the wrist, and this
+                # block is what shipped and reads as fists at 1x. Do not shorten the fingers.
                 for f in range(4):
                     fx = hx - 7 + f * 4
                     rect(fx, hy + 4, fx + 2, hy + 11, self.skin_light)
                     rect(fx + 3, hy + 4, fx + 3, hy + 11, self.skin_dark)
+                rect(hx - 9, hy + 3, hx - 8, hy + 8, self.skin_mid)
                 rect(hx - 9, hy + 3, hx - 8, hy + 8, self.skin_mid)  # thumb tucked at the side
 
         # ---------------- neck
@@ -243,6 +342,21 @@ class Applicant:
             rect(cx - hw - 1, head_top + 11, cx + hw + 1, head_top + 14, 'linehi')   # ribbed brim
             for x in range(cx - hw, cx + hw + 1, 4):
                 put(x, head_top + 12, 'line')
+        # ---- v4: length. The crop used to stop exactly at the skull, which is why every applicant
+        # read as a mannequin in a wig. Strands now break the outline and fall past the jaw.
+        if st in (0, 1, 3):
+            fall = (6, 16, 26)[self.hair_len]
+            for side in (-1, 1):
+                x0 = cx + side * (hw - 1)
+                for i in range(fall):
+                    y = head_top + 9 + i
+                    wdt = 1 + (1 if i % 3 else 0)
+                    for k in range(wdt):
+                        put(x0 + side * k, y, self.hair if (i + k) % 4 else hi)
+                # a few stray strands beyond the mass
+                put(x0 + side * 2, head_top + 12 + (self.seed % 5), self.hair)
+                put(x0 + side * 2, head_top + 20 + (self.seed % 7), self.hair)
+
         if st not in (4,):
             rect(cx - hw + 2, head_top + 1, cx + hw - 2, head_top + 2, hi)
             rect(cx - hw + 4, head_top + 3, cx - hw + 6, head_top + 5, hi)
@@ -285,8 +399,8 @@ class Applicant:
                 rect(cx - eye_dx - 1, eye_y + 1, cx - eye_dx + 2, eye_y + 4, 'ink')
                 rect(cx + eye_dx - 1, eye_y + 2, cx + eye_dx + 2, eye_y + 5, 'ink')
                 put(cx - eye_dx, eye_y + 1, 'white')      # one catchlight, off-centre
-        rect(cx - eye_dx - 4, eye_y - 6, cx - eye_dx + 4, eye_y - 4, self.hair)
-        rect(cx + eye_dx - 4, eye_y - 6, cx + eye_dx + 4, eye_y - 4, self.hair)
+        rect(cx - eye_dx - 4, eye_y - 3 - self.brow, cx - eye_dx + 4, eye_y - 4, self.hair)
+        rect(cx + eye_dx - 4, eye_y - 2 - self.brow, cx + eye_dx + 4, eye_y - 4, self.hair)
         rect(cx - 1, eye_y + 8, cx + 1, eye_y + 15, self.skin_dark)
         rect(cx - 3, eye_y + 15, cx + 3, eye_y + 16, self.skin_dark)
         mouth_y = eye_y + 22
@@ -302,7 +416,21 @@ class Applicant:
             rect(cx - 2, head_top + 17, cx + 2, head_top + 17, self.skin_dark)
 
         # ---------------- glasses
-        if self.glasses:
+        if self.glasses and self.glasses_shape == 1:
+            # round lenses: a filled disc with a dark rim, and a glint that sells the glass
+            for (ex, sign) in ((cx - eye_dx, -1), (cx + eye_dx, 1)):
+                # pixel-built round rim: 1 px ring drawn as a row-span table, no antialiasing
+                RING = ((2, 6), (1, 7), (0, 8), (0, 8), (0, 8), (0, 8), (0, 8), (0, 8),
+                        (0, 8), (1, 7), (2, 6))
+                for ry, (rx0, rx1) in enumerate(RING):
+                    put(ex - 6 + rx0, eye_y - 3 + ry, 'linehi')
+                    put(ex - 6 + rx1, eye_y - 3 + ry, 'linehi')
+                rect(ex - 6, eye_y - 3, ex + 6, eye_y - 3, 'linehi')
+                rect(ex - 6, eye_y + 7, ex + 6, eye_y + 7, 'linehi')
+                put(ex - 4 * sign, eye_y, 'white')
+                put(ex + 3, eye_y + 1, 'textdim')
+            rect(cx - 3, eye_y + 2, cx + 3, eye_y + 2, 'linehi')
+        elif self.glasses:
             rect(cx - eye_dx - 6, eye_y - 3, cx - eye_dx + 6, eye_y + 8, 'linehi')
             rect(cx + eye_dx - 6, eye_y - 3, cx + eye_dx + 6, eye_y + 8, 'linehi')
             rect(cx - 4, eye_y + 1, cx + 4, eye_y + 2, 'linehi')
@@ -322,6 +450,23 @@ class Applicant:
                 rect(cx - eye_dx - 4, eye_y + 2, cx - eye_dx + 1, eye_y + 3, 'white')
                 rect(cx + eye_dx + 1, eye_y + 2, cx + eye_dx + 4, eye_y + 3, 'textdim')
 
+        # ---------------- accessory (watch / earrings / pen / ring)
+        if self.accessory == 1:
+            wx = cx - arm_x                              # left wrist, resting on the desk
+            rect(wx - 8, base - 1, wx + 8, base, 'linehi')
+            rect(wx - 9, base - 2, wx - 8, base - 1, 'textdim')
+        elif self.accessory == 2:
+            rect(cx + hw + 1, head_bot - 12, cx + hw + 2, head_bot - 10, 'warn')
+            rect(cx - hw - 2, head_bot - 12, cx - hw - 1, head_bot - 10, 'warn')
+        elif self.accessory == 3:
+            px0 = cx + 16                                 # pen clipped in the breast
+            rect(px0, top + 22, px0 + 1, top + 31, self.accent)
+            rect(px0 - 1, top + 20, px0 + 2, top + 21, 'linehi')
+        elif self.accessory == 4:
+            rect(cx + arm_x - 3, base - 8, cx + arm_x - 1, base - 7, 'warn')
+        if self.mole:
+            put(cx + 12, eye_y + 11, self.skin_dark)
+
         # ---------------- table edge
         rect(0, base, w - 1, h - 1, 'panel2')
         rect(0, base, w - 1, base + 3, 'linehi')
@@ -340,6 +485,27 @@ class Applicant:
             for i in range(4):
                 rect(cx + 14 + i * 4, base + 5 + i * 3, cx + 62, base + 7 + i * 3, 'line')
             rect(cx + 18, base + 17, cx + 58, base + 17, 'panel2')
+
+        # ---------------- personal item on the desk (he brought something with him)
+        dx = cx - 66
+        if self.desk_prop == 0:                       # mug
+            rect(dx, base + 6, dx + 9, base + 16, 'panel2')
+            rect(dx, base + 6, dx + 9, base + 7, 'linehi')
+            rect(dx + 10, base + 9, dx + 12, base + 13, 'panel2')
+            rect(dx + 2, base + 9, dx + 7, base + 9, self.accent)
+        elif self.desk_prop == 1:                     # pen, lying flat with a clip
+            rect(dx, base + 13, dx + 13, base + 14, self.accent)
+            rect(dx, base + 13, dx + 13, base + 13, 'linehi')
+            rect(dx + 2, base + 12, dx + 6, base + 12, 'line')
+        elif self.desk_prop == 2:                     # folded note
+            rect(dx, base + 10, dx + 15, base + 16, 'paper')
+            rect(dx, base + 10, dx + 15, base + 10, 'paperdim')
+            for i in range(3):
+                rect(dx + 2, base + 12 + i * 2, dx + 12, base + 12 + i * 2, 'paperdim')
+        else:                                         # phone, face down, screen edge lit
+            rect(dx, base + 7, dx + 7, base + 16, 'void')
+            rect(dx, base + 7, dx + 7, base + 7, 'linehi')
+            put(dx + 3, base + 15, self.accent)
         return img
 
 
@@ -376,7 +542,14 @@ def build_frame(state: Applicant, frame: int) -> Image.Image:
 def make_sheet(state: Applicant) -> Image.Image:
     sheet = Image.new('RGBA', (192 * 4, 216), (0, 0, 0, 0))
     for i in range(4):
-        sheet.paste(build_frame(state, i), (192 * i, 0))
+        frame = build_frame(state, i)
+        # RAGGED (2026-11-26): the same wear rule as the rest of the game -- chipped silhouette at the
+        # corners, sparse scuffs on clothing. Faces and tells are never touched.
+        # 2026-11-26: halved. At 2 chips/corner + 10 scuffs the silhouette of a PERSON started to
+        # read as damaged sprite data rather than clothing.
+        chip_corners(frame, 900 + i, per_corner=1)
+        scuff(frame, 910 + i, n=5, tones=('panel', 'void'), box=(40, 120, 152, 210))
+        sheet.paste(frame, (192 * i, 0))
     return sheet
 
 
