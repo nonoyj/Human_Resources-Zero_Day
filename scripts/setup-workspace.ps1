@@ -131,19 +131,24 @@ if (-not (Test-Path (Join-Path $Root '.git'))) {
     Step 'pulling latest'
     Push-Location $Root
     try {
-        # A bundle-built history has no upstream, so `git pull` answers "no tracking information" --
-        # which reads like a failure but is a one-time wiring gap. Wire it, then pull. Nobody should
-        # have to run `git branch --set-upstream-to` by hand to get a green setup.
-        $up = (git rev-parse --abbrev-ref '@{u}' 2>$null)
-        if (-not $up) {
-            $remotes = (git remote) 2>$null
-            if ($remotes -contains 'origin') {
-                git fetch origin --quiet 2>$null
-                if ((git rev-parse --abbrev-ref 'origin/main' 2>$null)) {
+        # A bundle-built history has no upstream, so `git pull` answers "no tracking information".
+        # Order matters and I got it wrong once: --set-upstream-to needs origin/main to EXIST, and it
+        # only exists after a fetch. Fetch, confirm, then link, then pull -- and say which step failed.
+        $remotes = (git remote) 2>$null
+        if ($remotes -contains 'origin') {
+            git fetch origin 2>&1 | ForEach-Object { Write-Host "  $_" }
+            $hasRemoteBranch = (git rev-parse --verify --quiet 'refs/remotes/origin/main') 2>$null
+            if (-not $hasRemoteBranch) {
+                Write-Host "  [warn] origin/main does not exist on the remote yet -- nothing to pull" -ForegroundColor Yellow
+            } else {
+                $up = (git rev-parse --abbrev-ref '@{u}' 2>$null)
+                if (-not $up) {
                     git branch --set-upstream-to=origin/main main 2>&1 | Out-Null
                     Write-Host "  linked main -> origin/main (one-time)" -ForegroundColor DarkGray
                 }
             }
+        } else {
+            Write-Host "  [warn] no 'origin' remote -- skipping pull" -ForegroundColor Yellow
         }
         git pull --ff-only 2>&1 | ForEach-Object { Write-Host "  $_" }
         if ($LASTEXITCODE -ne 0) { Write-Host "  [warn] pull did not fast-forward -- see the lines above" -ForegroundColor Yellow }

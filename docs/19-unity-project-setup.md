@@ -24,6 +24,22 @@ from any folder inside the repo (the helper walks up to find it).
 `Test-Scripts.ps1` asserts the repo-root copy and the `scripts\` copy are byte-identical, so this can't
 silently drift again.
 
+### 0b. Pulling from GitHub for the first time (order matters)
+
+A bundle-built repo has **no upstream** and knows **nothing about the remote**, so two things must happen
+in this order:
+
+```powershell
+cd C:\users\user\HR-ZeroDay
+git fetch origin                                  # 1. origin/main must EXIST before you can link it
+git branch --set-upstream-to=origin/main main     # 2. now link
+git pull --ff-only                                # 3. now it works
+```
+
+Doing 2 before 1 gives `fatal: the requested upstream branch 'origin/main' does not exist`, and then
+`git pull` still says "no tracking information" -- both harmless, both fixable by running the three
+lines in order. `scripts\setup-workspace.ps1` now does exactly this sequence.
+
 ## 0. What you need before you start
 
 - Unity **Hub** installed.
