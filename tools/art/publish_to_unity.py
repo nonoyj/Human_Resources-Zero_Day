@@ -32,9 +32,13 @@ PUBLISH_LOG = os.path.join(DEST_ROOT, 'Art', 'Kit', '.publish-manifest.json')
 DATA_FILES = [
     (os.path.join(ROOT, 'art', 'kit', 'unity_sprites.json'),
      os.path.join(DEST_ROOT, 'Resources', 'unity_sprites.json')),
-    # monitor font metrics: Resources.Load<TextAsset>("fonts/monitor_font_5x7")
+    # monitor font, the PAIR: Resources.Load<TextAsset>("fonts/monitor_font_5x7") for metrics and
+    # Resources.Load<Texture2D>("fonts/monitor_font_5x7") for the glyph atlas. Copying only the json
+    # left the CRT blank and the letter page without text.
     (os.path.join(ROOT, 'art', 'kit', 'fonts', 'monitor_font_5x7.json'),
      os.path.join(DEST_ROOT, 'Resources', 'fonts', 'monitor_font_5x7.json')),
+    (os.path.join(ROOT, 'art', 'kit', 'fonts', 'monitor_font_5x7.png'),
+     os.path.join(DEST_ROOT, 'Resources', 'fonts', 'monitor_font_5x7.png')),
     # palette for runtime tinting (MonitorScreenView reads Resources.Load<TextAsset>("palette"))
     (os.path.join(ROOT, 'art', 'kit', 'palette.json'),
      os.path.join(DEST_ROOT, 'Resources', 'palette.json')),

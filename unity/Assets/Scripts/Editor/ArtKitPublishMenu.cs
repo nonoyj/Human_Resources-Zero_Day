@@ -45,6 +45,21 @@ namespace HRZeroDay.EditorTools
 
                     var rel = file.Substring(Source.Length).TrimStart('/', '\\');
                     var dst = Path.Combine(Dest, rel);
+
+                    // The font atlas is loaded as Resources.Load("fonts/monitor_font_5x7") -- i.e. from
+                    // Resources/fonts, NOT Resources/Art/Kit/fonts. Copy the pair again there, or the CRT
+                    // and the letter page have no text.
+                    if (rel.Replace('\\', '/').StartsWith("fonts/", System.StringComparison.Ordinal))
+                    {
+                        var fontDst = Path.Combine("Assets/Resources", rel);
+                        var fontDir = Path.GetDirectoryName(fontDst);
+                        if (!Directory.Exists(fontDir)) Directory.CreateDirectory(fontDir);
+                        if (!File.Exists(fontDst) || new FileInfo(fontDst).Length != new FileInfo(file).Length)
+                        {
+                            File.Copy(file, fontDst, true);
+                            copied++;
+                        }
+                    }
                     var dstDir = Path.GetDirectoryName(dst);
                     if (!Directory.Exists(dstDir)) Directory.CreateDirectory(dstDir);
 
