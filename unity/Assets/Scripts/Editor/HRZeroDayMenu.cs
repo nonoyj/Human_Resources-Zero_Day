@@ -7,6 +7,7 @@
 // hotspot collision boxes named after the artifacts so FE can hook input without hunting pixels.
 using System.IO;
 using HRZeroDay.Game;
+using HRZeroDay.Game.Interaction;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -68,6 +69,16 @@ namespace HRZeroDay.EditorTools
                     var box = go.AddComponent<BoxCollider2D>();
                     box.size = new Vector2(hp.rect[2] / ppu, hp.rect[3] / ppu);
                     box.isTrigger = true;
+
+                    // the tap handler itself. Without this the HS_* objects are inert: the interaction
+                    // layer documented them, but nothing ever attached the component that listens.
+                    // sizeInUnits is padded because several hotspot rects are ~16 px wide at 480 px
+                    // reference, which is far under a finger.
+                    var tap = go.AddComponent<HotspotInteractor>();
+                    tap.artifact = hp.artifact;
+                    tap.sizeInUnits = new Vector2(
+                        Mathf.Max(hp.rect[2] / ppu, 0.9f),
+                        Mathf.Max(hp.rect[3] / ppu, 0.9f));
                 }
             }
 

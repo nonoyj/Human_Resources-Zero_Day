@@ -105,6 +105,21 @@ try {
         } finally { Pop-Location }
     }
 
+    S 'stubs do not declare package-only namespaces'
+        # A stub that invents a package namespace makes the local gate green while Unity refuses to
+        # compile the asmdef and opens in Safe Mode. Rules: tools/UnityStubs/ASSEMBLY-RULES.md
+        $forbidden = @('UnityEngine.EventSystems', 'UnityEngine.UI;', 'UnityEngine.InputSystem',
+                       'UnityEditor.U2D.Sprites')
+        $stubText = Get-Content (Join-Path $repo 'tools\UnityStubs\UnityStubs.cs') -Raw
+        $offenders = @()
+        foreach ($ns in $forbidden) {
+            if ($stubText -match [regex]::Escape($ns)) { $offenders += $ns }
+        }
+        if ($offenders.Count -gt 0) {
+            $failed++
+            Write-Host ("  [FAIL] package-only namespace in stubs: " + ($offenders -join ', ')) -ForegroundColor Red
+        } else { OK 'stubs declare engine/editor types only' }
+
     S 'generated art is not committed'
         $tracked = & git ls-files "unity/Assets/Resources/Art" 2>$null
         if ($tracked) {

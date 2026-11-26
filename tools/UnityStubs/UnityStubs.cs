@@ -10,8 +10,11 @@ namespace UnityEngine
         public static int RoundToInt(float v) => (int)System.Math.Round(v);
         public static float Clamp01(float v) => v < 0f ? 0f : (v > 1f ? 1f : v);
         public static float Clamp(float v, float lo, float hi) => v < lo ? lo : (v > hi ? hi : v);
-        public static float Lerp(float a, float b, float t) => a + (b - a) * Clamp01(t);
         public static int Max(int a, int b) => a > b ? a : b;
+        public static float Max(float a, float b) => a > b ? a : b;
+        public static float Lerp(float a, float b, float t) => a + (b - a) * Clamp01(t);
+        public static int Min(int a, int b) => a < b ? a : b;
+        public static float Min(float a, float b) => a < b ? a : b;
     }
 
     public class Object { public string name; public static void DestroyImmediate(Object o) { } public static void Destroy(Object o) { } }
@@ -57,7 +60,7 @@ namespace UnityEngine
         public T AddComponent<T>() where T : Component, new() { return new T(); }
         public Component AddComponent(Type t) { return null; }
     }
-    public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public static Vector2 zero; }
+    public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public static Vector2 zero { get { return new Vector2(0f, 0f); } } public static Vector2 one { get { return new Vector2(1f, 1f); } } }
     public struct Quaternion
     {
         public float x, y, z, w;
@@ -126,8 +129,18 @@ namespace UnityEngine
     {
         public bool orthographic; public float orthographicSize; public CameraClearFlags clearFlags;
         public Color backgroundColor;
+        public static Camera main;
+        public Vector3 ScreenToWorldPoint(Vector3 screen) { return new Vector3(); }
     }
     public class SpriteRenderer : Component { public Sprite sprite; public int sortingOrder; public Color color; }
+
+    public class TextMesh : Component
+    {
+        public string text;
+        public int fontSize;
+        public Color color;
+    }
+
     public class Collider2D : Component { public bool isTrigger; }
     public class BoxCollider2D : Collider2D { public Vector2 size; }
     public class Resources
@@ -140,6 +153,17 @@ namespace UnityEngine
         public static void Log(object m) { }
         public static void LogError(object m) { }
     }
+    public static class Input
+    {
+        public static Vector3 mousePosition;
+        public static bool GetMouseButtonDown(int button) { return false; }
+        public static bool GetMouseButton(int button) { return false; }
+        public static int touchCount;
+        public static bool GetKeyDown(KeyCode k) { return false; }
+    }
+
+    public enum KeyCode { None, Escape, Space, Return }
+
     public static class Time { public static float unscaledDeltaTime; public static float deltaTime; }
     public static class JsonUtility
     {
@@ -214,31 +238,3 @@ namespace UnityEngine.SceneManagement
     public struct Scene { }
 }
 
-namespace UnityEngine.EventSystems
-{
-    // uGUI input plumbing. The interaction layer lives on IPointerDownHandler, so the stub has to model
-    // it or the whole Game assembly stops type-checking the moment that layer exists.
-    public class PointerEventData
-    {
-        public Vector2 position;
-        public Vector2 pressPosition;
-        public GameObject pointerPress;
-    }
-
-    public interface IPointerDownHandler { void OnPointerDown(PointerEventData eventData); }
-    public interface IPointerUpHandler { void OnPointerUp(PointerEventData eventData); }
-    public interface IPointerClickHandler { void OnPointerClick(PointerEventData eventData); }
-}
-
-namespace UnityEngine
-{
-    public class TextMesh : Component
-    {
-        public string text;
-        public int fontSize;
-        public Color color;
-        public Font font;
-    }
-
-    public class Font : Object { }
-}
