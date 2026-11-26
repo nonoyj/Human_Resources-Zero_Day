@@ -14,6 +14,19 @@ USAGE
     python tools/art/publish_to_unity.py --verify   # fail if the copy is stale (CI / self-check)
     python tools/art/publish_to_unity.py --prune    # also delete files in Unity that no longer exist
 
+TWO MIRRORS, ON PURPOSE (and one of them was missing for a long time)
+    unity/Assets/Art/Kit/...            authoring copy, byte-identical to art/kit, what the importer reads
+    unity/Assets/Resources/Art/Kit/...  RUNTIME copy. DeskSceneBuilder and DeskBootstrap load through
+                                        Resources.Load, and Resources.Load cannot see anything outside a
+                                        Resources folder.
+
+    The second one used to be produced only by the editor menu (HR//0D > Publish Art To Resources), so a
+    fresh clone opened in Unity and pressed Play and got
+        "sprite not found at Resources/Art/Kit/backgrounds/office_L0"
+    even though the art was right there in the repository. That is a packaging bug, not an art bug: the
+    file has to be COMMITTED, because Unity imports from the project folder and never runs python.
+    publish_to_unity.py now writes both copies, so "press Play" works on a fresh clone.
+
 Never touches .meta files, never edits the art, never deletes anything unless --prune is passed.
 """
 from __future__ import annotations
@@ -57,19 +70,30 @@ def load_manifest() -> dict:
         return json.load(fh)
 
 
+RESOURCES_ROOT = os.path.join(DEST_ROOT, 'Resources')
+
+
+def runtime_path(asset_path: str) -> str:
+    """Assets/Art/Kit/applicants/x.png -> Assets/Resources/Art/Kit/applicants/x.png"""
+    return os.path.join(RESOURCES_ROOT, asset_path[len('Assets/'):])
+
+
 def plan(manifest: dict):
-    """Returns (to_copy, up_to_date, missing_source)."""
+    """Returns (to_copy, up_to_date, missing_source). Each copy entry carries BOTH destinations:
+    the authoring mirror under Assets/Art/Kit and the runtime mirror under Assets/Resources/Art/Kit."""
     to_copy, same, missing = [], [], []
     for sprite in manifest['sprites']:
         src = os.path.join(ROOT, sprite['source'])
         dst = os.path.join(DEST_ROOT, sprite['assetPath'][len('Assets/'):])
+        rt = runtime_path(sprite['assetPath'])
         if not os.path.isfile(src):
             missing.append(sprite['source'])
             continue
-        if os.path.isfile(dst) and sha16(dst) == sprite['sha256_16']:
+        if (os.path.isfile(dst) and sha16(dst) == sprite['sha256_16']
+                and os.path.isfile(rt) and sha16(rt) == sprite['sha256_16']):
             same.append(sprite['assetPath'])
         else:
-            to_copy.append((src, dst, sprite))
+            to_copy.append((src, dst, sprite, rt))
     return to_copy, same, missing
 
 
@@ -102,8 +126,13 @@ def main() -> int:
 
     if args.verify:
         if to_copy:
-            for _src, _dst, sprite in to_copy[:10]:
-                print('  STALE in Unity:', sprite['assetPath'])
+            for entry in to_copy[:10]:
+                sprite = entry[2]
+                here = os.path.isfile(entry[1]) and sha16(entry[1]) == sprite['sha256_16']
+                there = os.path.isfile(entry[3]) and sha16(entry[3]) == sprite['sha256_16']
+                missing_from = ('Assets/Art/Kit and Assets/Resources/Art/Kit' if not here and not there
+                                else 'Assets/Art/Kit' if not here else 'Assets/Resources/Art/Kit')
+                print('  MISSING OR STALE in %s:' % missing_from, sprite['assetPath'])
             print(f'FAIL: {len(to_copy)} sprite(s) out of date in unity/Assets/Art/Kit '
                   f'-- run: python tools/art/publish_to_unity.py')
             return 1
@@ -125,14 +154,14 @@ def main() -> int:
             print('  copied ' + os.path.relpath(dst, ROOT))
 
     published = {}
-    for src, dst, sprite in to_copy:
+    for src, dst, sprite, rt in to_copy:
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copyfile(src, dst)
+        os.makedirs(os.path.dirname(rt), exist_ok=True)
+        if not os.path.isfile(rt) or sha16(rt) != sprite['sha256_16']:
+            shutil.copyfile(src, rt)
         published[sprite['assetPath']] = sprite['sha256_16']
         print(f'  copied {sprite["assetPath"]}')
-    for _src, dst, sprite in to_copy:
-        pass
-
     # the log describes the whole published set, so a fresh clone verifies identically
     full = {s['assetPath']: s['sha256_16'] for s in manifest['sprites']}
     write_log(full)
@@ -140,6 +169,7 @@ def main() -> int:
     if args.prune:
         keep = {os.path.normpath(os.path.join(DEST_ROOT, a[len('Assets/'):]))
                 for a in full}
+        keep_rt = {os.path.normpath(runtime_path(a)) for a in full}
         for folder in ('applicants', 'portraits', 'ui', 'icons', 'stamps', 'desk', 'backgrounds', 'sweep'):
             d = os.path.join(DEST_ROOT, 'Art', 'Kit', folder)
             if not os.path.isdir(d):

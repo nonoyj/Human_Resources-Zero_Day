@@ -140,12 +140,22 @@ try {
         if ($LASTEXITCODE -ne 0) { $failed++; Write-Host '  [FAIL] applicant proportions' -ForegroundColor Red }
         else { OK 'applicant proportions are human' }
 
-    S 'generated art is not committed'
-        $tracked = & git ls-files "unity/Assets/Resources/Art" 2>$null
-        if ($tracked) {
-            Write-Host "         " + ($tracked -join ', ') -ForegroundColor DarkGray
-            $failed++; Write-Host '  [FAIL] Resources/Art is derived from art/kit -- it must stay out of git' -ForegroundColor Red
-        } else { OK 'Resources/Art is generated locally, not committed' }
+    # INVERTED 2026-11-25. This used to REQUIRE Resources/Art to be untracked, on the reasoning that it is
+    # derived from art/kit. That is what shipped a bundle with no runtime art: Resources.Load cannot read
+    # outside a Resources folder, Unity never runs python, so the folder MUST be committed. What matters is
+    # not that it is uncommitted -- it is that it MATCHES art/kit, which is the check below.
+    S 'runtime art mirror is committed and matches art/kit'
+        $trackedCount = (& git ls-files "unity/Assets/Resources/Art" 2>$null | Measure-Object).Count
+        $needed = & python -c "import json;print(len(json.load(open('art/kit/unity_sprites.json'))['sprites']))" 2>$null
+        if ($trackedCount -lt [int]$needed) {
+            $failed++
+            Write-Host ("  [FAIL] only " + $trackedCount + " of " + $needed + " runtime sprites are in git -- a clone would fail at Play with 'sprite not found at Resources/Art/Kit/...'") -ForegroundColor Red
+        } else {
+            & python (Join-Path $repo 'tools\art\publish_to_unity.py') --verify | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+                $failed++; Write-Host '  [FAIL] runtime mirror does not match art/kit -- run: python tools/art/publish_to_unity.py' -ForegroundColor Red
+            } else { OK "$trackedCount runtime sprites committed and byte-identical to art/kit" }
+        }
 
     Write-Host ''
     if ($failed -eq 0) {

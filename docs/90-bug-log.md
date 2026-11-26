@@ -693,3 +693,39 @@ plus the going in and out of unity to extract a file."*
 `.\scripts\Open-Game.ps1` right after the apply line — but that script ships *inside* the bundle, so it
 does not exist until the apply has run. It also never said the zip lives in `Downloads` while the repo is
 elsewhere. The page is rewritten with the two commands in order and a symptom → cause → fix table.
+
+## BUG-044 -- the bundle shipped without the art the game loads at runtime (player report, 2026-11-25)
+
+**Symptom.** Fresh apply of v78, `Open-Game.ps1`, press Play:
+
+```
+[HR//0D] could not start the game: sprite not found at Resources/Art/Kit/backgrounds/office_L0.
+Run: python tools/art/publish_to_unity.py
+```
+
+The art was in the repository the whole time.
+
+**Root cause, three decisions compounding.**
+1. `.gitignore` had `unity/Assets/Resources/Art/` with the note *"derived from art/kit/ every time,
+   committing it makes every machine fight over the same files."*
+2. The game loads sprites with `Resources.Load`, which **cannot see anything outside a `Resources`
+   folder**, so `Assets/Resources/Art/Kit/...` is the file it actually reads.
+3. Unity imports from the project folder and **never runs python**, so the runtime copy existed only if
+   somebody had run `publish_to_unity.py` or `HR//0D > Publish Art To Resources` on that machine.
+
+The art gate then *enforced* the mistake: it failed if `Resources/Art` was tracked in git. So the gate was
+green while every bundle was missing 85 files the game needs.
+
+**This is the same class as BUG-042** — a local check blessing something the real environment rejects.
+
+**Fix.**
+- `unity/Assets/Resources/Art/` is **committed**. A file the game reads at runtime is a source file.
+- `publish_to_unity.py` now writes **both** mirrors (authoring `Assets/Art/Kit` and runtime
+  `Assets/Resources/Art/Kit`) and verifies both; `--verify` names which mirror is missing or stale.
+- The gate rule is **inverted**: it used to require the folder to be untracked, it now requires every
+  manifest sprite to be tracked under `Resources/Art` and byte-identical. Verified by hiding the folder —
+  the gate fails by name.
+- `docs/BUNDLE-WORKFLOW.md` no longer claims the menu is needed before Play. It was, until this fix.
+
+**Lesson to keep:** before any instruction of the form "just press Play", ask *what does the runtime
+actually read, and is that file in the thing I am shipping?*
