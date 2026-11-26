@@ -43,20 +43,122 @@ def out(rel):
 
 # --------------------------------------------------------------------------- room props
 def window_night(img, d, x, row, w, h, accent_pips=('warn', 'orange'), sky=None):
-    d.rectangle([x, row, x + w, row + h], fill=rgba(sky or 'panel2'), outline=rgba('linehi'))
-    d.rectangle([x + 2, row + 2, x + w - 2, row + h - 2], fill=rgba('void'))
-    base = row + h - 3
-    depths = (26, 42, 18, 36, 48, 22, 34, 44, 20, 30, 40, 24, 38)
-    for i, bx in enumerate(range(x + 6, x + w - 14, 14)):
-        depth = depths[i % len(depths)]
-        d.rectangle([bx, base - depth, bx + 11, base], fill=rgba('panel'))
-        for wy in range(base - depth + 5, base - 2, 8):
-            d.point((bx + 3, wy), fill=rgba(accent_pips[0]))
-            d.point((bx + 7, wy), fill=rgba(accent_pips[1] if (bx + wy) % 4 else accent_pips[0]))
-    for by in range(row + 3, row + h // 3, 6):
-        d.line([x + 2, by, x + w - 2, by], fill=rgba('line'))
-    d.line([x + w // 2, row + 2, x + w // 2, row + h - 2], fill=rgba('line'))
+    """Night city with real depth: sky gradient, stars, moon with halo, three skyline bands,
+    horizon glow, then blinds. Drawn with palette steps only -- no blending, no new colours."""
+    from ragged import LCG, ragged_rect
+
+    rnd = LCG(0x51CE)
+    glass_x0, glass_y0 = x + 2, row + 2
+    glass_x1, glass_y1 = x + w - 2, row + h - 2
+    gw, gh = glass_x1 - glass_x0 + 1, glass_y1 - glass_y0 + 1
+
+    # ---- outer frame, hand-drawn (RAGGED) then a straight glass area
+    ragged_rect(img, x, row, x + w, row + h, 'panel2', 'linehi', seed=77, amp=1)
+    d.rectangle([glass_x0, glass_y0, glass_x1, glass_y1], fill=rgba('void'))
+
+    # ---- sky: vertical gradient in palette steps (top darkest), then haze above the horizon
+    bands = [(0.00, 'void'), (0.58, 'void'), (0.82, 'panel'), (0.95, 'panel'),
+             (1.00, 'panel2')]
+    def colour_at(i):
+        t = max(0.0, min(1.0, i / max(1, gh - 1)))
+        prev = bands[0][1]
+        for cut, c in bands:
+            if t <= cut:
+                return prev if t < cut - 0.02 else c
+            prev = c
+        return prev
+
+    # Dither only within 3 rows of a band boundary -- otherwise the transition smears into a big
+    # dithered rectangle (v3 lesson). Checker across 3 rows reads as a soft gradient.
+    for i in range(gh):
+        y = glass_y0 + i
+        cur = colour_at(i)
+        look = colour_at(min(gh - 1, i + 3))
+        for x in range(glass_x0, glass_x1 + 1):
+            if cur != look and (x + y) % 2 == 0:
+                img.putpixel((x, y), rgba(look))
+            else:
+                img.putpixel((x, y), rgba(cur))
+
+    # ------------------------------------------------------------------ zoned sky
+    # The window is split into fixed zones so nothing can overlap wrongly:
+    #   STAR_ZONE  rows above skyline_top-2 : stars, moon, wisps only
+    #   SKYLINE    rows below that          : silhouettes only, windows clipped inside each building
+    skyline_top = glass_y1 - 40
+
+    # ---- stars: only above the skyline, never touching each other
+    placed = set()
+    for _ in range(gh + gh // 2):
+        sx, sy = rnd.irange(glass_x0 + 2, glass_x1 - 2), rnd.irange(glass_y0 + max(14, gh // 3) + 4,
+                                                                    skyline_top - 2)
+        if any((sx + dx, sy + dy) in placed for dx in range(-3, 4) for dy in range(-3, 4)):
+            continue
+        placed.add((sx, sy))
+        t = (sy - glass_y0) / max(1, skyline_top - glass_y0)
+        if t < 0.45 and rnd.below(0.5):
+            img.putpixel((sx, sy), rgba('textdim'))
+        elif rnd.below(0.6):
+            img.putpixel((sx, sy), rgba('linehi'))
+    # one thin cloud wisp
+    wy = skyline_top - 10
+    wx = glass_x0 + 12
+    for k in range(28):
+        if rnd.below(0.75):
+            img.putpixel((min(glass_x1 - 2, wx + k), wy), rgba('panel2'))
+    for k in range(14):
+        if rnd.below(0.5):
+            img.putpixel((min(glass_x1 - 2, wx + 6 + k), wy + 1), rgba('panel2'))
+
+    # ---- moon: crescent, high on the left, one halo step
+    mx, my, mr = glass_x0 + 26, glass_y0 + 26, 6
+    d.ellipse([mx - mr - 2, my - mr - 2, mx + mr + 2, my + mr + 2], fill=rgba('panel2'))
+    d.ellipse([mx - mr, my - mr, mx + mr, my + mr], fill=rgba('textdim'))
+    d.ellipse([mx - mr + 3, my - mr - 3, mx + mr + 3, my + mr - 3], fill=rgba('void'))
+
+    # ---- skyline: two bands only. The far "haze" band that used to sit here merged into a grey
+    # slab across the middle of the window, so it is gone -- depth now comes from the sky gradient,
+    # the horizon glow lines and the gap-separated silhouettes.
+    base = glass_y1
+
+    def band(tone, lo, hi, wmin, wmax, gap, lit_p, lit_tones):
+        bx = glass_x0 + rnd.irange(-6, 0)
+        while bx < glass_x1 + 6:
+            bw = rnd.irange(wmin, wmax)
+            bh = rnd.irange(lo, hi)
+            top = base - bh
+            x0b, x1b = max(glass_x0, bx), min(glass_x1, bx + bw)
+            if x1b > x0b:
+                d.rectangle([x0b, top, x1b, base], fill=rgba(tone))
+                # rooftop furniture, always inside the skyline zone
+                if rnd.below(0.45) and top - 4 > skyline_top - 2:
+                    if rnd.below(0.5):
+                        d.rectangle([x0b + 1, top - 3, x1b - 1, top - 1], fill=rgba(tone))
+                    else:
+                        ax = max(glass_x0 + 1, min(glass_x1 - 1, (x0b + x1b) // 2))
+                        d.line([ax, top - 5, ax, top - 1], fill=rgba(tone))
+                        img.putpixel((ax, top - 6), rgba('danger'))
+                if lit_p > 0:      # windows: inside the building, never on its bottom edge
+                    for wy in range(top + 3, base - 4, 4):
+                        for wx in range(x0b + 2, x1b - 1, 3):
+                            if rnd.below(lit_p):
+                                img.putpixel((wx, wy), rgba(rnd.pick(lit_tones)))
+            bx += bw + rnd.irange(gap, gap + 4)
+
+    band('panel2', 8, 22, 8, 15, 2, 0.22, ('orange', 'warn'))   # mid, behind
+    band('void', 14, 36, 11, 20, 1, 0.10, ('orange',))          # near, in front and taller
+
+    # ---- blinds: pulled a third of the way down, slats slightly irregular
+    slat_bottom = glass_y0 + max(14, gh // 3)
+    for by in range(glass_y0 + 1, slat_bottom, 4):
+        d.line([glass_x0, by, glass_x1, by], fill=rgba('panel2'))
+        if rnd.below(0.4):
+            img.putpixel((rnd.irange(glass_x0, glass_x1), by), rgba('panel2'))
+    d.line([glass_x0, slat_bottom, glass_x1, slat_bottom], fill=rgba('linehi'))
+    d.line([glass_x0 + gw // 2, glass_y0 + 1, glass_x0 + gw // 2, glass_y1 - 1], fill=rgba('line'))
+
+    # ---- sill
     d.line([x - 3, row + h, x + w + 3, row + h], fill=rgba('linehi'))
+    d.line([x - 3, row + h + 1, x + w + 3, row + h + 1], fill=rgba('void'))
 
 
 def noticeboard(img, d, x, row, w=84, h=48):

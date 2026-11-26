@@ -140,6 +140,13 @@ and placement (world px, 480×270):
 **Background props are drawn large** (user, 2026-11-26): window ≈ 184×62, filing cabinet 44×76, wall
 clock r=11, plant 42 px tall, noticeboard 66×40. Small props read as decoration; big ones read as a room.
 
+**The window / city (rewritten 2026-11-26, second pass).** The window is split into strict **zones**:
+above `skyline_top` = sky only (stars, moon, one wisp); below = silhouettes only, and every lit window
+is clipped *inside* its own building. Depth comes from **sky gradient steps + dithered boundaries
+(3 rows max) + a segmented sodium-red glow on the roofline + gap-separated silhouette bands**, never
+from a lighter "haze band" (that read as a grey slab across the middle of the window).
+Moon is a **crescent** with a single halo step; two aviation beacons blink in the sky.
+
 **The window / city (user, 2026-11-26):** the city must read **large** — the frame runs from just below
 the applicant's shoulder line (row 145) to well above his head (row 8), 224×137 px, on the **right**.
 His head sits against the sky, and the city lights act as a rim behind him. No moon at this size (it
