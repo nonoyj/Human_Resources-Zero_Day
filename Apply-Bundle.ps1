@@ -196,16 +196,19 @@ try {
                 Git @('-C', $WorkingCopy, 'fetch', '-q', $srcBundle, ('+' + 'refs/heads/' + $bBranch + ':refs/heads/' + $bBranch)) -Quiet | Out-Null
                 if ($script:GitExitCode -ne 0) { D "fetch from history.bundle failed ($bBranch): $srcBundle" }
             }
-            # %(refname) -- NOT %(refname:short). The short form strips `refs/`, so matching it against
-            # 'refs/hr0d-incoming/' never fires and every branch lands at refs/heads/hr0d-incoming/main
-            # instead of refs/heads/main. The next check then blames the bundle, which was fine.
-            $refs = Git @('-C', $WorkingCopy, 'for-each-ref', '--format=%(refname) %(objectname)', $incoming) -Quiet
+            # Two traps, both found the hard way:
+            #   * %(refname:short) strips `refs/`, so the prefix match never fires;
+            #   * a format string with a SPACE in it survives as one PowerShell argument but not
+            #     through ProcessStartInfo quoting -- git receives two args, expands only the first,
+            #     and the output silently loses the sha. Use one token with a separator.
+            $refs = Git @('-C', $WorkingCopy, 'for-each-ref', '--format=%(refname)|%(objectname)', $incoming) -Quiet
             $moved = 0
             foreach ($line in ($refs -split "`n")) {
                 $t = $line.Trim()
-                if (-not $t -or $t.IndexOf(' ') -lt 0) { continue }
-                $full = $t.Substring(0, $t.IndexOf(' '))
-                $sha  = $t.Substring($t.IndexOf(' ') + 1).Trim()
+                $bar = $t.IndexOf('|')
+                if (-not $t -or $bar -lt 0) { continue }
+                $full = $t.Substring(0, $bar)
+                $sha  = $t.Substring($bar + 1).Trim()
                 $prefix = $incoming + '/'
                 if (-not $full.StartsWith($prefix)) { continue }
                 $name = $full.Substring($prefix.Length)
