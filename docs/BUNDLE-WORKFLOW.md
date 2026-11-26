@@ -187,6 +187,26 @@ replace them.
 | `HR-ZeroDay/history.branch` | which branch to check out (`main`) |
 | `Apply-Bundle.ps1` (zip root and `HR-ZeroDay/`) | bootstrap; rebuilds `.git` from the bundle, keeps your `origin` |
 
+### The bootstrap is the one file a bundle cannot fix on its own (BUG-035)
+
+`.\Apply-Bundle.ps1` lives in **Downloads**, outside the repo, and nothing in a zip overwrites a file
+that is already there. So a bug in the bootstrap survives every release — BUG-032 shipped twice that
+way. Two guards now exist:
+
+1. **Self-refresh.** Right after the copy, a fixed bootstrap rewrites the copy that ran it. From the
+   next apply onward the Downloads script is always the current one. (The *first* apply of a fixed
+   bundle still runs the old copy — that is physics, not a bug.)
+2. **One-time replacement.** If the old copy prints `bundle has no .git`, do this **once** (it is the
+   only step that needs the old script): delete the stale copy and pull the fixed one out of the zip
+   with Explorer or 7-Zip — `Apply-Bundle.ps1` at the zip root — then run the normal command below.
+   After that, self-refresh keeps it current forever.
+
+| Situation | Use |
+|---|---|
+| Normal update | `.\Apply-Bundle.ps1 -BundlePath .\HR-ZeroDay-bundle-vN.zip -Clean` |
+| Files copied, tree dirty | `.\Apply-Bundle.ps1 -Reinstall` (no extraction, `reset --hard` + `clean -fd`) |
+| `.git` is damaged / detached | `Fix-Repo.ps1 -BundlePath .\HR-ZeroDay-bundle-vN.zip` (reads the zip directly, no extraction) |
+
 A `.git` folder is **never** shipped -- copying one recursively is what broke v22 (BUG-021).
 
 ```powershell
