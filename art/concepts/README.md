@@ -74,3 +74,24 @@ Trade-off to decide: at 70% the applicant is **134×151 px** on a 480×270 canva
 (the smallest, `skin_band`, is 32×24 → 22×17 px, and the magnifier gives 2×), but the applicant reads
 as "a person across a desk" rather than "a portrait". That is the intended feeling — confirm before the
 14 archetypes are re-rendered.
+
+
+---
+
+## Update 2026-11-26 (evening) — style bible + study H
+
+The user approved six decisions and rejected D/E on specific grounds. All of it is now recorded in
+**`docs/15-art-bible.md`**, which is the file to read before drawing anything.
+
+Their notes, verbatim in effect:
+- the computer looks too big → **applicant must read bigger than the screen**
+- "the desk is missing" → a real full-width desk band with a front lip
+- the plant appeared to float → **every prop touches the floor line**
+- the ceiling light sat too low / too close to the table → **no hanging fixtures**
+
+New studies: `study_H_window_left.png`, `study_I_more_air.png` (+ `study_contact_sheet_FG.png`).
+H is the direction: window top-left above the monitor, clean dark wall behind the applicant,
+monitor 0.62×, applicant 0.94×, desk band 64 px with mug / keyboard / mouse / paper stack.
+
+Still open before promotion into `art/kit`: the applicant's own backdrop panel (wall-vs-chair) and the
+three glow steps.
