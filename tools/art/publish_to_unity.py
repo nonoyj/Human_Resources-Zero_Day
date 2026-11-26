@@ -36,6 +36,7 @@ import hashlib
 import json
 import os
 import shutil
+import subprocess
 import sys
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
@@ -143,6 +144,12 @@ def main() -> int:
                 print('  STALE data file:', d)
             print('FAIL: Resources json out of date -- run: python tools/art/publish_to_unity.py')
             return 1
+        for step in ('extract_frames.py', 'write_unity_metas.py'):
+            script = os.path.join(os.path.dirname(os.path.abspath(__file__)), step)
+            result = subprocess.run([sys.executable, script, '--check'], capture_output=True, text=True)
+            if result.returncode != 0:
+                print((result.stdout or result.stderr or '').strip())
+                return 1
         print(f'PASS: unity/Assets/Art/Kit matches art/kit ({len(same)} sprites, sha256 verified)')
         print(f'      data files current: ' + ', '.join(os.path.basename(d) for _s, d in DATA_FILES))
         return 0
@@ -178,6 +185,18 @@ def main() -> int:
                 if f.endswith('.png') and os.path.normpath(os.path.join(d, f)) not in keep:
                     os.remove(os.path.join(d, f))
                     print('  pruned', os.path.relpath(os.path.join(d, f), ROOT))
+
+    # The frames and the .meta files are as much a build input as the PNGs are (BUG-045, BUG-046): the game
+    # loads frames/<stem>__<frame>.png through Resources, and Unity only imports a PNG as a Sprite if the
+    # .meta says so. Both are generated here so nobody has to remember them.
+    for step in ('extract_frames.py', 'write_unity_metas.py'):
+        script = os.path.join(os.path.dirname(os.path.abspath(__file__)), step)
+        result = subprocess.run([sys.executable, script], capture_output=True, text=True)
+        tail = (result.stdout or result.stderr or '').strip().splitlines()
+        print('  %s: %s' % (step, tail[-1] if tail else 'ok'))
+        if result.returncode != 0:
+            print('  FAIL %s' % step)
+            return 1
 
     print(f'published: {len(to_copy)} copied, {len(same)} already current')
     return 0

@@ -145,6 +145,17 @@ try {
     # outside a Resources folder, Unity never runs python, so the folder MUST be committed. What matters is
     # not that it is uncommitted -- it is that it MATCHES art/kit, which is the check below.
 
+
+    S 'animation frames and import settings are committed'
+        & python (Join-Path $repo 'tools\art\extract_frames.py') --check | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            $failed++; Write-Host '  [FAIL] animation frames missing -- run: python tools/art/extract_frames.py' -ForegroundColor Red
+        } else { OK 'all animation frames exist in both mirrors' }
+        & python (Join-Path $repo 'tools\art\write_unity_metas.py') --check | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            $failed++; Write-Host '  [FAIL] a runtime image has no .meta -- Unity would import it as a plain texture, not a sprite' -ForegroundColor Red
+        } else { OK 'every runtime image has import settings' }
+
     S 'font atlas is imported readable (no menu needed on a fresh clone)'
         $metas = @('unity\Assets\Resources\fonts\monitor_font_5x7.png.meta',
                    'unity\Assets\Resources\Art\Kit\fonts\monitor_font_5x7.png.meta')

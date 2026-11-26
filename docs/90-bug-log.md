@@ -764,3 +764,55 @@ it configured `Assets/Resources/fonts/...` and `Assets/Art/Kit/fonts/...` — no
 **Lesson.** A build input that lives in an uncommitted file is not a build input. Unity is especially good
 at hiding these: import settings, scene files and `.meta` guids all live in files that are easy to ignore
 "because Unity makes them".
+
+## BUG-046 -- animation frames were manufactured by an editor menu, so a clone had none (player report, 2026-11-25)
+
+**Symptom.** Third boot failure in a row, each one a step further into the game:
+
+```
+[HR//0D] could not start the game: frame not found at
+Resources/Art/Kit/applicants/frames/app_human_solid_a_192x216__human_solid_a_neutral
+```
+
+**Root cause.** `DeskSceneBuilder.LoadFrames` loads four child PNGs per applicant (neutral / breathe /
+breathe_fidget / blink) through `Resources.Load<Sprite>`. Those files were cut by
+`ArtKitImporter.ExtractFrames` — an **editor menu** step — because Unity 6 removed
+`TextureImporter.spritesheet` and the replacement lives in a 2D package this assembly does not reference.
+The code was fine. Its *address* was not: nothing in the repository produced the files.
+
+**Fix.**
+- `tools/art/extract_frames.py` cuts the 56 frames in python, into **both** mirrors, from the frame names
+  and rects in `unity_sprites.json` — so the manifest stays the single source of truth and the script and
+  the editor importer cannot disagree. `--check` verifies every frame exists.
+
+## BUG-047 -- every sprite in the runtime mirror had no `.meta`, so `Resources.Load<Sprite>` returns null
+
+**Found while fixing BUG-046, before the player hit it.**
+
+A PNG with no `.meta` is imported by Unity with the **default** settings, and the default `textureType` is
+`Default`, not `Sprite`. `Resources.Load<Sprite>()` then returns **null with no error at all** — every
+piece of art in the game would silently fail to appear. This was the very next wall after the frames.
+
+**Fix.** `tools/art/write_unity_metas.py` writes a `.meta` for every image in the runtime mirror: sprites
+for the art, a readable plain texture for the glyph atlas. Guids derive from the repo path, so re-running
+never churns the repository or breaks a reference Unity has already resolved. `--check` fails if any image
+lacks one.
+
+**Both are now driven by `publish_to_unity.py`** (write mode runs them, `--verify` checks them) and enforced
+by `Test-ArtPipeline.ps1`, so they cannot be forgotten again.
+
+## The pattern, stated once
+
+BUG-044, BUG-045, BUG-046 and BUG-047 are **one bug with four faces**: a file the game reads at runtime was
+produced by something that only runs on the developer's machine.
+
+| Bug | The missing input | Why it was missing |
+|---|---|---|
+| 044 | `Assets/Resources/Art/**` | `.gitignore` called it "derived" |
+| 045 | `*.png.meta` for the atlas | nobody thought import settings were source |
+| 046 | `frames/<stem>__<frame>.png` | cut by an editor menu |
+| 047 | `*.png.meta` for all art | same as 045 |
+
+**The rule that closes it:** if the runtime reads a file, that file — and the import settings that make it
+readable — belong in the commit. Before shipping, ask: *what does the build read that a fresh clone would
+not have?* `publish_to_unity.py --verify` now answers that question in one command.
