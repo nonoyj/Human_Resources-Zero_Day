@@ -57,6 +57,24 @@ try {
     if (-not (Test-Path (Join-Path $repo 'docs\15-art-bible.md'))) { D 'docs/15-art-bible.md missing' }
     else { OK 'docs/15-art-bible.md present' }
 
+    S 'monitor font atlas'
+
+    & python tools/art/make_font.py --check
+
+    if ($LASTEXITCODE -ne 0) { D 'font atlas check failed' } else { OK 'font atlas palette clean, metrics match' }
+
+
+    S 'monitor screen preview is current'
+
+    # The preview is the ONLY way to see the CRT text without opening Unity. It is regenerated here
+
+    # (into art/kit/reference/, which is not shipped) so a layout regression is visible in the bundle.
+
+    & python tools/comp/preview_screen.py --zoom 4 --out screen_preview.png *> $null
+
+    if ($LASTEXITCODE -ne 0) { D 'screen preview failed to render' } else { OK 'screen preview rendered' }
+
+
     S 'kit study scripts park their output (no writes to art/concepts)'
     # The old gate RAN study_desk_workdesk.py, which (a) draws from pre-v42 assets, (b) writes PNGs into
     # art/concepts on every run, and (c) is the only place PowerShell saw Python's stderr as a

@@ -9,10 +9,13 @@
 //                -20 monitor      desk/monitor_small.png  -- 1 px redraw at the approved 0.58 scale
 //                -15 document     desk/document_small.png -- 1 px redraw at 0.56
 //                  0 applicant    the 4-frame strip, scaleFactor 0.96
+//                -19 monitor_stand  desk/monitor_stand.png -- the arm; base tucks behind the desk
+//                -19 MonitorScreen  runtime CRT text texture, child of the monitor layer
 //                 10 desk         desk/desk_foreground.png -- sorts ABOVE the applicant on purpose,
 //                                 so keyboard/mug/clipboard read as sitting in front of him.
 // anchor is the BOTTOM-LEFT corner in canvas pixels, y up.
 using System.Collections.Generic;
+using HRZeroDay.Core.Data;
 using UnityEngine;
 
 namespace HRZeroDay.Game
@@ -21,8 +24,9 @@ namespace HRZeroDay.Game
     {
         public const string RootName = "DeskRoot";
 
-        /// <summary>Builds (or rebuilds) the desk under `parent`. Returns the root transform.</summary>
-        public static Transform Build(DeskLayout layout, Transform parent)
+        /// <summary>Builds (or rebuilds) the desk under `parent`. Returns the root transform.
+        /// Pass a ShiftController to have the CRT screen wired to the live run (MonitorScreenView).</summary>
+        public static Transform Build(DeskLayout layout, Transform parent, ShiftController shift = null)
         {
             if (layout == null) throw new System.ArgumentNullException("layout");
 
@@ -56,6 +60,18 @@ namespace HRZeroDay.Game
                                                            drawW, drawH,
                                                            layout.canvas.pixelsPerUnit);
                 created[layer.id] = go;
+            }
+
+            // the monitor gets the live CRT text layer (added 2026-11-26)
+            if (created.ContainsKey("monitor"))
+            {
+                var monitorGo = created["monitor"];
+                var screen = new GameObject(MonitorScreenView.RootName);
+                screen.transform.SetParent(monitorGo.transform, false);
+                screen.AddComponent<SpriteRenderer>();
+                var view = screen.AddComponent<MonitorScreenView>();
+                // the glass texture is created by the view; the background is the CRT's dead-tube tone
+                view.Initialise(shift, monitorGo, new Color32(0x0b, 0x0e, 0x13, 0xff));
             }
 
             // the applicant gets the idle driver and the whole 4-frame strip

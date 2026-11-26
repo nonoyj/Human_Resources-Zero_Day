@@ -21,7 +21,8 @@
     "stamps": 2,
     "desk": 8,
     "backgrounds": 3,
-    "fx": 2
+    "fx": 2,
+    "fonts": 1
   },
   "sprites": [
     {
@@ -2164,11 +2165,32 @@
         "meshType": "FullRect",
         "wrapMode": "Clamp"
       }
+    },
+    {
+      "source": "art/kit/fonts/monitor_font_5x7.png",
+      "assetPath": "Assets/Art/Kit/fonts/monitor_font_5x7.png",
+      "width": 110,
+      "height": 34,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "font",
+      "sha256_16": "65dd0aeb376b28bc",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
     }
   ],
   "referenceSheets": [
     "art/kit/reference/contact_sheet.png",
     "art/kit/reference/palette_swatch.png",
+    "art/kit/reference/screen_preview.png",
+    "art/kit/reference/screen_preview_long.png",
     "art/kit/reference/twin_desk_human_solid_a_f0_L0.png",
     "art/kit/reference/twin_monitor_float_check.png"
   ]

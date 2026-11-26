@@ -471,3 +471,20 @@ Written tests-first-with-code; the first `dotnet run` failed 3 of 7, all real:
 `LinesToRects` put line 1 at the BOTTOM of the glass because canvas space is y-UP while text runs DOWN
 (it would have rendered the page upside down, and nothing would have thrown); `TrustBar` reflowed from
 16 chars to 15 when the value hit 100 (now zero-padded to 3 digits).
+
+## Monitor screen, part 2 (2026-11-26) -- glyph atlas + raster + view
+
+- **Font:** `tools/art/make_font.py` generates `art/kit/fonts/monitor_font_5x7.png` + `.json` (56 glyphs,
+  110x34, padding 2). Generated, gated, palette-only -- NOT a TMP asset, because TMP font assets cannot
+  be built headlessly and cannot land on a 5x7 grid at 480x270.
+- **Why the json carries the glyph rows:** the first version of the raster tests decoded the PNG by hand
+  in C# and the Deflate stream failed on a real file. The metrics now include `rows` (the same ink as
+  the PNG), so tests verify coverage and clipping from data and never need an image decoder. The PNG
+  remains the thing Unity renders.
+- **Raster/view split:** `MonitorScreenRaster` (pure, Color32[] in/out, tested) and `MonitorScreenView`
+  (MonoBehaviour: owns the Texture2D, repaints only when day/trust/applicant change).
+- **Colour path:** `Resources/palette.json` (generated from `make_art_kit.PALETTE`) so the runtime tint
+  can never invent a colour outside the bible's palette.
+- **Gate additions:** `make_font.py --check` and `preview_screen.py` now run in `Test-ArtPipeline.ps1`,
+  so a broken atlas or a text-layout regression fails the gate and is visible in the bundle as
+  `art/kit/reference/screen_preview.png`.

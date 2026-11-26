@@ -55,11 +55,26 @@ namespace UnityEngine
     public enum TextureImporterType { Default, Sprite, NormalMap }
     public enum TextureImporterCompression { Uncompressed, Compressed, CompressedHQ, CompressedLQ }
     public enum SpriteImportMode { None, Single, Multiple, Polygon }
+    public enum TextureFormat { RGBA32, RGB24, Alpha8 }
     public enum SpriteMeshType { FullRect, Tight }
     public enum SpriteAlignment { Center, TopLeft, TopCenter, TopRight, LeftCenter, RightCenter, BottomLeft, BottomCenter, BottomRight, Custom }
     public enum CameraClearFlags { Skybox, SolidColor, Depth, Nothing }
-    public class Texture2D : Object { }
-    public class Sprite : Object { public Rect rect; }
+    public class Texture2D : Object
+    {
+        public int width, height;
+        public FilterMode filterMode;
+        public Texture2D() { }
+        public Texture2D(int w, int h, TextureFormat f, bool mips) { width = w; height = h; }
+        public Color32[] GetPixels32() { return new Color32[width * height]; }
+        public void SetPixels32(Color32[] px) { }
+        public void Apply(bool mips) { }
+    }
+    public class Sprite : Object
+    {
+        public Rect rect; public Texture2D texture;
+        public static Sprite Create(Texture2D tex, Rect r, Vector2 pivot, float ppu)
+        { return new Sprite { texture = tex, rect = r }; }
+    }
     public class TextAsset : Object { public string text; }
     public class Camera : Behaviour
     {

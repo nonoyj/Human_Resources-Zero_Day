@@ -25,6 +25,7 @@ internal static class Program
         lines.AddRange(GeneratorInvariantTests.RunAll());
         lines.AddRange(GameDataTests.RunAll());        // art -> Unity data bridge
         lines.AddRange(MonitorScreenTests.RunAll());   // the CRT glass is a real character grid
+        lines.AddRange(MonitorScreenRasterTests.RunAll()); // glyph atlas -> pixels, clipped and tinted
         foreach (var line in lines)
         {
             Console.WriteLine(line);
