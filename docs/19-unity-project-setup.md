@@ -40,6 +40,34 @@ Doing 2 before 1 gives `fatal: the requested upstream branch 'origin/main' does 
 `git pull` still says "no tracking information" -- both harmless, both fixable by running the three
 lines in order. `scripts\setup-workspace.ps1` now does exactly this sequence.
 
+### Where is `HR//0D`? (it is a menu inside Unity, not a folder or a command)
+
+Open the project in Unity Hub, wait for the first import to finish, then look at the **top menu bar of the
+Unity Editor**:
+
+```
+File  Edit  Assets  GameObject  Component  Services  Jobs  Window  Help  |  HR//0D
+                                                                         ^^^^^^ this one
+```
+
+It is a custom menu the project adds. Click it and a dropdown lists, in this order:
+
+| Menu item | What it does | When to use it |
+|---|---|---|
+| `Publish Art To Resources` | copies `Assets/Art/Kit/**` to `Assets/Resources/Art/Kit/**` | **first**, always. The scene loads sprites from `Resources/`, and only this step puts them there on a machine that never ran the python pipeline |
+| `Import Art Kit` | applies Point filter, PPU 16, no compression, sprite slicing to all 80 sprites | second. One wrong PPU on one folder is a bug you only see on the phone |
+| `Build Desk Scene` | writes `Assets/Scenes/Desk.unity` from `desk_layout.json` | third |
+| `Open Desk Scene` | opens that scene | fourth — then press **Play** |
+| `Verify Art Import` | re-checks the settings without changing them | any time |
+
+**If `HR//0D` is not in the menu bar, the editor scripts did not compile.** That is the normal state after
+a fresh checkout *if anything is broken*, so check `Window > General > Console` **first**: a compile
+error means Unity never loaded `Assets/Scripts/Editor/*.cs`, so the menu cannot exist. Paste the first
+error rather than clicking around.
+
+**`Play`** is the ▶ triangle at the **top-centre** of the editor window. It switches the Game view to
+running; nothing in this project animates until you press it.
+
 ## 0. What you need before you start
 
 - Unity **Hub** installed.
