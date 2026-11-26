@@ -47,8 +47,8 @@ namespace HRZeroDay.Game.Interaction
                 var text = go.AddComponent<TextMesh>();
                 text.font = font;
                 text.characterSize = 0.38f;          // ~6 px at 480x270 / 16 PPU
-                // sortingOrder is on the Renderer, not the TextMesh (CS1061 -> Safe Mode).
-                text.GetComponent<MeshRenderer>().sortingOrder = 220;   // above the letter page + CRT
+                // TextMesh is a Component, not a Renderer -- the order goes on its MeshRenderer.
+                DeskRuntimeScene.SetTextMeshSorting(text, 220);   // above the letter page and the CRT
                 text.text = string.Empty;
                 _lines[i] = text;
             }

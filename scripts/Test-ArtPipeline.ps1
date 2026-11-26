@@ -121,6 +121,25 @@ try {
         } else { OK 'stubs declare engine/editor types only' }
 
 
+
+    S 'renderer usage matches Unity''s real type hierarchy'
+        $bad = @()
+        Get-ChildItem (Join-Path $repo 'unity\Assets\Scripts') -Recurse -Filter *.cs | ForEach-Object {
+            $text = Get-Content $_.FullName -Raw
+            # SpriteRenderer IS a Renderer: never ask it for a MeshRenderer.
+            if ($text -match '(?s)SpriteRenderer[^;]{0,80}GetComponent<MeshRenderer>') {
+                $bad += "$($_.Name): asks a SpriteRenderer for its MeshRenderer (throws at Play)"
+            }
+            # TextMesh is NOT a Renderer: never set sortingOrder on it directly.
+            if ($text -match '(?m)^\s*\w*[Mm]esh\w*\.sortingOrder\s*=') {
+                $bad += "$($_.Name): sets sortingOrder on a TextMesh (CS1061)"
+            }
+        }
+        if ($bad.Count -gt 0) {
+            $failed++
+            foreach ($b in $bad) { Write-Host "  [FAIL] $b" -ForegroundColor Red }
+        } else { OK 'sprite renderers set their own order; text meshes go through the guarded helper' }
+
     S 'stub honesty (TextMesh has no renderer members)'
         $stub = Get-Content (Join-Path $repo 'tools\UnityStubs\UnityStubs.cs') -Raw
         $tm = [regex]::Match($stub, 'class TextMesh[^{]*\{(?<body>.*?)\n    \}', 'Singleline')

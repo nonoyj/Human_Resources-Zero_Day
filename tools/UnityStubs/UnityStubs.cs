@@ -173,6 +173,8 @@ namespace UnityEngine
         public Vector3 ScreenToWorldPoint(Vector3 screen) { return new Vector3(); }
     }
 
+    // TextMesh is a Component in Unity -- NOT a Renderer. Its sort order lives on the MeshRenderer Unity
+    // attaches beside it. Discovered the hard way twice (BUG-042, BUG-048); do not move this to Renderer.
     public class TextMesh : Component
     {
         public string text;

@@ -108,7 +108,7 @@ namespace HRZeroDay.Game.Interaction
             labelMesh.characterSize = 0.09f;
             // TextMesh has NO sortingOrder in Unity (CS1061 -> Safe Mode). The sort order lives on the
             // Renderer, and TextMesh always arrives with a MeshRenderer beside it.
-            labelMesh.GetComponent<MeshRenderer>().sortingOrder = 46;    // panel sprite is 45
+            SetTextMeshSorting(labelMesh, 46);                           // panel sprite is 45
             labelMesh.text = string.Empty;
             overlay.calloutLabel = labelMesh;
 
@@ -118,7 +118,7 @@ namespace HRZeroDay.Game.Interaction
             var bodyMesh = body.AddComponent<TextMesh>();
             bodyMesh.font = font;
             bodyMesh.characterSize = 0.07f;
-            bodyMesh.GetComponent<MeshRenderer>().sortingOrder = 46;
+            SetTextMeshSorting(bodyMesh, 46);
             bodyMesh.text = string.Empty;
             overlay.calloutBody = bodyMesh;
             callout.SetActive(false);
@@ -141,6 +141,22 @@ namespace HRZeroDay.Game.Interaction
             return anim;
         }
 
+        /// <summary>
+        /// TextMesh is a Component, NOT a Renderer: its sort order lives on the MeshRenderer Unity adds
+        /// with it. SpriteRenderer is a Renderer and takes sortingOrder directly.
+        ///
+        /// Both halves of that rule have now been broken once each, in opposite directions:
+        ///   * setting TextMesh.sortingOrder  -> CS1061, editor would not compile (BUG-042)
+        ///   * asking a SpriteRenderer for GetComponent&lt;MeshRenderer&gt;() -> NullReference at Play (BUG-048)
+        /// Hence one helper with a null guard, used by every TextMesh in the game.
+        /// </summary>
+        internal static void SetTextMeshSorting(TextMesh mesh, int order)
+        {
+            if (mesh == null) return;
+            var renderer = mesh.GetComponent<MeshRenderer>();
+            if (renderer != null) renderer.sortingOrder = order;
+        }
+
         private static void BuildLetter(Transform root, DeskLayout layout)
         {
             var go = new GameObject(LetterView.RootName);
@@ -158,7 +174,9 @@ namespace HRZeroDay.Game.Interaction
             var textGo = new GameObject("Text");
             textGo.transform.SetParent(go.transform, false);
             var text = textGo.AddComponent<SpriteRenderer>();
-            text.GetComponent<MeshRenderer>().sortingOrder = 191;
+            // SpriteRenderer IS a Renderer, so this is a direct set. Asking it for a MeshRenderer is what
+            // threw "There is no 'MeshRenderer' attached to the Text game object" on 2026-11-25.
+            text.sortingOrder = 191;
             var textRect = LetterLayout.TextRect();
             textGo.transform.localPosition = new Vector3(
                 (textRect.x + textRect.w * 0.5f) / layout.canvas.pixelsPerUnit,
