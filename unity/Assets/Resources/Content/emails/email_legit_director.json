@@ -1,0 +1,11 @@
+{
+  "id": "email_legit_director",
+  "kind": "legit",
+  "from": "Director, Talent Ops",
+  "fromAddress": "director.talent@company-hr.example",
+  "subject": "Audit note",
+  "body": "The regional audit will pull last month's decision log. Nothing is required from you; the access request goes through compliance, not through the review queue.",
+  "malicious": false,
+  "earliestDay": 4,
+  "twinOf": "email_grant_access"
+}

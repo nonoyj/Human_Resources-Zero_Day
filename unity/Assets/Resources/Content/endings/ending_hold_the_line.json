@@ -1,0 +1,13 @@
+{
+  "id": "ending_hold_the_line",
+  "title": "HOLD THE LINE",
+  "outcome": "win",
+  "body": [
+    "The last shift closes with no synthetic on the payroll and the human hires still there.",
+    "The Director does not thank you. The badge reader does not notice. But the four people you hired have desks in the morning, and the ones you turned away have reasons written down.",
+    "Trust closed at {trust}. Corruption stayed at {corruption}. You caught {caught} of {total} synthetics and wrongly rejected {wrongful}."
+  ],
+  "couldHaveDone": [
+    "Nothing. You read the documents instead of the pressure. That is the whole lesson."
+  ]
+}

@@ -114,6 +114,8 @@ namespace HRZeroDay.Game.Interaction
             bool letter = _game.LetterOpen;
             // The walk draws its own page and its own key strip. The desk HUD stays out of it.
             bool walking = _game.ShowingSweep;
+            // The intro is a full-screen card with its own prompt; the desk HUD must not print through it.
+            bool intro = _game.ShowingIntro;
 
             // Letter mode: LetterView already shows the letter itself, so the HUD shows ONLY the
             // flags, in dark ink, in the blank middle of the page (below the body, above the
@@ -123,7 +125,7 @@ namespace HRZeroDay.Game.Interaction
 
             var text = new StringBuilder();
             int maxLen = 0;
-            if (!walking)
+            if (!walking && !intro)
             {
                 int shown = 0;
                 for (int i = 0; i < lines.Count && shown < LineCount; i++, shown++)
@@ -141,7 +143,7 @@ namespace HRZeroDay.Game.Interaction
 
             if (_panel != null)
             {
-                bool show = !letter && !walking && maxLen > 0;
+                bool show = !letter && !walking && !intro && maxLen > 0;
                 _panel.gameObject.SetActive(show);
                 if (!show) return;
 

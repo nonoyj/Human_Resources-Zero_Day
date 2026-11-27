@@ -108,6 +108,54 @@ def write_log(published: dict) -> None:
         fh.write('\n')
 
 
+def publish_content() -> list:
+    """content/ -> unity/Assets/Resources/Content/ (v102).
+
+    The intro script is written by the content team as JSON in content/intro/. Unity can only load
+    Resources.Load<TextAsset>("Content/intro/intro_01"), which means the file has to exist under a
+    Resources folder inside the Unity project. Same rule as the art mirror: committed, byte-identical,
+    and verifiable -- a fresh clone must not depend on anyone running python.
+    """
+    src_root = os.path.join(ROOT, 'content')
+    dst_root = os.path.join(ROOT, 'unity', 'Assets', 'Resources', 'Content')
+    changed = []
+    if not os.path.isdir(src_root):
+        return changed
+    for dirpath, _dirnames, filenames in os.walk(src_root):
+        for name in sorted(filenames):
+            if not name.lower().endswith('.json'):
+                continue
+            src = os.path.join(dirpath, name)
+            rel = os.path.relpath(src, src_root)
+            dst = os.path.join(dst_root, rel)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            src_bytes = open(src, 'rb').read()
+            if os.path.exists(dst) and open(dst, 'rb').read() == src_bytes:
+                continue
+            with open(dst, 'wb') as fh:
+                fh.write(src_bytes)
+            changed.append(os.path.relpath(dst, ROOT))
+    return changed
+
+
+def content_drift() -> list:
+    """Files under content/ that are missing or different in the Unity Resources mirror."""
+    src_root = os.path.join(ROOT, 'content')
+    dst_root = os.path.join(ROOT, 'unity', 'Assets', 'Resources', 'Content')
+    drift = []
+    if not os.path.isdir(src_root):
+        return drift
+    for dirpath, _dirnames, filenames in os.walk(src_root):
+        for name in sorted(filenames):
+            if not name.lower().endswith('.json'):
+                continue
+            src = os.path.join(dirpath, name)
+            dst = os.path.join(dst_root, os.path.relpath(src, src_root))
+            if not os.path.isfile(dst) or sha16(dst) != sha16(src):
+                drift.append(os.path.relpath(dst, ROOT))
+    return drift
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument('--verify', action='store_true')
@@ -144,6 +192,13 @@ def main() -> int:
                 print('  STALE data file:', d)
             print('FAIL: Resources json out of date -- run: python tools/art/publish_to_unity.py')
             return 1
+        content_stale = content_drift()
+        if content_stale:
+            for c in content_stale:
+                print('  STALE content file:', c)
+            print('FAIL: unity/Assets/Resources/Content is out of date -- run: '
+                  'python tools/art/publish_to_unity.py')
+            return 1
         for step in ('extract_frames.py', 'write_unity_metas.py'):
             script = os.path.join(os.path.dirname(os.path.abspath(__file__)), step)
             result = subprocess.run([sys.executable, script, '--check'], capture_output=True, text=True)
@@ -159,6 +214,9 @@ def main() -> int:
         if not os.path.isfile(dst) or sha16(dst) != sha16(src):
             shutil.copyfile(src, dst)
             print('  copied ' + os.path.relpath(dst, ROOT))
+
+    for rel in publish_content():
+        print('  copied ' + rel)
 
     published = {}
     for src, dst, sprite, rt in to_copy:

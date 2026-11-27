@@ -1,0 +1,15 @@
+{
+  "id": "email_wrong_thread",
+  "kind": "wrong_thread",
+  "from": "Finance",
+  "fromAddress": "finance.ap@company-hr.example",
+  "subject": "Re: Re: payroll file - please confirm",
+  "body": "Thanks for the resend. Can you confirm the account number below so we can release the payroll file? The previous thread was with someone else, so I have copied you in here.",
+  "malicious": true,
+  "earliestDay": 3,
+  "tell": {
+    "id": "wrong_thread",
+    "textSurface": "You were not in the original thread and it asks for a bank account"
+  },
+  "twinOf": "email_legit_thread"
+}

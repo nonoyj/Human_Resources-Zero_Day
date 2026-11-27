@@ -314,6 +314,37 @@ try {
             } else { OK "$trackedCount runtime sprites committed and byte-identical to art/kit" }
         }
 
+    # -----------------------------------------------------------------------------------------
+    # THE INTRO SCRIPT (v102). content/intro/intro_01.json is written by the content team and painted
+    # with the game's own 5x7 atlas. A beat that is too long, or that uses a character the atlas has no
+    # glyph for, is DROPPED at runtime -- so the player experiences a hole in the story, not an error.
+    # Checked here, where the answer is a red line instead of a silent hole. The same script also proves
+    # the slot works end to end: a placeholder ships, and the content team replaces the words.
+    # -----------------------------------------------------------------------------------------
+    S 'intro script is showable (lengths, atlas characters, 25 s budget)'
+    $introSrc = Join-Path $repo 'content\intro\intro_01.json'
+    if (-not (Test-Path -LiteralPath $introSrc)) {
+        W 'no content\intro\intro_01.json -- the game starts at the desk with no intro'
+    } else {
+        $introOut = & python (Join-Path $repo 'tools\comp\preview_intro.py') --check 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            $introOut | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+            $failed++
+            Write-Host '  [FAIL] the intro script cannot be shown as written' -ForegroundColor Red
+        } else {
+            OK ($introOut | Select-Object -Last 1)
+        }
+        # the Unity-side copy must be the same bytes: the game loads it through Resources.Load
+        $introDst = Join-Path $repo 'unity\Assets\Resources\Content\intro\intro_01.json'
+        if (-not (Test-Path -LiteralPath $introDst)) {
+            $failed++
+            Write-Host '  [FAIL] the intro is not published to unity/Assets/Resources/Content/intro -- run: python tools/art/publish_to_unity.py' -ForegroundColor Red
+        } elseif ((Get-FileHash -LiteralPath $introSrc).Hash -ne (Get-FileHash -LiteralPath $introDst).Hash) {
+            $failed++
+            Write-Host '  [FAIL] content\intro and Resources\Content\intro differ -- run: python tools/art/publish_to_unity.py' -ForegroundColor Red
+        } else { OK 'intro is published to Resources byte-for-byte' }
+    }
+
     Write-Host ''
     if ($failed -eq 0) {
         Write-Host 'ART PIPELINE OK' -ForegroundColor Green

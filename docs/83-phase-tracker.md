@@ -14,7 +14,7 @@ Read the bar like this: `[##........]` — done / total, so a glance says how mu
 | P1 | **Vertical slice** — desk art, applicant, CRT, letter, stamp, day summary | `[########..]` 8/10 | playable end to end |
 | P2 | **The loops** — 5-day run, scoring, reasons, trust, corruption | `[#########.]` 9/10 | **five-day arc + three endings, tested end to end (v101)**; the reason list is still short |
 | P3 | **The after-hours sweep** — walk, traces, pages, key strip | `[##########]` 10/10 | **done in v97** (`docs/90` BUG-057) |
-| P4 | **Save, resume, audio, endings, intro** | `[#####.....]` 5/10 | save + resume + **endings done**; audio 0, intro 0 |
+| P4 | **Save, resume, audio, endings, intro** | `[######....]` 6/10 | save + resume + endings + **intro slot done** (placeholder words, owned by BE2); audio 0 |
 | P5 | **Replenish** — art sweep, look, animation feel (`docs/82`) | `[..........]` 0/8 | **scheduled, not started** |
 | P6 | **Ship** — Android build, QA matrix, store assets | `[..........]` 0/8 | not started |
 
@@ -47,8 +47,9 @@ ship) rather than new mechanics.
 | v99 | **the tools hold**: Where-Am-I survives every repo state it reports on | seven states, seven passes, in the gate |
 | v98 | **the walk reads**: the strip is painted once, in one space, and a fresh install stays clean | the walk's key strip is the right way up, and `Where-Am-I` says *clean* |
 | v97 | **the walk draws** — one page texture, Core's rows, no tint, a bracket instead of a panel | you press SPACE and the page changes |
-| v101 (this one) | **the five-day arc**: the run has a through-line, and three endings read the whole run | you can start on day 1 and finish on a verdict |
-| v102 | **audio + the intro** | it sounds like a game |
+| v101 | **the five-day arc**: the run has a through-line, and three endings read the whole run | you can start on day 1 and finish on a verdict |
+| v102 (this one) | **the intro slot**, and an install that cleans up after Unity | the game says what it is before the first applicant |
+| v103 | **audio** | it sounds like a game |
 
 ---
 

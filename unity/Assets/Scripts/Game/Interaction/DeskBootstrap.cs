@@ -30,6 +30,7 @@ namespace HRZeroDay.Game.Interaction
         public LetterView Letter { get; private set; }
         public GameHud Hud { get; private set; }
         public SweepView Walk { get; private set; }
+        public IntroView Intro { get; private set; }
 
         public bool LetterOpen { get { return Letter != null && Letter.gameObject.activeSelf; } }
         public bool ShowDebrief { get { return _showingDebrief; } }
@@ -67,6 +68,9 @@ namespace HRZeroDay.Game.Interaction
         /// Rebuilt from the save on resume, so a quit on day 3 comes back knowing days 1 and 2.
         /// </summary>
         public RunLedger Ledger { get; private set; }
+
+        /// <summary>The intro, when one is configured and not yet seen (see IntroView).</summary>
+        public bool ShowingIntro { get { return Intro != null && Intro.IsOpen; } }
 
         /// <summary>The roster of the day that is closing. Captured before the shift advances.</summary>
         private System.Collections.Generic.List<HRZeroDay.Core.Data.ApplicantRecord> _closedRoster;
@@ -128,6 +132,11 @@ namespace HRZeroDay.Game.Interaction
             if (string.IsNullOrEmpty(wrongHeading)) wrongHeading = "DECISION RECORDED";
             if (Letter != null) Letter.Close();
             EnsureSweep();
+            // THE INTRO, BEFORE THE FIRST SHIFT (v102). The words are the content team's
+            // (content/intro/intro_01.json); this side only shows them, once per profile, and steps out of
+            // the way if there is nothing to show. It runs AFTER the desk is built, so the first thing
+            // behind the card is the room the player is about to work in -- not an empty screen.
+            TryStartIntro();
             if (ResumedFromSave)
                 watchCopy = "SHIFT RESUMED - DAY " + Session.Day + " / " + watchCopy;
             PersistSave();                  // a run that is quit on day 1 must still persist
@@ -287,6 +296,9 @@ namespace HRZeroDay.Game.Interaction
             Save = new SaveData();
             Save.runSeed = seed;
             Session = new DeskSession(seed);
+            // a new RUN is a new first minute, so the intro is shown again (it is once per profile, and R
+            // starts a fresh profile). Deliberately after Save is recreated.
+            TryStartIntro();
             // A restart is a new run: the old save must not resurrect itself on next launch.
             SaveSystem.Delete();
             Presenter = new EvidencePresenter(Session, DeskLayout.Load(),
@@ -309,6 +321,64 @@ namespace HRZeroDay.Game.Interaction
             CloseLetter();
             var stamps = FindStamp();
             if (stamps != null) stamps.Cancel();
+        }
+
+        // --------------------------------------------------------------- the intro
+        /// <summary>
+        /// Shows the intro when there is one. Failure is silent by design: a missing or unusable story file
+        /// must never stop the player from playing, so every path here ends with the desk running.
+        /// </summary>
+        private void TryStartIntro()
+        {
+            try
+            {
+                bool seen = Save != null && Save.profile != null && Save.profile.introSeen;
+                var script = IntroLoader.Load();
+                if (script == null || !script.HasBeats || seen) return;
+
+                if (Intro == null)
+                {
+                    Intro = IntroView.Attach(this);
+                    if (!Intro.Build()) { Intro = null; return; }
+                }
+                if (!Intro.Open(script, seen)) return;
+                Presenter.Hide();
+                if (Hud != null) Hud.RefreshNow();
+            }
+            catch (Exception ex)
+            {
+                // Never let the story layer be the reason the game does not start.
+                Debug.LogWarning("[HR//0D] intro unavailable: " + ex.Message + " -- starting at the desk.");
+                if (Intro != null) Intro.Close();
+            }
+        }
+
+        /// <summary>Called by IntroView when the last beat ends or the player skips. Returns true if consumed.</summary>
+        public void OnIntroFinished()
+        {
+            if (Save != null)
+            {
+                if (Save.profile == null) Save.profile = new PlayerProfile();
+                Save.profile.introSeen = true;
+                PersistSave();                  // a player who quits after the intro must not see it twice
+            }
+            if (Hud != null) Hud.RefreshNow();
+        }
+
+        /// <summary>SPACE/ENTER while the intro is up. Returns true when the press was consumed.</summary>
+        public bool IntroAdvance()
+        {
+            if (!ShowingIntro) return false;
+            Intro.Advance();
+            return true;
+        }
+
+        /// <summary>X/ESC while the intro is up.</summary>
+        public bool IntroSkip()
+        {
+            if (!ShowingIntro) return false;
+            Intro.Skip();
+            return true;
         }
 
         // --------------------------------------------------------------- events

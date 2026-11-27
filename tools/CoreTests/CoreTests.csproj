@@ -26,6 +26,7 @@
     <Compile Include="InteractionTests.cs" />
     <Compile Include="SaveResumeTests.cs" />
     <Compile Include="ArcTests.cs" />
+    <Compile Include="IntroTests.cs" />
     <Compile Include="../../unity/Assets/Scripts/Core/**/*.cs" />
     <!-- The interaction layer is pure C#: the headless runner compiles the same files Unity uses. -->
     <Compile Include="../../unity/Assets/Scripts/Game/Interaction/EvidenceMap.cs" />

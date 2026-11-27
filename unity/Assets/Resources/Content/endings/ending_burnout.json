@@ -1,0 +1,13 @@
+{
+  "id": "ending_burnout",
+  "title": "SHIFT ABANDONED",
+  "outcome": "defeat_quit",
+  "body": [
+    "You close the console in the middle of a queue.",
+    "There is no failure state in the game that punishes you for stopping - this is what stopping looks like. The shift simply continues without a reviewer, and the synthetics do not need you to approve them to move on.",
+    "Your run is saved. You can come back to it."
+  ],
+  "couldHaveDone": [
+    "Come back. The save file resumes exactly where you left off, same applicants, same seed."
+  ]
+}

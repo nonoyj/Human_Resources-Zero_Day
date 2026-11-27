@@ -1,0 +1,13 @@
+{
+  "id": "intro_01",
+  "version": 1,
+  "_owner": "BE2 / content team -- this file is PLACEHOLDER COPY written to prove the slot works. Replace the beat text; keep the shape.",
+  "_contract": "1-8 beats. text <= 90 chars, ASCII, capitals only (the game's 5x7 atlas). hold 0.5-8 seconds, total <= 25. Missing or broken file = the desk starts immediately.",
+  "beats": [
+    { "speaker": "DISPATCH", "text": "NIGHT SHIFT. FOURTH FLOOR. THE PREVIOUS OFFICER DID NOT CLOCK OUT.", "hold": 3.0 },
+    { "speaker": "DISPATCH", "text": "YOUR JOB IS THE INTERVIEWS. THREE HIRES A SHIFT. NOTHING ELSE.", "hold": 3.0 },
+    { "speaker": "DISPATCH", "text": "SOME OF THEM ARE NOT PEOPLE. THEY ARE VERY GOOD AT THIS.", "hold": 3.0 },
+    { "speaker": "DISPATCH", "text": "READ THE FILE. LOOK AT THE ONE IN THE CHAIR. THEN STAMP.", "hold": 3.0 },
+    { "speaker": "DISPATCH", "text": "AND IF YOU GET ONE WRONG, THE OFFICE WILL TELL YOU IN THE MORNING.", "hold": 3.5 }
+  ]
+}

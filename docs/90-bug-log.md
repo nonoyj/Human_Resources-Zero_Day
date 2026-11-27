@@ -1217,3 +1217,34 @@ acceptance test, capture path.
 | D-3 | **PARTLY FIXED in v90** (one HUD block, sized from its own proportions). Text scale differs between the desk HUD, the letter and the sweep page; the HUD has been reduced twice by eye. | `GameHud.cs`, `LetterView.cs`, `SweepView.cs` | One documented scale (sizes + steps) used by all three | screenshots v87 |
 | D-4 | Cast still reads in three tone families even with four tones wired; faces are crude at 3x. | `tools/art/make_applicants.py` | Full cast sheet shows a continuous spread and a readable 3x face | `/tmp/cast_final.png` (regenerate) |
 | D-5 | **STILL OPEN — now with a lead.** The save `IOException at hr0d_save.json` still appears in the Console on quit after the quit-skip. | `unity/Assets/Scripts/Game/Desk/*Save*` | Quitting from Play mode prints no IOException | console paste, v87 |
+
+## BUG-063 -- v102: the intro had no owner on the client side, and no way to be wrong safely
+
+**Found:** 2026-11-27, while wiring the intro slot.
+**Owning files:** `unity/Assets/Scripts/Core/Rules/IntroScriptRules.cs`, `Game/Interaction/IntroView.cs`,
+`IntroLoader.cs`, `DeskBootstrap.cs`, `GameInputRouter.cs`, `GameHud.cs`.
+
+The words of the intro are BE2's (user decision: `content/intro/`, five beats, skippable). Until v102 the
+client side had no contract at all: no file format, nowhere to load it from, no rule about what it may
+contain, and -- the part that matters -- **no defined behaviour when the file is absent or broken**. The
+default behaviour of a `Resources.Load` that returns null is a `NullReferenceException` in Play, which is
+the worst possible outcome for a story file that is *supposed* to be optional.
+
+Three decisions, all of them about failing in the right direction:
+
+1. **Missing is normal, not an error.** `IntroLoader.Load()` returns a script with no beats and a `Problem`
+   string in every failure case (no file, bad JSON, no beats, nothing paintable). `DeskBootstrap.TryStartIntro`
+   is wrapped so even an unexpected exception logs one line and starts the desk. The player never sees a
+   stack trace on the way into the game.
+2. **A bad beat is dropped, not truncated.** A beat over 90 characters, or containing a character the 5x7
+   atlas has no glyph for, is removed whole with a reason. Truncating would ship half a sentence as if it
+   were the writing.
+3. **The intro owns the keyboard.** While the card is up, `GameInputRouter` swallows every key: SPACE/ENTER
+   steps, X/ESC leaves, A/S/R/1-4 do nothing. Before this, pressing A during the intro would have stamped
+   the first applicant *behind* the card.
+
+`content/intro/intro_01.json` ships as a **placeholder** so the slot is proven end to end; BE2 replaces the
+words, keeps the shape. The art gate now fails if the script cannot be shown as written, or if the Unity
+copy drifts from `content/`.
+
+**Class of bug:** *an optional asset with undefined behaviour when it is absent.*

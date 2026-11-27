@@ -40,6 +40,7 @@ internal static class Program
         lines.AddRange(HotspotReachTests.RunAll());    // can the player actually touch what they see?
         lines.AddRange(SaveResumeTests.RunAll());      // save -> quit -> relaunch lands on the same desk
         lines.AddRange(ArcTests.RunAll());             // day 1 -> day 5 -> an ending, end to end
+        lines.AddRange(IntroTests.RunAll());           // the intro slot: BE2's script, our frame
         foreach (var line in lines)
         {
             Console.WriteLine(line);

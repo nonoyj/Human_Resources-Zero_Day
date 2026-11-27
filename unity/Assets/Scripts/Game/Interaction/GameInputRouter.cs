@@ -31,6 +31,25 @@ namespace HRZeroDay.Game.Interaction
             if (game == null) return;
 
             var kb = Keyboard.current;
+
+            // THE INTRO OWNS EVERY KEY WHILE IT IS UP (v102). It is the first thing the player sees, and
+            // nothing behind it may move: pressing A during the intro must not stamp the first applicant.
+            // SPACE/ENTER steps a beat, X/ESC leaves, everything else is swallowed until it closes.
+            if (game.ShowingIntro)
+            {
+                if (kb != null)
+                {
+                    if (kb.xKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame) game.IntroSkip();
+                    else if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame) game.IntroAdvance();
+                }
+                var m0 = Mouse.current;
+                bool tapped = (m0 != null && m0.leftButton.wasPressedThisFrame) ||
+                              (Touchscreen.current != null &&
+                               Touchscreen.current.primaryTouch.press.wasPressedThisFrame);
+                if (tapped) game.IntroAdvance();
+                return;
+            }
+
             if (kb != null)
             {
                 if (kb.lKey.wasPressedThisFrame) game.ToggleLetter();
