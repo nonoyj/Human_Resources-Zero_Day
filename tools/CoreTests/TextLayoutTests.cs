@@ -12,6 +12,7 @@ using System.Linq;
 using System.Text.Json;
 using HRZeroDay.Game;
 using HRZeroDay.Game.Interaction;
+using HRZeroDay.Core.Rules;
 using UnityEngine;
 
 namespace HRZeroDay.Tests
@@ -35,6 +36,7 @@ namespace HRZeroDay.Tests
             yield return CheckTextPanelKeepsInkInsideItsBorder();
             yield return CheckCalloutCopyRenders();
             yield return CheckWalkStripCopyRenders();
+            yield return CheckWalkCaptionRendersAtTheTopOfItsBand();
         }
 
         private static void True(bool condition, string message)
@@ -175,6 +177,79 @@ namespace HRZeroDay.Tests
             }
             True(cols >= 18, "the read-out panel has only " + cols + " columns");
             return "PASS  the read-out's own copy renders in full inside its card";
+        }
+
+        /// <summary>
+        /// The walk's caption band, painted the way SweepView paints it. The player's screenshot shows the
+        /// band's copy sitting in the LOWER half of a tall bar with an empty area above it -- i.e. the rows
+        /// the raster chose did not start at the band's top. This asserts the first line's ink is inside
+        /// the first ~14 rows of the texture.
+        /// </summary>
+        private static string CheckWalkCaptionRendersAtTheTopOfItsBand()
+        {
+            var glyphs = RealAtlas();
+            var page = new HRZeroDay.Core.Rules.SweepPage
+            {
+                Floor = "desk",
+                Heading = "YOUR DESK - 00:06",
+                Lines = new List<string>
+                {
+                    "YOUR MUG HAS BEEN MOVED TO THE OTHER SIDE OF THE DESK.",
+                    "NOBODY ELSE HAS A KEY. IT IS STILL WARM. (CELIA ALONZO)"
+                }
+            };
+
+            var specs = new List<MonitorScreen.LineSpec>
+            {
+                new MonitorScreen.LineSpec { text = page.Heading, colour = "warn" },
+                new MonitorScreen.LineSpec { text = string.Empty, colour = "text" }
+            };
+            for (int i = 0; i < page.Lines.Count; i++)
+                specs.Add(new MonitorScreen.LineSpec { text = page.Lines[i], colour = "textdim" });
+
+            const int w = SweepScript.BandW;
+            // mirror of the fixed SweepView: the TEXTURE is exactly the band's height, so the raster's
+            // bottom row and the band's bottom row are the same row.
+            int h = SweepScript.BandHeight(4);
+            var glass = new MonitorScreen.GlassRect
+            {
+                x = SweepScript.PadX,
+                y = SweepScript.PadY,
+                w = w - 2 * SweepScript.PadX,
+                h = h - 2 * SweepScript.PadY
+            };
+            var rects = MonitorScreen.LinesToRects(specs, glass);
+            var buf = new Color32[w * h];
+            var voidInk = new Color32(11, 14, 19, 255);
+            for (int i = 0; i < buf.Length; i++) buf[i] = voidInk;
+            MonitorScreenRaster.Render(buf, w, h, rects, glyphs, voidInk, paintBackground: false);
+            // measure in RASTER space (row 0 = top of the band). The flip happens afterwards, in the view,
+            // and swaps which end of the array is which -- asserting on flipped rows only proves the flip.
+            int firstInkRow = -1, lastInkRow = -1;
+            for (int y = 0; y < h; y++)
+            {
+                bool any = false;
+                for (int x = 0; x < w && !any; x++) if (Ink(buf, w, x, y)) any = true;
+                if (any) { if (firstInkRow < 0) firstInkRow = y; lastInkRow = y; }
+            }
+            True(firstInkRow >= 0, "the caption painted nothing at all");
+
+            True(firstInkRow <= SweepScript.PadY + 2,
+                 "the caption's first ink is at row " + firstInkRow + ", not near the band top (" +
+                 SweepScript.PadY + ") -- the text is floating in the middle of its bar");
+            True(lastInkRow <= SweepScript.BandHeight(4),
+                 "the caption runs past its own band (last ink row " + lastInkRow + ")");
+            // and the flip the view applies must still leave the band's top at the top
+            var flipped = (Color32[])buf.Clone();
+            MonitorScreenRaster.FlipToTextureOrder(flipped, w, h);
+            int topRowAfterFlip = -1;
+            for (int y = h - 1; y >= 0 && topRowAfterFlip < 0; y--)
+                for (int x = 0; x < w && topRowAfterFlip < 0; x++)
+                    if (Ink(flipped, w, x, y)) topRowAfterFlip = (h - 1) - y;
+            True(topRowAfterFlip == firstInkRow,
+                 "the texture flip moved the caption (raster row " + firstInkRow +
+                 " -> texture row " + topRowAfterFlip + ")");
+            return "PASS  the walk's caption starts at the top of its band and stays inside it";
         }
 
         private static string CheckWalkStripCopyRenders()

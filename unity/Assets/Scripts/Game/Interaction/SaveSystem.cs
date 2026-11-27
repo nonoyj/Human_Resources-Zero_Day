@@ -120,12 +120,25 @@ namespace HRZeroDay.Game.Interaction
         }
 
         // File.Replace does not exist on every Android path, so move to a temp name first.
+        //
+        // THE BUG (2026-11-27): on the editor and every desktop target, File.Move onto an EXISTING path
+        // throws IOException "file already exists" -- so the FIRST save of a session worked and every
+        // save after it failed silently behind a one-line warning. The player's run appeared to persist
+        // and did not: commit a decision, quit, resume, and you are back where you were. Deleting first
+        // under a compile flag was the mistake; the operation is "overwrite", so say so.
         private static void Replace(string tmp, string target)
         {
-#if UNITY_ANDROID && !UNITY_EDITOR
-            if (File.Exists(target)) File.Delete(target);
-#endif
-            File.Move(tmp, target);
+            try
+            {
+                File.Replace(tmp, target, null);
+            }
+            catch (Exception)
+            {
+                // Some Android paths and a few network shares refuse File.Replace. Fall back to the
+                // delete-then-move that the desktop needs anyway.
+                if (File.Exists(target)) File.Delete(target);
+                File.Move(tmp, target);
+            }
         }
 
         /// <summary>

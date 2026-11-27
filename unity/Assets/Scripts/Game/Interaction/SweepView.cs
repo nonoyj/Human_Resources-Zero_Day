@@ -71,7 +71,7 @@ namespace HRZeroDay.Game.Interaction
             // (the neon cap art that used to sit here is retired -- BUG-055. The strip below carries the
             // keys as READABLE TEXT, from the same atlas as the copy above it.)
 
-            // one texture for the whole caption band, allocated at the largest page and reused
+            // The caption band's texture is (re)allocated by Repaint to exactly the size it paints.
             // 1:1 with the canvas on purpose. This is a 5x7 bitmap font: it has no smaller size, and
             // downscaling the texture to fake one would smear the glyphs. What CAN be made smaller is the
             // panel around it -- the band is sized to the rows actually used, so a two-line trace is a thin
@@ -80,19 +80,9 @@ namespace HRZeroDay.Game.Interaction
             // Created at exactly the size Repaint() paints. It used to be allocated for MaxRows (22) and
             // then painted only the top `height` rows -- so SetPixels32 ran on a buffer that was the wrong
             // length for the texture, Unity threw, and the band kept whatever the last page left on it.
-            _tex = new Texture2D(SweepScript.BandW, SweepScript.BandH, TextureFormat.RGBA32, false);
-            _tex.filterMode = FilterMode.Point;
-            _tex.name = "SweepBand";
-            _textLayer.sprite = Sprite.Create(_tex, new Rect(0, 0, _tex.width, _tex.height),
-                                             PageTransform.TopLeftPivot, Ppu);
-            _textLayer.transform.localPosition = PageTransform.TopLeftToWorld(
-                SweepScript.BandX, SweepScript.BandTop, Ppu, SweepScript.PageH);
-
-            // The prompt is painted INTO the page texture with the same atlas as everything else. It used to
-            // be a TextMesh placed at (TextX+40, KeyStrip+9) px -- which in y-up canvas space is 1.9 units
-            // ABOVE the page's bottom edge, i.e. off the screen. That is why the walk said nothing about
-            // what to press and the player had to guess SPACE on 2026-11-26.
-            // ONE texture for the whole bottom strip (prompt + the player's hint line). Two textures
+            // The prompt is painted INTO the page texture, with the same atlas as everything else; it used
+            // to be a TextMesh placed off the bottom of the screen, which is why the walk said nothing
+            // about what to press (2026-11-26). ONE texture for the whole bottom strip (prompt + the player's hint line). Two textures
             // stacked in 32 px was how the prompt ended up half-covering the caps and off the bottom edge.
             _keyBand = new Texture2D(SweepScript.PageW, SweepScript.StripH, TextureFormat.RGBA32, false);
             _keyBand.filterMode = FilterMode.Point;
@@ -221,11 +211,25 @@ namespace HRZeroDay.Game.Interaction
             for (int i = 0; i < page.Lines.Count && rows < MaxRows; i++, rows++)
                 specs.Add(new MonitorScreen.LineSpec { text = page.Lines[i], colour = "textdim" });
 
-            // Paint the WHOLE texture. It is allocated at BandH (the tallest page), so every page fills it
-            // and SetPixels32 always gets width*height samples; rows past the band's real height stay
-            // transparent, which is what makes a two-line page a thin bar rather than a tall empty card.
-            int height = _tex.height;
+            // THE BAND IS THE TEXTURE. It used to be one tall texture (BandH, 20 rows) with a short glass
+            // inside it -- but MonitorScreenRaster.Render lays rows out from the BOTTOM of the buffer it is
+            // given, so a 39 px band inside a 209 px texture drew its copy ~170 rows too low: the player's
+            // screenshot of the walk shows the caption floating in the middle of a tall empty bar. The
+            // texture is now exactly the band's height, so the raster's bottom and the band's bottom are
+            // the same row.
             int bandHeight = SweepScript.BandHeight(rows);
+            int height = bandHeight;
+            if (_tex == null || _tex.width != SweepScript.BandW || _tex.height != bandHeight)
+            {
+                if (_tex != null) Destroy(_tex);
+                _tex = new Texture2D(SweepScript.BandW, bandHeight, TextureFormat.RGBA32, false);
+                _tex.filterMode = FilterMode.Point;
+                _tex.name = "SweepBand";
+                _textLayer.sprite = Sprite.Create(_tex, new Rect(0, 0, _tex.width, _tex.height),
+                                                 PageTransform.TopLeftPivot, Ppu);
+                _textLayer.transform.localPosition = PageTransform.TopLeftToWorld(
+                    SweepScript.BandX, SweepScript.BandTop, Ppu, SweepScript.PageH);
+            }
             var glass = new MonitorScreen.GlassRect
             {
                 x = SweepScript.PadX,

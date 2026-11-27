@@ -4,6 +4,7 @@
 // both are "public fields only" serialisers, and SaveData is deliberately shaped for both).
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text.Json;
 using HRZeroDay.Core.Data;
 using HRZeroDay.Game.Interaction;
@@ -19,6 +20,39 @@ namespace HRZeroDay.Tests
             yield return Check("save_mid_day_keeps_day_counters", SaveMidDayKeepsDayCounters);
             yield return Check("save_refuses_newer_version", SaveRefusesNewerVersion);
             yield return Check("save_resume_keeps_tool_budget_day", SaveResumeKeepsToolBudgetDay);
+            yield return Check("save_overwrites_an_existing_save", SaveOverwritesAnExistingSave);
+        }
+
+        /// <summary>
+        /// The second save in a session must work. It did not: the editor's File.Move onto an existing
+        /// path throws IOException "file already exists", so only the FIRST write of a run landed and
+        /// every later one was lost behind a warning. This test writes twice and reads back the second.
+        /// </summary>
+        private static void SaveOverwritesAnExistingSave()
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "hr0d_save_test_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            var target = Path.Combine(dir, "hr0d_save.json");
+            var tmp = target + ".tmp";
+            try
+            {
+                File.WriteAllText(target, "{\"saveId\":\"first\"}");
+                File.WriteAllText(tmp, "{\"saveId\":\"second\"}");
+                // exactly what SaveSystem.Replace does on a desktop/editor target
+                try { File.Replace(tmp, target, null); }
+                catch (Exception)
+                {
+                    if (File.Exists(target)) File.Delete(target);
+                    File.Move(tmp, target);
+                }
+                var text = File.ReadAllText(target);
+                True(text.Contains("second"), "the second save did not replace the first: " + text);
+                True(!File.Exists(tmp), "the temp file was left behind");
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch (Exception) { }
+            }
         }
 
         private static string Check(string name, Action test)
