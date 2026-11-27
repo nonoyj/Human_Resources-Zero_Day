@@ -8,6 +8,7 @@
 using System.Text;
 using UnityEngine;
 using HRZeroDay.Core.Data;
+using HRZeroDay.Core.Rules;
 
 namespace HRZeroDay.Game.Interaction
 {
@@ -166,11 +167,31 @@ namespace HRZeroDay.Game.Interaction
 
             if (_game.ShowEnding)
             {
+                // THE RUN, NOT THE LAST DAY (v101). This screen used to show the shift's live counters,
+                // which after a defeat read as if the run had barely started. The ledger knows the days
+                // that actually closed, so the ending says what the player did -- and the verdict is a
+                // sentence built from those numbers, not a mood.
+                var ledger = _game.Ledger;
                 Add(result, "HUMAN RESOURCES // ZERO DAY");
-                Add(result, "SHIFT COMPLETE - " + OutcomeCopy(s.Shift.Outcome));
-                Add(result, "TRUST " + s.Trust + "   SYNTHETICS HIRED " + s.Shift.SyntheticsHired);
+                Add(result, OutcomeCopy(s.Shift.Outcome));
                 Add(result, "");
-                Add(result, "The building keeps your file. It does not forget.");
+                if (ledger != null && ledger.Count > 0)
+                {
+                    Add(result, "DAYS " + ledger.Count + "/5   QUOTAS MET " + ledger.QuotasMet + "/" + ledger.Count);
+                    Add(result, "HIRED " + ledger.Approved + "  REJECTED " + ledger.Rejected +
+                                "  SYNTHETICS IN " + ledger.Hired + "  CAUGHT " + ledger.Caught);
+                    Add(result, "TRUST " + ledger.TrustAtStart + " -> " + ledger.TrustAtEnd +
+                                "   CORRECT CALLS " + ledger.Correct + "/" + ledger.Decisions);
+                    Add(result, "BY DAY  " + ledger.CorrectByDay());
+                    Add(result, "");
+                    Add(result, Wrap(ledger.Verdict(), 62));
+                }
+                else
+                {
+                    Add(result, "TRUST " + s.Trust + "   SYNTHETICS HIRED " + s.Shift.SyntheticsHired);
+                    Add(result, "");
+                    Add(result, "The building keeps your file. It does not forget.");
+                }
                 Add(result, "");
                 Add(result, "[R] START A NEW RUN");
                 return result;
@@ -192,7 +213,13 @@ namespace HRZeroDay.Game.Interaction
                 if (!string.IsNullOrEmpty(_game.SweepLine)) { Add(result, _game.SweepLine); Add(result, ""); }
                 if (d != null) Add(result, Wrap(d.HintLine, 62));
                 Add(result, "");
-                Add(result, "[SPACE] NEXT DAY");
+                // WHERE THIS DAY SITS (v101). "DAY 3 OF 5" plus one honest line about the state of the
+                // run, so the player always knows whether they are near the end or near the edge.
+                if (_game.Ledger != null)
+                    Add(result, _game.Ledger.ArcLine(d == null ? s.Day : d.Day));
+                Add(result, "");
+                bool last = s.Finished || (d != null && d.Day >= RunLedger.ArcLength);
+                Add(result, last ? "[SPACE] CLOSE THE FILE" : "[SPACE] NEXT DAY");
                 return result;
             }
 

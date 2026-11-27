@@ -61,6 +61,16 @@ namespace HRZeroDay.Game.Interaction
         private System.Collections.Generic.List<SweepTrace> _sweepTraces;
         private string _sweepLine;                 // the summary's receipt, null on a clean day
 
+        /// <summary>
+        /// The five days as one run (see Core/Rules/RunLedger.cs). The HUD reads it for the summary's arc
+        /// line and for the ending, so those two screens can never disagree with the days just played.
+        /// Rebuilt from the save on resume, so a quit on day 3 comes back knowing days 1 and 2.
+        /// </summary>
+        public RunLedger Ledger { get; private set; }
+
+        /// <summary>The roster of the day that is closing. Captured before the shift advances.</summary>
+        private System.Collections.Generic.List<HRZeroDay.Core.Data.ApplicantRecord> _closedRoster;
+
         private void Awake()
         {
             if (string.IsNullOrEmpty(watchCopy)) watchCopy = "HOLD STILL. THE TELL IS SMALL.";
@@ -86,6 +96,12 @@ namespace HRZeroDay.Game.Interaction
                 Save.runSeed = seed;
                 Session = new DeskSession(seed);
             }
+            // The arc's memory. On a resumed run it is rebuilt from the save (days already closed keep
+            // their numbers); on a fresh run it starts empty and fills as days close.
+            Ledger = Save != null && Save.days != null
+                ? RunLedger.FromSave(Save.days, 0)
+                : new RunLedger();
+
             Presenter = new EvidencePresenter(Session, layout, overlay, watchCopy);
 
             if (Decision != null)
@@ -224,15 +240,26 @@ namespace HRZeroDay.Game.Interaction
                 _showingDebrief = false;
                 if (Session.DayFinished || Session.Finished)
                 {
+                    // captured BEFORE CloseDay advances the shift: this is the roster of the day being
+                    // closed, and the only one the walk and the summary may talk about
+                    _closedRoster = new System.Collections.Generic.List<HRZeroDay.Core.Data.ApplicantRecord>(
+                        Session.Shift.Today);
                     var closedDay = Session.LastClosedDay;
                     LastDay = Session.CloseDay();
                     RecordDay(LastDay, closedDay);
+                    RecordArc(LastDay, closedDay);
                     CloseLetter();
                     Presenter.Hide();
 
                     // DECIDED 2026-11-26: the walk happens only on a day when something got through.
                     // A quiet office is not a scene; that day goes straight to the summary.
-                    _sweepTraces = Sweep.AfterShift(closedDay, Session.Shift.Today);
+                    //
+                    // FROM THE CLOSED DAY'S ROSTER (v101). CloseDay() has already advanced the shift, so
+                    // Session.Shift.Today is the NEXT roster -- building the walk from it could name
+                    // somebody the player had not met. The walk is a receipt; it may only name people who
+                    // were actually at the desk today.
+                    _sweepTraces = Sweep.ForClosedDay(closedDay, _closedRoster,
+                                                      LastDay == null ? 0 : LastDay.SyntheticsHired);
                     _sweepLine = SweepScript.SummaryLine(closedDay, _sweepTraces);
                     if (Sweep.HasSweep(closedDay)) StartSweep();
                     else _showingDaySummary = true;
@@ -274,6 +301,7 @@ namespace HRZeroDay.Game.Interaction
             Session.BeginCurrent();
             LastDecision = null;
             LastDay = null;
+            Ledger = new RunLedger();
             _sweepTraces = null;
             _sweepLine = null;
             _showingDebrief = false;
@@ -340,6 +368,34 @@ namespace HRZeroDay.Game.Interaction
             if (Session.Finished && Save.Outcome == RunOutcome.InProgress)
                 Save.Outcome = Session.Shift.Outcome;
             SaveSystem.Write(Save);
+        }
+
+        /// <summary>
+        /// Adds the closed day to the run ledger. Separate from RecordDay because the ledger is what the
+        /// PLAYER reads (summary arc line, ending verdict) and RecordDay is what the SAVE keeps; both get
+        /// the same numbers, from the same DayResult, in the same place, so they cannot drift.
+        /// </summary>
+        private void RecordArc(DayResult day, int dayNumber)
+        {
+            if (day == null || Ledger == null) return;
+            // Correct calls cannot be read off DayResult directly: it counts approvals and rejections but
+            // not which were right. The shift knows. Rejection of a synthetic is a catch; approval of a
+            // synthetic is a hire; a wrongful rejection is neither. Everything else was a correct call.
+            var r = new RunDay
+            {
+                Day = dayNumber,
+                Approved = day.Approved,
+                Rejected = day.Rejected,
+                WrongfulRejections = day.WrongfulRejections,
+                SyntheticsHired = day.SyntheticsHired,
+                SyntheticsCaught = day.SyntheticsCaught,
+                QuotaMet = day.QuotaMet,
+                TrustAtEnd = day.TrustAfter
+            };
+            r.CorrectCalls = System.Math.Max(0, (r.Approved + r.Rejected) - r.WrongfulRejections - r.SyntheticsHired);
+            Ledger.Record(r);
+            Ledger.WriteTo(Save.days);
+            PersistSave();
         }
 
         private void RecordDay(DayResult day, int dayNumber)

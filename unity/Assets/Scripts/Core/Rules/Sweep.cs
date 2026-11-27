@@ -78,6 +78,44 @@ namespace HRZeroDay.Core.Rules
         }
 
         /// <summary>
+        /// THE WALK FOR A CLOSED DAY (v101) -- and the reason it is not just AfterShift().
+        ///
+        /// The caller closes the day FIRST (DeskBootstrap.Continue -> Session.CloseDay -> Shift.EndDay), and
+        /// EndDay advances the shift. So `Today` at that moment is the NEXT day's roster. The walk was being
+        /// built from it: the fifth walk of a run could name somebody the player had not met yet, which is
+        /// the one thing this scene must never do -- it is a receipt, and a receipt for a future shift is a
+        /// lie. This overload takes the closed day's roster and the shifts' hired synthetics explicitly, so
+        /// it can only name people from the day just played.
+        ///
+        /// `hiresToday` is the number of synthetics the player hired on THAT day (DayResult.SyntheticsHired),
+        /// not the run total: the walk is about this day's damage. Severity still escalates with the run's
+        /// total corruption, because the office gets worse as the run does.
+        /// </summary>
+        public static List<SweepTrace> ForClosedDay(int corruption, IList<ApplicantRecord> closedDayRoster,
+                                                    int hiresToday)
+        {
+            var traces = new List<SweepTrace>();
+            int level = corruption < 0 ? 0 : (corruption > 3 ? 3 : corruption);
+            if (level == 0 || hiresToday <= 0)
+            {
+                traces.Add(ByLevel[0]);
+                return traces;
+            }
+
+            // One trace per hire made TODAY, walking up the escalation table from the run's severity, so a
+            // player who hires one synthetic on day 4 still sees the worst trace they earned.
+            int count = hiresToday > level ? level : hiresToday;
+            for (int i = 0; i < count; i++)
+            {
+                int idx = level - count + 1 + i;
+                if (idx < 1) idx = 1;
+                if (idx >= ByLevel.Length) idx = ByLevel.Length - 1;
+                traces.Add(WithCause(ByLevel[idx], closedDayRoster));
+            }
+            return traces;
+        }
+
+        /// <summary>
         /// Whether the walk happens at all. DECIDED 2026-11-26: only on days when something got through.
         /// A quiet office is not a scene -- it is the summary screen, and that keeps the walk meaningful
         /// instead of a chore the player learns to skip.

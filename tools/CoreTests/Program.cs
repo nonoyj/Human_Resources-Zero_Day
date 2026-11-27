@@ -39,6 +39,7 @@ internal static class Program
         lines.AddRange(TextLayoutTests.RunAll());      // ...and saying what we think it says
         lines.AddRange(HotspotReachTests.RunAll());    // can the player actually touch what they see?
         lines.AddRange(SaveResumeTests.RunAll());      // save -> quit -> relaunch lands on the same desk
+        lines.AddRange(ArcTests.RunAll());             // day 1 -> day 5 -> an ending, end to end
         foreach (var line in lines)
         {
             Console.WriteLine(line);

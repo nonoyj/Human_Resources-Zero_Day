@@ -12,14 +12,14 @@ Read the bar like this: `[##........]` — done / total, so a glance says how mu
 | # | Phase | Bar | State |
 |---|---|---|---|
 | P1 | **Vertical slice** — desk art, applicant, CRT, letter, stamp, day summary | `[########..]` 8/10 | playable end to end |
-| P2 | **The loops** — 5-day run, scoring, reasons, trust, corruption | `[######....]` 6/10 | one day is solid; the five-day arc and endings are thin |
+| P2 | **The loops** — 5-day run, scoring, reasons, trust, corruption | `[#########.]` 9/10 | **five-day arc + three endings, tested end to end (v101)**; the reason list is still short |
 | P3 | **The after-hours sweep** — walk, traces, pages, key strip | `[##########]` 10/10 | **done in v97** (`docs/90` BUG-057) |
-| P4 | **Save, resume, audio, endings, intro** | `[###.......]` 3/10 | save exists and round-trips; audio 0, endings 0, intro 0 |
+| P4 | **Save, resume, audio, endings, intro** | `[#####.....]` 5/10 | save + resume + **endings done**; audio 0, intro 0 |
 | P5 | **Replenish** — art sweep, look, animation feel (`docs/82`) | `[..........]` 0/8 | **scheduled, not started** |
 | P6 | **Ship** — Android build, QA matrix, store assets | `[..........]` 0/8 | not started |
 
 **The honest headline: the game is playable and correct; it is not yet finished and not yet pretty.**
-Roughly 47 % of the work is behind us, and the remaining 55 % is mostly *breadth* (endings, audio, intro,
+Roughly 55 % of the work is behind us, and the remaining 45 % is mostly *breadth* (audio, intro,
 ship) rather than new mechanics.
 
 ---
@@ -35,7 +35,7 @@ ship) rather than new mechanics.
 5. ✅ **the walk's page placement is correct** — closed in **v97** (BUG-057): the composed page is what
    draws, its copy is laid out by Core's own rows, and the walk is no longer tinted by the daylight
 6. ⬜ the stamp + reason loop is the teaching mechanism (it stamps, but the reason list is short)
-7. ⬜ a 5-day run with an ending
+7. ✅ **a 5-day run with an ending** — v101
 8. ⬜ audio hooks
 9. ⬜ Android build
 10. → then P5 replenish, one scheduled pass, everything cosmetic at once
@@ -44,11 +44,11 @@ ship) rather than new mechanics.
 
 | Round | Subject | Ends with |
 |---|---|---|
-| v99 (this one) | **the tools hold**: Where-Am-I survives every repo state it reports on | seven states, seven passes, in the gate |
+| v99 | **the tools hold**: Where-Am-I survives every repo state it reports on | seven states, seven passes, in the gate |
 | v98 | **the walk reads**: the strip is painted once, in one space, and a fresh install stays clean | the walk's key strip is the right way up, and `Where-Am-I` says *clean* |
 | v97 | **the walk draws** — one page texture, Core's rows, no tint, a bracket instead of a panel | you press SPACE and the page changes |
-| v100 | **the five-day arc**: day advance, trust effects, one ending | a run that ends |
-| v101 | **the ending cards, then audio** | it sounds like a game |
+| v101 (this one) | **the five-day arc**: the run has a through-line, and three endings read the whole run | you can start on day 1 and finish on a verdict |
+| v102 | **audio + the intro** | it sounds like a game |
 
 ---
 

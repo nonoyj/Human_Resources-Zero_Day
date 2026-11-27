@@ -1184,6 +1184,26 @@ pushed a diverging history and left no upstream) -- which is the argument for it
 
 **Class of bug:** *a diagnostic tool tested only in the state its author happens to be in.*
 
+## BUG-061 -- the walk could name somebody the player had not met yet (2026-11-27)
+
+Found while wiring the arc, not reported by anyone: `DeskBootstrap.Continue()` closes the day **first**
+(`CloseDay()` -> `Shift.EndDay()`), and `EndDay()` advances the shift. The line right after it built the
+walk from `Session.Shift.Today` -- which by then is **the next day's roster**.
+
+So the receipt at the end of day 2 could say *"the badge you filed is a different face (Someone You Have
+Not Interviewed)"*. This scene has one job -- it may only report damage the player actually caused -- and
+that is precisely what it was breaking.
+
+Fixed with `Sweep.ForClosedDay(corruption, closedDayRoster, hiresToday)`: the bootstrap captures the roster
+**before** `CloseDay()` runs, and passes the day's own hire count (`DayResult.SyntheticsHired`) rather than
+the run total. Severity still rises with the run's corruption, because the office gets worse as the run
+does -- but a day's page count comes from what happened on that day.
+
+`SweepTests` gains `CheckClosedDaySweepNeverNamesTomorrowsPeople`: two rosters, one hire, asserts the page
+names today's synthetic and never tomorrow's.
+
+**Class of bug:** *reading a shared mutable object after the thing that advances it.*
+
 # PARKED FOR REPLENISH
 
 Added 2026-11-27 with `docs/82-replenish-phase.md`. A parked item is **not** forgotten and **not** fixed
