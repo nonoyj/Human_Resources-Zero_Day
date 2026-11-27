@@ -920,3 +920,17 @@ on the drawn rect. A gate rule fails the build if inline `rect[...] * 0.5f` math
 **Class of bug:** *a rule that is duplicated instead of shared.* The test I first wrote mirrored the
 runtime by hand; when it failed I could not tell which copy was wrong. Making both call one function is
 what turned "9 of 9 unclickable" into a two-line fix.
+
+# PARKED FOR REPLENISH
+
+Added 2026-11-27 with `docs/82-replenish-phase.md`. A parked item is **not** forgotten and **not** fixed
+today: it is scheduled into the replenish phase with a capture. Format: id, what is wrong, owning file,
+acceptance test, capture path.
+
+| # | What is wrong | Owning file | Done when | Capture |
+|---|---|---|---|---|
+| D-1 | The after-hours key band (`[WALK n/N] [SPACE] ...`) renders streaked across the top of the page instead of on its band. Content is correct; the C# sprite placement is not. | `unity/Assets/Scripts/Game/Interaction/SweepView.cs` | The band sits on `KeyBandTop` at 1:1, legible, in Play mode | player screenshot, v87 session 3 |
+| D-2 | `Apply-Bundle` prints `still nested: art\art`, `content\content`, ... on a clean tree. Cosmetic: the nesting check reports the *target* of a correct move. | `scripts/Apply-Bundle.ps1` | A clean apply prints no `still nested` line | console paste, 2026-11-26 |
+| D-3 | Text scale differs between the desk HUD, the letter and the sweep page; the HUD has been reduced twice by eye. | `GameHud.cs`, `LetterView.cs`, `SweepView.cs` | One documented scale (sizes + steps) used by all three | screenshots v87 |
+| D-4 | Cast still reads in three tone families even with four tones wired; faces are crude at 3x. | `tools/art/make_applicants.py` | Full cast sheet shows a continuous spread and a readable 3x face | `/tmp/cast_final.png` (regenerate) |
+| D-5 | The save `IOException at hr0d_save.json` still appears in the Console on quit after the quit-skip. | `unity/Assets/Scripts/Game/Desk/*Save*` | Quitting from Play mode prints no IOException | console paste, v87 |

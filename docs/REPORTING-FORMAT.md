@@ -1,7 +1,8 @@
 # How every agent reply is structured (agreed 2026-11-26)
 
 The user asked for a predictable shape so nothing gets missed. **Every reply from the agent uses exactly
-these three sections, in this order, with these headings:**
+these four sections, in this order, with these headings** (revised 2026-11-27 — the player asked for a
+fourth, "what I should see", and for the commands to stop being omitted):
 
 ---
 
@@ -14,11 +15,27 @@ Numbered, copy-pasteable actions for the human. **If the answer is "nothing", th
 "Nothing this turn" — explicitly.** No action is ever implied or buried in prose.
 Each step says what "done" looks like.
 
-## C. WHAT NEXT
+## C. WHAT I SHOULD SEE
+What the player is looking at on screen / in the Console once B is done, phrased as observable things.
+Name the still-open items explicitly so a known bug is never mistaken for a new one.
+
+## D. WHAT'S NEXT
 - **Expect:** what will be true after the user's actions.
 - **Agent's next move:** the specific thing the agent will do next unless redirected.
 - **Questions:** only decisions the agent genuinely cannot default. If there are none, say "none".
-- **Blocked / waiting on:** anything the agent cannot progress without (e.g. Unity project existing).
+- **Blocked / waiting on:** anything the agent cannot progress without.
+
+---
+
+## E. THE COMMAND BLOCK (mandatory, every single reply)
+
+The player's standing correction, 2026-11-27: *"You did not give me powershell code on your last response,
+you're losing your memory. Always refer to our handouts and files where we have stated every command."*
+
+**Every reply ends with the copy-paste block from `docs/80-COMMAND-BOOK.md §2`,** including replies that
+change nothing. If the commands for this round differ (a new bundle number, a dry run first), the block is
+edited to match and the difference is stated in one line. Omitting it is a defect in the reply, not a
+style choice.
 
 ---
 

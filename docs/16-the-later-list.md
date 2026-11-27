@@ -3,6 +3,11 @@
 Status date: **2026-11-26** (end of the art-heavy phase). Owner key: **You** = frontend/Unity,
 **A/B/C** = the three devs (see `01-roadmap-14-days.md`), **Agent** = me (Arena).
 
+**2026-11-27 — read with `docs/82-replenish-phase.md`.** The player asked for a scheduled *replenish
+phase* (art, overall look, animation fixed together, later) instead of stopping the build for each note.
+That plan is now `82`, and parked visual defects are listed under "PARKED FOR REPLENISH" in
+`docs/90-bug-log.md`. This list stays the backlog of *features*; `82` is the schedule for *polish*.
+
 Rules for this file: nothing moves out of here without either (a) a roadmap line being ticked, or
 (b) a `06-decisions.md` entry replacing it. If a task is not on this list, it is not in the product.
 
@@ -61,6 +66,7 @@ and the BE1 handoff before starting any of them.
 | 2.3 | Menu + intro frames (there is one concept, `menu_concept_A.png`, no kit asset) | Agent | Skiappable intro is a locked requirement — art for it doesn't exist yet |
 | 2.4 | Ending cards (5 endings × 1 still each) | Agent | Needs the ending copy from C |
 | 2.5 | Field Manual pages (the in-game evidence legend) | Agent + C | Legend text is behavioural, art is the frame |
+| 2.8 | **Replenish art sweep** — see `82-replenish-phase.md` §3 (A-1..A-8) | Agent | One pass, after the build freezes |
 | 2.6 | Player-cosmetic sprite atlas (name + cosmetics only, **no faces** — locked) | Agent | Small: 4 body presets, 4 outfits, 6 hair, 6 skin, accent |
 | 2.7 | Android icon / splash set (adaptive icon, 5 densities) | Agent | Not started; trivial but mandatory for a store build |
 

@@ -1,5 +1,15 @@
 # Project Codename: HUMAN RESOURCES: ZERO DAY
 
+## Read these first (added 2026-11-27)
+
+| File | Why |
+|---|---|
+| `docs/80-COMMAND-BOOK.md` | **every command, verbatim** -- bundle, push, Unity, gates, art pipeline |
+| `docs/82-replenish-phase.md` | the scheduled polish phase; cosmetic notes are parked there, not chased |
+| `HANDOFF.md` | current state in one page |
+| `.\scripts\Where-Am-I.ps1` | prints all of the above plus the live state of your copy |
+
+
 A mobile cybersecurity-awareness game for Android (Unity 6.3 LTS), inspired by the
 *document-inspection* genre (*Papers, Please*, *That's Not My Neighbor*) — but built to teach
 **real, transferable AI/phishing detection skills** to non-technical players.

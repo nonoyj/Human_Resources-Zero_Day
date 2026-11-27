@@ -1,6 +1,12 @@
 # HR//0D — working state
 
-**One page. If you read only one file, read this one.** Updated 2026-11-25 (bundle v77, commit `b86bbde`).
+**One page. If you read only one file, read this one.** Updated 2026-11-27 (bundle **v88**, commit `cc29be9`).
+
+> **Two files now outrank this one, and they exist because the player asked for them:**
+> `docs/80-COMMAND-BOOK.md` — **every command, verbatim** (bundle, push, Unity, gates, art pipeline).
+> `docs/82-replenish-phase.md` — the scheduled polish phase (art, overall look, animation) and the rule
+> that cosmetic problems are **parked and scheduled**, never allowed to stall the build.
+> `.\scripts\Where-Am-I.ps1` prints both, plus the live state of your copy.
 
 ---
 
@@ -25,7 +31,7 @@ the CRT → inspect artifacts → stamp → day summary → after-hours sweep.
 | Art + stub + layout gate | `.\scripts\Test-ArtPipeline.ps1` | OK |
 | Script health | `.\scripts\Test-Scripts.ps1` | healthy |
 | **Unity will compile** | `dotnet build tools\UnityStubs\CompileCheck.csproj` | succeeded |
-| **The COMMIT works** | `python3 tools\verify_fresh_clone.py` | PASS |
+| **The COMMIT works** | `python tools\verify_fresh_clone.py` | PASS |
 
 **Pushing.** `Apply-Bundle.ps1` rebuilds `.git` from `history.bundle` (fresh `git init`, refs moved by hand —
 that is what stopped BUG-021), so a bundle-installed copy has **no upstream**. `git pull`/`git push` then
