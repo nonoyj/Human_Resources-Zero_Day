@@ -336,6 +336,34 @@ try {
         }
     }
 
+    # ---------------------------------------------------------------------------------------------
+    # UNITY LEFT FILES BEHIND (v102, BUG-062).
+    #
+    # Every apply copies the bundle's tracked tree over whatever was there. Unity, having opened the
+    # project, leaves its own untracked files next to it: folder .meta files for directories it created,
+    # DefaultVolumeProfile.asset, and (until v98) all of Assets/Art's metas. Those are NOT the bundle's,
+    # and they made an apply end with "working tree not clean (105 entries)" on a machine that had only
+    # ever pressed Play. Reported as a dirty install; it was a leftover install.
+    #
+    # So: sweep untracked files under unity/ -- and only unity/, never the repo root, so a note the player
+    # left in the repo survives. Ignored paths (Library/, Temp/, Logs/) are untouched: `git clean` removes
+    # untracked AND not-ignored files, which is exactly the set that makes the tree look dirty.
+    # ---------------------------------------------------------------------------------------------
+    $unityDir = Join-Path $WorkingCopy 'unity'
+    if (Test-Path -LiteralPath $unityDir) {
+        $before = @((Git @('-C', $WorkingCopy, 'status', '--porcelain', '--', 'unity') -Quiet) -split "`n" |
+                    Where-Object { $_ -and $_.Trim() -and $_.Trim().StartsWith('??') })
+        if ($before.Count -gt 0) {
+            Git @('-C', $WorkingCopy, 'clean', '-fdq', '--', 'unity') | Out-Null
+            $after = @((Git @('-C', $WorkingCopy, 'status', '--porcelain', '--', 'unity') -Quiet) -split "`n" |
+                       Where-Object { $_ -and $_.Trim() -and $_.Trim().StartsWith('??') })
+            $swept = $before.Count - $after.Count
+            if ($swept -gt 0) { OK "swept $swept stray file(s) Unity left in unity/ (meta files, editor assets)" }
+            if ($after.Count -gt 0) { W "$($after.Count) untracked file(s) under unity/ survived the sweep" }
+        }
+    }
+
+
     if ($Clean) {
         # The bundle's file set is the truth. Anything left over from the previous version (a file
         # that existed under the old HEAD) shows up as untracked and was reported as
