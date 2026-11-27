@@ -126,12 +126,16 @@ try {
         $bad = @()
         Get-ChildItem (Join-Path $repo 'unity\Assets\Scripts') -Recurse -Filter *.cs | ForEach-Object {
             $text = Get-Content $_.FullName -Raw
+            # Match CODE, not commentary. The first version of this rule failed SweepView.cs because a
+            # comment explaining the rule ('never via GetComponent<MeshRenderer>()') sat within the
+            # window. A gate that fires on its own documentation teaches people to delete the docs.
+            $code = [regex]::Replace($text, '(?m)//.*$', '')
             # SpriteRenderer IS a Renderer: never ask it for a MeshRenderer.
-            if ($text -match '(?s)SpriteRenderer[^;]{0,80}GetComponent<MeshRenderer>') {
+            if ($code -match '(?s)SpriteRenderer[^;]{0,80}GetComponent<MeshRenderer>') {
                 $bad += "$($_.Name): asks a SpriteRenderer for its MeshRenderer (throws at Play)"
             }
             # TextMesh is NOT a Renderer: never set sortingOrder on it directly.
-            if ($text -match '(?m)^\s*\w*[Mm]esh\w*\.sortingOrder\s*=') {
+            if ($code -match '(?m)^\s*\w*[Mm]esh\w*\.sortingOrder\s*=') {
                 $bad += "$($_.Name): sets sortingOrder on a TextMesh (CS1061)"
             }
         }
