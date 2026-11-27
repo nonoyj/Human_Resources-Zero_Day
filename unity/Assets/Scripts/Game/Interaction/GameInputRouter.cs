@@ -95,6 +95,13 @@ namespace HRZeroDay.Game.Interaction
         /// 60x16 glasses band). The mapping is a pure function in HotspotHitTest, so it is tested.
         private void DispatchPointer(Vector2 screenPoint)
         {
+            // THE WALK TAKES A TAP LIKE IT TAKES SPACE (v97). The player's report was literal: "I tried
+            // clicking everything in the walk page but nothing responds." The strip says [SPACE] and it
+            // was the only way forward -- correct for a keyboard, hostile on a phone and non-obvious on a
+            // desktop. A tap anywhere on the page now turns it, which is what a page turn should always
+            // have been; the desk behind it is untouched while the walk is up.
+            if (bootstrap != null && bootstrap.ShowingSweep) { bootstrap.SweepAdvance(); return; }
+
             if (bootstrap == null || bootstrap.LetterOpen || bootstrap.ShowDebrief ||
                 bootstrap.ShowDaySummary || bootstrap.ShowEnding || bootstrap.ShowingSweep) return;
 

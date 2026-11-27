@@ -181,6 +181,97 @@ namespace HRZeroDay.Core.Rules
             return "SPACE WALK  [S] SHIFT  [X] DESK";
         }
 
+        /// <summary>
+        /// The strip's text box in STRIP-LOCAL px, y DOWN from the strip's top edge. This is the one place
+        /// that decides where the walk's two UI lines sit; SweepView turns it into the CRT raster's
+        /// y-UP GlassRect and tools/comp/preview_sweep.py mirrors the same two numbers.
+        ///
+        /// Two 7 px glyph rows and one 3 px gap is 17 px inside a 32 px strip, so 7 px above and 8 below.
+        /// </summary>
+        public static KeyBox KeyBandBox()
+        {
+            return new KeyBox
+            {
+                X = StripPadX,
+                Y = (StripH - (2 * MonitorGlyphH + MonitorLineGap)) / 2,      // 7
+                W = PageW - 2 * StripPadX,
+                H = 2 * MonitorGlyphH + MonitorLineGap                       // 17
+            };
+        }
+
+        /// <summary>A rectangle in art px with y pointing DOWN. Core must not name a Game assembly type.</summary>
+        public struct KeyBox { public int X, Y, W, H; }
+        /// <summary>
+        /// A caption row: which line, and the y of its glyph TOP, in the buffer it will be painted into.
+        ///
+        /// This exists because the walk page lays text out TOP-DOWN in page pixels, and every text bug in
+        /// this game so far has come from a view and its preview disagreeing about that. Core computes the
+        /// rows (it owns BandTextBox / KeyBandBox); the views only paint them.
+        /// </summary>
+        public struct TextRow
+        {
+            public string Text;
+            public int X;
+            public int Top;
+            public string Colour;
+        }
+
+        /// <summary>
+        /// The caption's rows, positioned inside a band that sits `bandTop` px down from the top of the
+        /// page. Empty strings keep their row of pitch (BandHeight counts them), which is what makes the
+        /// printed heading, the blank spacer and the two body lines land exactly on the band.
+        /// </summary>
+        public static List<TextRow> BandRows(IList<string> lines, IList<string> colours, int bandTop)
+        {
+            var rows = new List<TextRow>();
+            if (lines == null) return rows;
+            var box = BandTextBox(lines.Count);
+            for (int i = 0; i < lines.Count; i++)
+            {
+                rows.Add(new TextRow
+                {
+                    Text = lines[i] ?? string.Empty,
+                    X = BandX + box.X,
+                    Top = bandTop + box.Y + i * RowStep,
+                    Colour = colours != null && i < colours.Count ? colours[i] : "text"
+                });
+            }
+            return rows;
+        }
+
+        /// <summary>
+        /// The strip's two rows, positioned inside the page (not the strip): the prompt, then the player's
+        /// key line. Same contract as <see cref="BandRows"/> -- top-down, in page pixels.
+        /// </summary>
+        public static List<TextRow> StripRows(string keyLine, string hintLine)
+        {
+            var box = KeyBandBox();
+            return new List<TextRow>
+            {
+                new TextRow { Text = keyLine ?? string.Empty, X = box.X, Top = StripTop + box.Y, Colour = "signal" },
+                new TextRow { Text = hintLine ?? string.Empty, X = box.X,
+                              Top = StripTop + box.Y + RowStep, Colour = "textdim" }
+            };
+        }
+
+        /// <summary>
+        /// Where the caption's text block sits INSIDE the band, band-local, y DOWN from the band's top edge.
+        /// The block is `rows` lines at the font's own 10 px pitch (last line needs no gap), centred in the
+        /// band, so a two-line caption gets 7 px above and 8 below instead of sitting on the top pixel of
+        /// the border. Before v97 the composer passed PadX/PadY and a height of bandH - 2*PadY straight to
+        /// LinesToRects, which then laid the FIRST line at `glassTop - 7`: with a 40 px band that put the
+        /// heading 3 px BELOW the top border and the last line half outside the band's bottom --
+        /// the copy bled onto the room art and read as smear.
+        /// </summary>
+        public static KeyBox BandTextBox(int rows)
+        {
+            if (rows <= 0) return new KeyBox { X = BandX + PadX, Y = 0, W = TextW, H = 0 };
+            int blockH = rows * RowStep - MonitorLineGap;              // 10 per row, no gap after the last
+            int bandH = BandHeight(rows);
+            return new KeyBox { X = PadX, Y = (bandH - blockH) / 2, W = TextW, H = blockH };
+        }
+
+
         /// <summary>Wrap on words at `cols`. Same rule as LetterLayout.Wrap, which cannot be reused here
         /// because Core must not reference the Game assembly.</summary>
         public static List<string> Wrap(string text, int cols)

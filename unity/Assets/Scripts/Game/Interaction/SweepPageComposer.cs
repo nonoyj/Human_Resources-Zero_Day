@@ -65,26 +65,37 @@ namespace HRZeroDay.Game.Interaction
 
             if (glyphs != null && rows > 0)
             {
-                var specs = new List<MonitorScreen.LineSpec>();
-                for (int i = 0; i < rows; i++)
-                    specs.Add(new MonitorScreen.LineSpec { text = bandLines[i], colour = bandColours[i] });
-                var glass = new MonitorScreen.GlassRect
-                {
-                    x = SweepScript.PadX,
-                    y = SweepScript.PadY,
-                    w = bandW - 2 * SweepScript.PadX,
-                    h = bandH - 2 * SweepScript.PadY
-                };
-                var rects = MonitorScreen.LinesToRects(specs, glass);
-                // the band is its own little canvas: render it, then blit it where the band sits
+                // WHERE THE WORDS GO IS CORE'S DECISION (SweepScript.BandRows), in page pixels, y DOWN.
+                // This used to be handed to the CRT raster as a GlassRect, which lays a line against the
+                // BOTTOM of a box and SKIPS empty strings: with a heading, a spacer and two body lines the
+                // four rows lost one row of pitch and the last one landed on the band's bottom border --
+                // the "caption bleeding onto the room art" the player photographed. RenderRows paints each
+                // row from its top edge and keeps the spacer's pitch, so the band and the copy agree.
+                var specs = new List<string>();
+                var inks = new List<string>();
+                for (int i = 0; i < rows; i++) { specs.Add(bandLines[i]); inks.Add(bandColours[i]); }
+
                 var bandBuf = new UnityEngine.Color32[bandW * bandH];
                 for (int i = 0; i < bandBuf.Length; i++) bandBuf[i] = voidInk;
-                MonitorScreenRaster.Render(bandBuf, bandW, bandH, rects, glyphs, voidInk, false);
+
+                // the band is its own little canvas: band-local rows, clipped to the band's inside edge
+                var bandLocal = new List<MonitorScreenRaster.RasterRow>();
+                var coreRows = SweepScript.BandRows(specs, inks, 0);
+                for (int i = 0; i < coreRows.Count; i++)
+                    bandLocal.Add(new MonitorScreenRaster.RasterRow
+                    {
+                        text = coreRows[i].Text,
+                        x = coreRows[i].X - bandX,
+                        top = coreRows[i].Top,
+                        colour = coreRows[i].Colour
+                    });
+                MonitorScreenRaster.RenderRows(bandBuf, bandW, bandH, bandLocal, glyphs,
+                                               MonitorScreenRaster.RasterClip.Box(1, 1, bandW - 2, bandH - 2));
                 for (int y = 0; y < bandH && bandY + y < h; y++)
                     for (int x = 0; x < bandW && bandX + x < w; x++)
                     {
                         var c = bandBuf[y * bandW + x];
-                        if (c.r == voidInk.r && c.g == voidInk.g && c.b == voidInk.b) continue;  // band fill
+                        if (c.r == voidInk.r && c.g == voidInk.g && c.b == voidInk.b) continue;  // band fill / border
                         buf[(bandY + y) * w + bandX + x] = c;
                     }
             }

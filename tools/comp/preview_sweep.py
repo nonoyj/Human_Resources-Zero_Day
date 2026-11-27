@@ -37,14 +37,17 @@ PAGE_W, PAGE_H = 480, 270
 # mirror of SweepScript: the bottom 32 px is ONE strip of readable text -- the prompt on top,
 # the player's key hints underneath. The neon cap art is retired (BUG-055).
 STRIP_H, STRIP_TOP = 32, 270 - 32
-KEY_BAND_H, KEY_BAND_TOP = 15, STRIP_TOP
-HINT_TOP = KEY_BAND_TOP + KEY_BAND_H
+# mirror of SweepScript.KeyBandBox(): two 7 px rows + one 3 px gap = 17 px, 7 px down from the strip top
+KEY_BOX_TOP = (STRIP_H - (2 * GLYPH_H + LINE_GAP)) // 2      # 7
+KEY_BAND_TOP = STRIP_TOP + KEY_BOX_TOP
+HINT_TOP = KEY_BAND_TOP + GLYPH_H + LINE_GAP
 HINT_LINE = 'SPACE WALK  [S] SHIFT  [X] DESK'
 # the caption band: a solid 'void' bar behind the words, because the room art is busy and the walk's
 # text is the only thing that must never be hard to read. Same numbers as SweepScript.cs.
 BAND_X, BAND_TOP, BAND_W = 8, 14, 464
 ROW_STEP = GLYPH_H + LINE_GAP
 PAD_X, PAD_Y = 8, 6
+STRIP_PAD_X = 6
 TEXT_X, TEXT_TOP = BAND_X + PAD_X, BAND_TOP + PAD_Y
 TEXT_W = BAND_W - 2 * PAD_X
 COLS = (TEXT_W + LETTER_GAP) // (GLYPH_W + LETTER_GAP)          # 64
@@ -185,20 +188,23 @@ def render_page(page, index, count, pal, atlas, rects):
     d.rectangle([BAND_X, BAND_TOP, BAND_X + BAND_W - 1, BAND_TOP + band_h - 1], fill=pal['void'])
     d.rectangle([BAND_X, BAND_TOP, BAND_X + BAND_W - 1, BAND_TOP + band_h - 1], outline=pal['line'])
 
-    y = TEXT_TOP
+    # mirror of SweepScript.BandTextBox(): the block is `rows` lines at the font's 10 px pitch, centred
+    # in the band. Before v97 the first line sat at TEXT_TOP and the last one fell outside the band.
+    block_h = len(lines) * ROW_STEP - LINE_GAP
+    y = BAND_TOP + (band_h - block_h) // 2
     for i, text in enumerate(lines):
         if not text:
-            y += GLYPH_H + LINE_GAP
+            y += ROW_STEP
             continue
         draw_text(img, rects, atlas, pal, TEXT_X, y, text, 'warn' if i == 0 else 'textdim')
-        y += GLYPH_H + LINE_GAP
+        y += ROW_STEP
 
     # the neon caps are decoration along the very bottom; the WORDS sit on the black band above them,
     # never on top of a cap (first draft drew the prompt straight across them -- unreadable).
     # the strip: one bar, two lines of readable text, drawn from the same atlas as the copy above it
     d.rectangle([0, STRIP_TOP, PAGE_W - 1, PAGE_H - 1], fill=pal['void'], outline=pal['line'])
-    draw_text(img, rects, atlas, pal, TEXT_X, KEY_BAND_TOP + 4, key_line(page, index, count), 'signal')
-    draw_text(img, rects, atlas, pal, TEXT_X, HINT_TOP + 2, HINT_LINE, 'textdim')
+    draw_text(img, rects, atlas, pal, STRIP_PAD_X, KEY_BAND_TOP, key_line(page, index, count), 'signal')
+    draw_text(img, rects, atlas, pal, STRIP_PAD_X, HINT_TOP, HINT_LINE, 'textdim')
     return img
 
 

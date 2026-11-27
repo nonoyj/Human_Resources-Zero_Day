@@ -178,11 +178,11 @@ namespace HRZeroDay.Game.Interaction
                     "sweep background not found at Resources/Art/Kit/" + page.BackgroundKey +
                     ". It ships in art/kit/sweep/ -- run: python tools/art/publish_to_unity.py");
 
-            _background.sprite = sprite;
-            // the page is 480x270 art px = 30 x 16.875 units; the sprite pivot is its centre
-            _background.transform.localPosition = PageTransform.CanvasToWorld(SweepScript.PageW * 0.5f,
-                                                                             SweepScript.PageH * 0.5f, Ppu);
-
+            // WHERE THE PAGE DRAWS (v97). The sprite and the position are set in ONE place, Repaint(),
+            // which composes the page texture and binds it with the centre pivot it was created with.
+            // This method used to set both for the floor ART, and Repaint then replaced the sprite with
+            // the composed page -- so the art decided the placement and the page inherited it by luck.
+            // The art sprite is what Repaint reads PIXELS from; it is not what gets drawn.
             RepaintKeyLine(page);
             Repaint(page, sprite);
             _fadeT = 0f;                 // black card in, then out: the page change reads as a change
@@ -198,21 +198,38 @@ namespace HRZeroDay.Game.Interaction
             if (_stripTex == null || _glyphs == null) return;
             int w = _stripTex.width, h = _stripTex.height;
             var fill = Colour("void", new Color32(11, 14, 19, 255));
+            var border = Colour("line", new Color32(43, 58, 77, 255));
             var buf = new Color32[w * h];
             for (int i = 0; i < buf.Length; i++) buf[i] = fill;
+            for (int x = 0; x < w; x++) buf[x] = border;      // strip-local row 0 = the strip's top edge
 
             // Line 1: the page prompt (signal ink -- it is the only UI on the page).
             // Line 2: the player's key line (dim ink -- present on every page so they never have to
             // remember it, quiet enough not to compete with the prompt).
-            var lines = new List<string>
-            {
-                SweepScript.KeyLine(page, _index, _pages.Count),
-                SweepScript.HintLine()
-            };
-            var colours = new List<string> { "signal", "textdim" };
-            var painted = TextPanel.Paint(w, h, lines, colours, _glyphs, fill,
-                                          Colour("line", new Color32(43, 58, 77, 255)));
-            for (int i = 0; i < buf.Length; i++) buf[i] = painted[i];
+            //
+            // TOP-DOWN, FROM CORE'S ROWS (v97). This used TextPanel.Paint, whose rows start 6 px down and
+            // whose pitch is hard-coded for a callout card; it then went through the CRT raster, which lays
+            // a line against the BOTTOM of a box. The strip now paints the two rows SweepScript.StripRows
+            // publishes, in strip-local coordinates, so the view, the tests and the Python twin all read
+            // the same two numbers.
+            var rows = SweepScript.StripRows(SweepScript.KeyLine(page, _index, _pages.Count),
+                                             SweepScript.HintLine());
+            var local = new List<MonitorScreenRaster.RasterRow>();
+            for (int i = 0; i < rows.Count; i++)
+                local.Add(new MonitorScreenRaster.RasterRow
+                {
+                    text = rows[i].Text,
+                    x = rows[i].X,
+                    top = rows[i].Top - SweepScript.StripTop,
+                    colour = rows[i].Colour
+                });
+
+            int painted = MonitorScreenRaster.RenderRows(buf, w, h, local, _glyphs,
+                                                         MonitorScreenRaster.RasterClip.Box(1, 1, w - 2, h - 1));
+            if (painted == 0)
+                Debug.LogError("SweepView: the key strip painted no glyphs for '" +
+                               rows[0].Text + "' / '" + rows[1].Text + "'. The walk's only UI would be a " +
+                               "blank bar -- check Resources/fonts/monitor_font_5x7 (json + png).");
 
             MonitorScreenRaster.FlipToTextureOrder(buf, w, h);
             _stripTex.SetPixels32(buf);
@@ -255,6 +272,12 @@ namespace HRZeroDay.Game.Interaction
             MonitorScreenRaster.FlipToTextureOrder(buf, W, H);
             _pageTex.SetPixels32(buf);
             _pageTex.Apply(false);
+
+            // The composed page is what draws: bind it to the ONE page layer, with the centre pivot it
+            // was created with. (Build already made this sprite; re-creating it here keeps a reload of
+            // the art from leaving a stale sprite on screen.)
+            _background.sprite = Sprite.Create(_pageTex, new Rect(0, 0, W, H), new Vector2(0.5f, 0.5f), Ppu);
+            _background.transform.localPosition = PageTransform.CanvasToWorld(W * 0.5f, H * 0.5f, Ppu);
 
             // A blank walk page was the player's report on 2026-11-27 and it had no exception behind it.
             // If the composed page is one flat colour, say so loudly rather than showing a black card.

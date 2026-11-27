@@ -1015,6 +1015,44 @@ on the drawn rect. A gate rule fails the build if inline `rect[...] * 0.5f` math
 runtime by hand; when it failed I could not tell which copy was wrong. Making both call one function is
 what turned "9 of 9 unclickable" into a two-line fix.
 
+## BUG-057 -- the walk page was placed by the wrong sprite, and its copy was laid out by the wrong raster (2026-11-27)
+
+Player, after v96: *"I tried clicking everything in the walk page but nothing responds"* and *"I confirm a
+blank flash. After a blank flash it goes to a room with 3 or 4 doors, one of them looks opened."* Both
+screenshots matched `art/kit/sweep/sweep_corridor_480x270.png` exactly -- the corridor page, full-bleed,
+with no caption band, no key strip, no fade and no HUD.
+
+Three separate faults, one class: **the view painted through code that had been written for another
+screen.**
+
+1. **The page was never painted onto the layer.** `SweepView.Show()` set `_background.sprite` to the
+   floor ART and then called `Repaint()`. `Repaint()` composed the correct page into `_pageTex` and
+   uploaded it -- and never bound it. `Build()` had bound a page sprite at startup, and `Show()` replaced
+   it with the art. So the player saw: (a) the bare floor art, (b) then the correct composed page once
+   the caption was painted for that page -- which is exactly the "blank flash, then a room I cannot
+   interact with" they described. The composed page is now bound in `Repaint()`, in the same statement
+   that sets its position, and `Show()` no longer touches the sprite.
+2. **The strip and the caption were laid out through the CRT's raster.** `MonitorScreenRaster.Render`
+   places a line against the BOTTOM of a `GlassRect` and SKIPS empty strings. The walk's caption is
+   `heading, "", body...` and its band height counts the empty row, so every page lost one 10 px of pitch
+   and its last line landed on the band's border and the room art. The strip had the same treatment via
+   `TextPanel.Paint`'s hard-coded row 6. Both now paint rows that **Core publishes**: `BandRows()` /
+   `StripRows()` give each line its glyph-TOP in page pixels, and `RenderRows()` paints top-down with an
+   explicit clip. The CRT and the letter keep `Render()` untouched.
+3. **The walk was tinted as room art.** `RoomLighting` multiplies every `SpriteRenderer` by the daylight
+   stop, and by midnight that is ~0.65 per channel. The walk page -- the one screen in the game that is
+   *read* -- was dimmed while it was being read. `SweepView` and `HR_Hud` are now in `NeverTint`.
+
+**Tests that would have caught all three** (added this round, `TextLayoutTests`): the caption test now
+drives the real `Sweep.AfterShift -> SweepScript.Build -> SweepPageComposer` path for corruption 0..3 and
+asserts where the ink actually lands inside the band (7 pages); the strip test paints through
+`StripRows()` + `RenderRows()` and asserts both lines render in full inside `KeyBandBox()` and no ink
+outside it. The old tests passed because they painted with the same wrong routine as the view.
+
+**Class of bug:** *a preview that mirrors the view by hand instead of through the view's own functions.*
+`tools/comp/preview_sweep.py` showed a perfect page the whole time; it agreed with Core and disagreed with
+the game.
+
 # PARKED FOR REPLENISH
 
 Added 2026-11-27 with `docs/82-replenish-phase.md`. A parked item is **not** forgotten and **not** fixed

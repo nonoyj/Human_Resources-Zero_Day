@@ -36,7 +36,7 @@ namespace HRZeroDay.Tests
             yield return CheckTextPanelKeepsInkInsideItsBorder();
             yield return CheckCalloutCopyRenders();
             yield return CheckWalkStripCopyRenders();
-            yield return CheckWalkCaptionRendersAtTheTopOfItsBand();
+            yield return CheckWalkCaptionSitsInsideItsBand();
             yield return CheckComposedPageHasArtBandAndStrip();
         }
 
@@ -213,10 +213,11 @@ namespace HRZeroDay.Tests
             };
             var bandColours = new List<string> { "warn", "text", "textdim", "textdim" };
 
-            // the strip: two lines of copy, painted on void, exactly as SweepView paints it
-            var strip = TextPanel.Paint(w, SweepScript.StripH,
-                                        new List<string> { "[WALK 1/3]   [SPACE] WALK ON", "SPACE WALK  [S] SHIFT  [X] DESK" },
-                                        new List<string> { "signal", "textdim" }, glyphs, voidInk, lineInk);
+            // the strip: two lines of copy on void, painted exactly as SweepView paints it (Core's rows +
+            // the top-down raster), then flipped for the texture
+            var strip = StripAsTheViewPaintsIt(glyphs,
+                new[] { "[WALK 1/3]   [SPACE] WALK ON", "SPACE WALK  [S] SHIFT  [X] DESK" });
+            MonitorScreenRaster.FlipToTextureOrder(strip, w, SweepScript.StripH);
 
             var page = SweepPageComposer.Compose(art, w, h, bandLines, bandColours, strip,
                                                  SweepScript.StripTop, glyphs, voidInk, lineInk);
@@ -324,21 +325,142 @@ namespace HRZeroDay.Tests
             return "PASS  the walk's caption starts at the top of its band and stays inside it";
         }
 
+        /// <summary>
+        /// THE STRIP, THROUGH THE CODE THE VIEW ACTUALLY RUNS (v97).
+        ///
+        /// This test used to paint the strip with TextPanel.Paint at rows 6 and 16 -- a copy of the view
+        /// that had drifted from it, and it hid a real defect behind that copy. The view now paints the
+        /// rows Core publishes (SweepScript.StripRows) with the top-down raster (RenderRows), so the test
+        /// does the same: if either line stops fitting, or ink leaves its box, this fails here instead of
+        /// in the player's hands.
+        /// </summary>
         private static string CheckWalkStripCopyRenders()
         {
-            // The strip: prompt + hint line, in a 480x32 texture, painted the way SweepView paints it.
             var glyphs = RealAtlas();
-            var lines = new List<string> { "[WALK 1/3]   [SPACE] WALK ON", "SPACE WALK  [S] SHIFT  [X] DESK" };
-            var buf = TextPanel.Paint(480, 32, lines, new List<string> { "signal", "textdim" }, glyphs,
-                                      Fill["void"], Fill["line"]);
-            int[] tops = { 6, 6 + MonitorScreen.GlyphH + MonitorScreen.LineGap };
-            for (int li = 0; li < lines.Count; li++)
+            int w = SweepScript.PageW, h = SweepScript.StripH;
+            var page = new HRZeroDay.Core.Rules.SweepPage { Floor = "lift", Heading = "LIFT - LOCKED IN", IsLast = true };
+            var lines = new string[]
             {
-                int inked = InkedCells(buf, 480, tops[li], 8, lines[li]);
-                True(inked >= (int)(NonSpace(lines[li]) * 0.9),
-                     "the walk strip drew " + inked + " of " + NonSpace(lines[li]) + " glyphs on line " + li);
+                SweepScript.KeyLine(page, 2, 3),
+                SweepScript.HintLine()
+            };
+
+            var buf = StripAsTheViewPaintsIt(glyphs, lines);
+
+            var box = SweepScript.KeyBandBox();
+            for (int li = 0; li < lines.Length; li++)
+            {
+                int top = box.Y + li * SweepScript.RowStep;
+                int inked = InkedCells(buf, w, top, box.X, lines[li]);
+                True(inked >= NonSpace(lines[li]),
+                     "the walk strip drew " + inked + " of " + NonSpace(lines[li]) + " glyph boxes on line " +
+                     li + " ('" + lines[li] + "')");
             }
-            return "PASS  the walk's prompt and key line both render in full";
+
+            // and nothing bleeds outside the key box: the strip holds one prompt and one key line, both
+            // inside SweepScript.KeyBandBox(), with the border row left clear at the top
+            for (int y = 1; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    if (!Ink(buf, w, x, y)) continue;
+                    True(y >= box.Y && y < box.Y + box.H,
+                         "strip ink at row " + y + ", outside the key box " + box.Y + ".." +
+                         (box.Y + box.H - 1) + " -- the copy is not where SweepScript says it is");
+                }
+            return "PASS  the walk's prompt and key line both render in full, inside the strip's own box";
+        }
+
+        /// <summary>The 480x32 strip, composed exactly as SweepView.RepaintKeyLine composes it.</summary>
+        private static Color32[] StripAsTheViewPaintsIt(IGlyphSource glyphs, string[] lines)
+        {
+            int w = SweepScript.PageW, h = SweepScript.StripH;
+            var buf = new Color32[w * h];
+            for (int i = 0; i < buf.Length; i++) buf[i] = Palette["void"];
+            for (int x = 0; x < w; x++) buf[x] = Palette["line"];
+
+            var rows = SweepScript.StripRows(lines[0], lines[1]);
+            var local = new List<MonitorScreenRaster.RasterRow>();
+            for (int i = 0; i < rows.Count; i++)
+                local.Add(new MonitorScreenRaster.RasterRow
+                {
+                    text = rows[i].Text,
+                    x = rows[i].X,
+                    top = rows[i].Top - SweepScript.StripTop,
+                    colour = rows[i].Colour
+                });
+            MonitorScreenRaster.RenderRows(buf, w, h, local, glyphs,
+                                           MonitorScreenRaster.RasterClip.Box(1, 1, w - 2, h - 1));
+            return buf;          // raster order (row 0 = the strip's top), before the texture flip
+        }
+
+        /// <summary>
+        /// The caption sits INSIDE its band, on every page the walk can actually build.
+        ///
+        /// v97 fixed the composer: it had laid the caption out through the CRT's bottom-anchored glass rect,
+        /// which skips empty strings, so on a page with a heading / spacer / two body lines the rows lost
+        /// one 10 px of pitch and the last line landed on the band's bottom border and the room art below
+        /// it. This drives the real rule (Sweep.AfterShift -> SweepScript.Build -> SweepPageComposer) and
+        /// measures where the ink actually lands.
+        /// </summary>
+        private static string CheckWalkCaptionSitsInsideItsBand()
+        {
+            var glyphs = RealAtlas();
+            int w = SweepScript.PageW, h = SweepScript.PageH;
+            var voidInk = Palette["void"];
+            var lineInk = Palette["line"];
+
+            int pagesChecked = 0;
+            for (int corruption = 0; corruption <= 3; corruption++)
+            {
+                var pages = HRZeroDay.Core.Rules.SweepScript.Build(
+                    HRZeroDay.Core.Rules.Sweep.AfterShift(corruption, null));
+                True(pages.Count > 0, "corruption " + corruption + " produced no walk pages");
+                for (int pi = 0; pi < pages.Count; pi++)
+                {
+                    var page = pages[pi];
+                    var bandLines = new List<string> { page.Heading, string.Empty };
+                    var bandColours = new List<string> { "warn", "text" };
+                    for (int i = 0; i < page.Lines.Count && bandLines.Count < SweepScript.MaxRows; i++)
+                    {
+                        bandLines.Add(page.Lines[i]);
+                        bandColours.Add("textdim");
+                    }
+
+                    // art = null: the band's own fill is void, so every lit pixel measured below is a
+                    // glyph, not the room behind it
+                    var composed = SweepPageComposer.Compose(null, w, h, bandLines, bandColours,
+                                                             null, SweepScript.StripTop, glyphs,
+                                                             voidInk, lineInk);
+                    var box = SweepScript.BandTextBox(bandLines.Count);
+                    int bandH = SweepScript.BandHeight(bandLines.Count);
+                    int bandTop = SweepScript.BandTop;
+
+                    int first = -1, last = -1;
+                    for (int y = bandTop + 1; y < bandTop + bandH - 1; y++)   // inside the 1 px frame
+                    {
+                        bool any = false;
+                        // inside the border only: the 1 px 'line' frame is not text
+                        for (int x = SweepScript.BandX + 1; x < SweepScript.BandX + SweepScript.BandW - 1 && !any; x++)
+                            if (Ink(composed, w, x, y)) any = true;
+                        if (any) { if (first < 0) first = y; last = y; }
+                    }
+                    True(first >= 0, "'" + page.Floor + "' caption painted no words at all");
+
+                    int wantFirst = bandTop + box.Y;
+                    int wantLast = bandTop + box.Y + box.H - 1;
+                    True(first == wantFirst,
+                         "'" + page.Floor + "' caption starts at row " + first + ", not " + wantFirst +
+                         " -- the words float inside their bar");
+                    True(last <= wantLast,
+                         "'" + page.Floor + "' caption runs to row " + last + ", past its box (" + wantLast +
+                         ") -- it is bleeding onto the room art");
+                    True(last <= bandTop + bandH - 2,
+                         "'" + page.Floor + "' caption touches the band's bottom border (row " + last + ")");
+                    pagesChecked++;
+                }
+            }
+            True(pagesChecked >= 4, "expected several walk pages to check, saw " + pagesChecked);
+            return "PASS  every walk caption starts and ends inside its band (" + pagesChecked + " pages)";
         }
     }
 }

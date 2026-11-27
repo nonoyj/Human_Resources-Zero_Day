@@ -13,27 +13,28 @@ Read the bar like this: `[##........]` — done / total, so a glance says how mu
 |---|---|---|---|
 | P1 | **Vertical slice** — desk art, applicant, CRT, letter, stamp, day summary | `[########..]` 8/10 | playable end to end |
 | P2 | **The loops** — 5-day run, scoring, reasons, trust, corruption | `[######....]` 6/10 | one day is solid; the five-day arc and endings are thin |
-| P3 | **The after-hours sweep** — walk, traces, pages, key strip | `[########..]` 8/10 | built and tested; **placement bugs being fixed now** |
+| P3 | **The after-hours sweep** — walk, traces, pages, key strip | `[##########]` 10/10 | **done in v97** (`docs/90` BUG-057) |
 | P4 | **Save, resume, audio, endings, intro** | `[###.......]` 3/10 | save exists and round-trips; audio 0, endings 0, intro 0 |
 | P5 | **Replenish** — art sweep, look, animation feel (`docs/82`) | `[..........]` 0/8 | **scheduled, not started** |
 | P6 | **Ship** — Android build, QA matrix, store assets | `[..........]` 0/8 | not started |
 
 **The honest headline: the game is playable and correct; it is not yet finished and not yet pretty.**
-Roughly 45 % of the work is behind us, and the remaining 55 % is mostly *breadth* (endings, audio, intro,
+Roughly 47 % of the work is behind us, and the remaining 55 % is mostly *breadth* (endings, audio, intro,
 ship) rather than new mechanics.
 
 ---
 
 ## What phase are we in *this week*
 
-**P1 → P2, with P3's placement bugs being closed.** Concretely, in order:
+**P1 → P2, with P3 CLOSED.** Concretely, in order:
 
 1. ✅ the desk boots and plays in an empty scene
 2. ✅ 9 hotspots that look clickable and respond where they are drawn
 3. ✅ the read-out, the letter, the stamp, the day summary
 4. ✅ the after-hours walk with copy on its own band
-5. ⬜ **the walk's page placement is correct** — *this round (v90)*
-6. ⬜ the stamp + reason loop is the teaching mechanism (it currently stamps, but the reason list is short)
+5. ✅ **the walk's page placement is correct** — closed in **v97** (BUG-057): the composed page is what
+   draws, its copy is laid out by Core's own rows, and the walk is no longer tinted by the daylight
+6. ⬜ the stamp + reason loop is the teaching mechanism (it stamps, but the reason list is short)
 7. ⬜ a 5-day run with an ending
 8. ⬜ audio hooks
 9. ⬜ Android build
@@ -43,9 +44,9 @@ ship) rather than new mechanics.
 
 | Round | Subject | Ends with |
 |---|---|---|
-| v90 (this one) | **placement**: walk band, read-out size, HUD block, apply `-Clean` | you can play a day and the screens sit where they belong |
-| v91 | **the five-day arc**: day advance, trust effects, one ending | a run that ends |
-| v92 | **audio + intro** (or the ending cards, whichever you pick first) | it sounds like a game |
+| v97 (this one) | **the walk draws** — one page texture, Core's rows, no tint, a bracket instead of a panel | you press SPACE and the page changes |
+| v98 | **the five-day arc**: day advance, trust effects, one ending | a run that ends |
+| v99 | **the ending cards, then audio** | it sounds like a game |
 
 ---
 

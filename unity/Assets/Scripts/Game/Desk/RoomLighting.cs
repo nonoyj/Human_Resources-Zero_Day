@@ -17,7 +17,17 @@ namespace HRZeroDay.Game
         public const string RootName = "RoomLighting";
 
         /// <summary>Layers that must never be dimmed: the CRT and the paperwork.</summary>
-        private static readonly string[] NeverTint = { "L_monitor", "MonitorScreen", "LetterRoot" };
+        // Anything that must keep its authored colour at midnight. The walk's page is the game's last
+        // screen and it is READ, not looked at: tinting it as room art made the caption dimmer than the
+        // room it was describing (Night multiplies every channel by ~0.65), which is the "everything went
+        // dark and unreadable" half of the walk reports. Names, not layers: these are built at runtime by
+        // SweepView and GameHud, so they cannot be listed in desk_layout.json.
+        private static readonly string[] NeverTint =
+        {
+            "L_monitor", "MonitorScreen", "LetterRoot",
+            "SweepView",        // the after-hours walk: page, caption band, key strip, fade card
+            "HR_Hud"            // the HUD's text and backing panel
+        };
 
         public Sprite[] stages;          // L0 (day), L1 (dusk), L2 (night); optional
         public SpriteRenderer roomLayer; // the L_background renderer to swap

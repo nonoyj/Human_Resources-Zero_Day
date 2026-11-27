@@ -106,6 +106,80 @@ namespace HRZeroDay.Game
             }
         }
 
+        // ---------------------------------------------------------------------------------------------
+        // TOP-DOWN ROWS: the walk page's model.
+        //
+        // Render() above serves the CRT glass and the letter, where a rect is placed against the BOTTOM of
+        // a box and empty strings are skipped. The walk page needs the opposite: every row is placed by its
+        // TOP edge in PAGE pixels (row 0 = the top of the page), and an empty string is a row of air that
+        // still takes its 10 px of pitch -- SweepScript.BandHeight counts it, so the painter must too.
+        //
+        // Two models of "where is a line" is exactly the class of bug that produced the half-erased callout
+        // and the caption that bled onto the room art, so this one is explicit: no y-flip, no glass edge,
+        // no skipping. The caller says `top`, and that is where the glyph's top row goes.
+        // ---------------------------------------------------------------------------------------------
+
+        /// <summary>One line placed by its top-left corner, y DOWN from the buffer's top (PNG order).</summary>
+        public struct RasterRow
+        {
+            public string text;
+            public int x;
+            public int top;
+            public string colour;
+        }
+
+        /// <summary>An inclusive-exclusive pixel box a row may not paint outside of (buffer coords, y down).</summary>
+        public struct RasterClip
+        {
+            public int X0, Y0, X1, Y1;
+            public static RasterClip Full(int w, int h) { return new RasterClip { X0 = 0, Y0 = 0, X1 = w, Y1 = h }; }
+            public static RasterClip Box(int x, int y, int w, int h)
+            {
+                return new RasterClip { X0 = x, Y0 = y, X1 = x + w, Y1 = y + h };
+            }
+            public bool Contains(int x, int y) { return x >= X0 && x < X1 && y >= Y0 && y < Y1; }
+        }
+
+        /// <summary>
+        /// Paints `rows` into `buffer` (w x h, row 0 = TOP), clipped to `clip`. Returns the number of glyph
+        /// pixels that landed -- 0 means the caller asked for text and got nothing, which the views log.
+        /// </summary>
+        public static int RenderRows(Color32[] buffer, int w, int h, IList<RasterRow> rows,
+                                     IGlyphSource glyphs, RasterClip clip)
+        {
+            if (buffer == null || glyphs == null || rows == null) return 0;
+            if (buffer.Length < w * h) throw new ArgumentException("buffer too small for " + w + "x" + h);
+
+            int painted = 0;
+            for (int li = 0; li < rows.Count; li++)
+            {
+                var row = rows[li];
+                if (string.IsNullOrEmpty(row.text)) continue;      // a row of air: nothing to paint
+                Color32 ink = glyphs.Colour(row.colour);
+                int penX = row.x;
+                for (int ci = 0; ci < row.text.Length; ci++)
+                {
+                    char ch = row.text[ci];
+                    for (int gy = 0; gy < MonitorScreen.GlyphH; gy++)
+                    {
+                        int ty = row.top + gy;
+                        if (ty < 0 || ty >= h) continue;
+                        for (int gx = 0; gx < MonitorScreen.GlyphW; gx++)
+                        {
+                            int tx = penX + gx;
+                            if (tx < 0 || tx >= w) continue;
+                            if (!clip.Contains(tx, ty)) continue;
+                            if (!glyphs.InkAt(ch, gx, gy)) continue;
+                            buffer[ty * w + tx] = ink;
+                            painted++;
+                        }
+                    }
+                    penX += MonitorScreen.GlyphW + MonitorScreen.LetterGap;
+                }
+            }
+            return painted;
+        }
+
         /// <summary>Count of pixels that are not the background -- used by tests and the editor menu.</summary>
         public static int InkPixelCount(Color32[] buffer, Color32 background)
         {

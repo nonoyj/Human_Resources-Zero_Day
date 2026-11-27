@@ -81,15 +81,31 @@ namespace HRZeroDay.Game.Interaction
 
         public void ShowMagnifier(Rect canvasRect, string label, string wording)
         {
+            // A BRACKET, NOT A SHEET (v97). This used to scale ui/panel_active_9slice.png by the hotspot
+            // rect times `zoom` and tint it 80 % opaque: a 9-slice stretched as a ring is forbidden in this
+            // project (docs/15), and on screen it was a large translucent teal-bordered rectangle lying
+            // over the desk -- the player's "big panel I cannot get rid of". A bracket drawn from four
+            // solid 1 px bars hugs the thing being inspected, shows the player what their tap hit, and
+            // cannot be mistaken for a card.
             if (magnifierRing != null)
             {
-                magnifierRing.gameObject.SetActive(true);
-                magnifierRing.position = World(canvasRect.center);
-                float w = canvasRect.width * zoom / pixelsPerUnit;
-                float h = canvasRect.height * zoom / pixelsPerUnit;
-                magnifierRing.localScale = new Vector3(w, h, 1f);
+                magnifierRing.gameObject.SetActive(false);      // the old 9-slice, if a scene still has one
             }
+            ShowBracket(canvasRect);
             ShowText(label, wording);
+        }
+
+        /// <summary>
+        /// Places the four bars of the inspection bracket around `canvasRect` (canvas px, y up).
+        /// Inflated 3 px so the bracket never sits on top of the detail it is pointing at.
+        /// </summary>
+        private void ShowBracket(Rect canvasRect)
+        {
+            if (_bracket == null) _bracket = Bracket.Build(transform);
+            if (_bracket == null) return;
+            float x0 = canvasRect.xMin - 3f, y0 = canvasRect.yMin - 3f;
+            float w = canvasRect.width + 6f, h = canvasRect.height + 6f;
+            _bracket.Show(x0, y0, w, h, pixelsPerUnit, Colour("signal", new Color32(90, 255, 200, 255)));
         }
 
         public void ShowCallout(Rect canvasRect, string label, string wording)
@@ -101,7 +117,15 @@ namespace HRZeroDay.Game.Interaction
         public void Hide()
         {
             if (magnifierRing != null) magnifierRing.gameObject.SetActive(false);
+            if (_bracket != null) _bracket.Hide();
             if (callout != null) callout.gameObject.SetActive(false);
+        }
+
+        private Bracket _bracket;
+
+        private Color32 Colour(string key, Color32 fallback)
+        {
+            return TextPanel.Ink(_palette, key, fallback);
         }
 
         /// <summary>The footprint of the panel in canvas px -- the router uses it to close on a tap inside.</summary>
@@ -224,6 +248,68 @@ namespace HRZeroDay.Game.Interaction
         private void OnDisable()
         {
             Hide();
+        }
+
+        /// <summary>
+        /// Four 1 px bars forming a square bracket around an artifact. Built from a single solid sprite, so
+        /// there is no 9-slice to stretch and no art to import; it exists because the player needs to SEE
+        /// what their tap hit before they can trust the desk.
+        /// </summary>
+        private sealed class Bracket
+        {
+            private SpriteRenderer[] _bars;
+            private GameObject _root;
+            private Sprite _solid;
+            private const float ThicknessPx = 1f;
+
+            public static Bracket Build(Transform parent)
+            {
+                var go = new GameObject("InspectBracket");
+                go.transform.SetParent(parent, false);
+                var b = new Bracket();
+                b._root = go;
+                var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+                tex.SetPixels32(new[] { new Color32(255, 255, 255, 255) });
+                tex.Apply(false, false);
+                b._solid = Sprite.Create(tex, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f), 1f);
+                b._bars = new SpriteRenderer[4];
+                string[] names = { "Top", "Bottom", "Left", "Right" };
+                for (int i = 0; i < 4; i++)
+                {
+                    var bar = new GameObject(names[i]);
+                    bar.transform.SetParent(go.transform, false);
+                    var sr = bar.AddComponent<SpriteRenderer>();
+                    sr.sprite = b._solid;
+                    sr.sortingOrder = 59;          // under the callout card (60), over the desk art
+                    b._bars[i] = sr;
+                }
+                go.SetActive(false);
+                return b;
+            }
+
+            /// <summary>`x0,y0` is the bracket's bottom-left in canvas px, y up.</summary>
+            public void Show(float x0, float y0, float w, float h, float ppu, Color32 ink)
+            {
+                if (_root != null) _root.SetActive(true);
+                float t = ThicknessPx;
+                Place(0, x0, y0 + h - t, w, t, ppu, ink);        // top
+                Place(1, x0, y0, w, t, ppu, ink);                // bottom
+                Place(2, x0, y0, t, h, ppu, ink);                // left
+                Place(3, x0 + w - t, y0, t, h, ppu, ink);        // right
+            }
+
+            private void Place(int i, float x, float y, float w, float h, float ppu, Color32 ink)
+            {
+                var sr = _bars[i];
+                sr.color = new Color32(ink.r, ink.g, ink.b, 235);
+                sr.transform.localScale = new Vector3(w / ppu, h / ppu, 1f);   // 1 px sprite at ppu = 1/ppu units
+                sr.transform.localPosition = PageTransform.CanvasToWorld(x + w * 0.5f, y + h * 0.5f, ppu);
+            }
+
+            public void Hide()
+            {
+                if (_root != null) _root.SetActive(false);
+            }
         }
     }
 }
