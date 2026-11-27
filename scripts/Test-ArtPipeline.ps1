@@ -158,6 +158,26 @@ try {
             } else { OK 'TextMesh stub has no renderer members' }
         }
 
+    S 'hotspot placement uses the shared maths (no second copy of the scale arithmetic)'
+        $builders = @(
+            (Join-Path $repo 'unity\Assets\Scripts\Game\Interaction\DeskRuntimeScene.cs'),
+            (Join-Path $repo 'unity\Assets\Scripts\Game\Input\GameInputRouter.cs'),
+            (Join-Path $repo 'unity\Assets\Scripts\Game\Interaction\GameInputRouter.cs')
+        ) | Where-Object { Test-Path -LiteralPath $_ }
+        $bad = @()
+        foreach ($f in $builders) {
+            $code = [regex]::Replace((Get-Content $f -Raw), '(?m)//.*$', '')
+            # The bug this guards: rect maths written inline instead of through HotspotHitTest, which is
+            # how every hotspot ended up at the applicant's centre on 2026-11-26 (9 of 9 unclickable).
+            if ($code -match 'rect\[0\][^;\n]*0\.5f') {
+                $bad += "$(Split-Path $f -Leaf): places a hotspot with inline rect maths -- use HotspotHitTest"
+            }
+        }
+        if ($bad.Count -gt 0) {
+            $failed++
+            foreach ($b in $bad) { Write-Host "  [FAIL] $b" -ForegroundColor Red }
+        } else { OK 'hotspot geometry comes from HotspotHitTest, which the reach test also calls' }
+
     S 'applicant proportions (no floating heads, no cone skulls)'
         & python (Join-Path $repo 'tools\art\check_proportions.py')
         if ($LASTEXITCODE -ne 0) { $failed++; Write-Host '  [FAIL] applicant proportions' -ForegroundColor Red }

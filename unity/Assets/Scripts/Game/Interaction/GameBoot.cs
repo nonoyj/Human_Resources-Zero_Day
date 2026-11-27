@@ -16,6 +16,10 @@ namespace HRZeroDay.Game.Interaction
         private static void StartGame()
         {
             if (UnityEngine.Object.FindFirstObjectByType<DeskBootstrap>() != null) return;
+#if !UNITY_EDITOR
+            // A phone has no Editor console, so a message there is a message to nobody. The desk itself
+            // already says what to do (HUD line 3), which is where the player will look.
+#else
 
             try
             {
@@ -29,8 +33,8 @@ namespace HRZeroDay.Game.Interaction
                 }
                 DeskRuntimeScene.ConfigureCamera(cam, layout.canvas);
                 DeskRuntimeScene.BuildGameplay(layout, null);
-                Debug.Log("[HR//0D] Play mode boot: desk built from Resources/desk_layout.json. " +
-                          "Click a hotspot, L reads the letter, A/S stamps, SPACE continues.");
+                Debug.Log("[HR//0D] desk built: " +
+                          "click the applicant to inspect, L letter, A approve, S reject, SPACE next.");
             }
             catch (Exception ex)
             {
@@ -38,6 +42,7 @@ namespace HRZeroDay.Game.Interaction
                 Debug.LogError("[HR//0D] could not start the game: " + ex.Message +
                                "\nRun HR//0D > Setup Project (one click), then press Play again.");
             }
+#endif
         }
     }
 }

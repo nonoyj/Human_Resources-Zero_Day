@@ -50,19 +50,28 @@ namespace HRZeroDay.Game.Interaction
             float ppu = layout.canvas.pixelsPerUnit;
             const float spriteW = 192f;
             const float spriteH = 216f;
+            // The placement maths lives in HotspotHitTest so the headless reach test calls the SAME
+            // code. When these were duplicated, the test agreed with itself and the game put every
+            // hotspot at the applicant's centre (9 of 9 unreachable, found 2026-11-26).
+            var applicant = layout.Layer("applicant");
+            float scale = applicant.scaleFactor > 0f ? applicant.scaleFactor : 1f;
+
             for (int i = 0; i < layout.hotspots.Count; i++)
             {
                 var hp = layout.hotspots[i];
                 var go = new GameObject("HS_" + hp.artifact);
                 go.transform.SetParent(hotspots, false);
-                // applicant-local pixels (y up, origin bottom-left) -> local units, pivot centre.
-                float x = (hp.rect[0] + hp.rect[2] * 0.5f - spriteW * 0.5f) / ppu;
-                float y = (hp.rect[1] + hp.rect[3] * 0.5f - spriteH * 0.5f) / ppu;
-                go.transform.localPosition = new Vector3(x, y, 0f);
 
+                var centre = HotspotHitTest.HotspotCentreCanvas(applicant.anchor[0], applicant.anchor[1],
+                                                                scale, hp.rect);
+                var parentCentre = HotspotHitTest.LayerCentre(applicant.anchor[0], applicant.anchor[1],
+                                                              scale, (int)spriteW, (int)spriteH);
+                var local = HotspotHitTest.HotspotLocalPositionUnits(centre, parentCentre, ppu, scale);
+                go.transform.localPosition = new Vector3((float)local.X, (float)local.Y, 0f);
+
+                var size = HotspotHitTest.HotspotColliderSizeUnits(hp.rect, ppu, TouchPaddingPx);
                 var box = go.AddComponent<BoxCollider2D>();
-                box.size = new Vector2((hp.rect[2] + TouchPaddingPx * 2f) / ppu,
-                                       (hp.rect[3] + TouchPaddingPx * 2f) / ppu);
+                box.size = new Vector2((float)size.X, (float)size.Y);
                 box.isTrigger = true;
                 var tap = go.AddComponent<HotspotInteractor>();
                 tap.artifact = hp.artifact;
@@ -97,7 +106,9 @@ namespace HRZeroDay.Game.Interaction
             panel.transform.SetParent(callout.transform, false);
             var panelSprite = panel.AddComponent<SpriteRenderer>();
             panelSprite.sprite = SpriteOrFallback("art/kit/ui/panel_9slice.png");
-            panelSprite.sortingOrder = 45;
+            // Above the desk props (10) and the letter paper (190 is the letter, this sits lower) --
+            // the callout must never be hidden behind a mug, which is what sorting 45 did.
+            panelSprite.sortingOrder = 60;
             panel.transform.localScale = new Vector3(10f, 3f, 1f);
             overlay.callout = callout.transform;
 
@@ -109,7 +120,7 @@ namespace HRZeroDay.Game.Interaction
             labelMesh.characterSize = 0.09f;
             // TextMesh is a Component, not a Renderer: the order goes on the MeshRenderer Unity puts
             // beside it (BUG-042/049). Guarded helper, so a missing renderer cannot throw at Play.
-            SetTextMeshSorting(labelMesh, 46);                  // panel sprite is 45
+            SetTextMeshSorting(labelMesh, 61);                  // panel sprite is 60
             labelMesh.text = string.Empty;
             overlay.calloutLabel = labelMesh;
 
@@ -119,7 +130,7 @@ namespace HRZeroDay.Game.Interaction
             var bodyMesh = body.AddComponent<TextMesh>();
             bodyMesh.font = font;
             bodyMesh.characterSize = 0.07f;
-            SetTextMeshSorting(bodyMesh, 46);
+            SetTextMeshSorting(bodyMesh, 61);
             bodyMesh.text = string.Empty;
             overlay.calloutBody = bodyMesh;
             callout.SetActive(false);

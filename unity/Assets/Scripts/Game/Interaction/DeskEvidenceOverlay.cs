@@ -20,9 +20,32 @@ namespace HRZeroDay.Game.Interaction
         public float pixelsPerUnit = 16f;
         public float zoom = 2f;
 
-        // Callout sits in the top-right of the desk, clear of the face band.
+        // Callout sits in the top-right of the desk, clear of the face band. NOTE what these are used
+        // for in World(): a canvas PIXEL position converted to units directly -- NOT rounded down to
+        // whole units, which is what the scene builder used to do for the initial placement and is why
+        // the callout appeared in the middle of the room. ShowText repositions it on every show.
         public float calloutX = 268f;
         public float calloutY = 196f;
+
+        /// <summary>
+        /// Where the callout will cover. Used by the hit test to decide "you touched the callout, not the
+        /// desk" -- the panel is 10 x 3 sprite-units scaled from a 9-slice, so its footprint in canvas px
+        /// is derived here once instead of being guessed in the router.
+        /// </summary>
+        public Rect CalloutCanvasRect()
+        {
+            const float panelWUnits = 10f, panelHUnits = 3f;    // Panel's localScale in the builder
+            float w = panelWUnits * pixelsPerUnit, h = panelHUnits * pixelsPerUnit;
+            return new Rect(calloutX - w * 0.5f, calloutY - h * 0.5f, w, h);
+        }
+
+        public bool Contains(Vector2 canvasPoint)
+        {
+            if (callout == null || !callout.gameObject.activeSelf) return false;
+            var r = CalloutCanvasRect();
+            return canvasPoint.x >= r.xMin && canvasPoint.x <= r.xMax &&
+                   canvasPoint.y >= r.yMin && canvasPoint.y <= r.yMax;
+        }
 
         public void ShowMagnifier(Rect canvasRect, string label, string wording)
         {
@@ -36,6 +59,9 @@ namespace HRZeroDay.Game.Interaction
             }
             ShowText(label, wording);
         }
+
+        /// <summary>True while the callout is on screen -- the HUD and the router both ask.</summary>
+        public bool IsShowing { get { return callout != null && callout.gameObject.activeSelf; } }
 
         public void ShowCallout(Rect canvasRect, string label, string wording)
         {

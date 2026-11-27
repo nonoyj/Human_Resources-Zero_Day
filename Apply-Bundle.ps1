@@ -281,8 +281,24 @@ try {
         if ($it.PSIsContainer -and ($keepDirs -contains $it.Name)) { W "skipped $($it.Name)"; continue }
         $dest = Join-Path $WorkingCopy $it.Name
         if ($it.PSIsContainer) {
-            if (Test-Path -LiteralPath $dest) { Remove-Item -LiteralPath $dest -Recurse -Force }
-            Copy-Item -LiteralPath $it.FullName -Destination $dest -Recurse -Force
+            # MERGE, never replace. A bundle carries no Unity caches (Library/Temp/obj are excluded), so
+            # deleting the destination first bought nothing and cost a failed apply: on 2026-11-26
+            # Remove-Item hit unity\Library\BurstCache\*.dll -- held open by the Burst compiler while
+            # the editor was running -- and PowerShell's UnauthorizedAccessException aborted the entire
+            # apply mid-copy. Copying over a live folder is exactly what Unity is designed to survive
+            # (it reimports on focus), and a file that cannot be replaced is now a WARNING, not a death.
+            $locked = @()
+            Copy-Item -LiteralPath $it.FullName -Destination $dest -Recurse -Force -ErrorAction SilentlyContinue `
+                      -ErrorVariable copyErr
+            foreach ($e in $copyErr) {
+                $path = if ($e.TargetObject) { "$($e.TargetObject)" } else { "$($e.Exception.Message)" }
+                if ($path -match '\\(Library|Temp|obj|Logs|UserSettings)\\') { $locked += $path }
+                else { W "could not copy: $path" }
+            }
+            if ($locked.Count -gt 0) {
+                W "$($locked.Count) engine-cache file(s) were open and were skipped (Unity is running). That is fine:"
+                W "  they are generated, and Unity rebuilds them on the next focus. Nothing in the game lives there."
+            }
         } else {
             Copy-Item -LiteralPath $it.FullName -Destination $dest -Force
         }

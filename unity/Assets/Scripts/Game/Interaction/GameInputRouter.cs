@@ -12,6 +12,11 @@ namespace HRZeroDay.Game.Interaction
 {
     public sealed class GameInputRouter : MonoBehaviour
     {
+        /// <summary>The layout's canvas. Every hit test in the game is expressed in these pixels.</summary>
+        private const int ReferenceWidth = 480;
+        private const int ReferenceHeight = 270;
+        private const float ReferencePpu = 16f;
+
         public DeskBootstrap bootstrap;
 
         private void Awake()
@@ -72,39 +77,74 @@ namespace HRZeroDay.Game.Interaction
             if (pressed) DispatchPointer(point);
         }
 
-        /// <summary>Only the applicant hotspots are world-space click targets; UI has keyboard keys.</summary>
+        /// <summary>
+        /// Turns a touch into an artifact. The applicant's hotspots are the only world-space targets;
+        /// the rest of the desk is keyboard.
+        ///
+        /// WHAT WAS WRONG (found 2026-11-26, the player's report: "I can't click anything")
+        ///   The old version derived the canvas point from the CAMERA (orthographicSize x pixel aspect).
+        ///   That is only the same as the layout's 480x270 canvas when the window is exactly 16:9. In any
+        ///   other window the whole canvas is letterboxed inside the view, so every hit was offset by
+        ///   part of the bar -- small near the middle, huge at the edges. It also tested "is the point
+        ///   inside objectOrigin +- colliderSize/2", which is only true where the hotspot object happens
+        ///   to sit, not where the player sees the body part.
+        ///
+        /// Now: one normalised pointer -> the SAME canvas rect the layout and the art use, then the
+        /// smallest containing box wins (so the eyes' 40x28 'no_blink' target is not swallowed by the
+        /// 60x16 glasses band). The mapping is a pure function in HotspotHitTest, so it is tested.
         private void DispatchPointer(Vector2 screenPoint)
         {
             if (bootstrap == null || bootstrap.LetterOpen || bootstrap.ShowDebrief ||
                 bootstrap.ShowDaySummary || bootstrap.ShowEnding || bootstrap.ShowingSweep) return;
 
-            var cam = Camera.main;
-            if (cam == null) cam = FindFirstObjectByType<Camera>();
-            if (cam == null || !cam.orthographic) return;
-
-            float aspect = Screen.height > 0 ? (float)Screen.width / Screen.height : 16f / 9f;
-            float halfH = cam.orthographicSize;
-            float halfW = halfH * aspect;
-            float nx = screenPoint.x / Mathf.Max(1, Screen.width) - 0.5f;
-            float ny = screenPoint.y / Mathf.Max(1, Screen.height) - 0.5f;
-            var world = new Vector2(cam.transform.position.x + nx * 2f * halfW,
-                                    cam.transform.position.y + ny * 2f * halfH);
+            int w = Mathf.Max(1, Screen.width), h = Mathf.Max(1, Screen.height);
+            var canvas = new PixelRect(0f, 0f, ReferenceWidth, ReferenceHeight);
+            var point = HotspotHitTest.ScreenToCanvasNdc(
+                new PixelPoint((float)screenPoint.x / w, (float)screenPoint.y / h), canvas);
 
             var hotspots = GetComponentsInChildren<HotspotInteractor>();
+            HotspotInteractor best = null;
+            float bestArea = float.MaxValue;
             for (int i = 0; i < hotspots.Length; i++)
             {
                 var hotspot = hotspots[i];
                 var box = hotspot.GetComponent<BoxCollider2D>();
                 if (box == null) continue;
-                var centre = new Vector2(hotspot.transform.position.x, hotspot.transform.position.y);
-                var half = new Vector2(box.size.x * hotspot.transform.lossyScale.x * 0.5f,
-                                       box.size.y * hotspot.transform.lossyScale.y * 0.5f);
-                if (Mathf.Abs(world.x - centre.x) <= half.x && Mathf.Abs(world.y - centre.y) <= half.y)
-                {
-                    hotspot.OnPointerDown(null);
-                    return;
-                }
+                var centre = CanvasOf(hotspot);
+                var half = new Vector2(box.size.x * hotspot.transform.lossyScale.x * ReferencePpu * 0.5f,
+                                       box.size.y * hotspot.transform.lossyScale.y * ReferencePpu * 0.5f);
+                if (Mathf.Abs(point.X - centre.x) > half.x || Mathf.Abs(point.Y - centre.y) > half.y) continue;
+                float area = half.x * half.y;
+                if (area < bestArea) { best = hotspot; bestArea = area; }
             }
+            if (best != null) { best.OnPointerDown(null); return; }
+
+            // A tap on the callout dismisses it. Without this the panel sits over the applicant and
+            // swallows the very body parts the player is trying to inspect (the 2026-11-26 report:
+            // "opens something on the screen after that I can't click anything else").
+            var overlay = bootstrap.GetComponentInChildren<DeskEvidenceOverlay>(true);
+            if (overlay != null && overlay.Contains(new Vector2(point.X, point.Y)))
+            {
+                overlay.Hide();
+                return;
+            }
+
+            // A tap on the desk that hits no hotspot dismisses any open callout, so the desk is never
+            // left in a state where the player cannot tell what is clickable.
+            if (overlay != null) overlay.Hide();
+        }
+
+        /// <summary>
+        /// A hotspot's position in canvas pixels. Hotspots are children of L_applicant, which carries the
+        /// layout's scaleFactor, so the world position is converted by ppu and multiplied by the parent
+        /// chain's scale -- Unity's lossyScale already includes it.
+        /// </summary>
+        private Vector2 CanvasOf(HotspotInteractor hotspot)
+        {
+            var p = hotspot.transform.position;
+            float scale = hotspot.transform.lossyScale.x;
+            if (scale <= 0f) scale = 1f;
+            return new Vector2(p.x * ReferencePpu / scale, p.y * ReferencePpu / scale);
         }
     }
 }

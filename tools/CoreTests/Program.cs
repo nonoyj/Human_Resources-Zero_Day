@@ -35,6 +35,7 @@ internal static class Program
         lines.AddRange(InteractionTests.RunAll());     // hotspots, evidence ledger, tool budget
         lines.AddRange(SweepTests.RunAll());           // after-hours sweep: one trace per wrong hire
         lines.AddRange(SweepScriptTests.RunAll());     // ...and the pages it is read on
+        lines.AddRange(HotspotReachTests.RunAll());    // can the player actually touch what they see?
         lines.AddRange(SaveResumeTests.RunAll());      // save -> quit -> relaunch lands on the same desk
         foreach (var line in lines)
         {

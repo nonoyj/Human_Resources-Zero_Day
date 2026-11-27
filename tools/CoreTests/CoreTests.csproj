@@ -20,6 +20,7 @@
     <Compile Include="DaylightTests.cs" />
     <Compile Include="SweepTests.cs" />
     <Compile Include="SweepScriptTests.cs" />
+    <Compile Include="HotspotReachTests.cs" />
     <Compile Include="InteractionTests.cs" />
     <Compile Include="SaveResumeTests.cs" />
     <Compile Include="../../unity/Assets/Scripts/Core/**/*.cs" />
