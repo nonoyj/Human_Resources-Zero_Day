@@ -1,12 +1,15 @@
 # HR//0D — working state
 
-**One page. If you read only one file, read this one.** Updated 2026-11-27 (bundle **v88**, commit `cc29be9`).
+**One page. If you read only one file, read this one.** Updated 2026-11-27 (bundle **v106**,
+commit `46d9206`, `main` pushed).
 
-> **Two files now outrank this one, and they exist because the player asked for them:**
+> **Three files outrank this one:**
+> `AGENTS.md` — the rules an AI agent must follow (gates, the replace rule, the contracts, the work queues).
 > `docs/80-COMMAND-BOOK.md` — **every command, verbatim** (bundle, push, Unity, gates, art pipeline).
-> `docs/82-replenish-phase.md` — the scheduled polish phase (art, overall look, animation) and the rule
-> that cosmetic problems are **parked and scheduled**, never allowed to stall the build.
-> `.\scripts\Where-Am-I.ps1` prints both, plus the live state of your copy.
+> `docs/90-bug-log.md` — every failure and its *class*. If your bug is not in there, add it.
+>
+> **The team can pull `main` today.** Client gates green, backend 22/22 green, `AGENTS.md` written for
+> their agents, `backend/README.md` with its own work queue. See "Handover" at the bottom.
 
 ---
 
@@ -27,7 +30,7 @@ the CRT → inspect artifacts → stamp → day summary → after-hours sweep.
 
 | Gate | Command | Status |
 |---|---|---|
-| Headless tests (96) | `dotnet run --project tools\CoreTests` | pass |
+| Headless tests (**152**) | `dotnet run --project tools\CoreTests` | pass |
 | Art + stub + layout gate | `.\scripts\Test-ArtPipeline.ps1` | OK |
 | Script health | `.\scripts\Test-Scripts.ps1` | healthy |
 | **Unity will compile** | `dotnet build tools\UnityStubs\CompileCheck.csproj` | succeeded |
@@ -113,3 +116,28 @@ Cast: 7 humans + 7 synthetics, three women per side. Frame 192×216, 4 frames, n
 2. **Faces at 3×.** Waiting on the player's verdict after playing v10. The likely fix is a larger dedicated
    portrait for the letter page; the desk keeps the bust.
 3. **Sweep copy.** The 7 trace strings are BE2 placeholders.
+
+---
+
+## Handover — 2026-11-27, the point where work stops for a while
+
+**Where `main` is:** `46d9206`, `v106` bundle built, all five client gates green and the backend's 22
+contract tests green in the same tree. Nothing is half-applied and no work is stashed.
+
+**What is finished.** P1 8/10 · P2 9/10 · **P3 10/10** · P4 8/10 (save, resume, endings, intro slot, the
+room and its cues) · P5 0/8 · P6 0/8. Roughly **57 %**, and the finished parts are the parts that make the
+game a game.
+
+**What is deliberately not started.** Faces and overall look (P5), the Android build and QA matrix (P6),
+DISPATCH's spoken intro (v107 — needs BE2's clips, decision already made in ADR-009).
+
+**What the next session should do first.** `docs/85-rest-stop.md` names the exact restart order, so a
+fresh agent or a tired human does not have to reconstruct it.
+
+**What the team can act on now, independently of us:**
+- backend: its work queue is in `backend/README.md` and `AGENTS.md` §5 (storage → rate limits → ops → purge
+  → deploy → soak → OpenAPI).
+- content: `content/intro/intro_01.json` is a placeholder with a shape; the words are theirs
+  (`handoff/2026-11-27_agent-to-BE2_intro-slot-ready.md`).
+- art/audio: `python tools\art\replace_assets.py --list`, then drop files into `tools/art/incoming/`.
+  Replacements are pinned, so a generator run will not revert their work.
