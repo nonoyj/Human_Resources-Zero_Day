@@ -86,5 +86,35 @@ if ((Test-Path -LiteralPath $rootCopy) -and (Test-Path -LiteralPath $scriptCopy)
     else { Write-Host 'PASS  root bootstrap is byte-identical to scripts\Apply-Bundle.ps1' -ForegroundColor Green }
 }
 
+# THE INSTALLER UPDATES ITSELF BEFORE IT RUNS (v103, BUG-062 second half + BUG-064).
+# The operator keeps ONE launcher in Downloads and no bundle ever overwrites it, so a fix to the installer
+# only reached them after the apply that needed it: v102 shipped the sweep for Unity's stray files and the
+# player's next apply ran v101's copy, warned "working tree not clean (105 entries)", and refreshed the
+# bootstrap for next time. That is a fix that costs two applies. The script now reads the incoming zip's
+# copy of itself, replaces itself, and re-runs as a child. These three checks are what stops it rotting:
+#   (1) the self-update block exists and runs BEFORE the first work it does,
+#   (2) it re-runs with a HASHTABLE splat -- the array form failed binding and silently fell back,
+#   (3) the fallback is a warning, never a failure: a self-update must not be why an install dies.
+$apply = Get-Content -Raw -LiteralPath $scriptCopy
+$selfIdx = $apply.IndexOf('THE SCRIPT UPDATES ITSELF')
+$workIdx = $apply.IndexOf('extracting bundle')
+if ($selfIdx -lt 0) {
+    $failed++
+    Write-Host 'FAIL  Apply-Bundle.ps1 has no self-update block -- a stale launcher in Downloads would run old code' -ForegroundColor Red
+} elseif ($workIdx -lt 0 -or $selfIdx -gt $workIdx) {
+    $failed++
+    Write-Host 'FAIL  the self-update block is not the first work Apply-Bundle.ps1 does' -ForegroundColor Red
+} else { Write-Host 'PASS  the installer updates itself before it does anything else' -ForegroundColor Green }
+
+if ($apply -notmatch '\$childArgs = \@{' -or $apply -match '\$childArgs = @\(\s*\)') {
+    $failed++
+    Write-Host 'FAIL  self-update does not splat a hashtable -- the array form fails to bind and falls back' -ForegroundColor Red
+} else { Write-Host 'PASS  self-update re-runs the new copy with a hashtable splat' -ForegroundColor Green }
+
+if ($apply -notmatch 'could not self-update \(.*\) -- applying with the version on disk') {
+    $failed++
+    Write-Host 'FAIL  self-update has no fallback path: a read-only Downloads folder would abort the apply' -ForegroundColor Red
+} else { Write-Host 'PASS  self-update failure falls back to applying with the version on disk' -ForegroundColor Green }
+
 if ($failed -gt 0) { Write-Host "`n$failed problem(s) found." -ForegroundColor Red; exit 1 }
 Write-Host "`nAll scripts healthy." -ForegroundColor Green

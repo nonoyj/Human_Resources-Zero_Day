@@ -53,6 +53,62 @@ function OK ($m) { Write-Host "  [ok]   $m" -ForegroundColor Green }
 function W  ($m) { Write-Host "  [warn] $m" -ForegroundColor Yellow }
 function D  ($m) { Write-Host "  [FAIL] $m" -ForegroundColor Red; exit 1 }
 
+# --- THE SCRIPT UPDATES ITSELF BEFORE IT RUNS THE OLD VERSION (v103, BUG-062 SECOND HALF) ---------
+#
+# The bug: the operator keeps ONE launcher in Downloads and it is never part of a bundle, so a fix to this
+# file only reached them AFTER the apply that would have used it ("bootstrap refreshed (the next apply uses
+# this version)"). v102 shipped the sweep for Unity's stray files, and the player's very next apply -- the
+# one that should have proved it -- ran v101's copy, printed a dirty tree, and refreshed the bootstrap for
+# next time. A fix that needs two applies is not a fix.
+#
+# So: read the incoming zip's Apply-Bundle.ps1, and if it differs from the file being executed, replace
+# this file and re-run it as a CHILD process with the same arguments. Only when the caller did not already
+# do that (the child carries a flag), only when the file is writable, and on any failure we fall through
+# and apply with the version we have -- a self-update must never be the reason an install fails.
+function Get-BundleMember([string]$zip, [string]$member) {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction Stop
+    $z = [System.IO.Compression.ZipFile]::OpenRead($zip)
+    try {
+        $entry = $z.Entries | Where-Object { $_.FullName -eq $member } | Select-Object -First 1
+        if ($null -eq $entry) { return $null }
+        $reader = New-Object System.IO.StreamReader($entry.Open())
+        try { return $reader.ReadToEnd() } finally { $reader.Dispose() }
+    } finally { $z.Dispose() }
+}
+
+if (-not $env:HR0D_SELF_UPDATED -and (Test-Path -LiteralPath $BundlePath)) {
+    try {
+        $incoming = Get-BundleMember ((Resolve-Path -LiteralPath $BundlePath).Path) 'HR-ZeroDay/Apply-Bundle.ps1'
+        if ($incoming) {
+            $selfPath = $PSCommandPath
+            if (-not $selfPath) { $selfPath = $MyInvocation.MyCommand.Path }
+            if ($selfPath -and (Test-Path -LiteralPath $selfPath)) {
+                $onDisk = [System.IO.File]::ReadAllText($selfPath)
+                if ($onDisk -ne $incoming) {
+                    [System.IO.File]::WriteAllText($selfPath, $incoming, (New-Object System.Text.UTF8Encoding($true)))
+                    Write-Host '  [ok]   this copy of the installer was out of date -- it updated itself and re-ran from the top' -ForegroundColor Green
+                    $env:HR0D_SELF_UPDATED = '1'
+                    # A HASHTABLE splat, not an array (BUG-064). The array form passed "-WorkingCopy" and
+                    # its value as two separate strings and the child's binder rejected the value
+                    # ("A positional parameter cannot be found that accepts argument '<path>'") -- the
+                    # self-update then fell back to the on-disk script, silently defeating the whole point.
+                    $childArgs = @{}
+                    foreach ($k in $PSBoundParameters.Keys) {
+                        $v = $PSBoundParameters[$k]
+                        if ($v -is [System.Management.Automation.SwitchParameter]) { $childArgs[$k] = $v.IsPresent }
+                        else { $childArgs[$k] = [string]$v }
+                    }
+                    if ($env:HR0D_SELF_UPDATED_DRYRUN -eq '1') { return }   # tests: prove the swap, skip the re-run
+                    & $selfPath @childArgs
+                    exit $LASTEXITCODE
+                }
+            }
+        }
+    } catch {
+        Write-Host "  [warn] could not self-update ($($_.Exception.Message)) -- applying with the version on disk" -ForegroundColor Yellow
+    }
+}
+
 # --- native git, invoked so that STDOUT/STDERR are data, not errors -----------------------------
 # BUG-036/037: PS 5.1 turns any native command's stderr into a NativeCommandError, and this script runs
 # with $ErrorActionPreference='Stop', so `git remote get-url origin` on a repo with no origin (stderr:

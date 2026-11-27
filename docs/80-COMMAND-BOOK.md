@@ -38,6 +38,13 @@ from the bundle's history, so a push after an install needs a force, and `Push.p
 ```powershell
 # 1) install this round's bundle (the zip is in Downloads)
 cd $env:USERPROFILE\Downloads
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+# the launcher in Downloads is never overwritten by a bundle, so take this round's copy out of the zip
+# FIRST -- otherwise you run last round's installer (that is exactly what cost you the v102 apply)
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$z = [IO.Compression.ZipFile]::OpenRead((Resolve-Path .\HR-ZeroDay-bundle-vNN.zip).Path)
+try { $e = $z.Entries | Where-Object { $_.FullName -eq 'HR-ZeroDay/Apply-Bundle.ps1' }
+      [IO.Compression.ZipFileExtensions]::ExtractToFile($e, (Join-Path $PWD 'Apply-Bundle.ps1'), $true) } finally { $z.Dispose() }
 .\Apply-Bundle.ps1 -BundlePath .\HR-ZeroDay-bundle-vNN.zip
 
 # 2) get the repo back on its feet and set the upstream branch (first push only needs the message once)
@@ -52,6 +59,13 @@ cd $env:USERPROFILE\HR-ZeroDay
 launcher into `%USERPROFILE%\bin`, which is on your user PATH, and it needs no admin rights). After that,
 `Where-Am-I` works in any window. There is no `Pin-ToQuickAccess.ps1` — I invented that command once and
 it cost you a round; the command book is the only place commands are allowed to come from.
+
+**Why the launcher line is there (v103).** `Apply-Bundle.ps1` in Downloads is not part of any bundle, so it
+can only be as new as the last time you refreshed it. v102 shipped a fix for Unity's stray files and your
+very next apply ran the *old* launcher: it warned `working tree not clean (105 entries)` and then printed
+`bootstrap refreshed (the next apply uses this version)` — i.e. the fix arrived one apply too late. The three
+lines above close that hole from the outside; from v103 on the script also closes it from the inside, by
+replacing itself from the zip and re-running before it touches anything.
 
 On a copy installed from a bundle, step 2 is what creates the upstream. If it says *"nothing to push"*,
 that is success, not a failure.

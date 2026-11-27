@@ -1248,3 +1248,44 @@ words, keeps the shape. The art gate now fails if the script cannot be shown as 
 copy drifts from `content/`.
 
 **Class of bug:** *an optional asset with undefined behaviour when it is absent.*
+
+## BUG-064 -- v103: the installer ran last round's copy of itself, so every installer fix cost two applies
+
+**Found:** 2026-11-27, from the player's v102 apply log.
+**Owning files:** `scripts/Apply-Bundle.ps1` (+ the byte-identical root copy), `scripts/Test-Scripts.ps1`.
+
+The v102 log said this, in this order:
+
+```
+[ok] bootstrap refreshed (the next apply uses this version)
+[warn] working tree not clean (105 entries) -- files do NOT match HEAD
+```
+
+Read together, that is the whole bug: **the apply that should have proved the Unity-file sweep was running
+the pre-sweep script.** The launcher in `Downloads` is deliberately never overwritten by a bundle, so the
+copy that executes is always the previous round's; the refresh happens at the end, for next time. A fix
+therefore takes two applies to reach the machine — and the first apply prints exactly the warning the fix
+was written to remove, which reads as "the fix failed".
+
+Reproduced exactly (v101 launcher + v102 zip on a tree with Unity leftovers) before changing anything:
+first apply → `bootstrap refreshed` + clean, second apply → `swept 4 stray file(s)` + clean. So the sweep
+worked; it just was not running.
+
+Three changes:
+
+1. **The installer updates itself first.** It reads `HR-ZeroDay/Apply-Bundle.ps1` out of the incoming zip,
+   and if that differs from the file being executed it replaces itself and re-runs as a child with the same
+   arguments, before doing any work. Proven: a deliberately stale launcher now applies v102 in **one** pass
+   and ends `working tree clean -- files match HEAD exactly`.
+2. **The re-run splats a hashtable.** The first attempt built an argument *array*; PowerShell then passed
+   `-WorkingCopy` and its value as two positional strings, the child's binder rejected the value
+   (`A positional parameter cannot be found...`), and the fallback silently applied with the old script —
+   the bug fixing itself into invisibility. The gate now asserts `$childArgs = @{`.
+3. **Failure is a warning.** A read-only or locked `Downloads` folder must never be the reason an install
+   dies, so the catch block says so and applies with the version on disk.
+
+The command book's block also changed: step 1 now extracts this round's `Apply-Bundle.ps1` out of the zip
+before calling it, so the very first apply with an old launcher is fixed from the outside as well.
+
+**Class of bug:** *a tool that is delivered by the thing it installs, so it always runs one version behind
+itself.*

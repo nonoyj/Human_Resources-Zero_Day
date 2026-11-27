@@ -48,8 +48,9 @@ ship) rather than new mechanics.
 | v98 | **the walk reads**: the strip is painted once, in one space, and a fresh install stays clean | the walk's key strip is the right way up, and `Where-Am-I` says *clean* |
 | v97 | **the walk draws** — one page texture, Core's rows, no tint, a bracket instead of a panel | you press SPACE and the page changes |
 | v101 | **the five-day arc**: the run has a through-line, and three endings read the whole run | you can start on day 1 and finish on a verdict |
-| v102 (this one) | **the intro slot**, and an install that cleans up after Unity | the game says what it is before the first applicant |
-| v103 | **audio** | it sounds like a game |
+| v102 | **the intro slot**, and an install that cleans up after Unity | **confirmed on screen by the player, 2026-11-27** |
+| v103 (this one) | **an installer that can actually deliver its own fixes** | one apply is enough: no more "the next apply uses this version" |
+| v104 | **audio** | it sounds like a game |
 
 ---
 
