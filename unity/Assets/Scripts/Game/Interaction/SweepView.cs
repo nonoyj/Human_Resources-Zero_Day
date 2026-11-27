@@ -220,156 +220,95 @@ namespace HRZeroDay.Game.Interaction
         }
 
         /// <summary>
-        /// Paints the whole page into one texture: the floor's room art, the caption band over it, then the
-        /// strip along the bottom. Everything is laid out in canvas px against the SAME 480x270 grid, so a
-        /// band cannot end up in the wrong half of its bar and the strip cannot float over the room -- the
-        /// two faults the player photographed on 2026-11-27.
+        /// Paints the whole page into one texture: floor art, caption band, strip -- composed by
+        /// SweepPageComposer (a pure function with its own tests), then flipped once for the GPU.
+        ///
+        /// THIS METHOD MUST NOT BE ABLE TO LEAVE A BLANK PAGE. The first compositing attempt did exactly
+        /// that: the art blit threw, the catch swallowed it, and the walk showed an empty card. Every step
+        /// is now either total (compose always fills w*h) or reported in the Console.
         /// </summary>
         private void Repaint(SweepPage page, Sprite art)
         {
-            if (_pageTex == null || _glyphs == null) return;
+            if (_pageTex == null) return;
 
             int W = SweepScript.PageW, H = SweepScript.PageH;
             var void_ = Colour("void", new Color32(11, 14, 19, 255));
             var line_ = Colour("line", new Color32(43, 58, 77, 255));
 
-            // start from the floor art (PNG order: row 0 = top of the picture)
-            var buf = ArtToRaster(art, W, H, void_);
-            if (buf == null) return;
+            if (_glyphs == null)
+                Debug.LogError("SweepView: no glyph source -- the walk will show its art but no copy. " +
+                               "MonitorScreenView.Load failed; check Resources/fonts/monitor_font_5x7.");
 
-            // ---- caption band, top-left, measured DOWN from the page top
-            var specs = new List<MonitorScreen.LineSpec>();
-            specs.Add(new MonitorScreen.LineSpec { text = page.Heading, colour = "warn" });
-            specs.Add(new MonitorScreen.LineSpec { text = string.Empty, colour = "text" });
-            int rows = 2;
-            for (int i = 0; i < page.Lines.Count && rows < MaxRows; i++, rows++)
-                specs.Add(new MonitorScreen.LineSpec { text = page.Lines[i], colour = "textdim" });
-
-            int bandH = SweepScript.BandHeight(rows);
-            int bandX = SweepScript.BandX, bandY = SweepScript.BandTop;
-            for (int y = bandY; y < bandY + bandH && y < H; y++)
-                for (int x = bandX; x < bandX + SweepScript.BandW && x < W; x++)
-                    buf[y * W + x] = void_;
-            for (int x = bandX; x < bandX + SweepScript.BandW && x < W; x++)
+            var bandLines = new List<string> { page.Heading, string.Empty };
+            var bandColours = new List<string> { "warn", "text" };
+            for (int i = 0; i < page.Lines.Count && bandLines.Count < MaxRows; i++)
             {
-                buf[bandY * W + x] = line_;
-                int bottom = bandY + bandH - 1;
-                if (bottom < H) buf[bottom * W + x] = line_;
-            }
-            for (int y = bandY; y < bandY + bandH && y < H; y++)
-            {
-                buf[y * W + bandX] = line_;
-                int right = bandX + SweepScript.BandW - 1;
-                if (right < W) buf[y * W + right] = line_;
+                bandLines.Add(page.Lines[i]);
+                bandColours.Add("textdim");
             }
 
-            var glass = new MonitorScreen.GlassRect
-            {
-                x = bandX + SweepScript.PadX,
-                y = SweepScript.PadY,          // in the band's own frame; offset applied below
-                w = SweepScript.BandW - 2 * SweepScript.PadX,
-                h = bandH - 2 * SweepScript.PadY
-            };
-            var rects = MonitorScreen.LinesToRects(specs, glass);
-            // LinesToRects works in the BAND's frame; shift it down to where the band sits on the page.
-            // canvasY counts UP from the frame bottom, so the offset is measured from the page bottom too.
-            int bandBottomFromPageTop = H - (bandY + bandH);
-            var shifted = new List<ScreenLine>();
-            foreach (var r in rects)
-            {
-                shifted.Add(new ScreenLine
-                {
-                    text = r.text,
-                    colour = r.colour,
-                    truncated = r.truncated,
-                    glyphW = r.glyphW,
-                    lineH = r.lineH,
-                    canvasX = r.canvasX,
-                    canvasY = r.canvasY + bandBottomFromPageTop
-                });
-            }
+            var artPixels = ArtToRaster(art, W, H, void_);
+            var stripPixels = ReadTexture(_stripTex);
 
-            // the band is painted in the BUFFER's own top-down order, so render into a band-sized scratch
-            // buffer and blit it -- that keeps the raster's bottom-up row maths local, which is the only
-            // place it belongs.
-            var bandBuf = new Color32[SweepScript.BandW * bandH];
-            for (int i = 0; i < bandBuf.Length; i++) bandBuf[i] = void_;
-            var bandGlass = new MonitorScreen.GlassRect
-            {
-                x = SweepScript.PadX, y = SweepScript.PadY,
-                w = SweepScript.BandW - 2 * SweepScript.PadX,
-                h = bandH - 2 * SweepScript.PadY
-            };
-            MonitorScreenRaster.Render(bandBuf, SweepScript.BandW, bandH,
-                                       MonitorScreen.LinesToRects(specs, bandGlass),
-                                       _glyphs, void_, paintBackground: false);
-            for (int y = 0; y < bandH && bandY + y < H; y++)
-                for (int x = 0; x < SweepScript.BandW && bandX + x < W; x++)
-                    if (bandBuf[y * SweepScript.BandW + x].a != 0)
-                        buf[(bandY + y) * W + bandX + x] = bandBuf[y * SweepScript.BandW + x];
-
-            // ---- strip: the bottom 32 px, part of the page
-            var stripBuf = new Color32[SweepScript.PageW * SweepScript.StripH];
-            for (int i = 0; i < stripBuf.Length; i++) stripBuf[i] = void_;
-            for (int y = SweepScript.StripTop; y < H; y++)
-                for (int x = 0; x < W; x++)
-                    buf[y * W + x] = void_;
-            BlitRaster(buf, W, H, _stripTex, SweepScript.StripTop, 0);
-
-            // ---- and out to the GPU
+            var buf = SweepPageComposer.Compose(artPixels, W, H, bandLines, bandColours,
+                                                stripPixels, SweepScript.StripTop, _glyphs, void_, line_);
             MonitorScreenRaster.FlipToTextureOrder(buf, W, H);
             _pageTex.SetPixels32(buf);
             _pageTex.Apply(false);
+
+            // A blank walk page was the player's report on 2026-11-27 and it had no exception behind it.
+            // If the composed page is one flat colour, say so loudly rather than showing a black card.
+            var first = buf[0];
+            bool allSame = true;
+            for (int i = 1; i < buf.Length && allSame; i += 97)
+                if (buf[i].r != first.r || buf[i].g != first.g || buf[i].b != first.b) allSame = false;
+            if (allSame)
+                Debug.LogError("SweepView: the composed page for '" + page.Floor + "' is a single flat colour " +
+                               "(" + first.r + "," + first.g + "," + first.b + "). Art=" + (art != null) +
+                               " glyphs=" + (_glyphs != null) + " strip=" + (_stripTex != null));
         }
 
-        /// <summary>The floor art, as a top-down raster buffer in PNG order.</summary>
+        /// <summary>The floor art as a top-down raster. Null on failure -- the composer fills the page.</summary>
         private static Color32[] ArtToRaster(Sprite art, int W, int H, Color32 fill)
         {
-            var buf = new Color32[W * H];
-            for (int i = 0; i < buf.Length; i++) buf[i] = fill;
-            if (art == null) return buf;
+            if (art == null || art.texture == null) return null;
             var tex = art.texture;
+            if (!tex.isReadable)
+            {
+                Debug.LogError("SweepView: floor art is not Read/Write Enabled, so the walk cannot use it. " +
+                               "Run python tools/art/write_unity_metas.py (then let Unity reimport).");
+                return null;
+            }
             try
             {
                 int rw = Mathf.RoundToInt(art.rect.width), rh = Mathf.RoundToInt(art.rect.height);
                 int rx = Mathf.RoundToInt(art.rect.x), ry = Mathf.RoundToInt(art.rect.y);
-                var px = tex.GetPixels(rx, ry, rw, rh);          // bottom-up, as Unity stores it
-                // flip into PNG order and scale-free blit at 1:1 (the art is authored at page size)
-                for (int y = 0; y < Mathf.Min(rh, H); y++)
+                var px = tex.GetPixels32();            // whole texture, bottom-up
+                int tw = tex.width;
+                var buf = new Color32[W * H];
+                for (int i = 0; i < buf.Length; i++) buf[i] = fill;
+                int copy = Mathf.Min(rh, H);
+                for (int y = 0; y < copy; y++)
                 {
-                    for (int x = 0; x < Mathf.Min(rw, W); x++)
-                    {
-                        // Unity converts Color -> Color32 implicitly; the stub does not, so be explicit.
-                        var c = px[(rh - 1 - y) * rw + x];
-                        buf[y * W + x] = new Color32((byte)Mathf.Clamp(Mathf.RoundToInt(c.r * 255f), 0, 255),
-                                                     (byte)Mathf.Clamp(Mathf.RoundToInt(c.g * 255f), 0, 255),
-                                                     (byte)Mathf.Clamp(Mathf.RoundToInt(c.b * 255f), 0, 255),
-                                                     (byte)Mathf.Clamp(Mathf.RoundToInt(c.a * 255f), 0, 255));
-                    }
+                    int srcRow = (ry + rh - 1 - y) * tw + rx;   // flip: PNG row y comes from the TOP
+                    int dst = y * W;
+                    for (int x = 0; x < Mathf.Min(rw, W); x++) buf[dst + x] = px[srcRow + x];
                 }
+                return buf;
             }
-            catch (Exception)
+            catch (System.Exception e)
             {
-                // art not readable: the page still draws its bands on the fill colour, which is legible
-                Debug.LogWarning("SweepView: floor art is not readable; painting the page background only.");
+                Debug.LogError("SweepView: could not read the floor art (" + e.GetType().Name + ": " +
+                               e.Message + "). The page will draw without its room.");
+                return null;
             }
-            return buf;
         }
 
-        private static void BlitRaster(Color32[] dst, int W, int H, Texture2D src, int dstTop, int topUnused)
+        private static Color32[] ReadTexture(Texture2D tex)
         {
-            if (src == null) return;
-            int h = src.height, w = src.width;
-            Color32[] px;
-            try { px = src.GetPixels32(); }
-            catch (Exception) { return; }
-            // texture is bottom-up: row h-1 is the strip's top
-            for (int y = 0; y < h && dstTop + y < H; y++)
-                for (int x = 0; x < w && x < W; x++)
-                {
-                    var c = px[(h - 1 - y) * w + x];
-                    if (c.a != 0) dst[(dstTop + y) * W + x] = c;
-                }
+            if (tex == null) return null;
+            try { return tex.GetPixels32(); }
+            catch (System.Exception) { return null; }
         }
 
         private void OnDestroy()

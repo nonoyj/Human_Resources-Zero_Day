@@ -37,6 +37,7 @@ namespace HRZeroDay.Tests
             yield return CheckCalloutCopyRenders();
             yield return CheckWalkStripCopyRenders();
             yield return CheckWalkCaptionRendersAtTheTopOfItsBand();
+            yield return CheckComposedPageHasArtBandAndStrip();
         }
 
         private static void True(bool condition, string message)
@@ -185,6 +186,77 @@ namespace HRZeroDay.Tests
         /// the raster chose did not start at the band's top. This asserts the first line's ink is inside
         /// the first ~14 rows of the texture.
         /// </summary>
+        /// <summary>
+        /// The composed page, read back the way a player reads it: is the room there, is the caption bar
+        /// there, is the strip there. The previous version of this code produced a BLANK walk page, so
+        /// "does the page have a picture on it at all" is now an assertion rather than an assumption.
+        /// </summary>
+        private static string CheckComposedPageHasArtBandAndStrip()
+        {
+            var glyphs = RealAtlas();
+            int w = SweepScript.PageW, h = SweepScript.PageH;
+            var voidInk = new Color32(11, 14, 19, 255);
+            var lineInk = new Color32(43, 58, 77, 255);
+
+            // a fake floor: a mid-grey wall with a darker floor band, so "the art is there" is measurable
+            var art = new Color32[w * h];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                    art[y * w + x] = y > 180 ? new Color32(40, 46, 60, 255) : new Color32(70, 80, 100, 255);
+
+            var bandLines = new List<string>
+            {
+                "YOUR DESK - 00:06",
+                string.Empty,
+                "YOUR MUG HAS BEEN MOVED TO THE OTHER SIDE OF THE DESK.",
+                "NOBODY ELSE HAS A KEY. IT IS STILL WARM. (CELIA ALONZO)"
+            };
+            var bandColours = new List<string> { "warn", "text", "textdim", "textdim" };
+
+            // the strip: two lines of copy, painted on void, exactly as SweepView paints it
+            var strip = TextPanel.Paint(w, SweepScript.StripH,
+                                        new List<string> { "[WALK 1/3]   [SPACE] WALK ON", "SPACE WALK  [S] SHIFT  [X] DESK" },
+                                        new List<string> { "signal", "textdim" }, glyphs, voidInk, lineInk);
+
+            var page = SweepPageComposer.Compose(art, w, h, bandLines, bandColours, strip,
+                                                 SweepScript.StripTop, glyphs, voidInk, lineInk);
+
+            True(page.Length == w * h, "the composed page is not page-sized");
+            for (int i = 0; i < page.Length; i++)
+                True(page[i].a == 255, "the composed page has a transparent pixel at " + i + " -- a blank card");
+
+            // 1. the room is there: a row in the middle of the page is the art's wall colour
+            int midRow = h / 2;
+            True(page[midRow * w + 300].r == 70 && page[midRow * w + 300].g == 80,
+                 "the room art is missing from the composed page");
+
+            // 2. the caption bar is there and holds words
+            int bandInk = 0;
+            for (int y = SweepScript.BandTop; y < SweepScript.BandTop + SweepScript.BandHeight(bandLines.Count); y++)
+                for (int x = SweepScript.BandX; x < SweepScript.BandX + SweepScript.BandW; x++)
+                    if (page[y * w + x].r > 0x60 && page[y * w + x].g > 0x60) bandInk++;
+            True(bandInk > 200, "the caption bar is empty (" + bandInk + " ink pixels)");
+
+            // 3. the strip is there and holds words
+            int stripInk = 0;
+            for (int y = SweepScript.StripTop; y < h; y++)
+                for (int x = 0; x < w; x++)
+                    if (page[y * w + x].g > 0x80) stripInk++;
+            True(stripInk > 200, "the strip is empty (" + stripInk + " ink pixels)");
+
+            // 4. and the page still reads top-down after the flip the view applies
+            var flipped = (Color32[])page.Clone();
+            MonitorScreenRaster.FlipToTextureOrder(flipped, w, h);
+            // the composer works in PNG order (row 0 = top); after the flip, PNG row 0 lives at the top of
+            // the TEXTURE, which for a bottom-up texture is the array's LAST row.
+            // Unity's texture row 0 is the BOTTOM of the picture, so the picture's top row is the array's
+            // last row. The flip must put the composed top row there.
+            int lastRow = (h - 1) * w + 300;
+            True(flipped[lastRow].r == page[300].r && flipped[lastRow].g == page[300].g,
+                 "the flip did not keep the page's top row at the top of the texture");
+            return "PASS  a composed walk page has its room, its caption and its strip";
+        }
+
         private static string CheckWalkCaptionRendersAtTheTopOfItsBand()
         {
             var glyphs = RealAtlas();
