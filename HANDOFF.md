@@ -27,6 +27,20 @@ the CRT → inspect artifacts → stamp → day summary → after-hours sweep.
 | **Unity will compile** | `dotnet build tools\UnityStubs\CompileCheck.csproj` | succeeded |
 | **The COMMIT works** | `python3 tools\verify_fresh_clone.py` | PASS |
 
+**Pushing.** `Apply-Bundle.ps1` rebuilds `.git` from `history.bundle` (fresh `git init`, refs moved by hand —
+that is what stopped BUG-021), so a bundle-installed copy has **no upstream**. `git pull`/`git push` then
+stop with *"The current branch main has no upstream branch"*. Fix it once per copy, and let the script do
+the ordering:
+
+```powershell
+.\scripts\Push.ps1                       # fetches, checks it is a fast-forward, pushes, sets upstream
+.\scripts\Push.ps1 -Message "fix: ..."   # commit everything first, then the same
+```
+
+**Order matters: push first, update from a bundle second.** `Apply-Bundle ... -Clean` replaces `main`
+with the bundle's history, so a push after an update needs a force — and the script refuses to ever force.
+It also refuses for real divergence and tells you to `git pull --no-rebase`.
+
 **Unity does not have to be closed.** Replay after an update = **Stop, then Play**. Editing in Play mode and
 expecting the change to stay is the mistake; Unity throws Play-mode edits away, which is what makes the
 relaunch feel necessary. `HR//0D > Open Game (play)` opens/boots the scene without a click, and
