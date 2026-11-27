@@ -893,3 +893,30 @@ these were found by running the gates on the **merged** tree, which is the only 
 
 **Lesson.** A merge has its own gate list: compile, tests, scripts, art, fresh clone -- on the merged
 tree, before pushing. Two branches can each be green and the join be broken.
+
+## BUG-050 -- "I can't click anything" (player report, 2026-11-26)
+
+The game booted, the applicant bobbed and blinked, and the only thing that responded was the paper on
+the monitor. Three faults, none of which throws:
+
+1. **Every hotspot sat at the applicant's centre.** `BuildHotspots` converted an authored 192x216 rect
+   into a child position and divided by the pixels-per-unit but **not** by the applicant layer's
+   `scaleFactor` (0.96). All nine landed on the same point, 144.5 px from where they belong. The router
+   then hit-tested "inside object origin +- collider/2" — the same wrong point — so the geometry agreed
+   with itself and disagreed with the screen. *(The first version of this fix divided by the scale in
+   the divisor and STILL failed by 3.84 px, because it also ignored that the applicant sprite is placed
+   by its centre; the shared function now derives everything from the rect's canvas centre.)*
+2. **The pointer map was camera-derived.** `orthographicSize x pixel aspect` equals the 480x270 canvas
+   only in an exactly-16:9 window. Any other window letterboxes the desk and every hit shifts.
+3. **The callout was a trap.** It opened at the top-right over part of the face, nothing closed it, and
+   further taps went to the desk behind it. Now a tap inside it closes it, an empty-desk tap closes it,
+   and it sorts at 60 so a mug cannot hide it.
+
+**The reason no gate caught it:** nothing tested placement. `HotspotReachTests` now reproduces the
+runtime placement **through the same function the runtime uses** and asserts, for all nine hotspots, that
+a tap on the drawn body part resolves back to that artifact — plus that the object/collider maths lands
+on the drawn rect. A gate rule fails the build if inline `rect[...] * 0.5f` maths reappears in a builder.
+
+**Class of bug:** *a rule that is duplicated instead of shared.* The test I first wrote mirrored the
+runtime by hand; when it failed I could not tell which copy was wrong. Making both call one function is
+what turned "9 of 9 unclickable" into a two-line fix.
