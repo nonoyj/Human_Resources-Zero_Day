@@ -197,6 +197,27 @@ try {
             foreach ($b in $bad) { Write-Host "  [FAIL] $b" -ForegroundColor Red }
         } else { OK 'hotspot geometry comes from HotspotHitTest, which the reach test also calls' }
 
+    S 'text is painted by one renderer, from one glyph source'
+        $bad = @()
+        Get-ChildItem (Join-Path $repo 'unity\Assets\Scripts') -Recurse -Filter *.cs | ForEach-Object {
+            $code = [regex]::Replace((Get-Content $_.FullName -Raw), '(?m)//.*$', '')
+            # BUG-057: TextPanel skipped a glyph row when its leftmost pixel was empty, which erased half
+            # of every painted character. The CRT (MonitorScreenRaster) never had the shortcut, which is
+            # why the same words read correctly on the glass and as noise in a callout.
+            if ($code -match 'InkAt\([^)]*,\s*0\s*,\s*gy\)\)\s*continue') {
+                $bad += "$($_.Name): skips glyph rows whose first column is empty -- that erases most letters"
+            }
+            # BUG-057: two glyph sources meant two different atlases on screen; the PNG path is
+            # row-bottom-up and produced scrambled text. Only MonitorScreenView.Load may build one.
+            if ($code -match 'new FontAtlasGlyphSource\(' -and $_.Name -ne 'MonitorScreenView.cs') {
+                $bad += "$($_.Name): builds its own FontAtlasGlyphSource -- call MonitorScreenView.Load"
+            }
+        }
+        if ($bad.Count -gt 0) {
+            $failed++
+            foreach ($b in $bad) { Write-Host "  [FAIL] $b" -ForegroundColor Red }
+        } else { OK 'one glyph source, and no renderer skips glyph rows' }
+
     S 'screen elements are placed in canvas px, through PageTransform'
         $views = @(
             (Join-Path $repo 'unity\Assets\Scripts\Game\Interaction\SweepView.cs'),

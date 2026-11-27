@@ -57,6 +57,7 @@ namespace HRZeroDay.Game.Interaction
         private const int MaxWidthPx = 148;          // 22 columns at 5x7: a card, not a panel
         private const int MinWidthPx = 74;
         private const int MaxLines = 6;              // 6 rows of text: a label + 5 body rows
+        private const int MinBodyLines = 1;
 
         public bool IsShowing { get { return callout != null && callout.gameObject.activeSelf; } }
 
@@ -64,18 +65,17 @@ namespace HRZeroDay.Game.Interaction
         public void Initialise(GameObject panelObject)
         {
             _panel = panelObject == null ? null : panelObject.GetComponent<SpriteRenderer>();
-            var tex = Resources.Load<Texture2D>("fonts/monitor_font_5x7");
-            var metricsAsset = Resources.Load<TextAsset>("fonts/monitor_font_5x7");
-            if (tex == null || metricsAsset == null || _panel == null)
+            if (_panel == null)
             {
-                Debug.LogError("DeskEvidenceOverlay: font atlas missing -- the read-out will stay text-free. " +
-                               "Run HR//0D > Publish Art To Resources.");
+                Debug.LogError("DeskEvidenceOverlay: the read-out has no sprite renderer to paint into.");
                 return;
             }
-            var metrics = JsonUtility.FromJson<FontMetrics>(metricsAsset.text);
-            _palette = MonitorScreenView.Palette.FromResources();
-            _glyphs = new FontAtlasGlyphSource(metrics, tex.isReadable ? tex.GetPixels32() : null,
-                                               tex.width, _palette);
+            _palette = MonitorScreenView.PaletteCached;
+            // ONE glyph source for the whole game (see MonitorScreenView.Load): built from the json ink,
+            // never from the PNG, because the PNG is row-bottom-up and every glyph would come out as one
+            // of its neighbours -- the scrambled "~HHUIU I~ THE DEbK" the player photographed.
+            _glyphs = MonitorScreenView.Load("fonts/monitor_font_5x7", _palette);
+            if (_glyphs == null) return;
             _ready = true;
         }
 
@@ -140,7 +140,8 @@ namespace HRZeroDay.Game.Interaction
         {
             if (!_ready || _panel == null) return;
 
-            int cols = (MaxWidthPx - 2 * PaddingX) / (MonitorScreen.GlyphW + MonitorScreen.LetterGap);
+            int cols = (MaxWidthPx - 2 * PaddingX + MonitorScreen.LetterGap) /
+                       (MonitorScreen.GlyphW + MonitorScreen.LetterGap);
             var lines = new List<string>();
             var colours = new List<string>();
             lines.Add(Fit(_label, cols));

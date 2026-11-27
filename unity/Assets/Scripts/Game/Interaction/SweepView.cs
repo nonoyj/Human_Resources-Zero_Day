@@ -122,20 +122,10 @@ namespace HRZeroDay.Game.Interaction
         /// <summary>Loads the glyph atlas once, from the same resources the CRT and letter use.</summary>
         private bool LoadText()
         {
-            var tex = Resources.Load<Texture2D>(AtlasResource);
-            var metricsAsset = Resources.Load<TextAsset>(AtlasResource);
-            if (tex == null || metricsAsset == null)
-            {
-                Debug.LogError("SweepView: Resources/" + AtlasResource +
-                               " (.png/.json) missing. Run HR//0D > Publish Art To Resources.");
-                return false;
-            }
-            var metrics = JsonUtility.FromJson<FontMetrics>(metricsAsset.text);
-            var palette = MonitorScreenView.Palette.FromResources();
-            // The walk happens at night, so the ink is the CRT's, not the paper's. The atlas json carries
-            // the same ink, so a texture that is not readable still draws (BUG-045's lesson).
-            _glyphs = new FontAtlasGlyphSource(metrics, tex.isReadable ? tex.GetPixels32() : null,
-                                               tex.width, palette);
+            var palette = MonitorScreenView.PaletteCached;
+            // the walk happens at night, so the ink is the CRT's, not the paper's
+            _glyphs = MonitorScreenView.Load(AtlasResource, palette);
+            if (_glyphs == null) return false;
             _cols = SweepScript.Cols;
             return true;
         }

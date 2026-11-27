@@ -204,7 +204,12 @@ namespace HRZeroDay.Game
                     if (gx + MonitorScreen.GlyphW > w - 2) break;
                     for (int gy = 0; gy < MonitorScreen.GlyphH; gy++)
                     {
-                        if (!glyphs.InkAt(text[ci], 0, gy)) continue;
+                        // THE BUG THIS LINE USED TO BE (2026-11-27): the row loop skipped any row whose
+                        // LEFT-MOST pixel was empty, as a cheap early-out. At 5x7 that is most rows of
+                        // most letters, so painted text came out half-erased -- the player's
+                        // "~HHUIU I~ THE DEbK" and "I PHIE WHLK". The CRT never had it because it goes
+                        // through MonitorScreenRaster, which has no such shortcut; that is the entire
+                        // difference between the text that read correctly and the text that did not.
                         for (int px = 0; px < MonitorScreen.GlyphW; px++)
                         {
                             if (!glyphs.InkAt(text[ci], px, gy)) continue;
@@ -342,6 +347,46 @@ namespace HRZeroDay.Game
             if (force) Debug.Log("MonitorScreenView: glass " + _glass.w + "x" + _glass.h +
                                  ", " + rects.Count + " lines");
         }
+
+        private const string AtlasPath = "fonts/monitor_font_5x7";
+
+        /// <summary>
+        /// THE ONLY WAY TO GET A GLYPH SOURCE. Everything that paints text -- the CRT, the letter, the
+        /// read-out, the walk strip -- calls this, so there is exactly one set of glyphs on screen.
+        ///
+        /// Why it is a factory and not a constructor call at each site: on 2026-11-27 the CRT and the
+        /// letter rendered perfectly while the read-out and the walk strip rendered scrambled text
+        /// ("~HHUIU I~ THE DEbK"). They were the only two that built their glyphs from the PNG
+        /// (GetPixels32) instead of from the json's `rows`, and the PNG is row-bottom-up while the
+        /// lookup indexes it row-top-down -- so every glyph pulled its pixels from a different glyph.
+        /// The json copy is the same ink, is never unreadable, and is the one the CRT proves works.
+        /// </summary>
+        public static FontAtlasGlyphSource Load(string resourcePath, Dictionary<string, Color32> palette)
+        {
+            string path = string.IsNullOrEmpty(resourcePath) ? AtlasPath : resourcePath;
+            var tex = Resources.Load<Texture2D>(path);
+            var metricsAsset = Resources.Load<TextAsset>(path);
+            if (tex == null || metricsAsset == null)
+            {
+                Debug.LogError("font atlas missing at Resources/" + path +
+                               " -- run HR//0D > Publish Art To Resources.");
+                return null;
+            }
+            var metrics = JsonUtility.FromJson<FontMetrics>(metricsAsset.text);
+            // atlasPixels stays null on purpose: the json rows are authoritative (see above).
+            return new FontAtlasGlyphSource(metrics, null, tex.width, palette);
+        }
+
+        /// <summary>Loads the shipped palette without needing a live view. Cached: it never changes.</summary>
+        public static Dictionary<string, Color32> PaletteCached
+        {
+            get
+            {
+                if (_paletteCache == null) _paletteCache = Palette.FromResources();
+                return _paletteCache;
+            }
+        }
+        private static Dictionary<string, Color32> _paletteCache;
 
         /// <summary>Colour keys the screen may use, read from the published palette json.</summary>
         public static class Palette

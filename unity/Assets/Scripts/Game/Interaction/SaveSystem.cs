@@ -38,6 +38,10 @@ namespace HRZeroDay.Game.Interaction
         public static bool Write(SaveData data)
         {
             if (data == null) return false;
+            // Unity is tearing the player down: the file handle may already be gone, and the run is
+            // already on disk from the last committed decision. Attempting the write is what produced the
+            // IOException the player kept seeing on Stop.
+            if (_quitting) return false;
             try
             {
                 data.savedAtUtc = DateTime.UtcNow.ToString("o");
@@ -62,9 +66,13 @@ namespace HRZeroDay.Game.Interaction
                 if (signature != _lastWriteError)
                 {
                     _lastWriteError = signature;
+                    // The REASON was being swallowed: three player reports of the same line gave us
+                    // nothing to act on. The path, the failing call and the exception's own message are
+                    // now all in the log, once per distinct failure.
                     Debug.LogWarning("SaveSystem: could not write save (" + e.GetType().Name + ") at " +
-                                     Path.GetFileName(SavePath) + ". The shift continues; progress will " +
-                                     "not persist until the next successful write.");
+                                     SavePath + "\n  " + e.Message +
+                                     "\n  The shift continues; progress will not persist until the next " +
+                                     "successful write.");
                 }
                 return false;
             }

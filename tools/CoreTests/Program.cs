@@ -36,6 +36,7 @@ internal static class Program
         lines.AddRange(SweepTests.RunAll());           // after-hours sweep: one trace per wrong hire
         lines.AddRange(SweepScriptTests.RunAll());     // ...and the pages it is read on
         lines.AddRange(PageTransformTests.RunAll());   // drawn where we think it is drawn
+        lines.AddRange(TextLayoutTests.RunAll());      // ...and saying what we think it says
         lines.AddRange(HotspotReachTests.RunAll());    // can the player actually touch what they see?
         lines.AddRange(SaveResumeTests.RunAll());      // save -> quit -> relaunch lands on the same desk
         foreach (var line in lines)

@@ -21,6 +21,7 @@
     <Compile Include="SweepTests.cs" />
     <Compile Include="SweepScriptTests.cs" />
     <Compile Include="PageTransformTests.cs" />
+    <Compile Include="TextLayoutTests.cs" />
     <Compile Include="HotspotReachTests.cs" />
     <Compile Include="InteractionTests.cs" />
     <Compile Include="SaveResumeTests.cs" />
