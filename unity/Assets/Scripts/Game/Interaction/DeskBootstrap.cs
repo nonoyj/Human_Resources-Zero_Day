@@ -2,6 +2,7 @@
 // Everything below is wiring: rules live in DeskSession/EvidenceLedger, scoring in Core.
 // No truth flag or tell list is passed to any view.
 // Owner: Agent (interaction layer).
+using System;
 using UnityEngine;
 using HRZeroDay.Core.Data;
 using HRZeroDay.Core.Rules;
@@ -28,20 +29,27 @@ namespace HRZeroDay.Game.Interaction
         public DecisionInputController Decision { get; private set; }
         public LetterView Letter { get; private set; }
         public GameHud Hud { get; private set; }
+        public SweepView Walk { get; private set; }
 
         public bool LetterOpen { get { return Letter != null && Letter.gameObject.activeSelf; } }
         public bool ShowDebrief { get { return _showingDebrief; } }
         public bool ShowDaySummary { get { return _showingDaySummary; } }
+        /// <summary>The after-hours walk is on screen. Input goes to the walk while this is true.</summary>
+        public bool ShowingSweep { get { return Walk != null && Walk.IsOpen; } }
         public bool ShowEnding { get { return Session != null && Session.Finished && !_showingDebrief; } }
         public DecisionResult LastDecision { get; private set; }
         public DayResult LastDay { get; private set; }
         public bool HelpVisible { get { return _helpVisible; } }
         public float DebriefLeft { get { return _debriefLeft; } }
+        /// <summary>The walk's one-line receipt for the summary screen; null when the walk was skipped.</summary>
+        public string SweepLine { get { return _sweepLine; } }
 
         private float _debriefLeft;
         private bool _showingDebrief;
         private bool _showingDaySummary;
         private bool _helpVisible;
+        private System.Collections.Generic.List<SweepTrace> _sweepTraces;
+        private string _sweepLine;                 // the summary's receipt, null on a clean day
 
         private void Awake()
         {
@@ -93,6 +101,7 @@ namespace HRZeroDay.Game.Interaction
             if (string.IsNullOrEmpty(correctHeading)) correctHeading = "DECISION RECORDED";
             if (string.IsNullOrEmpty(wrongHeading)) wrongHeading = "DECISION RECORDED";
             if (Letter != null) Letter.Close();
+            EnsureSweep();
             if (ResumedFromSave)
                 watchCopy = "SHIFT RESUMED - DAY " + Session.Day + " / " + watchCopy;
             PersistSave();                  // a run that is quit on day 1 must still persist
@@ -106,6 +115,52 @@ namespace HRZeroDay.Game.Interaction
         }
 
         public void ToggleHelp() { _helpVisible = !_helpVisible; }
+
+        // --------------------------------------------------------------- after-hours sweep
+        /// <summary>
+        /// Builds the walk's page lazily, once. Lazy because most Play sessions never reach a summary,
+        /// and a failed build must not stop the desk from working: it is caught and logged, and the day
+        /// simply skips the walk.
+        /// </summary>
+        private void EnsureSweep()
+        {
+            if (Walk != null) return;
+            try
+            {
+                var view = SweepView.Attach(this);
+                if (view.Build(DeskLayout.Load().canvas)) Walk = view;
+                else Destroy(view.gameObject);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[HR//0D] sweep unavailable: " + ex.Message + " -- the day summary continues without it.");
+                Walk = null;
+            }
+        }
+
+        /// <summary>Called by SweepView when the last page clocks out.</summary>
+        public void OnSweepFinished()
+        {
+            _showingDaySummary = true;
+            Hud.RefreshNow();          // the summary must appear with the walk's line on the first frame
+        }
+
+        private void StartSweep()
+        {
+            EnsureSweep();
+            if (Walk == null) { _showingDaySummary = true; return; }
+            if (!Walk.Open(_sweepTraces)) { _showingDaySummary = true; return; }
+            CloseLetter();
+            Presenter.Hide();
+        }
+
+        /// <summary>SPACE while the walk is on screen. Returns true when the press was consumed.</summary>
+        public bool SweepAdvance()
+        {
+            if (!ShowingSweep) return false;
+            Walk.Advance();
+            return true;
+        }
 
         public void ToggleLetter()
         {
@@ -162,9 +217,15 @@ namespace HRZeroDay.Game.Interaction
                     var closedDay = Session.LastClosedDay;
                     LastDay = Session.CloseDay();
                     RecordDay(LastDay, closedDay);
-                    _showingDaySummary = true;
                     CloseLetter();
                     Presenter.Hide();
+
+                    // DECIDED 2026-11-26: the walk happens only on a day when something got through.
+                    // A quiet office is not a scene; that day goes straight to the summary.
+                    _sweepTraces = Sweep.AfterShift(closedDay, Session.Shift.Today);
+                    _sweepLine = SweepScript.SummaryLine(closedDay, _sweepTraces);
+                    if (Sweep.HasSweep(closedDay)) StartSweep();
+                    else _showingDaySummary = true;
                 }
                 else if (Decision != null) Decision.NextApplicant();
                 return;
@@ -203,6 +264,8 @@ namespace HRZeroDay.Game.Interaction
             Session.BeginCurrent();
             LastDecision = null;
             LastDay = null;
+            _sweepTraces = null;
+            _sweepLine = null;
             _showingDebrief = false;
             _showingDaySummary = false;
             CloseLetter();

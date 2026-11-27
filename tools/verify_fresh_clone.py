@@ -37,6 +37,9 @@ CHECKS = [
     ('applicant proportions',       ['tools/art/check_proportions.py']),
     ('font atlas',                  ['tools/art/make_font.py', '--check']),
     ('manifest matches disk',       ['tools/art/make_sprite_manifest.py', '--verify']),
+    # The after-hours walk reads four backgrounds + a key strip through Resources.Load. They were in the
+    # repo before anything loaded them, which is exactly how BUG-044 happened; now a missing one fails here.
+    ('sweep pages render',          ['tools/comp/preview_sweep.py', '--check']),
 ]
 
 

@@ -33,7 +33,12 @@ namespace HRZeroDay.Game.Interaction
                 if (kb.hKey.wasPressedThisFrame) game.ToggleHelp();
                 if (kb.aKey.wasPressedThisFrame) game.Approve();
                 if (kb.sKey.wasPressedThisFrame) game.Reject();
-                if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame) game.Continue();
+                // The walk owns SPACE while it is on screen: turning a page must never also advance the
+                // day behind it. Order matters here, not cleverness.
+                if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame)
+                {
+                    if (!game.SweepAdvance()) game.Continue();
+                }
                 if (kb.rKey.wasPressedThisFrame && game.ShowEnding) game.Restart();
 
                 if (kb.digit1Key.wasPressedThisFrame) game.NumberKey(1);
@@ -71,7 +76,7 @@ namespace HRZeroDay.Game.Interaction
         private void DispatchPointer(Vector2 screenPoint)
         {
             if (bootstrap == null || bootstrap.LetterOpen || bootstrap.ShowDebrief ||
-                bootstrap.ShowDaySummary || bootstrap.ShowEnding) return;
+                bootstrap.ShowDaySummary || bootstrap.ShowEnding || bootstrap.ShowingSweep) return;
 
             var cam = Camera.main;
             if (cam == null) cam = FindFirstObjectByType<Camera>();

@@ -72,11 +72,33 @@ namespace HRZeroDay.Game.Interaction
             }
         }
 
+        /// <summary>
+        /// Forces the very next frame to show the current state. Needed when a screen change happens
+        /// OUTSIDE Update -- ending the after-hours walk is the case: without this the summary would
+        /// appear one frame late, after the walk's page has already gone.
+        /// </summary>
+        public void RefreshNow()
+        {
+            if (!_bound || _game == null || _game.Session == null) return;
+            Push(BuildLines());
+        }
+
         private void Update()
         {
             if (!_bound || _game == null || _game.Session == null) return;
-            var lines = BuildLines();
+            Push(BuildLines());
+        }
+
+        /// <summary>
+        /// Draws a set of lines: position, ink, backing panel. Split out of Update so a caller that
+        /// changes screens between frames (the walk ending) can repaint immediately instead of waiting
+        /// for the next Update and showing the wrong thing for one frame.
+        /// </summary>
+        private void Push(System.Collections.Generic.List<string> lines)
+        {
             bool letter = _game.LetterOpen;
+            // The walk draws its own page and its own key strip. The desk HUD stays out of it.
+            bool walking = _game.ShowingSweep;
             // Letter mode: LetterView already shows the letter itself, so the HUD shows ONLY the
             // flags, in dark ink, in the blank middle of the page (below the body, above the
             // prompt) instead of duplicating the letter in white over cream paper.
@@ -88,14 +110,15 @@ namespace HRZeroDay.Game.Interaction
             {
                 if (_lines[i] == null) continue;
                 _lines[i].transform.localPosition = new Vector3(x, topY - i * Step, -2f);
+                if (walking) { _lines[i].text = string.Empty; continue; }
                 _lines[i].color = ink;
                 _lines[i].text = i < lines.Count ? lines[i] : string.Empty;
                 if (i < lines.Count && lines[i] != null && lines[i].Length > maxLen) maxLen = lines[i].Length;
             }
             if (_panel != null)
             {
-                _panel.gameObject.SetActive(!letter && lines.Count > 0);
-                if (!letter && lines.Count > 0)
+                _panel.gameObject.SetActive(!letter && !walking && lines.Count > 0);
+                if (!letter && !walking && lines.Count > 0)
                 {
                     float w = Mathf.Clamp(1f + maxLen * 0.24f, 4f, 14.5f);
                     float h = lines.Count * Step + 0.6f;
@@ -133,6 +156,9 @@ namespace HRZeroDay.Game.Interaction
                     "WRONGFUL REJECTIONS " + d.WrongfulRejections + "   SYNTHETICS CAUGHT " + d.SyntheticsCaught);
                 Add(result, "TRUST " + s.Trust + "   CORRUPTION " + s.CorruptionLevel);
                 Add(result, "");
+                // The walk's receipt, when one happened. It is the only place the day's own damage is
+                // stated in plain words -- the counters above are numbers, this is the office.
+                if (!string.IsNullOrEmpty(_game.SweepLine)) { Add(result, _game.SweepLine); Add(result, ""); }
                 if (d != null) Add(result, Wrap(d.HintLine, 62));
                 Add(result, "");
                 Add(result, "[SPACE] NEXT DAY");

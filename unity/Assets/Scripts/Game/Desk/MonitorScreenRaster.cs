@@ -39,13 +39,18 @@ namespace HRZeroDay.Game
         public static void Render(Color32[] buffer, int w, int h,
                                   IList<ScreenLine> lines,
                                   IGlyphSource glyphs,
-                                  Color32 background)
+                                  Color32 background,
+                                  bool paintBackground = true)
         {
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
             if (glyphs == null) throw new ArgumentNullException(nameof(glyphs));
             if (buffer.Length < w * h) throw new ArgumentException("buffer too small for " + w + "x" + h);
 
-            for (int i = 0; i < buffer.Length; i++) buffer[i] = background;
+            // paintBackground:false lets a caller own the fill (the after-hours sweep draws a caption band
+            // first and needs the glyphs composited ON it, not on a flat colour). Default stays true, so
+            // every existing caller behaves exactly as before and its tests still hold.
+            if (paintBackground)
+                for (int i = 0; i < buffer.Length; i++) buffer[i] = background;
             if (lines == null) return;
 
             // LinesToRects hands back y-UP canvas space. The texture is row 0 = top, so flip once here.
