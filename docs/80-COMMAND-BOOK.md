@@ -24,6 +24,8 @@ to remember which of these you are on.
 | 3 | **Open the game** | `.\scripts\Open-Game.ps1` | repo root |
 | 4 | **Build a bundle** | `pwsh -File scripts\Build-Bundle.ps1 -Version NN` | repo root |
 | 5 | **All gates** | `.\scripts\Test-ArtPipeline.ps1` ; `.\scripts\Test-Scripts.ps1` ; `dotnet run --project tools\CoreTests` | repo root |
+| 6 | **Where am I + has the team pushed?** | `.\scripts\Where-Am-I.ps1` | repo root |
+| 7 | **Reset a copy that arrived dirty** | `git reset --hard` then `git clean -fd` | repo root |
 
 **Order that never breaks:** push **first**, install a bundle **second**. `Apply-Bundle` rebuilds `.git`
 from the bundle's history, so a push after an install needs a force, and `Push.ps1` refuses to ever force.
@@ -114,13 +116,27 @@ python tools\comp\preview_callout.py           # the read-out panel over an appl
 
 ## 6. Save file, when something looks stuck
 
-The game writes `hr0d_save.json` next to the save folder; a `.bak` is rotated on every save.
+**Where it is** — `Application.persistentDataPath` on Windows is
+`%USERPROFILE%\AppData\LocalLow\<CompanyName>\<ProductName>\`, and this project sets
+`companyName: NONOYJ`, `productName: HUMAN RESOURCES ZERO DAY`, so:
 
 ```powershell
-Get-ChildItem -Recurse -Filter hr0d_save* -Path $env:USERPROFILE\AppData\LocalLow | Select-Object FullName, Length, LastWriteTime
+$save = Join-Path $env:USERPROFILE 'AppData\LocalLow\NONOYJ\HUMAN RESOURCES ZERO DAY'
+Get-ChildItem -LiteralPath $save -Filter 'hr0d_save*' | Select-Object Name, Length, LastWriteTime
 ```
 
-If the Console still shows an `IOException` naming that file, paste it — that is an open bug, not your fault.
+**The files:** `hr0d_save.json` (current), `hr0d_save.json.bak` (the previous save, rotated on every
+write), `hr0d_save.json.tmp` (only exists for the split second of a write).
+
+**Deleting a save (start a fresh run):**
+
+```powershell
+Remove-Item -LiteralPath (Join-Path $env:USERPROFILE 'AppData\LocalLow\NONOYJ\HUMAN RESOURCES ZERO DAY') -Recurse -Force
+```
+
+**The `IOException at hr0d_save.json` warning on Stop** is a known open bug (D-5): the run is already
+saved after every decision, so nothing is lost — but it should not print. If you see it at any OTHER time
+(mid-shift, while playing), that is new and important: paste the full Console line.
 
 ---
 
@@ -135,11 +151,33 @@ If the Console still shows an `IOException` naming that file, paste it — that 
 | apply fails on `.git` | a process holds it | `Apply-Bundle` retries; else close Unity and re-run |
 | Game view is black | art not published to Resources | `HR//0D > Setup Project (one click)` |
 | `Build-Bundle refuses a dirty tree` | uncommitted changes | `.\scripts\Push.ps1 -Message "..."` first |
-| `still nested: art\art` etc. | **cosmetic** false warning from the nesting check | ignore it; queued for cleanup (LATER-LIST entry L-1) |
+| `still nested: art\art` etc. | the nesting check asks git now, not the filesystem (fixed in v90) | if seen again, the BUNDLE really is nested — tell the agent |
+| `working tree not clean (474 entries)` right after an apply | `-Clean` now forces the tree to the bundle's commit (fixed in v90) | `git reset --hard` then `git clean -fd` |
+| `cannot be loaded because running scripts is disabled` | PowerShell execution policy on a fresh machine | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` then answer **Y**, re-run the script |
 
 ---
 
-## 8. Things that are deliberately absent
+## 8. Repo hygiene, once per copy
+
+```powershell
+git config core.autocrlf false          # Apply-Bundle already sets this; harmless to repeat
+git config user.name  "Your Name"       # so your commits are not "unknown"
+git config user.email "you@example.com"
+```
+
+Rebuild a copy whose files and history disagree (`Apply-Bundle` says `working tree not clean`):
+
+```powershell
+git reset --hard
+git clean -fd
+```
+
+`git clean -fd` deletes untracked files — that is the point, and it never touches `Library\` or `Temp\`
+because those are ignored, not untracked. **Commit anything you want to keep first.**
+
+---
+
+## 9. Things that are deliberately absent
 
 Google Docs handoffs (markdown in `handoff/` only) · Git LFS · force-pushing without
 `-ReplaceRemoteHistory` · closing Unity to apply a bundle · storing a credential inside the repo.

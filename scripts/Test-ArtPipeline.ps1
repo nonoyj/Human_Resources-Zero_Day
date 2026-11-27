@@ -197,6 +197,31 @@ try {
             foreach ($b in $bad) { Write-Host "  [FAIL] $b" -ForegroundColor Red }
         } else { OK 'hotspot geometry comes from HotspotHitTest, which the reach test also calls' }
 
+    S 'screen elements are placed in canvas px, through PageTransform'
+        $views = @(
+            (Join-Path $repo 'unity\Assets\Scripts\Game\Interaction\SweepView.cs'),
+            (Join-Path $repo 'unity\Assets\Scripts\Game\Interaction\DeskEvidenceOverlay.cs'),
+            (Join-Path $repo 'unity\Assets\Scripts\Game\Interaction\GameHud.cs')
+        ) | Where-Object { Test-Path -LiteralPath $_ }
+        $bad = @()
+        foreach ($f in $views) {
+            $code = [regex]::Replace((Get-Content $f -Raw), '(?m)//.*$', '')
+            # The class of bug behind three player reports in two days: a page element positioned by
+            # dividing a canvas-pixel value by the ppu inline, or a sprite scaled by its own pixel size a
+            # second time (Sprite.Create already divides by the ppu). Both look right in code and are
+            # metres off on screen. PageTransform owns the conversion; nothing else may do it.
+            if ($code -match '(KeyBandTop|BandTop|KeyStripH)\s*/\s*Ppu') {
+                $bad += "$(Split-Path $f -Leaf): divides a y-down page offset by Ppu -- use PageTransform.TopLeftToWorld"
+            }
+            if ($code -match 'localScale\s*=\s*new Vector3\(\s*w\s*/\s*pixelsPerUnit') {
+                $bad += "$(Split-Path $f -Leaf): scales a sprite by its own pixel size (double size) -- a ppu sprite needs no scale"
+            }
+        }
+        if ($bad.Count -gt 0) {
+            $failed++
+            foreach ($b in $bad) { Write-Host "  [FAIL] $b" -ForegroundColor Red }
+        } else { OK 'page elements convert canvas px through PageTransform, and paint at natural scale' }
+
     S 'applicant proportions (no floating heads, no cone skulls)'
         & python (Join-Path $repo 'tools\art\check_proportions.py')
         if ($LASTEXITCODE -ne 0) { $failed++; Write-Host '  [FAIL] applicant proportions' -ForegroundColor Red }

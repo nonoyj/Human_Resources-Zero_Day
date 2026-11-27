@@ -29,9 +29,13 @@ namespace HRZeroDay.Game.Interaction
         public float pixelsPerUnit = 16f;
         public float zoom = 2f;
 
-        // Callout sits in the top-right of the desk, clear of the face band.
-        public float calloutX = 268f;
-        public float calloutY = 196f;
+        // ANCHOR, in canvas px: the panel's TOP-RIGHT corner. The applicant's bust sits on the right of
+        // the desk (head top ~ y 210, left edge ~ x 330), so the read-out hangs to the LEFT of the head
+        // and never covers the face it is describing. These used to be read as a CENTRE while the panel
+        // was placed by a function that forgot the canvas-centre offset, so the panel was drawn 15 units
+        // right and 8 units up of where the tap router thought it was -- off the room entirely.
+        public float calloutX = 316f;
+        public float calloutY = 214f;
 
         private SpriteRenderer _panel;
         private Texture2D _tex;
@@ -41,9 +45,10 @@ namespace HRZeroDay.Game.Interaction
         private string _body = string.Empty;
         private bool _ready;
 
-        private const int PaddingX = 8;
-        private const int PaddingY = 7;
-        private const int MaxWidthPx = 176;          // fits right of the applicant on a 480 px canvas
+        private const int PaddingX = 6;
+        private const int PaddingY = 6;
+        private const int MaxWidthPx = 148;          // an index card, not a panel: ~26 columns at 5x7
+        private const int MaxLines = 6;
 
         public bool IsShowing { get { return callout != null && callout.gameObject.activeSelf; } }
 
@@ -96,7 +101,8 @@ namespace HRZeroDay.Game.Interaction
         {
             float w = _tex != null ? _tex.width : 120f;
             float h = _tex != null ? _tex.height : 40f;
-            return new Rect(calloutX - w * 0.5f, calloutY - h * 0.5f, w, h);
+            // anchor is the TOP-RIGHT corner: the rect runs left and DOWN from it
+            return new Rect(calloutX - w, calloutY - h, w, h);
         }
 
         public bool Contains(Vector2 canvasPoint)
@@ -111,7 +117,6 @@ namespace HRZeroDay.Game.Interaction
         {
             if (callout == null) return;
             callout.gameObject.SetActive(true);
-            callout.position = World(new Vector2(calloutX, calloutY));
             _label = label ?? string.Empty;
             _body = wording ?? string.Empty;
             Repaint();
@@ -135,10 +140,14 @@ namespace HRZeroDay.Game.Interaction
                 lines.Add(line);
                 colours.Add("text");
             }
-            while (lines.Count > 8) { lines.RemoveAt(lines.Count - 1); colours.RemoveAt(colours.Count - 1); }
+            while (lines.Count > MaxLines) { lines.RemoveAt(lines.Count - 1); colours.RemoveAt(colours.Count - 1); }
 
             int step = MonitorScreen.GlyphH + MonitorScreen.LineGap;
-            int w = MaxWidthPx;
+            // width to the longest line, so a short label does not carry a card-sized box
+            int widest = 0;
+            foreach (var l in lines) if (l.Length > widest) widest = l.Length;
+            int w = 2 * PaddingX + widest * (MonitorScreen.GlyphW + MonitorScreen.LetterGap);
+            w = w < 72 ? 72 : (w > MaxWidthPx ? MaxWidthPx : w);
             int h = 2 * PaddingY + lines.Count * step - MonitorScreen.LineGap;
             if (_tex == null || _tex.width != w || _tex.height != h)
             {
@@ -159,8 +168,14 @@ namespace HRZeroDay.Game.Interaction
                 _panel.sprite = Sprite.Create(_tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), pixelsPerUnit);
             _panel.color = Color.white;
 
-            // the panel is 480-canvas px wide, so its local scale is simply the pixel size / ppu
-            callout.localScale = new Vector3(w / pixelsPerUnit, h / pixelsPerUnit, 1f);
+            // Position by the TOP-RIGHT anchor, in canvas px. The sprite pivot is the centre, so the
+            // centre sits half a panel left of and half a panel below the anchor. Scale stays 1: Sprite.Create
+            // already divided the texture by the ppu, so multiplying by the pixel size again drew this
+            // panel 11x too big (the player's "clicking opens it too big", 2026-11-27).
+            callout.localScale = PageTransform.NaturalScale;
+            _panel.transform.localScale = PageTransform.NaturalScale;
+            callout.localPosition = PageTransform.CanvasToWorld(calloutX - w * 0.5f, calloutY - h * 0.5f,
+                                                                pixelsPerUnit);
         }
 
         private static string Fit(string text, int cols)
@@ -189,7 +204,9 @@ namespace HRZeroDay.Game.Interaction
 
         private Vector3 World(Vector2 canvasPoint)
         {
-            return new Vector3(canvasPoint.x / pixelsPerUnit, canvasPoint.y / pixelsPerUnit, -1f);
+            var p = PageTransform.CanvasToWorld(canvasPoint.x, canvasPoint.y, pixelsPerUnit);
+            p.z = -1f;
+            return p;
         }
 
         private void OnDisable()

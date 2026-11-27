@@ -252,6 +252,8 @@ try {
             Git @('-C', $WorkingCopy, 'reset', '-q', '--mixed', ('refs/heads/' + $bBranch)) | Out-Null
             $shortSha = (Git @('-C', $WorkingCopy, 'rev-parse', '--short', $bBranch) -Quiet).Trim()
             OK "history adopted: $bBranch at $shortSha"
+            $bundleHead = $headSha.Trim()
+            $script:bundleHead = $bundleHead
             # hooks/config from the source repo are not needed; keep the bundle's identity out of it
             Git @('-C', $WorkingCopy, 'config', 'core.autocrlf', 'false') -Quiet | Out-Null
             if ($savedRemote) {
@@ -272,6 +274,7 @@ try {
     # NOTE: this is a plain foreach, so `continue` (not `return`) is the skip -- `return` here would
     # exit the whole script silently (BUG-022).
     $scriptCopied = $false
+    $bundleHead = $null
     $items = @(Get-ChildItem -LiteralPath $root.FullName -Force)
     foreach ($it in $items) {
         if ($it.Name -eq '.git') { continue }
@@ -322,8 +325,31 @@ try {
         # The bundle's file set is the truth. Anything left over from the previous version (a file
         # that existed under the old HEAD) shows up as untracked and was reported as
         # "files do NOT match HEAD" -- alarming, and wrong. Force the tree to match, then verify.
-        Git @('-C', $WorkingCopy, 'reset', '--hard') -Quiet | Out-Null
-        Git @('-C', $WorkingCopy, 'clean', '-fd') -Quiet | Out-Null
+        #
+        # RECOVERED FROM THE RUNNING-COPY CASE FIRST (2026-11-27). Applying from INSIDE the working copy
+        # (the repo's own scripts\Apply-Bundle.ps1 -- which is the only copy a bundle-installed machine
+        # has before it downloads one) cannot replace .git under itself, so the history adopt is skipped,
+        # and the file copy then writes the bundle's tree over a checkout of a DIFFERENT commit. That is
+        # exactly how the player got 474 "working tree not clean" entries after a clean apply: the PNGs
+        # were the bundle's, HEAD was the old commit. The fix is not to explain it, it is to make the tree
+        # match the bundle: the same tree is already on disk, so reset to the bundle's commit -- walking
+        # forward (fast-forward) or back (the old commit is in the new history). Only if that commit is
+        # genuinely absent do we fall back to hard reset + clean, which is what -Reinstall means.
+        $target = $bundleHead
+        if ($target) {
+            Git @('-C', $WorkingCopy, 'cat-file', '-e', ($target + '^{commit}')) -Quiet | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                Git @('-C', $WorkingCopy, 'reset', '-q', '--hard', $target) | Out-Null
+                OK "tree forced to the bundle's commit $($target.Substring(0,7))"
+            } else {
+                Git @('-C', $WorkingCopy, 'reset', '--hard') -Quiet | Out-Null
+                Git @('-C', $WorkingCopy, 'clean', '-fd') -Quiet | Out-Null
+                W "bundle commit $($target.Substring(0,7)) is not in this copy's history -- tree reset to HEAD instead"
+            }
+        } else {
+            Git @('-C', $WorkingCopy, 'reset', '--hard') -Quiet | Out-Null
+            Git @('-C', $WorkingCopy, 'clean', '-fd') -Quiet | Out-Null
+        }
     }
 
     S "result"
@@ -353,7 +379,15 @@ try {
             else { OK "working tree clean -- files match HEAD exactly" }
         }
         foreach ($d in $projectDirs) {
-            if (Test-Path (Join-Path (Join-Path $WorkingCopy $d) $d)) { W "still nested: $d\$d" }
+            # A merge that is working produces a directory whose contents REPLACED the old ones. Only a
+            # directory that is TRACKED but should not be (the BUG-021 double-nest: art\art committed)
+            # is a problem, so ask git rather than the filesystem -- the filesystem check fired on every
+            # clean apply for a week and made three real warnings look like noise.
+            $nested = Join-Path (Join-Path $WorkingCopy $d) $d
+            if ((Test-Path $nested) -and $bundleHead) {
+                Git @('-C', $WorkingCopy, 'ls-tree', '-r', '--name-only', $bundleHead, '--', "$d/$d/") -Quiet | Out-Null
+                if ($LASTEXITCODE -eq 0) { W "still nested: $d\$d (tracked in the bundle -- a build problem, tell the agent)" }
+            }
         }
     } finally { Pop-Location }
 

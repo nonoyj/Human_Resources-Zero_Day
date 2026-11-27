@@ -115,7 +115,9 @@ namespace HRZeroDay.Game.Interaction
 
             var callout = new GameObject("Callout");
             callout.transform.SetParent(overlayGo.transform, false);
-            callout.transform.localPosition = new Vector3(overlay.calloutX / ppu, overlay.calloutY / ppu, 0f);
+            // Placed by the overlay itself, from its top-right anchor in canvas px (Repaint). The old line
+            // divided canvas px straight by Ppu and ignored the canvas centre -- exactly the maths
+            // PageTransform now owns, so it lives there and only there.
 
             var panel = new GameObject("Panel");
             panel.transform.SetParent(callout.transform, false);

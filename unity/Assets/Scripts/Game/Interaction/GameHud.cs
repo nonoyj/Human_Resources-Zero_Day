@@ -19,9 +19,19 @@ namespace HRZeroDay.Game.Interaction
         // room readable behind it. These two numbers move together: the step must stay ~1.9 x the size or
         // the lines collide, and the backing panel is sized from both.
         private const float Step = 0.36f;
+        // TextMesh spacing is in the font's em, NOT world units: the visible line pitch is
+        // characterSize * 1.7 (Unity's textLineHeight) * Step. At 0.19 / 0.36 that is 0.116 units, i.e.
+        // ~1.9 screen px on a 1080-tall Game view. The old code moved each line by a flat 0.36 units --
+        // 23x too far -- so the block ran off the bottom of the screen after five lines and the next
+        // screen's copy landed on top of this one. That is the "text opens way too big" report.
+        private const float LinePitchEm = 1.7f;
+        // One unit per character column, in em. 0.55 keeps the widest HUD line (50 chars) under 9 of the
+        // 30 units the canvas is wide, while still reading as a card in the top-left.
+        private const float ColumnEm = 0.55f;
+        private const float WrapCharsPerUnit = 8.5f;
 
         private DeskBootstrap _game;
-        private TextMesh[] _lines;
+        private TextMesh _text;
         private bool _bound;
         private SpriteRenderer _panel;
 
@@ -60,20 +70,19 @@ namespace HRZeroDay.Game.Interaction
             panelGo.SetActive(false);
 
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            _lines = new TextMesh[LineCount];
-            for (int i = 0; i < LineCount; i++)
-            {
-                var go = new GameObject("Line" + i);
-                go.transform.SetParent(transform, false);
-                go.transform.localPosition = new Vector3(0.45f, 16.25f - i * Step, -2f);
-                var text = go.AddComponent<TextMesh>();
-                text.font = font;
-                text.characterSize = 0.19f;          // compact: leaves the desk art readable
-                // TextMesh is a Component, not a Renderer -- the order goes on its MeshRenderer.
-                DeskRuntimeScene.SetTextMeshSorting(text, 220);   // above the letter page and the CRT
-                text.text = string.Empty;
-                _lines[i] = text;
-            }
+            // ONE TextMesh for the whole block. Sixteen TextMeshes positioned by hand is how the block
+            // ended up 23x too tall; a single mesh wraps its own lines at the same pitch, so the layout is
+            // whatever Unity decided it is, and the panel behind it can be measured from the reported size.
+            var go = new GameObject("Text");
+            go.transform.SetParent(transform, false);
+            _text = go.AddComponent<TextMesh>();
+            _text.font = font;
+            _text.characterSize = 0.19f;
+            _text.anchor = TextAnchor.UpperLeft;
+            _text.alignment = TextAlignment.Left;
+            // TextMesh is a Component, not a Renderer -- the order goes on its MeshRenderer.
+            DeskRuntimeScene.SetTextMeshSorting(_text, 220);   // above the letter page and the CRT
+            _text.text = string.Empty;
         }
 
         /// <summary>
@@ -100,35 +109,53 @@ namespace HRZeroDay.Game.Interaction
         /// </summary>
         private void Push(System.Collections.Generic.List<string> lines)
         {
+            if (_text == null) return;
             bool letter = _game.LetterOpen;
             // The walk draws its own page and its own key strip. The desk HUD stays out of it.
             bool walking = _game.ShowingSweep;
+
             // Letter mode: LetterView already shows the letter itself, so the HUD shows ONLY the
             // flags, in dark ink, in the blank middle of the page (below the body, above the
             // prompt) instead of duplicating the letter in white over cream paper.
-            float x = 0.5f;
-            float topY = letter ? 8.6f : 16.25f;
             Color ink = letter ? Ink : PaperWhite;
+            _text.color = ink;
+
+            var text = new StringBuilder();
             int maxLen = 0;
-            for (int i = 0; i < _lines.Length; i++)
+            if (!walking)
             {
-                if (_lines[i] == null) continue;
-                _lines[i].transform.localPosition = new Vector3(x, topY - i * Step, -2f);
-                if (walking) { _lines[i].text = string.Empty; continue; }
-                _lines[i].color = ink;
-                _lines[i].text = i < lines.Count ? lines[i] : string.Empty;
-                if (i < lines.Count && lines[i] != null && lines[i].Length > maxLen) maxLen = lines[i].Length;
+                int shown = 0;
+                for (int i = 0; i < lines.Count && shown < LineCount; i++, shown++)
+                {
+                    var line = lines[i] ?? string.Empty;
+                    text.Append(line).Append('\n');
+                    if (line.Length > maxLen) maxLen = line.Length;
+                }
             }
+            _text.text = text.ToString();
+
+            // The block is pinned to the top-left of the canvas and grows DOWN, in canvas px.
+            if (letter) _text.transform.localPosition = new Vector3(0.5f, 8.6f, -2f);
+            else _text.transform.localPosition = new Vector3(0.45f, 16.25f, -2f);
+
             if (_panel != null)
             {
-                _panel.gameObject.SetActive(!letter && !walking && lines.Count > 0);
-                if (!letter && !walking && lines.Count > 0)
-                {
-                    float w = Mathf.Clamp(0.5f + maxLen * 0.175f, 4f, 12.5f);   // ~0.175 unit per column
-                    float h = lines.Count * Step + 0.4f;
-                    _panel.transform.localPosition = new Vector3(0.25f + w * 0.5f, 16.45f - h * 0.5f, -2.1f);
-                    _panel.transform.localScale = new Vector3(w, h, 1f);
-                }
+                bool show = !letter && !walking && maxLen > 0;
+                _panel.gameObject.SetActive(show);
+                if (!show) return;
+
+                // Size the backing from the block's real proportions. The characterSize is per glyph, so
+                // the whole block is (longest line x ColumnEm) em wide and (lines x 1.7) em tall.
+                float lineHeight = _text.characterSize * LinePitchEm;
+                float w = 0.5f + maxLen * _text.characterSize * ColumnEm;
+                float h = 0.3f + text.ToString().Split('\n').Length * lineHeight;
+                w = Mathf.Clamp(w, 4f, 14f);
+                h = Mathf.Clamp(h, 0.6f, 8f);
+                // panel pivot is the centre: place its centre at (left + w/2, top - h/2) of the block
+                float left = _text.transform.localPosition.x - 0.15f;
+                float top = _text.transform.localPosition.y + 0.05f;
+                _panel.transform.localPosition = new Vector3(left + w * 0.5f, top - h * 0.5f, -2.1f);
+                _panel.transform.localScale = new Vector3(w, h, 1f);
             }
         }
 

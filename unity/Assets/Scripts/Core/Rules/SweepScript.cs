@@ -51,7 +51,12 @@ namespace HRZeroDay.Core.Rules
         public const int TextX = BandX + PadX;                 // 16
         public const int TextTop = BandTop + PadY;             // 20, y DOWN from page top
         public const int TextW = BandW - 2 * PadX;             // 448 px -> 64 columns
-        public const int RowStep = MonitorGlyph + 3;           // glyph 7 + lineGap 3 -- mirror of the font
+        // The row pitch of the font: glyph HEIGHT + lineGap. This mirrored MonitorGlyph (the glyph
+        // WIDTH, 5) for a year of rounds, so every band was sized at 8 px per row while the raster laid
+        // the rows out at 10. Consequence: the last two lines of any caption were painted BELOW the band
+        // -- text straight onto the room art, which is the "unreadable, streaky caption" in the player's
+        // screenshots. PageTransformTests now asserts this equals MonitorScreen.GlyphH + LineGap.
+        public const int RowStep = MonitorGlyphH + MonitorLineGap;   // 7 + 3 = 10
 
         /// <summary>Height of the band that must be drawn behind `rows` lines of text.</summary>
         public static int BandHeight(int rows)
@@ -59,6 +64,15 @@ namespace HRZeroDay.Core.Rules
             if (rows <= 0) return 0;
             return rows * RowStep + 2 * PadY - 3;
         }
+
+        /// <summary>
+        /// Height of the caption texture: one allocation, the worst case, so the band never has to be
+        /// resized mid-walk. <see cref="MaxRows"/> is what fits between BandTop and the prompt band at the
+        /// real 10 px row pitch: 14 + 20*10 + 2*6 - 3 = 223, and the prompt starts at 233.
+        /// </summary>
+        public static int BandH { get { return BandHeight(MaxRows); } }
+
+        public const int MaxRows = 20;
 
         public static int Cols
         {
@@ -68,8 +82,10 @@ namespace HRZeroDay.Core.Rules
         // Mirror of MonitorScreen's metrics. Duplicated as constants on purpose: Core must not depend
         // on the Game assembly (the Game assembly depends on Core). The test project asserts these
         // two agree, so a change to the font metrics cannot silently break the walk's wrap.
-        private const int MonitorGlyph = 5;
-        private const int MonitorGap = 2;
+        private const int MonitorGlyph = 5;      // glyph width (columns)
+        private const int MonitorGlyphH = 7;     // glyph height (rows) -- the row pitch is built from THIS
+        private const int MonitorGap = 2;        // letterGap
+        private const int MonitorLineGap = 3;
 
         /// <summary>Order the floors are walked in. The last floor always carries the worst trace.</summary>
         public static readonly string[] FloorOrder = { "desk", "corridor", "lift" };

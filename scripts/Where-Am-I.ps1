@@ -47,6 +47,15 @@ try {
     if ($count -gt 0) { Warn ("working tree DIRTY -- " + $count + " file(s). Build-Bundle refuses a dirty tree.") }
     else { Ok "working tree clean" }
 
+    # Ask the remote what it has. The player asked to be told when the team pushes something new, and
+    # the agent's sandbox cannot reach GitHub -- so the check has to happen on this machine, every time
+    # this script runs. A failure here is normal offline and is reported, not fatal.
+    Write-Host ''
+    Write-Host '  fetching origin (10s) ...' -NoNewline
+    $fetch = (& git fetch --quiet --prune origin 2>&1)
+    if ($LASTEXITCODE -ne 0) { Warn ('could not reach origin -- offline or no credential: ' + ($fetch -join ' ')) }
+    else { Ok 'fetched' }
+
     $upstream = (& git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>$null)
     if ($LASTEXITCODE -ne 0 -or -not $upstream) {
         Warn "no upstream branch on this copy -- .\scripts\Push.ps1 sets it on the first run"
@@ -54,6 +63,11 @@ try {
         $ahead = (& git rev-list --count ('@{u}..HEAD' ) 2>$null)
         $behind = (& git rev-list --count ('HEAD..@{u}') 2>$null)
         Write-Host ("  upstream " + $upstream + "   ahead " + $ahead + "   behind " + $behind)
+        if ([int]$behind -gt 0) {
+            Warn "the remote has commits this copy does not:"
+            & git --no-pager log ('HEAD..@{u}') --oneline -5 | ForEach-Object { Write-Host ("    " + $_) }
+            Write-Host "  take them with:  git pull --no-rebase" -ForegroundColor White
+        }
     }
 
     # -- 2. last commits ---------------------------------------------------------------------

@@ -31,7 +31,7 @@ namespace HRZeroDay.Game.Interaction
 
         private const string AtlasResource = "fonts/monitor_font_5x7";
         private const float Ppu = 16f;                       // the project's pixels per unit, everywhere
-        private const int MaxRows = 22;                      // fits the band inside the page with the strip
+        private const int MaxRows = SweepScript.MaxRows;     // fits the band inside the page with the strip
 
         private DeskBootstrap _game;
         private List<SweepPage> _pages;
@@ -70,8 +70,10 @@ namespace HRZeroDay.Game.Interaction
             _textLayer = NewLayer("Text", 195);
             var keys = NewLayer("Keys", 199);
             keys.sprite = Resources.Load<Sprite>("Art/Kit/sweep/sweep_keys_480x22");
-            keys.transform.localPosition = new Vector3(SweepScript.PageW * 0.5f / Ppu,
-                                                      (SweepScript.KeyStripH * 0.5f) / Ppu, -0.4f);
+            // The neon key strip is bottom-anchored art: centre it on its own rect, in canvas px, from the
+            // bottom of the page.
+            keys.transform.localPosition = PageTransform.CanvasToWorld(SweepScript.PageW * 0.5f,
+                                                                      SweepScript.KeyStripH * 0.5f, Ppu);
 
             // one texture for the whole caption band, allocated at the largest page and reused
             // 1:1 with the canvas on purpose. This is a 5x7 bitmap font: it has no smaller size, and
@@ -79,13 +81,16 @@ namespace HRZeroDay.Game.Interaction
             // panel around it -- the band is sized to the rows actually used, so a two-line trace is a thin
             // bar and the room stays visible. (The player's "text is too big" was the desk HUD, which used
             // the engine font at 1.7 glyph boxes; that is fixed in GameHud.)
-            _tex = new Texture2D(SweepScript.BandW, SweepScript.BandHeight(MaxRows), TextureFormat.RGBA32, false);
+            // Created at exactly the size Repaint() paints. It used to be allocated for MaxRows (22) and
+            // then painted only the top `height` rows -- so SetPixels32 ran on a buffer that was the wrong
+            // length for the texture, Unity threw, and the band kept whatever the last page left on it.
+            _tex = new Texture2D(SweepScript.BandW, SweepScript.BandH, TextureFormat.RGBA32, false);
             _tex.filterMode = FilterMode.Point;
             _tex.name = "SweepBand";
             _textLayer.sprite = Sprite.Create(_tex, new Rect(0, 0, _tex.width, _tex.height),
-                                             new Vector2(0f, 1f), Ppu);       // pivot: top-left
-            _textLayer.transform.localPosition = new Vector3(SweepScript.BandX / Ppu,
-                (SweepScript.PageH - SweepScript.BandTop) / Ppu, -1f);
+                                             PageTransform.TopLeftPivot, Ppu);
+            _textLayer.transform.localPosition = PageTransform.TopLeftToWorld(
+                SweepScript.BandX, SweepScript.BandTop, Ppu, SweepScript.PageH);
 
             // The prompt is painted INTO the page texture with the same atlas as everything else. It used to
             // be a TextMesh placed at (TextX+40, KeyStrip+9) px -- which in y-up canvas space is 1.9 units
@@ -96,8 +101,11 @@ namespace HRZeroDay.Game.Interaction
             _keyBand.name = "SweepKeyBand";
             var keyLayer = NewLayer("KeyText", 200);
             keyLayer.sprite = Sprite.Create(_keyBand, new Rect(0, 0, SweepScript.PageW, SweepScript.KeyBandH),
-                                            new Vector2(0f, 1f), Ppu);   // pivot: top-left
-            keyLayer.transform.localPosition = new Vector3(0f, SweepScript.KeyBandTop / Ppu, -1f);
+                                            PageTransform.TopLeftPivot, Ppu);
+            // KeyBandTop is a y-DOWN offset from the top of the page (233 = just above the key strip).
+            // Placing it as KeyBandTop/Ppu put it at y = +14.5 units: above the room, off the right edge.
+            keyLayer.transform.localPosition = PageTransform.TopLeftToWorld(
+                0f, SweepScript.KeyBandTop, Ppu, SweepScript.PageH);
 
             _root.SetActive(false);
             return true;
@@ -172,8 +180,8 @@ namespace HRZeroDay.Game.Interaction
 
             _background.sprite = sprite;
             // the page is 480x270 art px = 30 x 16.875 units; the sprite pivot is its centre
-            _background.transform.localPosition = new Vector3(SweepScript.PageW * 0.5f / Ppu,
-                                                              SweepScript.PageH * 0.5f / Ppu, 0f);
+            _background.transform.localPosition = PageTransform.CanvasToWorld(SweepScript.PageW * 0.5f,
+                                                                             SweepScript.PageH * 0.5f, Ppu);
 
             RepaintKeyLine(page);
             Repaint(page);
@@ -194,7 +202,9 @@ namespace HRZeroDay.Game.Interaction
 
             var lines = new List<string> { SweepScript.KeyLine(page, _index, _pages.Count) };
             var colours = new List<string> { "signal" };
-            var painted = TextPanel.Paint(w, h, lines, colours, _glyphs, fill, fill);
+            // TextPanel.Paint offsets the first row by 6 px (PaddingY = 7 minus one), so the band must be
+            // at least 7 px of glyph plus its bottom border or the descenders are clipped.
+            var painted = TextPanel.Paint(w, h, lines, colours, _glyphs, fill, Colour("line", new Color32(43, 58, 77, 255)));
             for (int i = 0; i < buf.Length; i++) buf[i] = painted[i];
 
             MonitorScreenRaster.FlipToTextureOrder(buf, w, h);
@@ -217,13 +227,17 @@ namespace HRZeroDay.Game.Interaction
             for (int i = 0; i < page.Lines.Count && rows < MaxRows; i++, rows++)
                 specs.Add(new MonitorScreen.LineSpec { text = page.Lines[i], colour = "textdim" });
 
-            int height = SweepScript.BandHeight(rows);
+            // Paint the WHOLE texture. It is allocated at BandH (the tallest page), so every page fills it
+            // and SetPixels32 always gets width*height samples; rows past the band's real height stay
+            // transparent, which is what makes a two-line page a thin bar rather than a tall empty card.
+            int height = _tex.height;
+            int bandHeight = SweepScript.BandHeight(rows);
             var glass = new MonitorScreen.GlassRect
             {
                 x = SweepScript.PadX,
                 y = SweepScript.PadY,
                 w = _tex.width - 2 * SweepScript.PadX,
-                h = height - 2 * SweepScript.PadY
+                h = bandHeight - 2 * SweepScript.PadY
             };
             var rects = MonitorScreen.LinesToRects(specs, glass);
 
@@ -233,7 +247,7 @@ namespace HRZeroDay.Game.Interaction
             for (int i = 0; i < buf.Length; i++) buf[i] = new Color32(0, 0, 0, 0);   // transparent page
 
             // band: rows down from the top of the texture, so a two-line page is a thin bar
-            int top = 0, last = height - 1;
+            int top = 0, last = bandHeight - 1;
             for (int y = top; y <= last; y++)
                 for (int x = 0; x < _tex.width; x++)
                     buf[y * _tex.width + x] = void_;
@@ -254,6 +268,14 @@ namespace HRZeroDay.Game.Interaction
             MonitorScreenRaster.FlipToTextureOrder(buf, _tex.width, _tex.height);
             _tex.SetPixels32(buf);
             _tex.Apply(false);
+        }
+
+        private void OnDestroy()
+        {
+            // These two are created here, not imported: an un-destroyed Texture2D leaks for the session
+            // and, in the editor, keeps the play-mode object alive after Stop.
+            if (_tex != null) Destroy(_tex);
+            if (_keyBand != null) Destroy(_keyBand);
         }
 
         private Color32 Colour(string key, Color32 fallback)

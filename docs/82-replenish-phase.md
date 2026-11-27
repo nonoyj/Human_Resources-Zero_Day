@@ -45,7 +45,7 @@ mostly change numbers in a generator and re-run it, not redraw.
 
 | # | Item | Owner | Why it is here instead of now | Capture needed |
 |---|---|---|---|---|
-| A-1 | **Faces at 3×** — brow/nose/mouth are marks, not features (`ART-DIRECTION-STATE.md` §4) | Agent | needs a decision: bigger portrait vs tighter crop | 1 portrait at 3×, marked |
+| A-1 | **Faces at 3×** — brow/nose/mouth are marks, not features (`ART-DIRECTION-STATE.md` §4). **DECIDED 2026-11-27: option A — a dedicated larger portrait for the letter page; the desk keeps the 192×216 bust.** | Agent | needs the portrait frame (176×198) generated and published | 1 portrait at 3×, marked |
 | A-2 | **Skin-tone spread** — the four tones are in, but the cast still reads in three families | Agent | tune after A-1 changes the face | the current cast sheet |
 | A-3 | **Hair silhouettes** — simple is right, but 14 heads share too few shapes | Agent | cosmetic, big visual win per pixel | the hair-only strip |
 | A-4 | **The room's overall look** — desk lighting, wear overlays, night window balance | Agent | it is the last thing that should move; the furniture is still settling | one 480×270 still |
@@ -88,6 +88,12 @@ correct and the block is cosmetic; still tracked as the top of the phase), D-2 (
 `Apply-Bundle`), D-3 (text scale unification across screens), D-4 (cast tone spread, pending A-1).
 
 ---
+
+## 6a. Status, 2026-11-27
+
+Phase **not started** (0/8). Two of the five parked defects were pulled forward into the build because
+they were placement, not polish: **D-1** (walk key band) and the read-out size. See
+`docs/83-phase-tracker.md` for the live plan — that page answers "where are we" in one screen.
 
 ## 7. What this buys us
 

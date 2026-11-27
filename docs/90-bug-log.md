@@ -894,6 +894,67 @@ these were found by running the gates on the **merged** tree, which is the only 
 **Lesson.** A merge has its own gate list: compile, tests, scripts, art, fresh clone -- on the merged
 tree, before pushing. Two branches can each be green and the join be broken.
 
+## BUG-051 -- "clicking on something always opens it too big" (player report, 2026-11-27)
+
+The read-out opened as a card five times the desk. Two separate mistakes, one cause:
+
+1. `Repaint()` created the sprite at `blocksPerUnit` = 16 ppu — which *already* returns a sprite whose
+   world size is `pixels / 16` — and then set `localScale = (w/ppu, h/ppu)`. A 176 px panel became
+   `176/16 * 176/16 = 121` units wide on a 30-unit camera. **A ppu sprite needs no scale at all.**
+2. The panel's anchor was read as a CENTRE by `CalloutCanvasRect()` (the router) but placed by a function
+   that skipped the canvas-centre offset, so the drawn panel and the "tap inside to close" rect described
+   different places. Same class as BUG-050: two copies of one piece of maths.
+
+**Fix:** `PageTransform` owns the canvas-px -> world conversion (one function, three call sites), the panel
+is anchored by its TOP-RIGHT corner in canvas px (left of the applicant's head, never over the face), and
+it is sized to its longest line. `Test-ArtPipeline` now fails if a view divides a y-down page offset by the
+ppu inline or scales a ppu sprite by its own pixel size; `PageTransformTests` pins the numbers.
+
+**Class of bug:** *a coordinate space converted in two places, one of them wrong.* The guard is structural
+because the bug is: the same conversion must not exist twice.
+
+## BUG-052 -- the walk page described a band it did not paint (2026-11-27)
+
+`SweepView` allocated its caption texture for 22 rows and then called `SetPixels32` with a buffer sized for
+*that page's* row count. A short buffer is an exception Unity swallows into the log, and the texture keeps
+whatever the last page left in it -- which is what put half a sentence of the previous floor over the
+current one. The key prompt had the same shape: a sprite placed at `KeyBandTop/Ppu` = 14.5 world units,
+i.e. 12 units above the page, past the right edge -- the streak across the top of the walk the player saw
+twice.
+
+**Fix:** the band is painted at exactly the texture's size (`BandH`), the prompt is placed with
+`PageTransform.TopLeftToWorld`, and the prompt band was raised from 11 px (which clipped its own descenders
+at the font's 6 px top offset) to 15 px. Three tests now assert the bands stack without overlapping and
+that every trace fits.
+
+## BUG-053 -- a bundle applied from inside the working copy leaves a tree that does not match HEAD
+
+The player's console: `HEAD 2ef358c, working tree not clean (474 entries)`, with a dozen `M` PNGs. The
+history was adopted correctly -- pushing worked -- but the file copy then wrote the bundle's tree over a
+checkout of a *different* commit, because `-Clean`'s `reset --hard` ran before the files were copied and
+`reset --hard` with no argument resets to the OLD head. Nothing was corrupt: the files were right, HEAD was
+behind.
+
+**Fix:** `-Clean` now resets the tree to the **bundle's commit** (`$bundleHead`) after copying, so "the
+bundle's file set is the truth" is true by construction rather than by hope. The `still nested: art\art`
+warnings were the same script asking the filesystem a question only git can answer — it now asks git, and
+only for a path the bundle actually tracks.
+
+## BUG-054 -- the walk's caption band was sized from the font's glyph WIDTH
+
+`SweepScript.RowStep` mirrored the font as `MonitorGlyph + 3` -- but `MonitorGlyph` is the glyph **width**
+(5), not its **height** (7). So the caption band was sized at 8 px per row while `MonitorScreenRaster` laid
+the rows out at 10: every caption's last lines were painted BELOW the band, i.e. straight onto the room art.
+That is the "text streaked over the picture" the player photographed on the walk.
+
+The mirror exists because Core may not reference the Game assembly (the dependency runs the other way), so
+the metrics are duplicated on purpose and **nothing checked the duplicate**. `PageTransformTests` now asserts
+`SweepScript.RowStep == MonitorScreen.GlyphH + MonitorScreen.LineGap`, and `MaxRows` came down 22 -> 20, which
+is what actually fits between the band top and the prompt at the true 10 px pitch.
+
+**Class of bug:** *a duplicated constant with no test tying it to the original.* Same family as BUG-050's
+duplicated geometry; different flag, same lesson -- share it, or test that the copy still equals the source.
+
 ## BUG-050 -- "I can't click anything" (player report, 2026-11-26)
 
 The game booted, the applicant bobbed and blinked, and the only thing that responded was the paper on
@@ -929,8 +990,8 @@ acceptance test, capture path.
 
 | # | What is wrong | Owning file | Done when | Capture |
 |---|---|---|---|---|
-| D-1 | The after-hours key band (`[WALK n/N] [SPACE] ...`) renders streaked across the top of the page instead of on its band. Content is correct; the C# sprite placement is not. | `unity/Assets/Scripts/Game/Interaction/SweepView.cs` | The band sits on `KeyBandTop` at 1:1, legible, in Play mode | player screenshot, v87 session 3 |
-| D-2 | `Apply-Bundle` prints `still nested: art\art`, `content\content`, ... on a clean tree. Cosmetic: the nesting check reports the *target* of a correct move. | `scripts/Apply-Bundle.ps1` | A clean apply prints no `still nested` line | console paste, 2026-11-26 |
-| D-3 | Text scale differs between the desk HUD, the letter and the sweep page; the HUD has been reduced twice by eye. | `GameHud.cs`, `LetterView.cs`, `SweepView.cs` | One documented scale (sizes + steps) used by all three | screenshots v87 |
+| D-1 | **FIXED in v90** (kept here until the player confirms on screen). The after-hours key band (`[WALK n/N] [SPACE] ...`) renders streaked across the top of the page instead of on its band. Content is correct; the C# sprite placement is not. | `unity/Assets/Scripts/Game/Interaction/SweepView.cs` | The band sits on `KeyBandTop` at 1:1, legible, in Play mode | player screenshot, v87 session 3 |
+| D-2 | **FIXED in v90.** `Apply-Bundle` prints `still nested: art\art`, `content\content`, ... on a clean tree. Cosmetic: the nesting check reports the *target* of a correct move. | `scripts/Apply-Bundle.ps1` | A clean apply prints no `still nested` line | console paste, 2026-11-26 |
+| D-3 | **PARTLY FIXED in v90** (one HUD block, sized from its own proportions). Text scale differs between the desk HUD, the letter and the sweep page; the HUD has been reduced twice by eye. | `GameHud.cs`, `LetterView.cs`, `SweepView.cs` | One documented scale (sizes + steps) used by all three | screenshots v87 |
 | D-4 | Cast still reads in three tone families even with four tones wired; faces are crude at 3x. | `tools/art/make_applicants.py` | Full cast sheet shows a continuous spread and a readable 3x face | `/tmp/cast_final.png` (regenerate) |
-| D-5 | The save `IOException at hr0d_save.json` still appears in the Console on quit after the quit-skip. | `unity/Assets/Scripts/Game/Desk/*Save*` | Quitting from Play mode prints no IOException | console paste, v87 |
+| D-5 | **STILL OPEN — now with a lead.** The save `IOException at hr0d_save.json` still appears in the Console on quit after the quit-skip. | `unity/Assets/Scripts/Game/Desk/*Save*` | Quitting from Play mode prints no IOException | console paste, v87 |
