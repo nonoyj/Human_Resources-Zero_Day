@@ -41,10 +41,8 @@ cd $env:USERPROFILE\Downloads
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 # the launcher in Downloads is never overwritten by a bundle, so take this round's copy out of the zip
 # FIRST -- otherwise you run last round's installer (that is exactly what cost you the v102 apply)
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-$z = [IO.Compression.ZipFile]::OpenRead((Resolve-Path .\HR-ZeroDay-bundle-vNN.zip).Path)
-try { $e = $z.Entries | Where-Object { $_.FullName -eq 'HR-ZeroDay/Apply-Bundle.ps1' }
-      [IO.Compression.ZipFileExtensions]::ExtractToFile($e, (Join-Path $PWD 'Apply-Bundle.ps1'), $true) } finally { $z.Dispose() }
+Expand-Archive -LiteralPath .\HR-ZeroDay-bundle-vNN.zip -DestinationPath .\hr0d-vNN -Force
+Copy-Item .\hr0d-vNN\Apply-Bundle.ps1 .\Apply-Bundle.ps1 -Force
 .\Apply-Bundle.ps1 -BundlePath .\HR-ZeroDay-bundle-vNN.zip
 
 # 2) get the repo back on its feet and set the upstream branch (first push only needs the message once)
@@ -60,11 +58,14 @@ launcher into `%USERPROFILE%\bin`, which is on your user PATH, and it needs no a
 `Where-Am-I` works in any window. There is no `Pin-ToQuickAccess.ps1` — I invented that command once and
 it cost you a round; the command book is the only place commands are allowed to come from.
 
-**Why the launcher line is there (v103).** `Apply-Bundle.ps1` in Downloads is not part of any bundle, so it
+**Why those two lines are there (v103, rewritten v104).** Two plain commands, on purpose: the first version
+of this was a single .NET one-liner and the player — correctly — would not call it a PowerShell command.
+`Expand-Archive` and `Copy-Item` are things everyone already knows. `hr0d-vNN` is scratch space; each round
+overwrites it, and you can delete it whenever. `Apply-Bundle.ps1` in Downloads is not part of any bundle, so it
 can only be as new as the last time you refreshed it. v102 shipped a fix for Unity's stray files and your
 very next apply ran the *old* launcher: it warned `working tree not clean (105 entries)` and then printed
-`bootstrap refreshed (the next apply uses this version)` — i.e. the fix arrived one apply too late. The three
-lines above close that hole from the outside; from v103 on the script also closes it from the inside, by
+`bootstrap refreshed (the next apply uses this version)` — i.e. the fix arrived one apply too late. These
+lines close that hole from the outside; from v103 on the script also closes it from the inside, by
 replacing itself from the zip and re-running before it touches anything.
 
 On a copy installed from a bundle, step 2 is what creates the upstream. If it says *"nothing to push"*,

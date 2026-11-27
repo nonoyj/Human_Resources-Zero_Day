@@ -135,3 +135,28 @@ Consequences:
 - Every bug report must include the run seed.
 - Determinism is a feature: same seed = same run (QA, debugging, replay).
 - Content tuning happens through weights/pools, never by hardcoding a fixed applicant.
+
+## ADR-009 — The intro is spoken by DISPATCH, and the slot is silent until the voice exists
+**Date:** 2026-11-27 · **Status:** Accepted (player decision)
+
+DISPATCH narrates the intro beats as a **radio voice**, not silent text. The voice is produced by the
+backend/content side (BE2), one clip per beat.
+
+Consequences:
+- `content/intro/intro_01.json` grows an optional `audio` field per beat (path + sha256), and the client
+  plays it if present. **The client does not require it**: with no audio the card shows text and holds for
+  `hold` seconds exactly as it does today. That keeps the intro shippable while the voice is recorded, and
+  it keeps a missing/mis-signed clip a silent degrade rather than a crash.
+- A beat's `hold` becomes a MINIMUM when audio is present: the card waits for the clip to finish (capped).
+  Radio pacing is the writer's job, so the file must not cut a line off mid-sentence.
+- The intro no longer needs a separate "skip" affordance to be bearable — but skip stays (X/ESC), because
+  a voice on first launch is exactly what returning players want to skip.
+- Audio pass is therefore two things, in this order: (1) the spoken intro, (2) the room bed + cues.
+
+## ADR-010 — The game starts itself; R is replay, not the way in
+**Date:** 2026-11-27 · **Status:** Accepted (observed behaviour, confirmed by the player)
+
+Earlier builds required pressing **R** to begin a run. That is gone: `GameBoot` builds the desk and the
+first shift starts on its own (`DeskBootstrap.Start`), and **R** now means "start a new run" (it re-shows
+the intro, because a new run is a new first minute). Nothing in the shipping path waits for a keypress, and
+no doc should imply otherwise.

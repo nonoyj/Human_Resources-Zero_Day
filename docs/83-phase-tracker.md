@@ -49,8 +49,10 @@ ship) rather than new mechanics.
 | v97 | **the walk draws** — one page texture, Core's rows, no tint, a bracket instead of a panel | you press SPACE and the page changes |
 | v101 | **the five-day arc**: the run has a through-line, and three endings read the whole run | you can start on day 1 and finish on a verdict |
 | v102 | **the intro slot**, and an install that cleans up after Unity | **confirmed on screen by the player, 2026-11-27** |
-| v103 (this one) | **an installer that can actually deliver its own fixes** | one apply is enough: no more "the next apply uses this version" |
-| v104 | **audio** | it sounds like a game |
+| v103 | **an installer that can deliver its own fixes** | **confirmed: 143 strays swept, one apply, clean** |
+| v104 (this one) | **the install command a human can read**, + DISPATCH's decision recorded | three plain commands replace one .NET one-liner |
+| v105 | **audio pass 1: the spoken intro** (ADR-009) | DISPATCH says the five beats out loud |
+| v106 | **audio pass 2: the room** (bed + stamp/phone/drawer cues) | it sounds like an office at night |
 
 ---
 
