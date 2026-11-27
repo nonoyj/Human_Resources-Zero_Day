@@ -75,6 +75,7 @@ namespace HRZeroDay.Game.Interaction
                 }
             }
             if (pressed) DispatchPointer(point);
+            else if (mouse != null) UpdateHoverOnly(mouse.position.ReadValue());
         }
 
         /// <summary>
@@ -102,21 +103,11 @@ namespace HRZeroDay.Game.Interaction
             var point = HotspotHitTest.ScreenToCanvasNdc(
                 new PixelPoint((float)screenPoint.x / w, (float)screenPoint.y / h), canvas);
 
-            var hotspots = GetComponentsInChildren<HotspotInteractor>();
-            HotspotInteractor best = null;
-            float bestArea = float.MaxValue;
-            for (int i = 0; i < hotspots.Length; i++)
-            {
-                var hotspot = hotspots[i];
-                var box = hotspot.GetComponent<BoxCollider2D>();
-                if (box == null) continue;
-                var centre = CanvasOf(hotspot);
-                var half = new Vector2(box.size.x * hotspot.transform.lossyScale.x * ReferencePpu * 0.5f,
-                                       box.size.y * hotspot.transform.lossyScale.y * ReferencePpu * 0.5f);
-                if (Mathf.Abs(point.X - centre.x) > half.x || Mathf.Abs(point.Y - centre.y) > half.y) continue;
-                float area = half.x * half.y;
-                if (area < bestArea) { best = hotspot; bestArea = area; }
-            }
+            var best = FindAt(screenPoint);
+            // hover: brighten the bracket under the mouse, so a desktop player can see the target before
+            // committing to a click. Cheap -- it only touches a colour when the hovered hotspot CHANGES.
+            if (Mouse.current != null) SetHovered(best);
+
             if (best != null) { best.OnPointerDown(null); return; }
 
             // A tap on the callout dismisses it. Without this the panel sits over the applicant and
@@ -132,6 +123,61 @@ namespace HRZeroDay.Game.Interaction
             // A tap on the desk that hits no hotspot dismisses any open callout, so the desk is never
             // left in a state where the player cannot tell what is clickable.
             if (overlay != null) overlay.Hide();
+        }
+
+        private HotspotInteractor _hovered;
+
+        /// <summary>
+        /// The hotspot under a screen point, smallest first. ONE implementation, used by both the click and
+        /// the hover path -- the bug that made everything unclickable was partly two copies of this test.
+        /// </summary>
+        private HotspotInteractor FindAt(Vector2 screenPoint)
+        {
+            if (bootstrap == null) return null;
+            int w = Mathf.Max(1, Screen.width), h = Mathf.Max(1, Screen.height);
+            var canvas = new PixelRect(0f, 0f, ReferenceWidth, ReferenceHeight);
+            var point = HotspotHitTest.ScreenToCanvasNdc(
+                new PixelPoint((float)screenPoint.x / w, (float)screenPoint.y / h), canvas);
+
+            var hotspots = GetComponentsInChildren<HotspotInteractor>();
+            HotspotInteractor best = null;
+            float bestArea = float.MaxValue;
+            for (int i = 0; i < hotspots.Length; i++)
+            {
+                var hotspot = hotspots[i];
+                var box = hotspot.GetComponent<BoxCollider2D>();
+                if (box == null) continue;
+                var centre = CanvasOf(hotspot);
+                float scale = hotspot.transform.lossyScale.x;
+                if (scale <= 0f) scale = 1f;
+                var half = new Vector2(box.size.x * scale * ReferencePpu * 0.5f,
+                                       box.size.y * scale * ReferencePpu * 0.5f);
+                if (Mathf.Abs(point.X - centre.x) > half.x || Mathf.Abs(point.Y - centre.y) > half.y) continue;
+                float area = half.x * half.y;
+                if (area < bestArea) { best = hotspot; bestArea = area; }
+            }
+            return best;
+        }
+
+        /// <summary>Hover without a click: same target search, no side effects beyond the bracket.</summary>
+        private void UpdateHoverOnly(Vector2 screenPoint)
+        {
+            if (bootstrap == null || bootstrap.LetterOpen || bootstrap.ShowDebrief ||
+                bootstrap.ShowDaySummary || bootstrap.ShowEnding || bootstrap.ShowingSweep)
+            {
+                SetHovered(null);
+                return;
+            }
+            SetHovered(FindAt(screenPoint));
+        }
+
+        private void SetHovered(HotspotInteractor next)
+        {
+            if (_hovered == next) return;
+            if (_hovered != null) _hovered.SetHover(false);
+            _hovered = next;
+            if (_hovered != null) _hovered.SetHover(true);
+            if (bootstrap != null) bootstrap.SetHoveredArtifact(next == null ? null : next.artifact);
         }
 
         /// <summary>

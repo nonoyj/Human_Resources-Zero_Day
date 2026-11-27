@@ -16,7 +16,20 @@ namespace HRZeroDay.Game.Interaction
         /// <summary>Invisible tap target around the small art hotspot, in world units.</summary>
         public Vector2 sizeInUnits = Vector2.one;
 
+        /// <summary>Corner brackets drawn on the body part, so the target is visible before it is found.</summary>
+        public SpriteRenderer outline;
+
+        private bool _hover;
+
         public event Action<string> Tapped;
+
+        /// <summary>Mouse hover (desktop) -- the outline brightens, and the HUD names the part.</summary>
+        public void SetHover(bool on)
+        {
+            if (_hover == on) return;
+            _hover = on;
+            if (on) HotspotOutline.SetHover(outline); else HotspotOutline.SetRest(outline);
+        }
 
         /// <summary>
         /// The single entry point for a tap. GameInputRouter calls it after its own screen-to-world test,

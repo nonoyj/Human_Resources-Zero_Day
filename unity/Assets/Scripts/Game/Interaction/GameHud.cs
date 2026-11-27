@@ -213,6 +213,24 @@ namespace HRZeroDay.Game.Interaction
             return result;
         }
 
+        /// <summary>Plain names for the artifact ids, so the HUD never shows a key like 'straight_badge'.</summary>
+        private static string ArtifactName(string artifact)
+        {
+            switch (artifact)
+            {
+                case "mirror": return "eyes and cheeks";
+                case "no_blink": return "the eyes (hold still)";
+                case "ear": return "the near ear";
+                case "seam": return "the hairline";
+                case "glasses_merge": return "the glasses arms";
+                case "skin_band": return "jaw and neck";
+                case "hands": return "the hands";
+                case "straight_badge": return "lanyard and badge";
+                case "shadow": return "the shadow";
+                default: return artifact.Replace('_', ' ');
+            }
+        }
+
         private static void Add(System.Collections.Generic.List<string> lines, string text)
         {
             lines.Add(text ?? string.Empty);

@@ -36,7 +36,10 @@ namespace HRZeroDay.Core.Rules
         // page on a phone, and the bottom 22 px are the neon key caps.
         public const int PageW = 480;
         public const int PageH = 270;
-        public const int KeyStripH = 22;                       // sweep_keys_480x22.png
+        public const int KeyStripH = 22;                       // sweep_keys_480x22.png (neon caps, decoration)
+        // The PROMPT is painted text on its own black band above the caps, never on top of them.
+        public const int KeyBandH = 15;
+        public const int KeyBandTop = PageH - KeyStripH - KeyBandH;   // 233
         // The caption band: a solid 'void' bar behind the words. First draft drew the text straight onto
         // the room art and it was unreadable wherever the background had detail -- the walk's text is the
         // only thing on this page that must never be hard to read, so it gets its own stock.

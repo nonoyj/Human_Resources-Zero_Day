@@ -76,6 +76,18 @@ namespace HRZeroDay.Game.Interaction
                 var tap = go.AddComponent<HotspotInteractor>();
                 tap.artifact = hp.artifact;
                 tap.sizeInUnits = box.size;   // kept in sync with the collider used by GameInputRouter
+
+                // The target: corner brackets in canvas px, sized to the collider, sorted above the desk
+                // props (10) so the hands and shadow brackets are not hidden by the front lip.
+                var outlineGo = new GameObject("Outline");
+                outlineGo.transform.SetParent(go.transform, false);
+                var outline = outlineGo.AddComponent<SpriteRenderer>();
+                int ow = Mathf.RoundToInt((hp.rect[2] + TouchPaddingPx * 2f));
+                int oh = Mathf.RoundToInt((hp.rect[3] + TouchPaddingPx * 2f));
+                outline.sprite = HotspotOutline.Make(ow, oh, 4);
+                outline.sortingOrder = 11;
+                HotspotOutline.SetRest(outline);
+                tap.outline = outline;
             }
         }
 
@@ -93,8 +105,11 @@ namespace HRZeroDay.Game.Interaction
             var ring = new GameObject("MagnifierRing");
             ring.transform.SetParent(overlayGo.transform, false);
             var ringSprite = ring.AddComponent<SpriteRenderer>();
-            ringSprite.sprite = SpriteOrFallback("art/kit/ui/tooltip_9slice.png");
-            ringSprite.sortingOrder = 50;
+            // tooltip_9slice is a CREAM sheet: as a "ring" stretched x2 it read as a blank white card over
+            // the applicant's face (2026-11-26). panel_active is the dark variant with the accent border.
+            ringSprite.sprite = SpriteOrFallback("art/kit/ui/panel_active_9slice.png");
+            ringSprite.color = new Color32(0xff, 0xff, 0xff, 0xcc);
+            ringSprite.sortingOrder = 59;
             overlay.magnifierRing = ring.transform;
             ring.SetActive(false);
 
@@ -105,34 +120,12 @@ namespace HRZeroDay.Game.Interaction
             var panel = new GameObject("Panel");
             panel.transform.SetParent(callout.transform, false);
             var panelSprite = panel.AddComponent<SpriteRenderer>();
-            panelSprite.sprite = SpriteOrFallback("art/kit/ui/panel_9slice.png");
-            // Above the desk props (10) and the letter paper (190 is the letter, this sits lower) --
-            // the callout must never be hidden behind a mug, which is what sorting 45 did.
-            panelSprite.sortingOrder = 60;
-            panel.transform.localScale = new Vector3(10f, 3f, 1f);
+            panelSprite.sortingOrder = 60;      // above the desk props (10); the letter (190) covers it anyway
             overlay.callout = callout.transform;
-
-            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            var label = new GameObject("Label");
-            label.transform.SetParent(callout.transform, false);
-            var labelMesh = label.AddComponent<TextMesh>();
-            labelMesh.font = font;
-            labelMesh.characterSize = 0.09f;
-            // TextMesh is a Component, not a Renderer: the order goes on the MeshRenderer Unity puts
-            // beside it (BUG-042/049). Guarded helper, so a missing renderer cannot throw at Play.
-            SetTextMeshSorting(labelMesh, 61);                  // panel sprite is 60
-            labelMesh.text = string.Empty;
-            overlay.calloutLabel = labelMesh;
-
-            var body = new GameObject("Body");
-            body.transform.SetParent(callout.transform, false);
-            body.transform.localPosition = new Vector3(0f, -0.45f, 0f);
-            var bodyMesh = body.AddComponent<TextMesh>();
-            bodyMesh.font = font;
-            bodyMesh.characterSize = 0.07f;
-            SetTextMeshSorting(bodyMesh, 61);
-            bodyMesh.text = string.Empty;
-            overlay.calloutBody = bodyMesh;
+            // The panel's texture, size and text are painted by the overlay itself (TextPanel), from the
+            // same 5x7 atlas as the CRT -- not two TextMeshes in the engine's font, which is what made the
+            // read-out 3 px tall and unreadable.
+            overlay.Initialise(panel);
             callout.SetActive(false);
         }
 

@@ -311,6 +311,8 @@ namespace HRZeroDay.Game
             var lines = MonitorScreen.LinesToRects(session.Current.ToLines(), _page);
             var buf = new Color32[_page.w * _page.h];
             MonitorScreenRaster.Render(buf, _page.w, _page.h, lines, _glyphs, _bg);
+            // the raster is PNG-ordered (row 0 = top); SetPixels32 is bottom-up
+            MonitorScreenRaster.FlipToTextureOrder(buf, _page.w, _page.h);
             _tex.SetPixels32(buf);
             _tex.Apply(false);
         }

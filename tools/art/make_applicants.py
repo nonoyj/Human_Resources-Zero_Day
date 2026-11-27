@@ -390,56 +390,60 @@ class Applicant:
                 return cranium_half(y)
             return max(cranium_half(y), jaw_half(y))
 
-        # ---- FACE (v9): three concentric tone planes around one light point.
-        # Everything else I tried drew a straight line somewhere: shading by x gave a vertical seam, and
-        # normalising per row darkened every silhouette edge. An ELLIPSE around the light point is the shape
-        # a lit sphere actually shows, and it has no straight edge anywhere.
-        lx = cx - int(hw * 0.40)
-        ly = cranium_cy - int(hw * 0.34)
+        # ---- FACE (v11): FLAT. The player's instruction, 2026-11-26: "don't attempt to put shadows
+        # anymore, just give us a normal face."
+        # v9 shaded the head as three concentric tone planes around a light point, and v10 added a rim
+        # light on the right silhouette. At 32 px on a phone that did not read as a lit sphere -- it read
+        # as a face split down the middle, orange on one side and olive on the other. One skin tone plus
+        # real features (eye, brow, nose, mouth) is what a normal face looks like at this size.
+        # v11 FLAT: one tone for the whole face. tint 3 is the deepest of the ramp, which is the one that
+        # reads as skin on its own -- the light tone was picked as a HIGHLIGHT to sit on a shade, and
+        # alone it is traffic-cone orange. Features supply the contrast, not shading.
+        skin_face = P.ramp(self.skin_ramp, 3)
         for y in range(head_top, chin_y + 1):
             hwid = max(1, head_half(y))
             if hwid <= 1 and y > cranium_cy:
                 continue
             for x in range(cx - hwid, cx + hwid + 1):
-                dx = (x - lx) / float(hw * 1.18)
-                dy = (y - ly) / float(hw * 1.42)
-                d = (dx * dx + dy * dy) ** 0.5                  # 0 at the light, ~1 at the cheek
-                tone = 3 if d < 0.66 else (2 if d < 1.06 else (1 if d < 1.44 else 0))
-                if y > chin_y - 7:
-                    tone -= 1                                   # the jaw turns under
-                P.put(x, y, P.ramp(self.skin_ramp, max(0, tone)))
+                P.put(x, y, skin_face)
+        if 'skin_band' in A:
+            # ARTIFACT (the tell, not decoration): a hard 4-row posterised step, which is exactly the
+            # kind of thing a flat face makes obvious. Kept -- it is evidence the player can see.
+            rect(cx - 10, 93 - breath, cx + 10, 96 - breath, self.skin_light)
 
-        # rim light: the window is behind-right, so the right silhouette catches it
-        for y in range(head_top + 3, chin_y - 3):
-            hwid = max(2, head_half(y))
-            if y % 3 == 0:
-                P.put(cx + hwid, y, P.ramp('rim_warm', 1))
-            if y % 5 == 0:
-                P.put(cx + hwid - 1, y, P.ramp(self.skin_ramp, 2))
+        ear_y = jaw_top + 4
+        for side in (-1, 1):
+            ex = cx + side * max(1, head_half(ear_y) - 1)
+            for (dy, r) in ((0, 2), (1, 2), (2, 1), (3, 1)):
+                for k in range(-r, r + 1):
+                    P.put(ex + side * (1 + k // 2), ear_y + dy, skin_face)
+            P.put(ex + side, ear_y + 2, P.ramp(self.skin_ramp, 1))      # the fold, one step
 
-
+        if 'ear' in A:
+            # ARTIFACT: one perfectly rectangular slab, uniform colour, spanning hairline to
+            # jaw -- no fold, no taper, and it grows straight out of the hair.
+            hwid = head_half(ear_y)
+            P.rect(cx - hwid - 4, head_top + 12, cx - hwid, head_bot - 12, P.ramp('skin_mid', 2))
+            P.rect(cx - hwid - 4, head_top + 12, cx - hwid - 4, head_bot - 12, P.ramp('skin_light', 3))
+            P.rect(cx - hwid - 4, head_top + 12, cx - hwid, head_top + 12, P.ramp('skin_light', 3))
 
         # ears, sitting on the skull curve rather than bolted to a rectangle
         # ---------------- neck (v5: a tapered cylinder with a contact shadow, not a block)
         # NOTE: this runs AFTER the head block, so its top rows would paint over the chin. The fix is the
         # re-assert pass at the end of this block (see 'restore the chin' below).
         neck_bottom = top + 2 - breath
+        # FLAT too (v11): a gradient here was the other half of the split look. The single darker row at
+        # the jaw is a CONTOUR -- without it the neck and the face merge into one shape.
         for (nx, ny) in taper(cx, chin_y - 2, neck_bottom, self.neck_w - 2, self.neck_w + 3):
-            lit = (nx - (cx - self.neck_w)) / float(max(1, 2 * self.neck_w))
-            P.put(nx, ny, P.ramp(self.skin_ramp, 2 - int(lit * 2.0)))
-        for (nx, ny) in taper(cx, chin_y - 2, chin_y + 3, self.neck_w - 2, self.neck_w):
-            P.put(nx, ny, P.ramp(self.skin_ramp, 0))          # jaw casts down onto the neck
+            P.put(nx, ny, skin_face)
         for nx in range(cx - self.neck_w, cx + self.neck_w + 1):
-            if (nx + chin_y) & 1:
-                P.put(nx, chin_y - 3, P.ramp(self.skin_ramp, 1))
+            P.put(nx, chin_y - 3, P.ramp(self.skin_ramp, 1))
 
-        # restore the chin: the jaw's own colours, so no pale band sits under it
+        # restore the chin: the same flat tone, so no pale band sits under it
         for yy in range(chin_y, min(chin_y + 4, neck_bottom)):
             hwid = max(1, head_half(yy))
             for x in range(cx - hwid, cx + hwid + 1):
-                lit = (x - (cx - hwid)) / float(max(1, 2 * hwid))
-                tone = int(2.6 - lit * 1.4) - 1
-                P.put(x, yy, P.ramp(self.skin_ramp, max(0, tone)))
+                P.put(x, yy, skin_face)
         if 'skin_band' in A:
             # ARTIFACT: a hard 4-row posterised step instead of a soft gradient
             rect(cx - 10, 93 - breath, cx + 10, 96 - breath, self.skin_light)
@@ -560,10 +564,6 @@ class Applicant:
                 ex = cx + side * eye_dx
                 P.rect(ex - 2, eye_y + 1, ex + 2, eye_y + 2, 'paper')  # sclera
                 P.rect(ex - 1, eye_y + 1, ex, eye_y + 2, 'ink')        # iris + pupil
-                P.put(ex - 2, eye_y + 3, P.ramp(self.skin_ramp, 0))     # lower lid shadow
-                P.put(ex + 2, eye_y + 3, P.ramp(self.skin_ramp, 0))
-                P.put(ex - 3, eye_y + 1, P.ramp(self.skin_ramp, 0))     # corner shadow
-                P.put(ex + 2, eye_y + 1, P.ramp(self.skin_ramp, 0))
                 for k in range(-3, 3):                                 # upper lid line
                     P.put(ex + k, eye_y - 1, 'ink' if k < 2 else P.ramp(self.skin_ramp, 0))
                 if 'mirror' in A:
@@ -579,14 +579,10 @@ class Applicant:
                 h = 2 if abs(k) < 3 else 1
                 for d in range(h):
                     P.put(bx + k, eye_y - 6 - lift - d + self.brow // 2, self.hair if d == 0 else P.ramp('hair_mid', 1))
-        # nose: one shadowed side plus a dithered tip; the lit side is left as skin
-        for i in range(8):
-            P.put(cx + 1, eye_y + 5 + i, P.ramp(self.skin_ramp, 0))   # one shadow edge, no box
-        P.put(cx, eye_y + 12, P.ramp(self.skin_ramp, 0))
-        P.put(cx - 1, eye_y + 12, P.ramp(self.skin_ramp, 0))
-        P.put(cx - 2, eye_y + 11, P.ramp(self.skin_ramp, 1))          # the wing of the nose
-        P.dither(cx - 2, eye_y + 14, cx + 3, eye_y + 15,
-                 P.ramp(self.skin_ramp, 1), P.ramp(self.skin_ramp, 2), seed=cx)
+        # nose (v11, flat): a 2 px nostril line, not a shadowed side. A nose at this size needs two
+        # marks, not modelling -- the modelling was the part that read as a stain on the cheek.
+        P.put(cx - 1, eye_y + 12, P.ramp(self.skin_ramp, 1))
+        P.put(cx, eye_y + 12, P.ramp(self.skin_ramp, 1))
         # mouth: dark line, lit lower lip, and a soft shadow beneath
         mouth_y = eye_y + (27 if self.female else 28)
         lip = 6 if not self.female else 7                    # a fuller mouth, not a different mouth
@@ -596,7 +592,7 @@ class Applicant:
         for k in range(-lip + 2, lip - 1):
             P.put(cx + k, mouth_y + 1, P.ramp(self.skin_ramp, 3))   # lit lower lip
         for k in range(-lip + 2, lip - 1):
-            P.put(cx + k, mouth_y - 1, P.ramp(self.skin_ramp, 2))
+            P.put(cx + k, mouth_y - 1, P.ramp(self.skin_ramp, 1))
         if self.female:                                      # the dimple of a lifted mouth corner
             P.put(cx - lip, mouth_y + 1, P.ramp(self.skin_ramp, 1))
             P.put(cx + lip, mouth_y + 1, P.ramp(self.skin_ramp, 1))

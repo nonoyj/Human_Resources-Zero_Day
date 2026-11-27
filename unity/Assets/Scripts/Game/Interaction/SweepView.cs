@@ -44,7 +44,7 @@ namespace HRZeroDay.Game.Interaction
         private IGlyphSource _glyphs;
         private int _cols;
 
-        private TextMesh _keyText;
+        private Texture2D _keyBand;
 
         public bool IsOpen { get { return _root != null && _root.activeSelf; } }
         public int PageIndex { get { return _index; } }
@@ -82,18 +82,17 @@ namespace HRZeroDay.Game.Interaction
             _textLayer.transform.localPosition = new Vector3(SweepScript.BandX / Ppu,
                 (SweepScript.PageH - SweepScript.BandTop) / Ppu, -1f);
 
-            // One TextMesh for the key line. TextMesh is a Component, not a Renderer -- the order goes on
-            // the MeshRenderer beside it (BUG-042/048); the helper is the only place that does it.
-            var keyGo = new GameObject("KeyLine");
-            keyGo.transform.SetParent(_root.transform, false);
-            keyGo.transform.localPosition = new Vector3((SweepScript.TextX + 40) / Ppu,
-                (SweepScript.KeyStripH + 9) / Ppu, -1f);
-            _keyText = keyGo.AddComponent<TextMesh>();
-            _keyText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            _keyText.characterSize = 0.22f;
-            _keyText.color = new Color32(0x18, 0xE0, 0xB0, 0xFF);       // palette 'signal'
-            _keyText.text = string.Empty;
-            DeskRuntimeScene.SetTextMeshSorting(_keyText, 220);
+            // The prompt is painted INTO the page texture with the same atlas as everything else. It used to
+            // be a TextMesh placed at (TextX+40, KeyStrip+9) px -- which in y-up canvas space is 1.9 units
+            // ABOVE the page's bottom edge, i.e. off the screen. That is why the walk said nothing about
+            // what to press and the player had to guess SPACE on 2026-11-26.
+            _keyBand = new Texture2D(SweepScript.PageW, SweepScript.KeyBandH, TextureFormat.RGBA32, false);
+            _keyBand.filterMode = FilterMode.Point;
+            _keyBand.name = "SweepKeyBand";
+            var keyLayer = NewLayer("KeyText", 200);
+            keyLayer.sprite = Sprite.Create(_keyBand, new Rect(0, 0, SweepScript.PageW, SweepScript.KeyBandH),
+                                            new Vector2(0f, 1f), Ppu);   // pivot: top-left
+            keyLayer.transform.localPosition = new Vector3(0f, SweepScript.KeyBandTop / Ppu, -1f);
 
             _root.SetActive(false);
             return true;
@@ -171,8 +170,31 @@ namespace HRZeroDay.Game.Interaction
             _background.transform.localPosition = new Vector3(SweepScript.PageW * 0.5f / Ppu,
                                                               SweepScript.PageH * 0.5f / Ppu, 0f);
 
-            if (_keyText != null) _keyText.text = SweepScript.KeyLine(page, _index, _pages.Count);
+            RepaintKeyLine(page);
             Repaint(page);
+        }
+
+        /// <summary>
+        /// Paints the prompt into its own strip under the page: "[WALK 1/3]  [SPACE] WALK ON" (or CLOCK OUT
+        /// on the last page). Dark fill, 'signal' ink -- it is the only UI on the screen, so it has to be
+        /// the most obvious thing on it.
+        /// </summary>
+        private void RepaintKeyLine(SweepPage page)
+        {
+            if (_keyBand == null || _glyphs == null) return;
+            int w = _keyBand.width, h = _keyBand.height;
+            var fill = Colour("void", new Color32(11, 14, 19, 255));
+            var buf = new Color32[w * h];
+            for (int i = 0; i < buf.Length; i++) buf[i] = fill;
+
+            var lines = new List<string> { SweepScript.KeyLine(page, _index, _pages.Count) };
+            var colours = new List<string> { "signal" };
+            var painted = TextPanel.Paint(w, h, lines, colours, _glyphs, fill, fill);
+            for (int i = 0; i < buf.Length; i++) buf[i] = painted[i];
+
+            MonitorScreenRaster.FlipToTextureOrder(buf, w, h);
+            _keyBand.SetPixels32(buf);
+            _keyBand.Apply(false);
         }
 
         /// <summary>
@@ -223,6 +245,8 @@ namespace HRZeroDay.Game.Interaction
 
             // text on top of the band; the raster only writes glyph pixels, so the band survives
             MonitorScreenRaster.Render(buf, _tex.width, _tex.height, rects, _glyphs, void_, paintBackground: false);
+            // the raster is PNG-ordered (row 0 = top); the texture is not
+            MonitorScreenRaster.FlipToTextureOrder(buf, _tex.width, _tex.height);
             _tex.SetPixels32(buf);
             _tex.Apply(false);
         }

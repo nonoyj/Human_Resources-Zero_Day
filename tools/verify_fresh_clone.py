@@ -40,6 +40,9 @@ CHECKS = [
     # The after-hours walk reads four backgrounds + a key strip through Resources.Load. They were in the
     # repo before anything loaded them, which is exactly how BUG-044 happened; now a missing one fails here.
     ('sweep pages render',          ['tools/comp/preview_sweep.py', '--check']),
+    # The inspect read-out is painted from the atlas now; a missing glyph or an over-wide panel would only
+    # show up on the player's screen. The twin renders and measures it headlessly.
+    ('inspect panel renders',       ['tools/comp/preview_callout.py', '--check']),
 ]
 
 

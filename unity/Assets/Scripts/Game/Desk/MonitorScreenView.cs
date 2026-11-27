@@ -155,6 +155,70 @@ namespace HRZeroDay.Game
     }
 
     [RequireComponent(typeof(SpriteRenderer))]
+    /// <summary>
+    /// A small pixel-exact text panel: one texture, one sprite, painted from the same 5x7 atlas the CRT
+    /// and the letter use. This replaces the evidence callout's TextMesh pair, whose engine font was too
+    /// small to read and whose "panel" was the cream tooltip 9-slice stretched over the applicant's face.
+    ///
+    /// The painter is public and pure enough to be called from a test: give it lines, colours and a size,
+    /// it returns pixels with the panel's own background, border and padding already in.
+    /// </summary>
+    public sealed class TextPanel
+    {
+        public static Color32 Ink(Dictionary<string, Color32> palette, string key, Color32 fallback)
+        {
+            Color32 value;
+            return palette != null && palette.TryGetValue(key, out value) ? value : fallback;
+        }
+
+        /// <summary>
+        /// Paints `lines` into a w x h buffer, top row first. Row 0 of the buffer is the TOP of the panel
+        /// in PNG order -- the caller flips once if its texture wants bottom-up.
+        /// </summary>
+        public static Color32[] Paint(int w, int h, IList<string> lines, IList<string> colours,
+                                      IGlyphSource glyphs, Color32 fill, Color32 border)
+        {
+            var buf = new Color32[w * h];
+            for (int i = 0; i < buf.Length; i++) buf[i] = fill;
+            for (int x = 0; x < w; x++)
+            {
+                buf[x] = border;
+                buf[(h - 1) * w + x] = border;
+            }
+            for (int y = 0; y < h; y++)
+            {
+                buf[y * w] = border;
+                buf[y * w + w - 1] = border;
+            }
+
+            int step = MonitorScreen.GlyphH + MonitorScreen.LineGap;
+            for (int li = 0; li < lines.Count; li++)
+            {
+                var text = lines[li];
+                if (string.IsNullOrEmpty(text)) continue;
+                int top = 6 + li * step;
+                int left = 8;
+                for (int ci = 0; ci < text.Length; ci++)
+                {
+                    int gx = left + ci * (MonitorScreen.GlyphW + MonitorScreen.LetterGap);
+                    if (gx + MonitorScreen.GlyphW > w - 2) break;
+                    for (int gy = 0; gy < MonitorScreen.GlyphH; gy++)
+                    {
+                        if (!glyphs.InkAt(text[ci], 0, gy)) continue;
+                        for (int px = 0; px < MonitorScreen.GlyphW; px++)
+                        {
+                            if (!glyphs.InkAt(text[ci], px, gy)) continue;
+                            int y = top + gy;
+                            if (y < 1 || y >= h - 1) continue;
+                            buf[y * w + gx + px] = glyphs.Colour(colours[li]);
+                        }
+                    }
+                }
+            }
+            return buf;
+        }
+    }
+
     public sealed class MonitorScreenView : MonoBehaviour
     {
         public const string RootName = "MonitorScreen";
@@ -269,6 +333,8 @@ namespace HRZeroDay.Game
 
             var buf = new Color32[_glass.w * _glass.h];
             MonitorScreenRaster.Render(buf, _glass.w, _glass.h, rects, _glyphs, _bg);
+            // the raster is PNG-ordered (row 0 = top); the texture is not
+            MonitorScreenRaster.FlipToTextureOrder(buf, _glass.w, _glass.h);
             _tex.SetPixels32(buf);
             _tex.Apply(false);
 

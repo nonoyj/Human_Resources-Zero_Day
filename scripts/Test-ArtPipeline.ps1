@@ -158,6 +158,25 @@ try {
             } else { OK 'TextMesh stub has no renderer members' }
         }
 
+    S 'every texture painted from the raster is flipped out of PNG row order'
+        $bad = @()
+        Get-ChildItem (Join-Path $repo 'unity\Assets\Scripts') -Recurse -Filter *.cs | ForEach-Object {
+            $code = [regex]::Replace((Get-Content $_.FullName -Raw), '(?m)//.*$', '')
+            # Only TEXT textures are at risk: the raster (MonitorScreenRaster.Render / TextPanel.Paint)
+            # writes row 0 = TOP, SetPixels32 wants row 0 = BOTTOM. A symmetric sprite (the hotspot
+            # corner brackets) is identical either way and needs no flip.
+            $paintsText = $code -match 'MonitorScreenRaster\.Render|TextPanel\.Paint'
+            if ($paintsText -and $code -match 'SetPixels32') {
+                if ($code -notmatch 'FlipToTextureOrder') {
+                    $bad += "$($_.Name): SetPixels32 without FlipToTextureOrder -- text will render upside-down"
+                }
+            }
+        }
+        if ($bad.Count -gt 0) {
+            $failed++
+            foreach ($b in $bad) { Write-Host "  [FAIL] $b" -ForegroundColor Red }
+        } else { OK 'every painted texture flips PNG row order before SetPixels32' }
+
     S 'hotspot placement uses the shared maths (no second copy of the scale arithmetic)'
         $builders = @(
             (Join-Path $repo 'unity\Assets\Scripts\Game\Interaction\DeskRuntimeScene.cs'),

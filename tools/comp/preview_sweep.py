@@ -34,6 +34,7 @@ except ImportError:
 GLYPH_W, GLYPH_H, LETTER_GAP, LINE_GAP = 5, 7, 2, 3
 # ---- mirrored from SweepScript --------------------------------------------------------------
 PAGE_W, PAGE_H, KEY_H = 480, 270, 22
+KEY_BAND_H, KEY_BAND_TOP = 15, 270 - 22 - 15
 # the caption band: a solid 'void' bar behind the words, because the room art is busy and the walk's
 # text is the only thing that must never be hard to read. Same numbers as SweepScript.cs.
 BAND_X, BAND_TOP, BAND_W = 8, 14, 464
@@ -190,8 +191,9 @@ def render_page(page, index, count, pal, atlas, rects):
     # never on top of a cap (first draft drew the prompt straight across them -- unreadable).
     keys = Image.open(os.path.join(KIT, 'sweep', 'sweep_keys_480x22.png')).convert('RGBA')
     img.alpha_composite(keys, (0, PAGE_H - KEY_H))
-    draw_text(img, rects, atlas, pal, TEXT_X + 40, PAGE_H - KEY_H - 11,
-              key_line(page, index, count), 'signal')
+    # the prompt sits on its own black band ABOVE the caps (SweepScript.KeyBandTop), never on them
+    d.rectangle([0, KEY_BAND_TOP, PAGE_W - 1, KEY_BAND_TOP + KEY_BAND_H - 1], fill=pal['void'])
+    draw_text(img, rects, atlas, pal, TEXT_X, KEY_BAND_TOP + 4, key_line(page, index, count), 'signal')
     return img
 
 

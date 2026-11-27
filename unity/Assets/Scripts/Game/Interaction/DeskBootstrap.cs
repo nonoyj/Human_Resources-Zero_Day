@@ -41,6 +41,16 @@ namespace HRZeroDay.Game.Interaction
         public DayResult LastDay { get; private set; }
         public bool HelpVisible { get { return _helpVisible; } }
         public float DebriefLeft { get { return _debriefLeft; } }
+        /// <summary>The body part under the mouse, for the HUD's pointer line. Null when nothing is hovered.</summary>
+        public string HoveredArtifact { get; private set; }
+
+        /// <summary>Called by the router on hover. Names the target so the player knows what they found.</summary>
+        public void SetHoveredArtifact(string artifact)
+        {
+            HoveredArtifact = artifact;
+            if (Hud != null) Hud.RefreshNow();
+        }
+
         /// <summary>The walk's one-line receipt for the summary screen; null when the walk was skipped.</summary>
         public string SweepLine { get { return _sweepLine; } }
 
@@ -355,12 +365,16 @@ namespace HRZeroDay.Game.Interaction
 
         private void OnApplicationQuit()
         {
-            PersistSave();
+            // The run was persisted after every committed decision, so nothing is lost by skipping the
+            // one write that cannot succeed: the file handle may already be closed under us.
+            SaveSystem.MarkQuitting();
         }
 
         private void OnDisable()
         {
-            PersistSave();
+            // OnDisable also fires on Stop in the editor and on destruction -- both while the previous
+            // write may still be in flight. Persist only if we are not shutting down.
+            if (!SaveSystem.ApplicationIsQuitting) PersistSave();
             if (Session != null) Session.ApplicantChanged -= OnApplicantChanged;
             if (Decision != null) Decision.Committed -= OnCommitted;
             var hotspots = GetComponentsInChildren<HotspotInteractor>();

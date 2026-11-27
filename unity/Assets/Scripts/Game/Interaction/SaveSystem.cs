@@ -30,6 +30,9 @@ namespace HRZeroDay.Game.Interaction
 
         public static bool HasSave { get { return File.Exists(SavePath); } }
 
+        /// <summary>Last distinct write failure, so a repeating IOException logs once instead of twice a second.</summary>
+        private static string _lastWriteError;
+
         /// <summary>Writes atomically. Returns false (and logs) instead of throwing: a full disk
         /// must never crash a shift, the run simply continues unsaved.</summary>
         public static bool Write(SaveData data)
@@ -46,12 +49,23 @@ namespace HRZeroDay.Game.Interaction
                 // Keep exactly one previous save: a corrupted write must not lose the run.
                 if (File.Exists(SavePath)) File.Copy(SavePath, Path.Combine(dir, BakName), true);
                 Replace(tmp, SavePath);
+                _lastWriteError = null;
                 return true;
             }
             catch (Exception e)
             {
-                Debug.LogWarning("SaveSystem: could not write save (" + e.GetType().Name + "). " +
-                                 "The shift continues; progress will not persist.");
+                // Report once per distinct failure, not once per attempt. The player saw this warning
+                // twice a second because OnDisable -> PersistSave ran while Play mode was shutting down
+                // and Unity had the file open; the same IOException then repeated on every attempt and
+                // buried the interesting lines in the console.
+                var signature = e.GetType().Name + ":" + e.Message;
+                if (signature != _lastWriteError)
+                {
+                    _lastWriteError = signature;
+                    Debug.LogWarning("SaveSystem: could not write save (" + e.GetType().Name + ") at " +
+                                     Path.GetFileName(SavePath) + ". The shift continues; progress will " +
+                                     "not persist until the next successful write.");
+                }
                 return false;
             }
         }
@@ -105,6 +119,16 @@ namespace HRZeroDay.Game.Interaction
 #endif
             File.Move(tmp, target);
         }
+
+        /// <summary>
+        /// True while the editor or player is shutting down. A write during shutdown is the one write that
+        /// cannot succeed reliably (the file handle may already be gone), and the state is already on disk
+        /// because every committed decision persists, so the caller can skip it.
+        /// </summary>
+        public static bool ApplicationIsQuitting { get { return _quitting; } }
+        private static bool _quitting;
+
+        public static void MarkQuitting() { _quitting = true; }
 
         private static void TryDelete(string path)
         {

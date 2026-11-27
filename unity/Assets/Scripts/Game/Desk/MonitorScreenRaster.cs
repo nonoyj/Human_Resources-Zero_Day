@@ -33,6 +33,31 @@ namespace HRZeroDay.Game
     public static class MonitorScreenRaster
     {
         /// <summary>
+        /// Turns a PNG-ordered buffer (row 0 = TOP) into what Texture2D.SetPixels32 expects (row 0 =
+        /// BOTTOM-left). Every view that composites text MUST call this before SetPixels32.
+        ///
+        /// This is the bug that made the after-hours walk render upside-down on 2026-11-26
+        /// (screenshot: mirrored glyphs on the wrong side of the page). The raster is documented as
+        /// top-down, SetPixels32 is bottom-up, and the conversion was missing in the views -- the tests
+        /// could not catch it because they read the buffer, not the texture.
+        /// </summary>
+        public static void FlipToTextureOrder(Color32[] buffer, int w, int h)
+        {
+            if (buffer == null || w <= 0 || h <= 0 || buffer.Length < w * h) return;
+            Color32 swap;
+            for (int y = 0; y < h / 2; y++)
+            {
+                int top = y * w, bottom = (h - 1 - y) * w;
+                for (int x = 0; x < w; x++)
+                {
+                    swap = buffer[top + x];
+                    buffer[top + x] = buffer[bottom + x];
+                    buffer[bottom + x] = swap;
+                }
+            }
+        }
+
+        /// <summary>
         /// Fills `buffer` (w*h, row 0 = TOP of the glass) with the lines. Everything is clipped to the
         /// buffer: a line that does not fit is simply not drawn below the last row.
         /// </summary>
