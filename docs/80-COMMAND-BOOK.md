@@ -73,6 +73,53 @@ that is success, not a failure.
 
 ---
 
+## 2a. Pushing and merging to `main` (the whole procedure)
+
+"Merge to main" is one operation in this repo, because **`main` is the only branch**: the push *is* the
+merge. There is no pull request step and nothing else to approve.
+
+```powershell
+cd $env:USERPROFILE\HR-ZeroDay
+.\scripts\Push.ps1                  # fetch -> refuse unless fast-forward -> push -> set upstream
+```
+
+Three possible endings, and what each means:
+
+| The script says | Meaning | What to do |
+|---|---|---|
+| `origin/main is already contained in HEAD` then pushes `x..y main -> main` | normal fast-forward | nothing |
+| `nothing to push` / *up to date* | your copy already matches GitHub | nothing |
+| `behind` / refuses | GitHub has commits your copy does not | `git pull --no-rebase`, then push again |
+
+**Never force.** `Push.ps1` refuses by design; if it ever says the histories diverged, that is a real
+question, not a step to skip.
+
+**Order matters on a bundle-installed copy:** push first, update from a bundle second. `Apply-Bundle -Clean`
+rewrites `main` to the bundle's history, so a push *after* an update would need a force — and the script
+will refuse.
+
+### The team's side
+
+```powershell
+git pull --no-rebase
+```
+
+That is the entire instruction for BE1/BE2/backend. Their context is `AGENTS.md` (rules) and
+`handoff/2026-11-27_agent-to-team_merge-ready.md` (what changed). The extra branch on GitHub,
+`arena/c1faebb9-human-resources-zero-day`, is a historical snapshot and **nobody needs it**; leave it alone.
+
+### If you ever do need a real branch
+
+```powershell
+cd $env:USERPROFILE\HR-ZeroDay
+git switch -c feature/menu
+# work, commit
+.\scripts\Push.ps1 -Branch feature/menu      # pushes the branch and sets its upstream
+# then, on GitHub, open the PR and merge it into main -- do not merge locally and force-push main
+```
+
+---
+
 ## 3. Unity: open the project (the path nobody wrote down)
 
 **Add this project in Unity Hub, not the repo root:**
