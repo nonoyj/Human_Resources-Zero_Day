@@ -44,10 +44,11 @@ ship) rather than new mechanics.
 
 | Round | Subject | Ends with |
 |---|---|---|
-| v98 (this one) | **the walk reads**: the strip is painted once, in one space, and a fresh install stays clean | the walk's key strip is the right way up, and `Where-Am-I` says *clean* |
+| v99 (this one) | **the tools hold**: Where-Am-I survives every repo state it reports on | seven states, seven passes, in the gate |
+| v98 | **the walk reads**: the strip is painted once, in one space, and a fresh install stays clean | the walk's key strip is the right way up, and `Where-Am-I` says *clean* |
 | v97 | **the walk draws** — one page texture, Core's rows, no tint, a bracket instead of a panel | you press SPACE and the page changes |
-| v99 | **the five-day arc**: day advance, trust effects, one ending | a run that ends |
-| v100 | **the ending cards, then audio** | it sounds like a game |
+| v100 | **the five-day arc**: day advance, trust effects, one ending | a run that ends |
+| v101 | **the ending cards, then audio** | it sounds like a game |
 
 ---
 

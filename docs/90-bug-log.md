@@ -1129,6 +1129,61 @@ five commands. Before, the third one printed nothing after `fetching origin`.
 
 **Class of bug:** *a diagnostic tool that throws on the state it exists to diagnose.*
 
+## BUG-060 (continued) -- four causes, and the one that mattered was the working directory (2026-11-27)
+
+The first fix in this entry (route every probe through `Process`) was right in principle and still broken
+in practice. The player's next paste:
+
+```
+== state
+  branch    HEAD
+  fetching origin (10s) ... : Method invocation failed because [System.Object[]] does not contain a
+  method named 'Trim'.
+```
+
+Note `branch    HEAD` -- an empty branch name. That was the clue. Four separate faults, found in order:
+
+1. **`$ErrorActionPreference = 'Stop'` turns a native command's non-zero exit into a terminating error.**
+   Asking `git rev-parse '@{u}'` on a branch with no upstream is a *question*, not a failure. Fixed by
+   never letting PowerShell see git run: `System.Diagnostics.Process`.
+2. **Array splatting.** `GitText @('config','--get',$key)` binds the array to a *positional* parameter
+   differently between Windows PowerShell 5.1 and 7. A single argument STRING, built by hand, cannot
+   differ between hosts.
+3. **`Object[]` reaching `.Trim()`.** `& git ...` yields an array; `''.Trim()` on an array is the exact
+   exception in the paste. Every value now passes through `Str()`, which selects the first element, casts
+   to string, and trims -- or returns `''`.
+4. **THE ONE THAT ACTUALLY BROKE IT: `ProcessStartInfo` does not inherit PowerShell's location.** It
+   inherits the .NET process's current directory. `Push-Location $RepoRoot` moved *the report* and left
+   *git* in whatever folder the shell started in -- so on the player's machine, run from anywhere other
+   than the repo, every probe answered about the wrong directory (empty branch, empty head, or the last
+   repo the shell had been in). `$psi.WorkingDirectory` is now set explicitly, from `Get-Location` right
+   after `Push-Location`.
+
+**And the reason I did not catch 1-4 sooner:** I tested the script by eye, in a sandbox whose tree was
+already the repo. So the round ends with a test instead of a promise:
+
+`scripts\Test-WhereAmI.ps1` builds seven real repository states in a scratch folder outside the repo --
+no remote / remote with no upstream (the bundle-install state) / in sync / ahead / behind / dirty / not a
+git repository -- runs the real script in each, and requires it to (a) exit 0, (b) reach its LAST section,
+and (c) say the one thing that state should say. `Test-Scripts.ps1` now runs it as part of the gate.
+
+```
+==> running Test-WhereAmI.ps1 (seven repository states)
+  [ok]   no remote -- finished, said 'no origin remote'
+  [ok]   remote, no upstream -- finished, said 'no upstream branch'
+  [ok]   upstream, in sync -- finished, said 'ahead 0'
+  [ok]   upstream, ahead -- finished, said 'ahead 1'
+  [ok]   upstream, behind -- finished, said 'behind 1'
+  [ok]   remote, no upstream, dirty -- finished, said 'working tree DIRTY'
+  [ok]   not a git repository -- finished, said 'could not read the log'
+PASS  Where-Am-I survives every repository state
+```
+
+The test also caught two bugs in *itself* while being written (a bare repo shared between cases, so case 4
+pushed a diverging history and left no upstream) -- which is the argument for it existing.
+
+**Class of bug:** *a diagnostic tool tested only in the state its author happens to be in.*
+
 # PARKED FOR REPLENISH
 
 Added 2026-11-27 with `docs/82-replenish-phase.md`. A parked item is **not** forgotten and **not** fixed

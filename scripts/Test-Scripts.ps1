@@ -12,7 +12,7 @@
     .\scripts\Test-Scripts.ps1 -RunVerify
 #>
 [CmdletBinding()]
-param([switch]$RunVerify)
+param([switch]$RunVerify, [switch]$SkipWhereAmI)
 
 $ErrorActionPreference = 'Stop'
 $failed = 0
@@ -54,6 +54,22 @@ if ($RunVerify) {
     Write-Host "`n==> running Setup-DevEnvironment.ps1 -Verify" -ForegroundColor Cyan
     & (Join-Path $PSScriptRoot 'Setup-DevEnvironment.ps1') -Verify
     $failed += $LASTEXITCODE
+}
+
+# Where-Am-I must survive every repository state it is meant to report on. It broke three times in a row
+# while this gate was green, because a parse check cannot see runtime behaviour on a state that only
+# exists on the player's machine (BUG-060). The functional test builds those states for real.
+if (-not $SkipWhereAmI) {
+    $wa = Join-Path $PSScriptRoot 'Test-WhereAmI.ps1'
+    if (Test-Path -LiteralPath $wa) {
+        Write-Host "`n==> running Test-WhereAmI.ps1 (seven repository states)" -ForegroundColor Cyan
+        & pwsh -NoProfile -File $wa
+        if ($LASTEXITCODE -ne 0) {
+            $failed++
+            Write-Host 'FAIL  Where-Am-I does not survive every repository state' -ForegroundColor Red
+        }
+        else { Write-Host 'PASS  Where-Am-I survives every repository state' -ForegroundColor Green }
+    }
 }
 
 # The zip-root bootstrap is a COPY of scripts\Apply-Bundle.ps1 (Build-Bundle.ps1 writes it, and

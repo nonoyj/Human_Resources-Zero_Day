@@ -31,39 +31,68 @@ function Ok   { param([string]$t) ; Write-Host ("  ok   " + $t) -ForegroundColor
 function Warn { param([string]$t) ; Write-Host ("  note " + $t) -ForegroundColor Yellow }
 function Bad  { param([string]$t) ; Write-Host ("  ATT  " + $t) -ForegroundColor Red }
 
-# THE ONE WAY THIS SCRIPT ASKS GIT ANYTHING (2026-11-27, BUG-060).
-# With $ErrorActionPreference = 'Stop', PowerShell treats a native command's non-zero exit as a
-# TERMINATING error -- so `git rev-parse '@{u}'` on a branch with no upstream, or `git config --get` for a
-# key that does not exist, killed the report mid-sentence in the player's own terminal ("fatal: no
-# upstream configured for branch 'main'" then nothing). A "does this branch have an upstream" question is
-# not a failure; it is a question whose answer may be "no".
+# THE ONE WAY THIS SCRIPT ASKS GIT ANYTHING -- v3 (2026-11-27, BUG-060).
 #
-# Same technique Push.ps1 uses, for the same reason: git through a process, never '&'. stdout is the
-# answer, stderr is a diagnostic we keep one line of, and nothing ever throws.
+# Three previous versions of this helper were each plausible and one of them still died in the player's
+# terminal with "[System.Object[]] does not contain a method named 'Trim'". The lesson is not which line
+# was wrong; it is that a DIAGNOSTIC must not be able to fail on the machine it is diagnosing. So:
+#
+#   * git is started from a Process with ONE argument STRING (no array splatting, no per-argument
+#     quoting, no re-parsing differences between Windows PowerShell 5.1 and 7);
+#   * the helper NEVER throws and always returns a STRING (empty when git said nothing useful);
+#   * every value that might be an array is passed through Str() before anyone calls a method on it;
+#   * the whole report runs inside try/catch, and the command book is printed even if a section dies.
+#
+# A non-zero exit from git is an ANSWER here, not an error: "does this branch have an upstream?" is a
+# question whose answer may be no, and under $ErrorActionPreference = 'Stop' a native command's non-zero
+# exit is a terminating error if you let PowerShell see it.
 $script:GitCode = 0
 $script:GitWhy = ''
-function GitText {
-    param([string[]]$GitArgs)
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = 'git'
-    $psi.Arguments = (($GitArgs | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }) -join ' ')
-    $psi.UseShellExecute = $false
-    $psi.CreateNoWindow = $true
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
-    $p = [System.Diagnostics.Process]::Start($psi)
-    $out = $p.StandardOutput.ReadToEnd()
-    $err = $p.StandardError.ReadToEnd()
-    $p.WaitForExit()
-    $script:GitCode = $p.ExitCode
-    if ($p.ExitCode -ne 0) {
-        $script:GitWhy = (($err -split "`n" | Where-Object { $_.Trim() } | Select-Object -First 1) -replace '^fatal:\s*', '').Trim()
+# WHERE GIT RUNS (BUG-060, the fourth cause). ProcessStartInfo inherits the .NET process's current
+# directory, NOT PowerShell's location -- so `Push-Location` moved the report but not git, and every probe
+# silently answered about whatever folder the shell started in. That is exactly how a report can say
+# "branch main, HEAD fc1cb5d" for a repo that has neither. The directory is now explicit.
+$script:GitCwd = (Get-Location).Path
+
+function Str([object]$v) {
+    if ($null -eq $v) { return '' }
+    return ([string]($v | Select-Object -First 1)).Trim()
+}
+
+function GitText([string]$CommandLine) {
+    $script:GitCode = 0
+    $script:GitWhy = ''
+    try {
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = 'git'
+        $psi.Arguments = $CommandLine
+        $psi.WorkingDirectory = $script:GitCwd
+        $psi.UseShellExecute = $false
+        $psi.CreateNoWindow = $true
+        $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError = $true
+        $p = [System.Diagnostics.Process]::Start($psi)
+        $out = $p.StandardOutput.ReadToEnd()
+        $err = $p.StandardError.ReadToEnd()
+        $p.WaitForExit()
+        $script:GitCode = $p.ExitCode
+        if ($p.ExitCode -ne 0) {
+            $first = ($err -split "`r?`n" | Where-Object { $_ -and $_.Trim() } | Select-Object -First 1)
+            $script:GitWhy = ((Str $first) -replace '^fatal:\s*', '')
+            return ''
+        }
+        return (Str $out)
+    }
+    catch {
+        $script:GitCode = -1
+        $script:GitWhy = Str $_.Exception.Message
         return ''
     }
-    return $out.Trim()
 }
 
 Push-Location $RepoRoot
+$script:GitCwd = (Get-Location).Path
+$script:ReportStart = Get-Date
 try {
     Write-Host ""
     Write-Host "HR//0D -- where am I   (Where-Am-I v2, 2026-11-27)" -ForegroundColor White
@@ -71,16 +100,19 @@ try {
 
     # -- 1. state ----------------------------------------------------------------------------
     Head "state"
-    $head = GitText @('rev-parse', '--short', 'HEAD')
-    $branch = GitText @('rev-parse', '--abbrev-ref', 'HEAD')
-    $dirty = @(GitText @('status', '--porcelain') -split "`n")
+    $head = GitText 'rev-parse --short HEAD'
+    $branch = GitText 'rev-parse --abbrev-ref HEAD'
+    if (-not $branch) { $branch = 'main' }
+    $porcelain = GitText 'status --porcelain'
+    $dirty = @()
+    if ($porcelain) { $dirty = @($porcelain -split "`r?`n") }
     # Two files are expected to differ in every clone on purpose: the repo-root Apply-Bundle.ps1 is
     # byte-identical to scripts\Apply-Bundle.ps1 (Apply-Bundle rewrites it) and .gitignore can be
     # extended locally. Counting them as "dirty" is a warning nobody can act on, so it is not counted --
     # but anything ELSE still is, because a dirty tree blocks Build-Bundle. (2026-11-27, BUG-058.)
     $expected = @('Apply-Bundle.ps1')
     $real = @($dirty | Where-Object {
-        $line = $_.Trim()
+        $line = (Str $_)
         if ($line -eq '') { return $false }
         $path = ($line -replace '^[A-Z?!]{1,2}\s+', '')
         return -not ($expected -contains $path)
@@ -98,11 +130,11 @@ try {
     # Does this copy even have a remote? A bundle install does (Apply-Bundle preserves it), but a copy
     # cloned by hand might not, and `git fetch origin` on a repo with no origin writes three lines of
     # git fatal to stderr. Ask first, fetch second, and report ONE short line either way.
-    $remoteUrl = GitText @('config', '--get', 'remote.origin.url')
+    $remoteUrl = GitText 'config --get remote.origin.url'
     if (-not $remoteUrl) {
         Warn 'no origin remote on this copy -- nothing to fetch or push; add it with: git remote add origin <url>'
     } else {
-        GitText @('fetch', '--quiet', '--prune', 'origin') | Out-Null
+        GitText 'fetch --quiet --prune origin' | Out-Null
         if ($script:GitCode -ne 0) {
             $why = if ($script:GitWhy) { $script:GitWhy } else { 'git fetch failed' }
             Warn ('could not fetch from origin -- offline, or no credential: ' + $why)
@@ -114,28 +146,33 @@ try {
     # $ErrorActionPreference = 'Stop' that native stderr becomes a terminating error that kills the report
     # halfway through -- the player's own terminal (2026-11-27, BUG-060). So: ask `git config` first, and
     # only invoke `rev-parse` when there is something to resolve. Same answer, no error path.
-    $remoteName = GitText @('config', '--get', ('branch.' + $branch + '.remote'))
-    $mergeRef   = GitText @('config', '--get', ('branch.' + $branch + '.merge'))
+    $remoteName = GitText ('config --get branch.' + $branch + '.remote')
+    $mergeRef   = GitText ('config --get branch.' + $branch + '.merge')
     $upstream = ''
-    if ($remoteName -and $mergeRef) { $upstream = GitText @('rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}') }
+    if ($remoteName -and $mergeRef) {
+        $upstream = GitText 'rev-parse --abbrev-ref --symbolic-full-name @{u}'
+    }
     if (-not $upstream) {
         Warn "no upstream branch on this copy -- .\scripts\Push.ps1 sets it on the first run"
     } else {
-        $ahead = GitText @('rev-list', '--count', '@{u}..HEAD')
-        $behind = GitText @('rev-list', '--count', 'HEAD..@{u}')
+        $ahead = Str (GitText 'rev-list --count @{u}..HEAD')
+        $behind = Str (GitText 'rev-list --count HEAD..@{u}')
         if (-not $ahead) { $ahead = '0' }
         if (-not $behind) { $behind = '0' }
         Write-Host ("  upstream " + $upstream + "   ahead " + $ahead + "   behind " + $behind)
         if ([int]$behind -gt 0) {
             Warn "the remote has commits this copy does not:"
-            & git --no-pager log ('HEAD..@{u}') --oneline -5 | ForEach-Object { Write-Host ("    " + $_) }
+            $incoming = GitText '--no-pager log HEAD..@{u} --oneline -5'
+            if ($incoming) { $incoming -split "`r?`n" | ForEach-Object { Write-Host ("    " + $_) } }
             Write-Host "  take them with:  git pull --no-rebase" -ForegroundColor White
         }
     }
 
     # -- 2. last commits ---------------------------------------------------------------------
     Head "last commits"
-    & git --no-pager log -3 --oneline --decorate | ForEach-Object { Write-Host ("  " + $_) }
+    $log = GitText '--no-pager log -3 --oneline --decorate'
+    if ($log) { $log -split "`r?`n" | ForEach-Object { Write-Host ("  " + $_) } }
+    else { Warn 'could not read the log -- is this folder a git repository?' }
 
     # -- 3. bundles --------------------------------------------------------------------------
     Head "bundles at the repo root"
@@ -190,5 +227,23 @@ try {
     Line '  all gates          .\scripts\Test-ArtPipeline.ps1 ; .\scripts\Test-Scripts.ps1 ; dotnet run --project tools\CoreTests'
     Line '  make it global     .\scripts\Install-Helpers.ps1        # then just type:  Where-Am-I'
     Line ''
+}
+catch {
+    # A diagnostic that dies is worse than no diagnostic: the player loses the one page that says what to
+    # type next. So a failure in any section is reported in one line, and the command book is printed
+    # anyway. If you ever see this block, paste the whole window -- it names the line.
+    Write-Host ''
+    Write-Host ('  ATT  this report could not finish: ' + (Str $_.Exception.Message)) -ForegroundColor Red
+    Write-Host ('       at ' + (Str $_.InvocationInfo.ScriptName) + ':' + (Str $_.InvocationInfo.ScriptLineNumber)) -ForegroundColor DarkGray
+    Write-Host ''
+    Write-Host '  the five commands, verbatim (source: docs/80-COMMAND-BOOK.md)' -ForegroundColor Cyan
+    Line '  install a bundle   cd $env:USERPROFILE\Downloads ; .\Apply-Bundle.ps1 -BundlePath .\HR-ZeroDay-bundle-vNN.zip'
+    Line '  push               .\scripts\Push.ps1                # add -Message "..." to commit first'
+    Line '  open the game      .\scripts\Open-Game.ps1'
+    Line '  build a bundle     pwsh -File scripts\Build-Bundle.ps1 -Version NN'
+    Line '  all gates          .\scripts\Test-ArtPipeline.ps1 ; .\scripts\Test-Scripts.ps1 ; dotnet run --project tools\CoreTests'
+    Line '  make it global     .\scripts\Install-Helpers.ps1        # then just type:  Where-Am-I'
+    Line ''
+    Write-Host '  the state above is still true; only this report stopped early.' -ForegroundColor Yellow
 }
 finally { Pop-Location }
