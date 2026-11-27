@@ -203,6 +203,9 @@ try {
         Write-Host ("  You have a clean tree and " + $z.Name + ".")
         Write-Host "  Install it, then open the game:" -ForegroundColor White
         Line '    cd $env:USERPROFILE\Downloads'
+        # the launcher in Downloads is never overwritten by a bundle; take this round's copy out first
+        # or you run last round's installer (BUG-064, v103). One line, and it removes the whole class.
+        Line ('    (Add-Type -AssemblyName System.IO.Compression.FileSystem) ; $z = [IO.Compression.ZipFile]::OpenRead((Resolve-Path .\' + $z.Name + ').Path) ; $e = $z.Entries | Where-Object { $_.FullName -eq ''HR-ZeroDay/Apply-Bundle.ps1'' } ; [IO.Compression.ZipFileExtensions]::ExtractToFile($e, (Join-Path $PWD ''Apply-Bundle.ps1''), $true) ; $z.Dispose()')
         Line ('    .\Apply-Bundle.ps1 -BundlePath .\' + $z.Name)
         Line '    cd $env:USERPROFILE\HR-ZeroDay'
         Line '    .\scripts\Push.ps1        # sets upstream the first time'
