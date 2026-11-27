@@ -179,7 +179,8 @@ def render_page(page, index, count, pal, atlas, rects):
         raise SystemExit('page %s wants %d rows, the page holds %d' % (page['floor'], len(lines), ROWS))
 
     # caption band first, then the words on top of it
-    band_h = len(lines) * ROW_STEP + 2 * PAD_Y - LINE_GAP
+    # mirror of SweepScript.BandHeight: rows * pitch + padding, no fudge
+    band_h = len(lines) * ROW_STEP + 2 * PAD_Y
     d = ImageDraw.Draw(img)
     d.rectangle([BAND_X, BAND_TOP, BAND_X + BAND_W - 1, BAND_TOP + band_h - 1], fill=pal['void'])
     d.rectangle([BAND_X, BAND_TOP, BAND_X + BAND_W - 1, BAND_TOP + band_h - 1], outline=pal['line'])

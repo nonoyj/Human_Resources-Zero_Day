@@ -69,11 +69,16 @@ namespace HRZeroDay.Core.Rules
         // screenshots. PageTransformTests now asserts this equals MonitorScreen.GlyphH + LineGap.
         public const int RowStep = MonitorGlyphH + MonitorLineGap;   // 7 + 3 = 10
 
-        /// <summary>Height of the band that must be drawn behind `rows` lines of text.</summary>
+        /// <summary>
+        /// Height of the band drawn behind `rows` lines of text. The pitch is the font's; the padding is
+        /// what closes the box. The old `-3` fudge meant a one-line page produced a 19 px band around a
+        /// 7 px glyph -- a tall empty bar with the copy floating in the bottom of it, which is what the
+        /// player photographed on the walk. There is no fudge: padding above and below, nothing else.
+        /// </summary>
         public static int BandHeight(int rows)
         {
             if (rows <= 0) return 0;
-            return rows * RowStep + 2 * PadY - 3;
+            return rows * RowStep + 2 * PadY;
         }
 
         /// <summary>

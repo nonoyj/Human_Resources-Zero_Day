@@ -109,7 +109,7 @@ namespace HRZeroDay.Tests
             int real = MonitorScreen.GlyphH + MonitorScreen.LineGap;
             True(SweepScript.RowStep == real,
                  "caption row pitch is " + SweepScript.RowStep + " px but the font lays rows out at " + real);
-            True(SweepScript.BandHeight(SweepScript.MaxRows) == SweepScript.MaxRows * real + 2 * SweepScript.PadY - 3,
+            True(SweepScript.BandHeight(SweepScript.MaxRows) == SweepScript.MaxRows * real + 2 * SweepScript.PadY,
                  "BandHeight is not (rows x row pitch) + padding");
             return "PASS  the caption's row pitch matches the font the raster draws with (" + real + " px)";
         }

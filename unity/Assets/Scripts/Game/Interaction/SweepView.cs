@@ -40,11 +40,13 @@ namespace HRZeroDay.Game.Interaction
         private GameObject _root;
         private SpriteRenderer _background;
         private SpriteRenderer _textLayer;
-        private Texture2D _tex;
+        private Texture2D _tex;           // the caption band on its own (kept for the size checks)
+        private SpriteRenderer _fade;
         private IGlyphSource _glyphs;
         private int _cols;
 
-        private Texture2D _keyBand;
+        private Texture2D _stripTex;      // the strip, painted once, composited into the page texture
+        private Texture2D _pageTex;       // the whole page: room art + caption band + strip
 
         public bool IsOpen { get { return _root != null && _root.activeSelf; } }
         public int PageIndex { get { return _index; } }
@@ -66,34 +68,34 @@ namespace HRZeroDay.Game.Interaction
             _root = new GameObject("SweepPage");
             _root.transform.SetParent(transform, false);
 
-            _background = NewLayer("Background", 180);
-            _textLayer = NewLayer("Text", 195);
-            // (the neon cap art that used to sit here is retired -- BUG-055. The strip below carries the
-            // keys as READABLE TEXT, from the same atlas as the copy above it.)
+            // ONE layer draws the whole walk: the room art, the caption band and the strip, composited
+            // into a single 480x270 texture per page. Before this, three sprites had to agree with each
+            // other about position and sort order, and on 2026-11-27 they did not: the strip sorted over
+            // the room like a dropped shutter and the caption sat in the wrong half of its bar. A page is
+            // a page: one texture, one draw, nothing to misalign.
+            _background = NewLayer("Page", 180);
+            _fade = NewLayer("Fade", 210);          // a black card over everything while a page changes
+            _fade.sprite = SolidSprite(new Color32(255, 255, 255, 255));
+            _fade.color = new Color(0f, 0f, 0f, 0f);
+            _fade.enabled = false;
+            _fade.transform.localScale = new Vector3(SweepScript.PageW / Ppu, SweepScript.PageH / Ppu, 1f);
+            _fade.transform.localPosition = PageTransform.CanvasToWorld(SweepScript.PageW * 0.5f,
+                                                                       SweepScript.PageH * 0.5f, Ppu);
 
-            // The caption band's texture is (re)allocated by Repaint to exactly the size it paints.
-            // 1:1 with the canvas on purpose. This is a 5x7 bitmap font: it has no smaller size, and
-            // downscaling the texture to fake one would smear the glyphs. What CAN be made smaller is the
-            // panel around it -- the band is sized to the rows actually used, so a two-line trace is a thin
-            // bar and the room stays visible. (The player's "text is too big" was the desk HUD, which used
-            // the engine font at 1.7 glyph boxes; that is fixed in GameHud.)
-            // Created at exactly the size Repaint() paints. It used to be allocated for MaxRows (22) and
-            // then painted only the top `height` rows -- so SetPixels32 ran on a buffer that was the wrong
-            // length for the texture, Unity threw, and the band kept whatever the last page left on it.
-            // The prompt is painted INTO the page texture, with the same atlas as everything else; it used
-            // to be a TextMesh placed off the bottom of the screen, which is why the walk said nothing
-            // about what to press (2026-11-26). ONE texture for the whole bottom strip (prompt + the player's hint line). Two textures
-            // stacked in 32 px was how the prompt ended up half-covering the caps and off the bottom edge.
-            _keyBand = new Texture2D(SweepScript.PageW, SweepScript.StripH, TextureFormat.RGBA32, false);
-            _keyBand.filterMode = FilterMode.Point;
-            _keyBand.name = "SweepStrip";
-            var keyLayer = NewLayer("Strip", 200);
-            keyLayer.sprite = Sprite.Create(_keyBand, new Rect(0, 0, SweepScript.PageW, SweepScript.StripH),
-                                            PageTransform.TopLeftPivot, Ppu);
-            keyLayer.transform.localPosition = PageTransform.TopLeftToWorld(
-                0f, SweepScript.StripTop, Ppu, SweepScript.PageH);
-            // StripTop is a y-DOWN offset from the page top (238). Placing it as StripTop/Ppu put it at
-            // y = +14.9 units -- above the room and off the right edge: the streak the player photographed.
+            // the strip (prompt + the player's key line) is painted once per page into its own small
+            // texture, then composited -- it never gets its own sprite, so it cannot float over the room.
+            _stripTex = new Texture2D(SweepScript.PageW, SweepScript.StripH, TextureFormat.RGBA32, false);
+            _stripTex.filterMode = FilterMode.Point;
+            _stripTex.name = "SweepStrip";
+
+            // the whole page, painted per floor
+            _pageTex = new Texture2D(SweepScript.PageW, SweepScript.PageH, TextureFormat.RGBA32, false);
+            _pageTex.filterMode = FilterMode.Point;
+            _pageTex.name = "SweepPageCard";
+            _background.sprite = Sprite.Create(_pageTex, new Rect(0, 0, SweepScript.PageW, SweepScript.PageH),
+                                               new Vector2(0.5f, 0.5f), Ppu);
+            _background.transform.localPosition = PageTransform.CanvasToWorld(SweepScript.PageW * 0.5f,
+                                                                             SweepScript.PageH * 0.5f, Ppu);
 
             _root.SetActive(false);
             return true;
@@ -138,6 +140,26 @@ namespace HRZeroDay.Game.Interaction
             if (_root != null) _root.SetActive(false);
         }
 
+        private float _fadeT = -1f;   // <0 = no fade running
+
+        private void Update()
+        {
+            if (_fade == null) return;
+            if (_fadeT >= 0f)
+            {
+                _fadeT += Time.unscaledDeltaTime / SweepFadeSeconds;
+                float a = Mathf.Clamp01(_fadeT);
+                // black in, then out: 0 -> 1 over the first half, 1 -> 0 over the second
+                float level = a < 0.5f ? a * 2f : (1f - a) * 2f;
+                _fade.color = new Color(0f, 0f, 0f, level * 0.85f);
+                _fade.enabled = level > 0.001f;
+                if (a >= 1f) { _fadeT = -1f; _fade.enabled = false; }
+            }
+        }
+
+        /// <summary>Half a second of black between floors -- the walk's only animation.</summary>
+        private const float SweepFadeSeconds = 0.45f;
+
         /// <summary>SPACE: next floor, or clock out when the last page is showing.</summary>
         public void Advance()
         {
@@ -162,7 +184,8 @@ namespace HRZeroDay.Game.Interaction
                                                                              SweepScript.PageH * 0.5f, Ppu);
 
             RepaintKeyLine(page);
-            Repaint(page);
+            Repaint(page, sprite);
+            _fadeT = 0f;                 // black card in, then out: the page change reads as a change
         }
 
         /// <summary>
@@ -172,8 +195,8 @@ namespace HRZeroDay.Game.Interaction
         /// </summary>
         private void RepaintKeyLine(SweepPage page)
         {
-            if (_keyBand == null || _glyphs == null) return;
-            int w = _keyBand.width, h = _keyBand.height;
+            if (_stripTex == null || _glyphs == null) return;
+            int w = _stripTex.width, h = _stripTex.height;
             var fill = Colour("void", new Color32(11, 14, 19, 255));
             var buf = new Color32[w * h];
             for (int i = 0; i < buf.Length; i++) buf[i] = fill;
@@ -192,18 +215,29 @@ namespace HRZeroDay.Game.Interaction
             for (int i = 0; i < buf.Length; i++) buf[i] = painted[i];
 
             MonitorScreenRaster.FlipToTextureOrder(buf, w, h);
-            _keyBand.SetPixels32(buf);
-            _keyBand.Apply(false);
+            _stripTex.SetPixels32(buf);
+            _stripTex.Apply(false);
         }
 
         /// <summary>
-        /// Rasterises the band: background, 1 px border, heading, then the traces. Same path as
-        /// LetterView (wrap -> rects -> pixels) so the walk's type cannot drift from the paperwork's.
+        /// Paints the whole page into one texture: the floor's room art, the caption band over it, then the
+        /// strip along the bottom. Everything is laid out in canvas px against the SAME 480x270 grid, so a
+        /// band cannot end up in the wrong half of its bar and the strip cannot float over the room -- the
+        /// two faults the player photographed on 2026-11-27.
         /// </summary>
-        private void Repaint(SweepPage page)
+        private void Repaint(SweepPage page, Sprite art)
         {
-            if (_tex == null || _glyphs == null) return;
+            if (_pageTex == null || _glyphs == null) return;
 
+            int W = SweepScript.PageW, H = SweepScript.PageH;
+            var void_ = Colour("void", new Color32(11, 14, 19, 255));
+            var line_ = Colour("line", new Color32(43, 58, 77, 255));
+
+            // start from the floor art (PNG order: row 0 = top of the picture)
+            var buf = ArtToRaster(art, W, H, void_);
+            if (buf == null) return;
+
+            // ---- caption band, top-left, measured DOWN from the page top
             var specs = new List<MonitorScreen.LineSpec>();
             specs.Add(new MonitorScreen.LineSpec { text = page.Heading, colour = "warn" });
             specs.Add(new MonitorScreen.LineSpec { text = string.Empty, colour = "text" });
@@ -211,61 +245,131 @@ namespace HRZeroDay.Game.Interaction
             for (int i = 0; i < page.Lines.Count && rows < MaxRows; i++, rows++)
                 specs.Add(new MonitorScreen.LineSpec { text = page.Lines[i], colour = "textdim" });
 
-            // THE BAND IS THE TEXTURE. It used to be one tall texture (BandH, 20 rows) with a short glass
-            // inside it -- but MonitorScreenRaster.Render lays rows out from the BOTTOM of the buffer it is
-            // given, so a 39 px band inside a 209 px texture drew its copy ~170 rows too low: the player's
-            // screenshot of the walk shows the caption floating in the middle of a tall empty bar. The
-            // texture is now exactly the band's height, so the raster's bottom and the band's bottom are
-            // the same row.
-            int bandHeight = SweepScript.BandHeight(rows);
-            int height = bandHeight;
-            if (_tex == null || _tex.width != SweepScript.BandW || _tex.height != bandHeight)
+            int bandH = SweepScript.BandHeight(rows);
+            int bandX = SweepScript.BandX, bandY = SweepScript.BandTop;
+            for (int y = bandY; y < bandY + bandH && y < H; y++)
+                for (int x = bandX; x < bandX + SweepScript.BandW && x < W; x++)
+                    buf[y * W + x] = void_;
+            for (int x = bandX; x < bandX + SweepScript.BandW && x < W; x++)
             {
-                if (_tex != null) Destroy(_tex);
-                _tex = new Texture2D(SweepScript.BandW, bandHeight, TextureFormat.RGBA32, false);
-                _tex.filterMode = FilterMode.Point;
-                _tex.name = "SweepBand";
-                _textLayer.sprite = Sprite.Create(_tex, new Rect(0, 0, _tex.width, _tex.height),
-                                                 PageTransform.TopLeftPivot, Ppu);
-                _textLayer.transform.localPosition = PageTransform.TopLeftToWorld(
-                    SweepScript.BandX, SweepScript.BandTop, Ppu, SweepScript.PageH);
+                buf[bandY * W + x] = line_;
+                int bottom = bandY + bandH - 1;
+                if (bottom < H) buf[bottom * W + x] = line_;
             }
+            for (int y = bandY; y < bandY + bandH && y < H; y++)
+            {
+                buf[y * W + bandX] = line_;
+                int right = bandX + SweepScript.BandW - 1;
+                if (right < W) buf[y * W + right] = line_;
+            }
+
             var glass = new MonitorScreen.GlassRect
             {
-                x = SweepScript.PadX,
-                y = SweepScript.PadY,
-                w = _tex.width - 2 * SweepScript.PadX,
-                h = bandHeight - 2 * SweepScript.PadY
+                x = bandX + SweepScript.PadX,
+                y = SweepScript.PadY,          // in the band's own frame; offset applied below
+                w = SweepScript.BandW - 2 * SweepScript.PadX,
+                h = bandH - 2 * SweepScript.PadY
             };
             var rects = MonitorScreen.LinesToRects(specs, glass);
-
-            var void_ = Colour("void", new Color32(11, 14, 19, 255));
-            var line_ = Colour("line", new Color32(43, 58, 77, 255));
-            var buf = new Color32[_tex.width * _tex.height];
-            for (int i = 0; i < buf.Length; i++) buf[i] = new Color32(0, 0, 0, 0);   // transparent page
-
-            // band: rows down from the top of the texture, so a two-line page is a thin bar
-            int top = 0, last = bandHeight - 1;
-            for (int y = top; y <= last; y++)
-                for (int x = 0; x < _tex.width; x++)
-                    buf[y * _tex.width + x] = void_;
-            for (int x = 0; x < _tex.width; x++)
+            // LinesToRects works in the BAND's frame; shift it down to where the band sits on the page.
+            // canvasY counts UP from the frame bottom, so the offset is measured from the page bottom too.
+            int bandBottomFromPageTop = H - (bandY + bandH);
+            var shifted = new List<ScreenLine>();
+            foreach (var r in rects)
             {
-                buf[top * _tex.width + x] = line_;
-                buf[last * _tex.width + x] = line_;
-            }
-            for (int y = top; y <= last; y++)
-            {
-                buf[y * _tex.width] = line_;
-                buf[y * _tex.width + _tex.width - 1] = line_;
+                shifted.Add(new ScreenLine
+                {
+                    text = r.text,
+                    colour = r.colour,
+                    truncated = r.truncated,
+                    glyphW = r.glyphW,
+                    lineH = r.lineH,
+                    canvasX = r.canvasX,
+                    canvasY = r.canvasY + bandBottomFromPageTop
+                });
             }
 
-            // text on top of the band; the raster only writes glyph pixels, so the band survives
-            MonitorScreenRaster.Render(buf, _tex.width, _tex.height, rects, _glyphs, void_, paintBackground: false);
-            // the raster is PNG-ordered (row 0 = top); the texture is not
-            MonitorScreenRaster.FlipToTextureOrder(buf, _tex.width, _tex.height);
-            _tex.SetPixels32(buf);
-            _tex.Apply(false);
+            // the band is painted in the BUFFER's own top-down order, so render into a band-sized scratch
+            // buffer and blit it -- that keeps the raster's bottom-up row maths local, which is the only
+            // place it belongs.
+            var bandBuf = new Color32[SweepScript.BandW * bandH];
+            for (int i = 0; i < bandBuf.Length; i++) bandBuf[i] = void_;
+            var bandGlass = new MonitorScreen.GlassRect
+            {
+                x = SweepScript.PadX, y = SweepScript.PadY,
+                w = SweepScript.BandW - 2 * SweepScript.PadX,
+                h = bandH - 2 * SweepScript.PadY
+            };
+            MonitorScreenRaster.Render(bandBuf, SweepScript.BandW, bandH,
+                                       MonitorScreen.LinesToRects(specs, bandGlass),
+                                       _glyphs, void_, paintBackground: false);
+            for (int y = 0; y < bandH && bandY + y < H; y++)
+                for (int x = 0; x < SweepScript.BandW && bandX + x < W; x++)
+                    if (bandBuf[y * SweepScript.BandW + x].a != 0)
+                        buf[(bandY + y) * W + bandX + x] = bandBuf[y * SweepScript.BandW + x];
+
+            // ---- strip: the bottom 32 px, part of the page
+            var stripBuf = new Color32[SweepScript.PageW * SweepScript.StripH];
+            for (int i = 0; i < stripBuf.Length; i++) stripBuf[i] = void_;
+            for (int y = SweepScript.StripTop; y < H; y++)
+                for (int x = 0; x < W; x++)
+                    buf[y * W + x] = void_;
+            BlitRaster(buf, W, H, _stripTex, SweepScript.StripTop, 0);
+
+            // ---- and out to the GPU
+            MonitorScreenRaster.FlipToTextureOrder(buf, W, H);
+            _pageTex.SetPixels32(buf);
+            _pageTex.Apply(false);
+        }
+
+        /// <summary>The floor art, as a top-down raster buffer in PNG order.</summary>
+        private static Color32[] ArtToRaster(Sprite art, int W, int H, Color32 fill)
+        {
+            var buf = new Color32[W * H];
+            for (int i = 0; i < buf.Length; i++) buf[i] = fill;
+            if (art == null) return buf;
+            var tex = art.texture;
+            try
+            {
+                int rw = Mathf.RoundToInt(art.rect.width), rh = Mathf.RoundToInt(art.rect.height);
+                int rx = Mathf.RoundToInt(art.rect.x), ry = Mathf.RoundToInt(art.rect.y);
+                var px = tex.GetPixels(rx, ry, rw, rh);          // bottom-up, as Unity stores it
+                // flip into PNG order and scale-free blit at 1:1 (the art is authored at page size)
+                for (int y = 0; y < Mathf.Min(rh, H); y++)
+                {
+                    for (int x = 0; x < Mathf.Min(rw, W); x++)
+                    {
+                        // Unity converts Color -> Color32 implicitly; the stub does not, so be explicit.
+                        var c = px[(rh - 1 - y) * rw + x];
+                        buf[y * W + x] = new Color32((byte)Mathf.Clamp(Mathf.RoundToInt(c.r * 255f), 0, 255),
+                                                     (byte)Mathf.Clamp(Mathf.RoundToInt(c.g * 255f), 0, 255),
+                                                     (byte)Mathf.Clamp(Mathf.RoundToInt(c.b * 255f), 0, 255),
+                                                     (byte)Mathf.Clamp(Mathf.RoundToInt(c.a * 255f), 0, 255));
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // art not readable: the page still draws its bands on the fill colour, which is legible
+                Debug.LogWarning("SweepView: floor art is not readable; painting the page background only.");
+            }
+            return buf;
+        }
+
+        private static void BlitRaster(Color32[] dst, int W, int H, Texture2D src, int dstTop, int topUnused)
+        {
+            if (src == null) return;
+            int h = src.height, w = src.width;
+            Color32[] px;
+            try { px = src.GetPixels32(); }
+            catch (Exception) { return; }
+            // texture is bottom-up: row h-1 is the strip's top
+            for (int y = 0; y < h && dstTop + y < H; y++)
+                for (int x = 0; x < w && x < W; x++)
+                {
+                    var c = px[(h - 1 - y) * w + x];
+                    if (c.a != 0) dst[(dstTop + y) * W + x] = c;
+                }
         }
 
         private void OnDestroy()
@@ -273,7 +377,16 @@ namespace HRZeroDay.Game.Interaction
             // These two are created here, not imported: an un-destroyed Texture2D leaks for the session
             // and, in the editor, keeps the play-mode object alive after Stop.
             if (_tex != null) Destroy(_tex);
-            if (_keyBand != null) Destroy(_keyBand);
+            if (_stripTex != null) Destroy(_stripTex);
+            if (_pageTex != null) Destroy(_pageTex);
+        }
+
+        private static Sprite SolidSprite(Color32 c)
+        {
+            var t = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            t.SetPixels32(new[] { c });
+            t.Apply(false, false);
+            return Sprite.Create(t, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f), 1f);
         }
 
         private Color32 Colour(string key, Color32 fallback)
