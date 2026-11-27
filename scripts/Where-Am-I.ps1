@@ -31,6 +31,38 @@ function Ok   { param([string]$t) ; Write-Host ("  ok   " + $t) -ForegroundColor
 function Warn { param([string]$t) ; Write-Host ("  note " + $t) -ForegroundColor Yellow }
 function Bad  { param([string]$t) ; Write-Host ("  ATT  " + $t) -ForegroundColor Red }
 
+# THE ONE WAY THIS SCRIPT ASKS GIT ANYTHING (2026-11-27, BUG-060).
+# With $ErrorActionPreference = 'Stop', PowerShell treats a native command's non-zero exit as a
+# TERMINATING error -- so `git rev-parse '@{u}'` on a branch with no upstream, or `git config --get` for a
+# key that does not exist, killed the report mid-sentence in the player's own terminal ("fatal: no
+# upstream configured for branch 'main'" then nothing). A "does this branch have an upstream" question is
+# not a failure; it is a question whose answer may be "no".
+#
+# Same technique Push.ps1 uses, for the same reason: git through a process, never '&'. stdout is the
+# answer, stderr is a diagnostic we keep one line of, and nothing ever throws.
+$script:GitCode = 0
+$script:GitWhy = ''
+function GitText {
+    param([string[]]$GitArgs)
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = 'git'
+    $psi.Arguments = (($GitArgs | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }) -join ' ')
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $p = [System.Diagnostics.Process]::Start($psi)
+    $out = $p.StandardOutput.ReadToEnd()
+    $err = $p.StandardError.ReadToEnd()
+    $p.WaitForExit()
+    $script:GitCode = $p.ExitCode
+    if ($p.ExitCode -ne 0) {
+        $script:GitWhy = (($err -split "`n" | Where-Object { $_.Trim() } | Select-Object -First 1) -replace '^fatal:\s*', '').Trim()
+        return ''
+    }
+    return $out.Trim()
+}
+
 Push-Location $RepoRoot
 try {
     Write-Host ""
@@ -39,9 +71,9 @@ try {
 
     # -- 1. state ----------------------------------------------------------------------------
     Head "state"
-    $head = (& git rev-parse --short HEAD).Trim()
-    $branch = (& git rev-parse --abbrev-ref HEAD).Trim()
-    $dirty = @(& git status --porcelain)
+    $head = GitText @('rev-parse', '--short', 'HEAD')
+    $branch = GitText @('rev-parse', '--abbrev-ref', 'HEAD')
+    $dirty = @(GitText @('status', '--porcelain') -split "`n")
     # Two files are expected to differ in every clone on purpose: the repo-root Apply-Bundle.ps1 is
     # byte-identical to scripts\Apply-Bundle.ps1 (Apply-Bundle rewrites it) and .gitignore can be
     # extended locally. Counting them as "dirty" is a warning nobody can act on, so it is not counted --
@@ -63,16 +95,36 @@ try {
     # this script runs. A failure here is normal offline and is reported, not fatal.
     Write-Host ''
     Write-Host '  fetching origin (10s) ...' -NoNewline
-    $fetch = (& git fetch --quiet --prune origin 2>&1)
-    if ($LASTEXITCODE -ne 0) { Warn ('could not reach origin -- offline or no credential: ' + ($fetch -join ' ')) }
-    else { Ok 'fetched' }
+    # Does this copy even have a remote? A bundle install does (Apply-Bundle preserves it), but a copy
+    # cloned by hand might not, and `git fetch origin` on a repo with no origin writes three lines of
+    # git fatal to stderr. Ask first, fetch second, and report ONE short line either way.
+    $remoteUrl = GitText @('config', '--get', 'remote.origin.url')
+    if (-not $remoteUrl) {
+        Warn 'no origin remote on this copy -- nothing to fetch or push; add it with: git remote add origin <url>'
+    } else {
+        GitText @('fetch', '--quiet', '--prune', 'origin') | Out-Null
+        if ($script:GitCode -ne 0) {
+            $why = if ($script:GitWhy) { $script:GitWhy } else { 'git fetch failed' }
+            Warn ('could not fetch from origin -- offline, or no credential: ' + $why)
+        } else { Ok 'fetched' }
+    }
 
-    $upstream = (& git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>$null)
-    if ($LASTEXITCODE -ne 0 -or -not $upstream) {
+    # A branch with no upstream is the NORMAL state of a copy installed from a bundle (Push.ps1 sets it
+    # on the first push). Asking git about it writes "fatal: no upstream configured" to STDERR, and with
+    # $ErrorActionPreference = 'Stop' that native stderr becomes a terminating error that kills the report
+    # halfway through -- the player's own terminal (2026-11-27, BUG-060). So: ask `git config` first, and
+    # only invoke `rev-parse` when there is something to resolve. Same answer, no error path.
+    $remoteName = GitText @('config', '--get', ('branch.' + $branch + '.remote'))
+    $mergeRef   = GitText @('config', '--get', ('branch.' + $branch + '.merge'))
+    $upstream = ''
+    if ($remoteName -and $mergeRef) { $upstream = GitText @('rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}') }
+    if (-not $upstream) {
         Warn "no upstream branch on this copy -- .\scripts\Push.ps1 sets it on the first run"
     } else {
-        $ahead = (& git rev-list --count ('@{u}..HEAD' ) 2>$null)
-        $behind = (& git rev-list --count ('HEAD..@{u}') 2>$null)
+        $ahead = GitText @('rev-list', '--count', '@{u}..HEAD')
+        $behind = GitText @('rev-list', '--count', 'HEAD..@{u}')
+        if (-not $ahead) { $ahead = '0' }
+        if (-not $behind) { $behind = '0' }
         Write-Host ("  upstream " + $upstream + "   ahead " + $ahead + "   behind " + $behind)
         if ([int]$behind -gt 0) {
             Warn "the remote has commits this copy does not:"

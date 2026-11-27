@@ -1096,6 +1096,39 @@ fails the build if one of them loses `isReadable: 1`. `Where-Am-I` also stops co
 are *supposed* to differ in a working copy (the root `Apply-Bundle.ps1` bootstrap copy, and `.gitignore`
 itself) as dirty, while still counting everything else.
 
+## BUG-060 -- `Where-Am-I` died on a copy with no upstream, halfway through its own report (2026-11-27)
+
+Player's terminal, straight after a clean v98 install:
+
+```
+  fetching origin (10s) ...  ok   fetched
+git.exe : fatal: no upstream configured for branch 'main'
+    + CategoryInfo          : NotSpecified: (fatal: no upstr...r branch 'main':String) [], RemoteException
+```
+
+Nothing was wrong with the repo. `Where-Am-I.ps1` runs with `$ErrorActionPreference = 'Stop'`, and in
+PowerShell a **native command's non-zero exit becomes a terminating error** under that setting. So the
+perfectly normal question *"does this branch have an upstream?"* -- asked with
+`git rev-parse --abbrev-ref --symbolic-full-name '@{u}'` -- got the answer *no*, thrown as an exception,
+and the report stopped in the middle of section 1. Every section after it (last commits, bundles, gates,
+the five commands) was never printed.
+
+A copy installed from a bundle **always** starts without an upstream: `Apply-Bundle` rebuilds `.git` from
+`history.bundle` and `Push.ps1` sets the upstream on the first push. So this failed on the most common
+path there is.
+
+**Fixed the way `Push.ps1` already did it:** git runs through `System.Diagnostics.Process`, never `&`. One
+helper, `GitText`, returns stdout on success and `''` on any non-zero exit, and stashes the first stderr
+line in `$script:GitWhy` for the one place that wants to show it (a failed fetch, which now reads
+`could not fetch from origin -- offline, or no credential: unable to access ...` instead of a category
+dump). Branch, head, dirty state, remote url, upstream, ahead/behind and the fetch all go through it.
+
+**Proven against the real states** (a scratch repo, /tmp/noUp): no remote at all; remote but no upstream;
+upstream pointing at a host that does not resolve. All three now print the whole report and end with the
+five commands. Before, the third one printed nothing after `fetching origin`.
+
+**Class of bug:** *a diagnostic tool that throws on the state it exists to diagnose.*
+
 # PARKED FOR REPLENISH
 
 Added 2026-11-27 with `docs/82-replenish-phase.md`. A parked item is **not** forgotten and **not** fixed
