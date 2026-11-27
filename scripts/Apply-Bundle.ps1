@@ -136,13 +136,23 @@ try {
 
     if ($Clean) {
         S "cleaning folder/folder duplicates"
+        $removed = 0
         foreach ($d in $projectDirs) {
             $inner = Join-Path (Join-Path $WorkingCopy $d) $d
-            if (Test-Path -LiteralPath $inner) {
-                Remove-Item -LiteralPath $inner -Recurse -Force
-                OK "removed $d\$d"
-            }
+            # Only an UNTRACKED double-nest is a leftover to sweep. `tools/art` is a real, tracked
+            # directory that happens to match "a folder inside a folder of the same name's parent" --
+            # which is why this step once announced "removed tools\tools" and "removed art\art" on a
+            # tree that never had either. Ask git; and if git cannot be asked, touch only a path that is
+            # not in the bundle.
+            if (-not (Test-Path -LiteralPath $inner)) { continue }
+            $tracked = ''
+            $tracked = Git @('-C', $WorkingCopy, 'ls-tree', '-r', '--name-only', 'HEAD', '--', "$d/$d/") -Quiet
+            if ($tracked) { continue }   # tracked: it belongs to the bundle, leave it alone
+            Remove-Item -LiteralPath $inner -Recurse -Force
+            $removed++
+            OK "removed $d\$d (leftover from an older apply)"
         }
+        if ($removed -eq 0) { OK 'nothing to sweep -- no folder/folder duplicates on disk' }
     }
 
     # Adopt the bundle's history on EVERY apply, not just -Clean: the files are about to be
@@ -290,8 +300,13 @@ try {
             # the editor was running -- and PowerShell's UnauthorizedAccessException aborted the entire
             # apply mid-copy. Copying over a live folder is exactly what Unity is designed to survive
             # (it reimports on focus), and a file that cannot be replaced is now a WARNING, not a death.
+            # Windows PowerShell 5.1 QUIRK, and the source of every phantom "art\art" this project has
+            # ever reported: `Copy-Item -Path <dir> -Destination <existing dir> -Recurse` puts the source
+            # directory INSIDE the destination (dst\art\art) instead of merging its contents. Creating
+            # $dest first and copying its CONTENTS avoids the ambiguity completely.
+            if (-not (Test-Path -LiteralPath $dest)) { New-Item -ItemType Directory -Path $dest | Out-Null }
             $locked = @()
-            Copy-Item -LiteralPath $it.FullName -Destination $dest -Recurse -Force -ErrorAction SilentlyContinue `
+            Copy-Item -Path (Join-Path $it.FullName '*') -Destination $dest -Recurse -Force -ErrorAction SilentlyContinue `
                       -ErrorVariable copyErr
             foreach ($e in $copyErr) {
                 $path = if ($e.TargetObject) { "$($e.TargetObject)" } else { "$($e.Exception.Message)" }
@@ -383,11 +398,11 @@ try {
             # directory that is TRACKED but should not be (the BUG-021 double-nest: art\art committed)
             # is a problem, so ask git rather than the filesystem -- the filesystem check fired on every
             # clean apply for a week and made three real warnings look like noise.
-            $nested = Join-Path (Join-Path $WorkingCopy $d) $d
-            if ((Test-Path $nested) -and $bundleHead) {
-                Git @('-C', $WorkingCopy, 'ls-tree', '-r', '--name-only', $bundleHead, '--', "$d/$d/") -Quiet | Out-Null
-                if ($LASTEXITCODE -eq 0) { W "still nested: $d\$d (tracked in the bundle -- a build problem, tell the agent)" }
-            }
+            # (filesystem test removed entirely: see above -- ls-tree is the only question that has an
+            # answer here. A 474-entry dirty tree is the real symptom; nesting is a phantom.)
+            $rev = if ($bundleHead) { $bundleHead } else { 'HEAD' }
+            $tracked = Git @('-C', $WorkingCopy, 'ls-tree', '-r', '--name-only', $rev, '--', "$d/$d/") -Quiet
+            if ($tracked) { W "still nested: $d\$d -- the BUNDLE tracks $d\$d, which is a build problem. Tell the agent." }
         }
     } finally { Pop-Location }
 

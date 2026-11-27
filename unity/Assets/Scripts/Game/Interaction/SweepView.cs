@@ -68,12 +68,8 @@ namespace HRZeroDay.Game.Interaction
 
             _background = NewLayer("Background", 180);
             _textLayer = NewLayer("Text", 195);
-            var keys = NewLayer("Keys", 199);
-            keys.sprite = Resources.Load<Sprite>("Art/Kit/sweep/sweep_keys_480x22");
-            // The neon key strip is bottom-anchored art: centre it on its own rect, in canvas px, from the
-            // bottom of the page.
-            keys.transform.localPosition = PageTransform.CanvasToWorld(SweepScript.PageW * 0.5f,
-                                                                      SweepScript.KeyStripH * 0.5f, Ppu);
+            // (the neon cap art that used to sit here is retired -- BUG-055. The strip below carries the
+            // keys as READABLE TEXT, from the same atlas as the copy above it.)
 
             // one texture for the whole caption band, allocated at the largest page and reused
             // 1:1 with the canvas on purpose. This is a 5x7 bitmap font: it has no smaller size, and
@@ -96,16 +92,18 @@ namespace HRZeroDay.Game.Interaction
             // be a TextMesh placed at (TextX+40, KeyStrip+9) px -- which in y-up canvas space is 1.9 units
             // ABOVE the page's bottom edge, i.e. off the screen. That is why the walk said nothing about
             // what to press and the player had to guess SPACE on 2026-11-26.
-            _keyBand = new Texture2D(SweepScript.PageW, SweepScript.KeyBandH, TextureFormat.RGBA32, false);
+            // ONE texture for the whole bottom strip (prompt + the player's hint line). Two textures
+            // stacked in 32 px was how the prompt ended up half-covering the caps and off the bottom edge.
+            _keyBand = new Texture2D(SweepScript.PageW, SweepScript.StripH, TextureFormat.RGBA32, false);
             _keyBand.filterMode = FilterMode.Point;
-            _keyBand.name = "SweepKeyBand";
-            var keyLayer = NewLayer("KeyText", 200);
-            keyLayer.sprite = Sprite.Create(_keyBand, new Rect(0, 0, SweepScript.PageW, SweepScript.KeyBandH),
+            _keyBand.name = "SweepStrip";
+            var keyLayer = NewLayer("Strip", 200);
+            keyLayer.sprite = Sprite.Create(_keyBand, new Rect(0, 0, SweepScript.PageW, SweepScript.StripH),
                                             PageTransform.TopLeftPivot, Ppu);
-            // KeyBandTop is a y-DOWN offset from the top of the page (233 = just above the key strip).
-            // Placing it as KeyBandTop/Ppu put it at y = +14.5 units: above the room, off the right edge.
             keyLayer.transform.localPosition = PageTransform.TopLeftToWorld(
-                0f, SweepScript.KeyBandTop, Ppu, SweepScript.PageH);
+                0f, SweepScript.StripTop, Ppu, SweepScript.PageH);
+            // StripTop is a y-DOWN offset from the page top (238). Placing it as StripTop/Ppu put it at
+            // y = +14.9 units -- above the room and off the right edge: the streak the player photographed.
 
             _root.SetActive(false);
             return true;
@@ -200,11 +198,17 @@ namespace HRZeroDay.Game.Interaction
             var buf = new Color32[w * h];
             for (int i = 0; i < buf.Length; i++) buf[i] = fill;
 
-            var lines = new List<string> { SweepScript.KeyLine(page, _index, _pages.Count) };
-            var colours = new List<string> { "signal" };
-            // TextPanel.Paint offsets the first row by 6 px (PaddingY = 7 minus one), so the band must be
-            // at least 7 px of glyph plus its bottom border or the descenders are clipped.
-            var painted = TextPanel.Paint(w, h, lines, colours, _glyphs, fill, Colour("line", new Color32(43, 58, 77, 255)));
+            // Line 1: the page prompt (signal ink -- it is the only UI on the page).
+            // Line 2: the player's key line (dim ink -- present on every page so they never have to
+            // remember it, quiet enough not to compete with the prompt).
+            var lines = new List<string>
+            {
+                SweepScript.KeyLine(page, _index, _pages.Count),
+                SweepScript.HintLine()
+            };
+            var colours = new List<string> { "signal", "textdim" };
+            var painted = TextPanel.Paint(w, h, lines, colours, _glyphs, fill,
+                                          Colour("line", new Color32(43, 58, 77, 255)));
             for (int i = 0; i < buf.Length; i++) buf[i] = painted[i];
 
             MonitorScreenRaster.FlipToTextureOrder(buf, w, h);

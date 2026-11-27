@@ -90,10 +90,13 @@ GLYPHS = {
     '+': '...../..#../..#../#####/..#../..#../.....',
     '/': '....#/....#/...#./..#../.#.../#..../#....',
     '#': '.#.#./#####/.#.#./#####/.#.#./...../.....',
-    # full-width arms: a 3-wide arm reads as a C or a J at 5x7, which made "[ READ LETTER ]" look
-    # like "C READ LETTER J" (user, 2026-11-26). Brackets must own the full row.
-    '[': '.#.#./.#.#./.#.#./.#.#./.#.#./.#.#./.#.#.',   # square brackets: no hooks at all, or 5x7
-    ']': '.#.#./.#.#./.#.#./.#.#./.#.#./.#.#./.#.#.',   # reads them as J / I against the next glyph
+    # REAL SQUARE BRACKETS. A previous pass drew both brackets as '.#.#.' on all seven rows -- two
+    # parallel bars, no arms -- to avoid an arm reading as C or J at 5x7. The cure was worse than the
+    # disease: on the walk page every "[SPACE] WALK ON" rendered as "I SPACE I I WALK ON", which the player
+    # read (correctly) as machine noise. Now '[' is a left arm with top and bottom hooks: unmistakably a
+    # bracket at 5 px, and it cannot be mistaken for a letter because it has no middle bar.
+    '[': '.###./.#.../.#.../.#.../.#.../.#.../.###.',
+    ']': '.###./...#./...#./...#./...#./...#./.###.',
     '(': '..##./.#.../.#.../.#.../.#.../.#.../..##.',
     ')': '.##../...#./...#./...#./...#./...#./.##..',
     "'": '..#../..#../...../...../...../...../.....',

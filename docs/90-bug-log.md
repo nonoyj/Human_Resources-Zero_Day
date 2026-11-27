@@ -894,6 +894,39 @@ these were found by running the gates on the **merged** tree, which is the only 
 **Lesson.** A merge has its own gate list: compile, tests, scripts, art, fresh clone -- on the merged
 tree, before pushing. Two branches can each be green and the join be broken.
 
+## BUG-055 -- the walk's controls were decoration, and the brackets were two bars (2026-11-27)
+
+The player photographed the walk page showing `WALK . [.SPACE] [.CLOCK OUT` smeared across a band, and a
+row of four neon caps with no readable marking on them. Three faults stacked:
+
+1. **The font's square brackets were two vertical bars.** A previous pass changed `[` and `]` to `.#.#.` on
+   all seven rows so an arm would not read as a `C` or a `J` at 5x7. The cure was worse: every `[SPACE]`
+   on the walk rendered as `I SPACE I I`, which is machine noise and is exactly what the screenshot shows.
+   They are real brackets again (`.###.` box with top and bottom hooks), and they are readable at 1x.
+2. **The strip was art, not text.** Four neon caps whose marking was a single 5x7 glyph could never tell
+   the player which key walks on. The strip is now painted from the same atlas as the copy above it:
+   line 1 the page prompt (`[WALK 2/3] [SPACE] WALK ON`), line 2 the player's keys
+   (`SPACE WALK [S] SHIFT [X] DESK`). Retiring the cap art freed exactly the 32 px it needs.
+3. **`KeyBandTop` was being spent twice.** The prompt band was placed with a y-down constant as if it were
+   y-up, and the strip's two lines were drawn from one 15 px texture, so the second line fell off the page.
+
+**Class of bug:** *decoration standing in for instruction.* If the player has to guess a key, the art is
+not telling them -- and no amount of polish on the art will fix it. The rule now: **every control the game
+shows is spelled out in text the atlas can draw**, and `PageTransformTests` asserts it for the walk.
+
+## BUG-056 -- `Copy-Item -Recurse` into an existing folder makes a double nest (2026-11-27)
+
+`art\art`, `docs\docs`, `tools\tools` — the phantom nesting this project has chased since BUG-021 was not a
+bad bundle and not a bad merge. On Windows PowerShell 5.1,
+`Copy-Item -Path <dir> -Destination <existing dir> -Recurse` copies the source directory *into* the
+destination instead of merging its contents, so every apply created `<dir>\<dir>`, then the next apply's
+sweep "removed" it and the next copy made it again. A tree of 474 "modified" files is the same fault seen
+from the other end.
+
+**Fix:** create the destination, then copy the source's **contents** (`-Path (Join-Path $src '*')`). The
+sweep now asks git whether the nested path is tracked, so it can never delete a real directory, and it says
+"nothing to sweep" when there was nothing to sweep.
+
 ## BUG-051 -- "clicking on something always opens it too big" (player report, 2026-11-27)
 
 The read-out opened as a card five times the desk. Two separate mistakes, one cause:

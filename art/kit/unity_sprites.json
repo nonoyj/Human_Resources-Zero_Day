@@ -2175,7 +2175,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "font",
-      "sha256_16": "dfcec27b4fc47d02",
+      "sha256_16": "e5c94020a59ebc82",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",

@@ -82,7 +82,7 @@ namespace HRZeroDay.Tests
         private static string CheckNothingExceedsThePage()
         {
             var pages = SweepScript.Build(Traces(3));
-            int maxRows = (SweepScript.PageH - SweepScript.TextTop - SweepScript.KeyStripH - 6 +
+            int maxRows = (SweepScript.PageH - SweepScript.TextTop - SweepScript.StripH - 6 +
                            MonitorScreen.LineGap) / (MonitorScreen.GlyphH + MonitorScreen.LineGap);
             foreach (var p in pages)
             {

@@ -34,7 +34,7 @@ function Bad  { param([string]$t) ; Write-Host ("  ATT  " + $t) -ForegroundColor
 Push-Location $RepoRoot
 try {
     Write-Host ""
-    Write-Host "HR//0D -- where am I" -ForegroundColor White
+    Write-Host "HR//0D -- where am I   (Where-Am-I v2, 2026-11-27)" -ForegroundColor White
     Write-Host ("repo: " + $RepoRoot)
 
     # -- 1. state ----------------------------------------------------------------------------
@@ -125,6 +125,7 @@ try {
     Line '  open the game      .\scripts\Open-Game.ps1'
     Line '  build a bundle     pwsh -File scripts\Build-Bundle.ps1 -Version NN'
     Line '  all gates          .\scripts\Test-ArtPipeline.ps1 ; .\scripts\Test-Scripts.ps1 ; dotnet run --project tools\CoreTests'
+    Line '  make it global     .\scripts\Install-Helpers.ps1        # then just type:  Where-Am-I'
     Line ''
 }
 finally { Pop-Location }

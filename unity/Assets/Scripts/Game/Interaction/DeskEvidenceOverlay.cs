@@ -42,13 +42,21 @@ namespace HRZeroDay.Game.Interaction
         private IGlyphSource _glyphs;
         private Dictionary<string, Color32> _palette;
         private string _label = string.Empty;
+        // where the panel actually ended up (canvas px), which the tap router must agree with
+        private float _anchorX;
+        private float _anchorY;
         private string _body = string.Empty;
         private bool _ready;
 
+        // An INDEX CARD. The player's two reports -- "opens it too big" (2026-11-26) and "opens something
+        // big at the bottom of the screen which goes off screen" (2026-11-27) -- are the same thing seen
+        // twice: the panel had no size bound and no clamp to the page. Now both are constants, and
+        // CalloutPlacement is a pure function with its own tests.
         private const int PaddingX = 6;
         private const int PaddingY = 6;
-        private const int MaxWidthPx = 148;          // an index card, not a panel: ~26 columns at 5x7
-        private const int MaxLines = 6;
+        private const int MaxWidthPx = 148;          // 22 columns at 5x7: a card, not a panel
+        private const int MinWidthPx = 74;
+        private const int MaxLines = 6;              // 6 rows of text: a label + 5 body rows
 
         public bool IsShowing { get { return callout != null && callout.gameObject.activeSelf; } }
 
@@ -101,8 +109,10 @@ namespace HRZeroDay.Game.Interaction
         {
             float w = _tex != null ? _tex.width : 120f;
             float h = _tex != null ? _tex.height : 40f;
-            // anchor is the TOP-RIGHT corner: the rect runs left and DOWN from it
-            return new Rect(calloutX - w, calloutY - h, w, h);
+            // The rect comes from the SAME function that placed the sprite, not from the anchor the
+            // caller asked for. Two copies of this maths is what BUG-050 and BUG-051 both were.
+            var box = CalloutPlacement.Fit(calloutX, calloutY, w, h, referenceWidth, referenceHeight);
+            return new Rect(box.Left, box.Top - h, w, h);
         }
 
         public bool Contains(Vector2 canvasPoint)
@@ -168,13 +178,14 @@ namespace HRZeroDay.Game.Interaction
                 _panel.sprite = Sprite.Create(_tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), pixelsPerUnit);
             _panel.color = Color.white;
 
-            // Position by the TOP-RIGHT anchor, in canvas px. The sprite pivot is the centre, so the
-            // centre sits half a panel left of and half a panel below the anchor. Scale stays 1: Sprite.Create
-            // already divided the texture by the ppu, so multiplying by the pixel size again drew this
-            // panel 11x too big (the player's "clicking opens it too big", 2026-11-27).
+            // Placement is a pure function in Core-free code so it can be tested without a scene: the
+            // panel keeps its anchor beside the applicant's head but is pushed back inside the page.
+            var box = CalloutPlacement.Fit(calloutX, calloutY, w, h, referenceWidth, referenceHeight);
+            _anchorX = box.Left;
+            _anchorY = box.Top;
             callout.localScale = PageTransform.NaturalScale;
             _panel.transform.localScale = PageTransform.NaturalScale;
-            callout.localPosition = PageTransform.CanvasToWorld(calloutX - w * 0.5f, calloutY - h * 0.5f,
+            callout.localPosition = PageTransform.CanvasToWorld(box.Left + w * 0.5f, box.Top - h * 0.5f,
                                                                 pixelsPerUnit);
         }
 

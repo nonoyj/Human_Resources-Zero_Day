@@ -36,10 +36,21 @@ namespace HRZeroDay.Core.Rules
         // page on a phone, and the bottom 22 px are the neon key caps.
         public const int PageW = 480;
         public const int PageH = 270;
-        public const int KeyStripH = 22;                       // sweep_keys_480x22.png (neon caps, decoration)
-        // The PROMPT is painted text on its own black band above the caps, never on top of them.
-        public const int KeyBandH = 15;
-        public const int KeyBandTop = PageH - KeyStripH - KeyBandH;   // 233
+        // The bottom strip is the ONLY UI on the walk page. It is painted from the same 5x7 atlas as the
+        // copy above it, from Core's own strings, so the keys and the letters cannot disagree.
+        //   strip  = the page's bottom StripTop .. 269. Two lines: the prompt, then the player's own line
+        //            of control hints. The neon cap art used to live here and was never readable -- it is
+        //            retired (see docs/90 BUG-055); the strip replaces it in the same 32 px.
+        //   band   = prompt line only: a caption that is present on every page, above the fold.
+        //   hints  = the player's line, once per walk, at the very bottom where their eyes return.
+        public const int StripH = 32;
+        public const int StripTop = PageH - StripH;             // 238, y DOWN from the page top
+        public const int KeyBandTop = StripTop;                 // 238 -- the prompt's band starts here
+        public const int KeyBandH = 15;                         // one 7 px line + 2*4 px padding
+        public const int HintTop = KeyBandTop + KeyBandH;       // 253 -- the player's hint line
+        public const int HintBottom = PageH - 10;               // 260 -- glyph bottom, 9 px of breathing room
+        public const int StripPadX = 6;
+        public const int StripPadY = 4;
         // The caption band: a solid 'void' bar behind the words. First draft drew the text straight onto
         // the room art and it was unreadable wherever the background had detail -- the walk's text is the
         // only thing on this page that must never be hard to read, so it gets its own stock.
@@ -149,8 +160,20 @@ namespace HRZeroDay.Core.Rules
         /// <summary>The key strip line: the only non-diegetic UI in the game (docs/16 section 6).</summary>
         public static string KeyLine(SweepPage page, int index, int count)
         {
-            string keys = page != null && page.IsLast ? "[SPACE] CLOCK OUT" : "[SPACE] WALK ON";
+            bool last = page != null && page.IsLast;
+            string keys = last ? "[SPACE] CLOCK OUT" : "[SPACE] WALK ON";
             return "[WALK " + (index + 1) + "/" + count + "]   " + keys;
+        }
+
+        /// <summary>
+        /// The player's line at the very bottom of every walk page. On the desk the HUD already says what
+        /// the keys are; during the walk the HUD is silent, so this is the one place the keys are written
+        /// down. It used to be neon caps holding an unreadable glyph, which is why the walk had to be
+        /// guessed at (BUG-055).
+        /// </summary>
+        public static string HintLine()
+        {
+            return "SPACE WALK  [S] SHIFT  [X] DESK";
         }
 
         /// <summary>Wrap on words at `cols`. Same rule as LetterLayout.Wrap, which cannot be reused here

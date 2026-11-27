@@ -24,6 +24,8 @@ namespace HRZeroDay.Tests
             yield return CheckBandsDoNotOverlap();
             yield return CheckEveryTraceFitsTheCaption();
             yield return CheckRowPitchMatchesTheFont();
+            yield return CheckTheStripSaysEverythingInText();
+            yield return CheckReadOutStaysOnThePage();
         }
 
         private static void True(bool condition, string message)
@@ -43,17 +45,22 @@ namespace HRZeroDay.Tests
 
         private static string CheckKeyBandLandsOnItsBand()
         {
-            // The prompt is a top-left-pivot sprite placed at KeyBandTop px DOWN from the page top.
-            // Its bottom edge (top + KeyBandH px) must sit above the key strip's top edge.
+            // The prompt is a top-left-pivot sprite placed KeyBandTop px DOWN from the page top. Convert
+            // it back to y-up canvas px and check it against the strip it lives in:
+            //   strip      y  0 .. 32      (the bottom 32 px of the page)
+            //   hint line  y 17 .. 24      (one 7 px glyph row + its bottom padding)
+            //   prompt     y 18 .. 33      (one 7 px glyph row, its band, above the hint)
             var top = PageTransform.TopLeftToWorld(0f, SweepScript.KeyBandTop, 16f, SweepScript.PageH);
-            float topPx = top.y * 16f;                          // world -> canvas px, y UP from the page bottom
-            float bottomPx = topPx - SweepScript.KeyBandH;      // the sprite hangs DOWN from its pivot
-            float stripTopPx = SweepScript.KeyStripH;           // the key strip is the bottom 22 px: y 0..22
-            True(topPx <= SweepScript.PageH + 0.001f,
-                 "the prompt band starts at y=" + topPx + " px, above the 270 px page");
-            True(bottomPx >= stripTopPx - 0.001f,
-                 "the prompt band ends at y=" + bottomPx + " px, inside the key strip (which ends at " + stripTopPx + ")");
-            return "PASS  the key prompt lands between the page top and the key strip";
+            float promptTop = top.y * 16f;                                   // y-up, bottom of page = 0
+            float promptBottom = promptTop - SweepScript.KeyBandH;           // the sprite hangs DOWN
+            float hintTop = SweepScript.PageH - SweepScript.HintTop;
+            True(promptTop > 0f && promptTop <= SweepScript.PageH,
+                 "the prompt band starts at y=" + promptTop + " px, outside the page");
+            True(promptBottom >= hintTop - 0.001f,
+                 "the prompt band's bottom (" + promptBottom + ") is below the hint line's top (" + hintTop + ")");
+            True(promptTop <= SweepScript.StripH + 1f,
+                 "the prompt band reaches y=" + promptTop + ", above the 32 px strip");
+            return "PASS  the key prompt sits in the strip, above the player's hint line";
         }
 
         private static string CheckCaptionBandLandsAtTheTop()
@@ -85,8 +92,12 @@ namespace HRZeroDay.Tests
             True(captionBottom <= SweepScript.KeyBandTop,
                  "caption ends at row " + captionBottom + " (down from the page top), prompt starts at " + SweepScript.KeyBandTop);
             int promptBottom = SweepScript.KeyBandTop + SweepScript.KeyBandH;
-            True(promptBottom == SweepScript.PageH - SweepScript.KeyStripH,
-                 "prompt ends at " + promptBottom + ", key strip starts at " + (SweepScript.PageH - SweepScript.KeyStripH));
+            True(promptBottom == SweepScript.HintTop,
+                 "prompt ends at " + promptBottom + ", the hint line starts at " + SweepScript.HintTop);
+            True(SweepScript.HintTop + MonitorScreen.GlyphH <= SweepScript.HintBottom,
+                 "the hint glyphs run past their own reserved row");
+            True(SweepScript.HintBottom < SweepScript.PageH,
+                 "the hint line runs off the bottom edge of the page");
             return "PASS  caption, prompt and key strip stack without overlapping";
         }
 
@@ -101,6 +112,65 @@ namespace HRZeroDay.Tests
             True(SweepScript.BandHeight(SweepScript.MaxRows) == SweepScript.MaxRows * real + 2 * SweepScript.PadY - 3,
                  "BandHeight is not (rows x row pitch) + padding");
             return "PASS  the caption's row pitch matches the font the raster draws with (" + real + " px)";
+        }
+
+        private static string CheckTheStripSaysEverythingInText()
+        {
+            // The walk's prompts must all be text the atlas can draw, on a band that fits 5x7 glyphs.
+            // The old strip drew four neon caps whose marking was a single unreadable glyph -- decoration
+            // pretending to be a control, which is why the walk had to be guessed at.
+            int cols = (SweepScript.PageW - 2 * SweepScript.StripPadX + MonitorScreen.LetterGap) /
+                       (MonitorScreen.GlyphW + MonitorScreen.LetterGap);
+            int promptCols = SweepScript.PageW / (MonitorScreen.GlyphW + MonitorScreen.LetterGap);
+            True(SweepScript.HintLine().Length <= promptCols,
+                 "the hint line is " + SweepScript.HintLine().Length + " cols, the strip holds " + promptCols);
+            True(!string.IsNullOrEmpty(SweepScript.HintLine()), "the walk has no hint line");
+            var pages = SweepScript.Build(new List<SweepTrace>
+            {
+                new SweepTrace { Floor = "desk", Title = "YOUR DESK", Detail = "SOMETHING MOVED." }
+            });
+            var key = SweepScript.KeyLine(pages[0], 0, 1);
+            True(key.IndexOf("[SPACE]", System.StringComparison.Ordinal) >= 0,
+                 "the prompt does not name the key that advances the walk: " + key);
+            True(key.Length <= promptCols, "the prompt is " + key.Length + " cols, the band holds " + promptCols);
+            True(SweepScript.KeyBandH >= 7 + 2 * SweepScript.StripPadY,
+                 "the prompt band is too short for a 7 px glyph row");
+            int lastRow = SweepScript.HintTop + MonitorScreen.GlyphH;
+            True(lastRow <= SweepScript.HintBottom,
+                 "the hint line ends at row " + lastRow + ", past its reserved row " + SweepScript.HintBottom);
+            True(lastRow <= SweepScript.PageH - 1,
+                 "the hint line ends at row " + lastRow + ", past the page bottom");
+            return "PASS  every control the walk shows is readable text inside the 32 px strip";
+        }
+
+        private static string CheckReadOutStaysOnThePage()
+        {
+            // Every anchor an evidence callout can have, at every panel size up to the cap: the box must
+            // be fully inside 480x270. The player's "opens it too big and goes off screen" was a panel
+            // with no clamp; this is the clamp.
+            int[] sizes = { 74, 100, 148 };
+            float[] heights = { 30f, 45f, 69f };
+            for (int sx = 0; sx < sizes.Length; sx++)
+            {
+                for (int sy = 0; sy < heights.Length; sy++)
+                {
+                    for (int ax = 0; ax <= 480; ax += 24)
+                    {
+                        for (int ay = 0; ay <= 270; ay += 18)
+                        {
+                            var b = CalloutPlacement.Fit(ax, ay, sizes[sx], heights[sy], 480, 270);
+                            string where = "anchor (" + ax + "," + ay + ") panel " + sizes[sx] + "x" + heights[sy];
+                            True(b.Left >= 0f && b.Right <= 480f, "off the page horizontally: " + where);
+                            True(b.Bottom >= 0f && b.Top <= 270f, "off the page vertically: " + where);
+                        }
+                    }
+                }
+            }
+            // and the preferred position is honoured when it fits: anchor 316 -> right edge at 316
+            var exact = CalloutPlacement.Fit(316f, 214f, 148f, 45f, 480, 270);
+            True(System.Math.Abs(exact.Right - 316f) < 0.001f && System.Math.Abs(exact.Top - 214f) < 0.001f,
+                 "a panel that fits should sit exactly on its anchor");
+            return "PASS  the read-out can never leave the page, and honours its anchor when it fits";
         }
 
         private static string CheckEveryTraceFitsTheCaption()

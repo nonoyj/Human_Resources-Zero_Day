@@ -26,6 +26,7 @@ to remember which of these you are on.
 | 5 | **All gates** | `.\scripts\Test-ArtPipeline.ps1` ; `.\scripts\Test-Scripts.ps1` ; `dotnet run --project tools\CoreTests` | repo root |
 | 6 | **Where am I + has the team pushed?** | `.\scripts\Where-Am-I.ps1` | repo root |
 | 7 | **Reset a copy that arrived dirty** | `git reset --hard` then `git clean -fd` | repo root |
+| 8 | **Make `Where-Am-I` work from anywhere** (once per machine) | `.\scripts\Install-Helpers.ps1` | repo root |
 
 **Order that never breaks:** push **first**, install a bundle **second**. `Apply-Bundle` rebuilds `.git`
 from the bundle's history, so a push after an install needs a force, and `Push.ps1` refuses to ever force.
@@ -46,6 +47,11 @@ cd $env:USERPROFILE\HR-ZeroDay
 # 3) open the game -- Unity does NOT need to be closed; Stop, then Play
 .\scripts\Open-Game.ps1
 ```
+
+**`Where-Am-I` from anywhere, once:** run `.\scripts\Install-Helpers.ps1` in the repo (it writes a tiny
+launcher into `%USERPROFILE%\bin`, which is on your user PATH, and it needs no admin rights). After that,
+`Where-Am-I` works in any window. There is no `Pin-ToQuickAccess.ps1` — I invented that command once and
+it cost you a round; the command book is the only place commands are allowed to come from.
 
 On a copy installed from a bundle, step 2 is what creates the upstream. If it says *"nothing to push"*,
 that is success, not a failure.
