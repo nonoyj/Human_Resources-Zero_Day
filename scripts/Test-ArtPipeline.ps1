@@ -197,6 +197,29 @@ try {
             foreach ($b in $bad) { Write-Host "  [FAIL] $b" -ForegroundColor Red }
         } else { OK 'hotspot geometry comes from HotspotHitTest, which the reach test also calls' }
 
+    S 'assets the game reads pixels from are imported readable'
+        $bad = @()
+        $needReadable = @(
+            'unity\Assets\Resources\Art\Kit\sweep\sweep_desk_480x270.png.meta',
+            'unity\Assets\Resources\Art\Kit\sweep\sweep_corridor_480x270.png.meta',
+            'unity\Assets\Resources\Art\Kit\sweep\sweep_lift_480x270.png.meta',
+            'unity\Assets\Resources\fonts\monitor_font_5x7.png.meta'
+        )
+        foreach ($rel in $needReadable) {
+            $p = Join-Path $repo $rel
+            if (-not (Test-Path -LiteralPath $p)) { $bad += "missing meta: $rel"; continue }
+            # SweepView composites a floor's art into the page texture, and every text renderer reads the
+            # glyph atlas. Without Read/Write Enabled, GetPixels throws and the walk draws text over a
+            # flat fill -- which is exactly what the player photographed on 2026-11-27.
+            if ((Get-Content -LiteralPath $p -Raw) -notmatch 'isReadable:\s*1') {
+                $bad += "not readable: $rel (run python tools/art/write_unity_metas.py)"
+            }
+        }
+        if ($bad.Count -gt 0) {
+            $failed++
+            foreach ($b in $bad) { Write-Host "  [FAIL] $b" -ForegroundColor Red }
+        } else { OK 'sweep art and the glyph atlas are Read/Write Enabled' }
+
     S 'text is painted by one renderer, from one glyph source'
         $bad = @()
         Get-ChildItem (Join-Path $repo 'unity\Assets\Scripts') -Recurse -Filter *.cs | ForEach-Object {
