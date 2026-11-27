@@ -129,6 +129,7 @@ namespace HRZeroDay.Game.Interaction
             _index = 0;
             _root.SetActive(true);
             Show();
+            if (_game != null) _game.CuePage();     // the shift's paperwork is picked up
             return true;
         }
 
@@ -161,6 +162,7 @@ namespace HRZeroDay.Game.Interaction
         public void Advance()
         {
             if (!IsOpen) return;
+            if (_game != null) _game.CueStep();      // a footstep per floor: the walk is the only movement in the game
             if (_index + 1 < _pages.Count) { _index++; Show(); return; }
             Close();
             if (_game != null) _game.OnSweepFinished();

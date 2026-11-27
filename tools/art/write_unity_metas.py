@@ -133,6 +133,43 @@ TextureImporter:
 """
 
 
+def audio_meta(guid: str) -> str:
+    """Import settings for a generated sound (v105).
+
+    Unity's defaults for a WAV are actually close to right, but three of them are wrong for sounds that are
+    played dozens of times a session on a phone:
+        * forceToMono     -- leave OFF: the files are already mono; forcing adds nothing and can re-encode
+        * loadType        -- DecompressOnLoad for short cues (a stamp must not decompress at the moment the
+                             player presses A), Streaming for the two long beds
+        * preloadAudioData-- ON: the cue has to be in memory before the first press, not after it
+    Compression is PCM, so the file plays as generated: no Vorbis smearing on a 50 ms transient.
+    """
+    return f"""fileFormatVersion: 2
+guid: {guid}
+AudioImporter:
+  externalObjects: {{}}
+  serializedVersion: 7
+  defaultSettings:
+    serializedVersion: 2
+    loadType: 0
+    sampleRateSetting: 0
+    sampleRateOverride: 24000
+    compressionFormat: 1
+    quality: 1
+    conversionMode: 0
+    preloadAudioData: 1
+  platformSettingOverrides: {{}}
+  forceToMono: 0
+  normalize: 0
+  loadInBackground: 0
+  ambisonic: 0
+  3D: 0
+  userData:
+  assetBundleName:
+  assetBundleVariant:
+"""
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument('--check', action='store_true')
@@ -145,6 +182,20 @@ def main() -> int:
     written, missing, already, fixed_readable = 0, [], 0, 0
     for dirpath, _dirs, files in os.walk(MIRROR):
         for name in sorted(files):
+            if name.endswith('.wav'):
+                path = os.path.join(dirpath, name)
+                rel = os.path.relpath(path, os.path.join(ROOT, 'unity')).replace('\\', '/')
+                meta_path = path + '.meta'
+                if os.path.isfile(meta_path):
+                    already += 1
+                    continue
+                missing.append(rel)
+                if args.check:
+                    continue
+                with open(meta_path, 'w', encoding='utf-8') as fh:
+                    fh.write(audio_meta(unity_guid(rel)))
+                written += 1
+                continue
             if not name.endswith('.png'):
                 continue
             path = os.path.join(dirpath, name)

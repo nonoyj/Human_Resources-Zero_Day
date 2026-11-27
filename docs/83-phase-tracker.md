@@ -14,7 +14,7 @@ Read the bar like this: `[##........]` — done / total, so a glance says how mu
 | P1 | **Vertical slice** — desk art, applicant, CRT, letter, stamp, day summary | `[########..]` 8/10 | playable end to end |
 | P2 | **The loops** — 5-day run, scoring, reasons, trust, corruption | `[#########.]` 9/10 | **five-day arc + three endings, tested end to end (v101)**; the reason list is still short |
 | P3 | **The after-hours sweep** — walk, traces, pages, key strip | `[##########]` 10/10 | **done in v97** (`docs/90` BUG-057) |
-| P4 | **Save, resume, audio, endings, intro** | `[######....]` 6/10 | save + resume + endings + **intro slot done** (placeholder words, owned by BE2); audio 0 |
+| P4 | **Save, resume, audio, endings, intro** | `[########..]` 8/10 | save + resume + endings + intro slot + **the room and 7 cues (v105)**; the spoken intro waits on BE2 |
 | P5 | **Replenish** — art sweep, look, animation feel (`docs/82`) | `[..........]` 0/8 | **scheduled, not started** |
 | P6 | **Ship** — Android build, QA matrix, store assets | `[..........]` 0/8 | not started |
 
@@ -50,9 +50,10 @@ ship) rather than new mechanics.
 | v101 | **the five-day arc**: the run has a through-line, and three endings read the whole run | you can start on day 1 and finish on a verdict |
 | v102 | **the intro slot**, and an install that cleans up after Unity | **confirmed on screen by the player, 2026-11-27** |
 | v103 | **an installer that can deliver its own fixes** | **confirmed: 143 strays swept, one apply, clean** |
-| v104 (this one) | **the install command a human can read**, + DISPATCH's decision recorded | three plain commands replace one .NET one-liner |
-| v105 | **audio pass 1: the spoken intro** (ADR-009) | DISPATCH says the five beats out loud |
-| v106 | **audio pass 2: the room** (bed + stamp/phone/drawer cues) | it sounds like an office at night |
+| v104 | **the install command a human can read** | three plain commands replace one .NET one-liner |
+| v105 (this one) | **the room and its cues**: 9 generated sounds, two beds, 7 cues wired to the desk | it sounds like an office at night |
+| v106 | **phone-shaped smoke test** (no new features) | the letter, the walk band and the HUD at 20:9 |
+| v107 | **the spoken intro**, when BE2's clips land (ADR-009) | DISPATCH says the five beats out loud |
 
 ---
 

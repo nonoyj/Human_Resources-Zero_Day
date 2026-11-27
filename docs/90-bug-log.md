@@ -1289,3 +1289,29 @@ before calling it, so the very first apply with an old launcher is fixed from th
 
 **Class of bug:** *a tool that is delivered by the thing it installs, so it always runs one version behind
 itself.*
+
+## BUG-065 -- v105: the CRT whine was aliased into a mosquito tone, and two cues were inaudible
+
+**Found:** 2026-11-27, by looking at the audio sheet instead of trusting the code.
+**Owning files:** `tools/audio/make_audio.py`, `unity/Assets/Scripts/Core/Rules/AudioRules.cs`.
+
+Two findings, both caught before the player heard anything, which is the only reason they are cheap:
+
+1. **The flyback whine could not exist.** `crt.wav` generated 15,625 Hz -- the real horizontal flyback of a
+   CRT -- at a 24 kHz sample rate. That frequency is above Nyquist, so it *aliased* to ~8,375 Hz: the file
+   contained a mosquito tone, not a whine, and any analyser would have shown it. The game now generates the
+   strong sub-harmonic cheap sets audibly buzz at (3,906 Hz plus 7,812 Hz), which survives mono phone
+   speakers too. Replaced, and the reason is written into the generator so nobody "fixes" it back.
+2. **The mix had no floor, so nothing stopped a cue being inaudible.** Turning the rules into tests found
+   three cues sitting inside the room bed's own level: the drawer 5.4 dB over it, the page 5.9, the key
+   3.7. The fix was the sound, not the rule -- drawer and page raised to ~6.9 dB over the bed, key to 5.2 --
+   plus one real distinction that the rules now encode: **event cues** (stamp, phone, drawer) must clear
+   **6 dB**, **texture cues** (footsteps, key clicks) clear **4 dB**, because a footstep as loud as a stamp
+   is a broken game.
+
+**A test bug found by the same tests:** `AudioRules.TooSoon` took an `Sfx` and the test asserted that a
+page turn 0 ms after a stamp was *not* suppressed -- which failed, correctly, because the function ignores
+its argument. The de-duplication key is now the *sample identity* (`SampleKey` = name + pitch), so Deny and
+Key (one clip, two pitches) suppress each other, and unrelated cues never do.
+
+**Class of bug:** *a number with no test is a rumour* -- and a rule whose inputs it ignores is not a rule.

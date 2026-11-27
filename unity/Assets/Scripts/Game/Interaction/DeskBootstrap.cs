@@ -31,6 +31,7 @@ namespace HRZeroDay.Game.Interaction
         public GameHud Hud { get; private set; }
         public SweepView Walk { get; private set; }
         public IntroView Intro { get; private set; }
+        public HRZeroDay.Game.Audio.GameAudio Sound { get; private set; }
 
         public bool LetterOpen { get { return Letter != null && Letter.gameObject.activeSelf; } }
         public bool ShowDebrief { get { return _showingDebrief; } }
@@ -132,10 +133,16 @@ namespace HRZeroDay.Game.Interaction
             if (string.IsNullOrEmpty(wrongHeading)) wrongHeading = "DECISION RECORDED";
             if (Letter != null) Letter.Close();
             EnsureSweep();
+
+            // THE ROOM IS ALREADY THERE (v105). Built before the intro, because the intro card plays over a
+            // room that is already running -- that is the difference between "a scene" and "a menu".
+            EnsureAudio();
+
             // THE INTRO, BEFORE THE FIRST SHIFT (v102). The words are the content team's
             // (content/intro/intro_01.json); this side only shows them, once per profile, and steps out of
-            // the way if there is nothing to show. It runs AFTER the desk is built, so the first thing
-            // behind the card is the room the player is about to work in -- not an empty screen.
+            // the way if there is nothing to show. It runs AFTER the desk is built and AFTER the room is
+            // running, so the first thing behind the card is the room the player is about to work in --
+            // not an empty screen, and not a silent one.
             TryStartIntro();
             if (ResumedFromSave)
                 watchCopy = "SHIFT RESUMED - DAY " + Session.Day + " / " + watchCopy;
@@ -145,8 +152,9 @@ namespace HRZeroDay.Game.Interaction
         // --------------------------------------------------------------- player actions
         public void OnHotspot(string artifact)
         {
-            if (_showingDebrief || _showingDaySummary || ShowEnding || LetterOpen) return;
+            if (_showingDebrief || _showingDaySummary || ShowEnding || LetterOpen) { Cue(Sfx.Deny); return; }
             Presenter.Inspect(artifact);
+            Cue(Sfx.Drawer);            // the player just opened something on the desk
         }
 
         public void ToggleHelp() { _helpVisible = !_helpVisible; }
@@ -229,14 +237,14 @@ namespace HRZeroDay.Game.Interaction
 
         public void Approve()
         {
-            if (_showingDebrief || _showingDaySummary || ShowEnding) return;
+            if (_showingDebrief || _showingDaySummary || ShowEnding) { Cue(Sfx.Deny); return; }
             CloseLetter();
             if (Decision != null) Decision.Approve();
         }
 
         public void Reject()
         {
-            if (_showingDebrief || _showingDaySummary || ShowEnding) return;
+            if (_showingDebrief || _showingDaySummary || ShowEnding) { Cue(Sfx.Deny); return; }
             CloseLetter();
             if (Decision != null) Decision.Reject();
         }
@@ -323,6 +331,51 @@ namespace HRZeroDay.Game.Interaction
             if (stamps != null) stamps.Cancel();
         }
 
+        // --------------------------------------------------------------- sound
+        /// <summary>
+        /// Builds the audio rig once and hands it the player's settings. Failure is silent by design: a
+        /// missing audio kit must degrade to a quiet game, never to a broken one (see GameAudio).
+        /// </summary>
+        private void EnsureAudio()
+        {
+            try
+            {
+                if (Sound == null) Sound = HRZeroDay.Game.Audio.GameAudio.Attach(gameObject);
+                if (Save != null && Save.profile != null)
+                    Sound.Configure(Save.profile.bedVolume, Save.profile.sfxVolume, Save.profile.muted);
+                Sound.SetCorruption(Save == null ? 0 : Save.corruptionLevel);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[HR//0D] audio disabled: " + ex.Message);
+                Sound = null;
+            }
+        }
+
+        /// <summary>Every cue in one place, so "what does the desk sound like" is answerable by reading.</summary>
+        private void Cue(Sfx sfx)
+        {
+            if (Sound != null) Sound.Play(sfx);
+        }
+
+        /// <summary>A footstep. Called by SweepView per floor, so the walk has a body.</summary>
+        public void CueStep() { Cue(Sfx.Step); }
+
+        /// <summary>A page. Called by the walk's opening and by the desk's own page turns.</summary>
+        public void CuePage() { Cue(Sfx.Page); }
+
+        /// <summary>The player's audio settings changed (options screen, or a test). Applies immediately.</summary>
+        public void ApplyAudioSettings(float bedVolume01, float sfxVolume01, bool muted)
+        {
+            if (Save == null) return;
+            if (Save.profile == null) Save.profile = new HRZeroDay.Core.Data.PlayerProfile();
+            Save.profile.bedVolume = bedVolume01;
+            Save.profile.sfxVolume = sfxVolume01;
+            Save.profile.muted = muted;
+            if (Sound != null) Sound.Configure(bedVolume01, sfxVolume01, muted);
+            PersistSave();
+        }
+
         // --------------------------------------------------------------- the intro
         /// <summary>
         /// Shows the intro when there is one. Failure is silent by design: a missing or unusable story file
@@ -382,11 +435,23 @@ namespace HRZeroDay.Game.Interaction
         }
 
         // --------------------------------------------------------------- events
+        /// <summary>Keeps the bed in step with the run: corruption detunes the room (AudioRules.BedPitch).</summary>
+        private void SyncAudioToRun()
+        {
+            if (Sound != null && Save != null) Sound.SetCorruption(Save.corruptionLevel);
+        }
+
         private void OnCommitted(DecisionResult result)
         {
             LastDecision = result;
             PersistSave();
             _showingDebrief = true;
+            // THE VERDICT LANDS (v105). Wrong calls get the low thud FIRST, under the stamp, so the player
+            // feels the mistake in the same instant they see it. Both sounds fire here, not in the view:
+            // the view draws what happened, this is what it sounded like.
+            if (result != null && !result.IsCorrect) Cue(Sfx.Thud);
+            Cue(Sfx.Stamp);
+            SyncAudioToRun();           // a run that got worse should sound worse from this moment
             _debriefLeft = debriefSeconds;
             CloseLetter();
             var overlay = GetComponentInChildren<DeskEvidenceOverlay>(true);
@@ -413,6 +478,8 @@ namespace HRZeroDay.Game.Interaction
         private void OnApplicantChanged(ApplicantViewData view)
         {
             _showingDebrief = false;
+            // the file is slapped down on the desk
+            Cue(Sfx.Page);
             CloseLetter();
             var applicant = transform.Find("L_applicant");
             if (applicant == null) return;

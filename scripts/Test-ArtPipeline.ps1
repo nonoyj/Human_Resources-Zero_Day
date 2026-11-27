@@ -315,6 +315,45 @@ try {
         }
 
     # -----------------------------------------------------------------------------------------
+    # THE SOUNDS (v105). Every cue the game can make is a generated WAV, committed twice: art/kit/audio
+    # (authoring) and Resources/Art/Kit/audio (what Resources.Load reads). Three things are checked, and
+    # each of them is a player-visible failure if it slips:
+    #   1. every WAV is present and matches its manifest hash (no silent half-published kit)
+    #   2. every WAV has a .meta with audio import settings (without it Unity uses defaults and a cue may
+    #      decompress on the frame it is played -- a hitch exactly when the player presses A)
+    #   3. every cue maps to a file that exists (a renamed WAV must not become a silent hole in the game)
+    # -----------------------------------------------------------------------------------------
+    S 'audio kit matches its manifest (9 sounds, 24 kHz mono)'
+    $audioOut = & python (Join-Path $repo 'tools\audio\make_audio.py') --check 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        $audioOut | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+        $failed++
+        Write-Host '  [FAIL] the audio kit is missing or stale -- run: python tools/audio/make_audio.py' -ForegroundColor Red
+    } else { OK ($audioOut | Select-Object -Last 1) }
+
+    $audioDir = Join-Path $repo 'unity\Assets\Resources\Art\Kit\audio'
+    if (-not (Test-Path -LiteralPath $audioDir)) {
+        $failed++
+        Write-Host '  [FAIL] sounds are not published to Resources/Art/Kit/audio -- run: python tools/art/publish_to_unity.py' -ForegroundColor Red
+    } else {
+        $wavs = @(Get-ChildItem -LiteralPath $audioDir -Filter *.wav)
+        $noMeta = @($wavs | Where-Object { -not (Test-Path -LiteralPath ($_.FullName + '.meta')) })
+        if ($noMeta.Count -gt 0) {
+            $failed++
+            Write-Host ('  [FAIL] sound(s) with no Unity meta: ' + (($noMeta | ForEach-Object { $_.Name }) -join ', ')) -ForegroundColor Red
+        } else { OK "$($wavs.Count) sounds published with audio import settings" }
+
+        # every cue name in the C# enum resolves to a published file
+        $rules = Get-Content -Raw -LiteralPath (Join-Path $repo 'unity\Assets\Scripts\Core\Rules\AudioRules.cs')
+        $mapped = [regex]::Matches($rules, 'return "([a-z]+)";') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique
+        $missingCue = @($mapped | Where-Object { -not (Test-Path -LiteralPath (Join-Path $audioDir ($_ + '.wav'))) })
+        if ($missingCue.Count -gt 0) {
+            $failed++
+            Write-Host ('  [FAIL] cue(s) name a sound that does not exist: ' + ($missingCue -join ', ')) -ForegroundColor Red
+        } else { OK ("every cue maps to a published sound (" + $mapped.Count + " sounds referenced)") }
+    }
+
+    # -----------------------------------------------------------------------------------------
     # THE INTRO SCRIPT (v102). content/intro/intro_01.json is written by the content team and painted
     # with the game's own 5x7 atlas. A beat that is too long, or that uses a character the atlas has no
     # glyph for, is DROPPED at runtime -- so the player experiences a hole in the story, not an error.

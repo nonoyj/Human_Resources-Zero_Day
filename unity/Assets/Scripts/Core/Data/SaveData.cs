@@ -24,6 +24,13 @@ namespace HRZeroDay.Core.Data
         public bool consentGiven;
         public bool introSeen;
         public bool tutorialDone;
+
+        // ---- audio (v105). Volumes are 0..1 sliders; `muted` is the player's one switch. ----
+        // A fresh save starts with sound ON and the levels the mix was designed at (docs/15-art-bible.md),
+        // because a game whose first minutes are silent reads as broken rather than as tasteful.
+        public float bedVolume = 0.8f;         // the room
+        public float sfxVolume = 0.9f;         // stamp, phone, drawer, page, steps
+        public bool muted;
     }
 
     [Serializable]

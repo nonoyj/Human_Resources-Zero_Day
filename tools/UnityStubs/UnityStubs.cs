@@ -210,6 +210,41 @@ namespace UnityEngine
     public class SpriteRenderer : Renderer { public Sprite sprite; public Color color; }
 
     public class Font : Object { }
+
+    // ---- audio (v105). These mirror Unity's real hierarchy, which matters more here than usual:
+    // AudioClip is an Object (an asset, loaded through Resources), AudioSource is a COMPONENT (behaviour
+    // attached to a GameObject), and the listener is a component too. The stub-honesty gate in
+    // docs/90 BUG-020 exists because a stubbed `AudioSource.clip = new AudioClip()` would compile here
+    // and fail in Unity, where AudioClip has no public constructor.
+    public class AudioClip : Object
+    {
+        public float length;
+        public int frequency { get { return 24000; } }
+        public int channels { get { return 1; } }
+    }
+
+    public class AudioSource : Component
+    {
+        public AudioClip clip;
+        public float volume = 1f;
+        public float pitch = 1f;
+        public bool loop;
+        public bool playOnAwake;
+        public bool mute;
+        public float time;
+        public void Play() { }
+        public void Stop() { }
+        public void Pause() { }
+        public void PlayOneShot(AudioClip c) { }
+        public void PlayOneShot(AudioClip c, float volumeScale) { }
+        public bool isPlaying { get { return false; } }
+    }
+
+    public class AudioListener : Component
+    {
+        public static float volume = 1f;
+        public static bool pause;
+    }
     public class Collider2D : Component { public bool isTrigger; }
     public class BoxCollider2D : Collider2D { public Vector2 size; }
     public class Resources

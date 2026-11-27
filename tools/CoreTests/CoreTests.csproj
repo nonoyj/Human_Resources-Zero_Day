@@ -26,6 +26,7 @@
     <Compile Include="InteractionTests.cs" />
     <Compile Include="SaveResumeTests.cs" />
     <Compile Include="ArcTests.cs" />
+    <Compile Include="AudioTests.cs" />
     <Compile Include="IntroTests.cs" />
     <Compile Include="../../unity/Assets/Scripts/Core/**/*.cs" />
     <!-- The interaction layer is pure C#: the headless runner compiles the same files Unity uses. -->
@@ -41,6 +42,9 @@
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/MonitorScreenRaster.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/LetterView.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Interaction/*.cs" />
+    <!-- GameAudio is the one Game-assembly file the desk wires to; the headless runner compiles it so a
+         rename cannot quietly break the desk's audio hooks (v105). -->
+    <Compile Include="../../unity/Assets/Scripts/Game/Audio/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Applicant/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/MonitorScreenView.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Layout/*.cs" />
