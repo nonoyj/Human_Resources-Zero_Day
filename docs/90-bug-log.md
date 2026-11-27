@@ -1053,6 +1053,49 @@ outside it. The old tests passed because they painted with the same wrong routin
 `tools/comp/preview_sweep.py` showed a perfect page the whole time; it agreed with Core and disagreed with
 the game.
 
+## BUG-058 -- the key strip was flipped twice, so the walk's only UI was upside down (2026-11-27)
+
+Player, one screenshot after v97 shipped: *"Bottom 32 px is upside down."* Exactly that: the page's art
+and caption were correct, and the two lines in the strip read `ZT3C ]X[ ... ZT3C ]X[` -- mirrored.
+
+**The double flip.** The strip was painted into its own 480x32 `Texture2D`, lowered to texture order with
+`FlipToTextureOrder`, uploaded -- and then read straight back out with `GetPixels32()` so it could be
+composited into the page. `GetPixels32()` hands rows back **bottom-up**. The composer treats every buffer
+it is given as **PNG order, top-down**. So the strip was flipped once on the way in and once on the way
+out, and the two cancelled into a picture nobody had looked at.
+
+**The fix is deletion.** There is no strip texture any more. `SweepPageComposer.ComposeStrip()` paints the
+two rows that `SweepScript.StripRows()` publishes **straight into the page buffer**, in the same pass and
+the same coordinate space as the art and the caption. One buffer, one orientation, one flip right before
+`SetPixels32`.
+
+**The test that fails today and would have failed then:** `CheckStripIsNotUpsideDown` composes a whole
+page the way the view does, applies the **one** flip the view applies, and then reads the strip's two rows
+back out of the texture **as picture rows** -- the prompt must be nearer the page top than the key hints,
+with a clean gap between them. Re-instating the old double flip makes it fail with
+`the walk strip drew 21 of 24 glyph boxes` (verified by temporarily restoring the defect).
+
+**Class of bug:** *a value that crosses a boundary twice and is transformed at both ends.* The lesson
+written into the code: for every buffer in this project, the orientation is stated once, next to its
+producer, and nothing reads a texture back to composite it.
+
+## BUG-059 -- a clean install reported a dirty tree, so the player could not build a bundle (2026-11-27)
+
+`Where-Am-I` on the player's machine: *working tree DIRTY -- 264 file(s)*, straight after a clean
+`Apply-Bundle`. 140 of them were untracked `unity/Assets/Art/**/*.meta` files and 7 were `scripts\*.ps1`
+line-ending churn.
+
+`unity/Assets/Art/Kit/**` is a byte-for-byte mirror of `art/kit/**` that nothing loads at runtime (the game
+reads `Assets/Resources`). Unity writes a `.meta` beside every file in it the first time the project opens,
+and none of those metas were tracked -- so the first `Play` in a fresh install dirtied the tree, and every
+`Build-Bundle` after that refused.
+
+Fixed in `.gitignore`: the mirror's metas are ignored by rule, not by luck. The metas that **matter**
+(`Assets/Resources/**`: `isReadable`, point filter, PPU 16) stay tracked, and `Test-ArtPipeline.ps1` still
+fails the build if one of them loses `isReadable: 1`. `Where-Am-I` also stops counting the two files that
+are *supposed* to differ in a working copy (the root `Apply-Bundle.ps1` bootstrap copy, and `.gitignore`
+itself) as dirty, while still counting everything else.
+
 # PARKED FOR REPLENISH
 
 Added 2026-11-27 with `docs/82-replenish-phase.md`. A parked item is **not** forgotten and **not** fixed

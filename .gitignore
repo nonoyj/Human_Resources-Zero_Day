@@ -76,6 +76,14 @@ content/content/
 tools/UnityStubs/bin/
 tools/UnityStubs/obj/
 # Unity's own meta/.meta files are tracked; generated Resources copies of the json are tracked too
+# EXCEPT the IMPORT-NEUTRAL mirror (2026-11-27, BUG-058): unity/Assets/Art/Kit is a byte-for-byte copy of
+# art/kit that nobody loads at runtime (the game reads Assets/Resources). Unity still writes a .meta next
+# to every file in it the first time the project opens, and 140 untracked metas turn a clean install into a
+# "working tree not clean (264 entries)" install -- which blocks Build-Bundle and made the player's
+# Apply-Bundle report a dirty tree. The metas that MATTER (Resources: isReadable, point filter, PPU 16)
+# stay tracked; these do not.
+unity/Assets/Art.meta
+unity/Assets/Art/**/*.meta
 # scratch clones used by script tests
 .idtest/
 # agent scratch dirs (script tests) -- keep them out of the repo, always

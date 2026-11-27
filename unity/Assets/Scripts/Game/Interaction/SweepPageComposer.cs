@@ -101,6 +101,8 @@ namespace HRZeroDay.Game.Interaction
             }
 
             // ---- strip --------------------------------------------------------------------
+            // (kept for callers that already hold a strip buffer; the walk paints its strip straight into
+            // the page with ComposeStrip below, so it never round-trips through a texture)
             if (strip != null)
             {
                 int sh = strip.Length / w;
@@ -113,6 +115,47 @@ namespace HRZeroDay.Game.Interaction
                     }
             }
             return buf;
+        }
+
+        /// <summary>
+        /// Paints the walk's key strip (prompt + the player's key line) INTO a page buffer that is already
+        /// composed, in PNG order. Pure, so the orientation can be tested without a texture.
+        ///
+        /// WHY THIS IS A FUNCTION AND NOT SIX LINES IN THE VIEW (v98): the strip used to be painted into
+        /// its own Texture2D, uploaded flipped, then read back with GetPixels32 -- which hands rows back
+        /// BOTTOM-UP -- and composited as if they were top-down. Flipped once on the way in and once on the
+        /// way out, the walk's only UI rendered upside down ("bottom 32 px is upside down", player
+        /// screenshot 2026-11-27). One buffer, one coordinate space, one function that a test can call.
+        ///
+        /// Returns the number of glyph pixels painted; 0 means the strip would be a blank bar.
+        /// </summary>
+        public static int ComposeStrip(UnityEngine.Color32[] page, int w, int h,
+                                       IList<SweepScript.TextRow> rows,
+                                       IGlyphSource glyphs,
+                                       UnityEngine.Color32 voidInk, UnityEngine.Color32 lineInk,
+                                       int stripTop)
+        {
+            if (page == null || page.Length < w * h) return 0;
+
+            // the strip's own stock: void, with one 'line' pixel along its top edge
+            for (int y = stripTop; y < h; y++)
+                for (int x = 0; x < w; x++) page[y * w + x] = voidInk;
+            for (int x = 0; x < w; x++) page[stripTop * w + x] = lineInk;
+
+            if (glyphs == null || rows == null) return 0;
+            var raster = new List<MonitorScreenRaster.RasterRow>();
+            for (int i = 0; i < rows.Count; i++)
+                raster.Add(new MonitorScreenRaster.RasterRow
+                {
+                    text = rows[i].Text,
+                    x = rows[i].X,
+                    top = rows[i].Top,
+                    colour = rows[i].Colour
+                });
+
+            // clipped to the strip's inside: never on the border, never off the page
+            var clip = MonitorScreenRaster.RasterClip.Box(1, stripTop + 1, w - 2, h - stripTop - 1);
+            return MonitorScreenRaster.RenderRows(page, w, h, raster, glyphs, clip);
         }
     }
 }

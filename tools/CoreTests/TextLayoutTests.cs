@@ -36,6 +36,7 @@ namespace HRZeroDay.Tests
             yield return CheckTextPanelKeepsInkInsideItsBorder();
             yield return CheckCalloutCopyRenders();
             yield return CheckWalkStripCopyRenders();
+            yield return CheckStripIsNotUpsideDown();
             yield return CheckWalkCaptionSitsInsideItsBand();
             yield return CheckComposedPageHasArtBandAndStrip();
         }
@@ -213,14 +214,13 @@ namespace HRZeroDay.Tests
             };
             var bandColours = new List<string> { "warn", "text", "textdim", "textdim" };
 
-            // the strip: two lines of copy on void, painted exactly as SweepView paints it (Core's rows +
-            // the top-down raster), then flipped for the texture
-            var strip = StripAsTheViewPaintsIt(glyphs,
-                new[] { "[WALK 1/3]   [SPACE] WALK ON", "SPACE WALK  [S] SHIFT  [X] DESK" });
-            MonitorScreenRaster.FlipToTextureOrder(strip, w, SweepScript.StripH);
-
-            var page = SweepPageComposer.Compose(art, w, h, bandLines, bandColours, strip,
+            // the page, art + caption, then the strip painted straight into it -- the exact order SweepView
+            // uses since v98 (there is no strip texture to read back and flip any more)
+            var page = SweepPageComposer.Compose(art, w, h, bandLines, bandColours, null,
                                                  SweepScript.StripTop, glyphs, voidInk, lineInk);
+            SweepPageComposer.ComposeStrip(page, w, h,
+                SweepScript.StripRows("[WALK 1/3]   [SPACE] WALK ON", "SPACE WALK  [S] SHIFT  [X] DESK"),
+                glyphs, voidInk, lineInk, SweepScript.StripTop);
 
             True(page.Length == w * h, "the composed page is not page-sized");
             for (int i = 0; i < page.Length; i++)
@@ -326,6 +326,98 @@ namespace HRZeroDay.Tests
         }
 
         /// <summary>
+        /// THE STRIP READS THE RIGHT WAY UP IN THE BUFFER THE TEXTURE GETS (v98).
+        ///
+        /// The player's report was "bottom 32 px is upside down", and it was literal: the strip was painted
+        /// into its own Texture2D, uploaded flipped, then read back with GetPixels32 -- which returns rows
+        /// BOTTOM-UP -- and composited as if top-down. Flipped once on the way in and once on the way out.
+        ///
+        /// This is the test that would have caught it. It composes a whole page the way the view does,
+        /// applies the ONE flip the view applies, and reads the two strip rows back out as rows of the
+        /// FINAL PICTURE: the prompt must be nearer the page top than the key hints.
+        /// </summary>
+        private static string CheckStripIsNotUpsideDown()
+        {
+            var glyphs = RealAtlas();
+            var page = new HRZeroDay.Core.Rules.SweepPage
+            {
+                Floor = "lift", Heading = "LIFT - LOCKED IN", IsLast = true
+            };
+            int w = SweepScript.PageW, h = SweepScript.PageH;
+            string prompt = "[WALK 1/3]   [SPACE] WALK ON";
+            string hint = SweepScript.HintLine();
+
+            var tex = PageAsTexture(glyphs, page, prompt);
+
+            var box = SweepScript.KeyBandBox();
+            int promptTop = SweepScript.StripTop + box.Y;                        // a PICTURE row
+            int hintTop = SweepScript.StripTop + box.Y + SweepScript.RowStep;    // a PICTURE row
+
+            int promptInk = InkedCellsInPicture(tex, w, h, promptTop, box.X, prompt);
+            int hintInk = InkedCellsInPicture(tex, w, h, hintTop, box.X, hint);
+
+            True(promptInk >= NonSpace(prompt),
+                 "the prompt is not where the strip says it is after the flip (" + promptInk + " of " +
+                 NonSpace(prompt) + " glyph boxes) -- the strip is mirrored");
+            True(hintInk >= NonSpace(hint),
+                 "the key-hint row is not where the strip says it is after the flip (" + hintInk + " of " +
+                 NonSpace(hint) + " glyph boxes) -- the strip is mirrored");
+
+            // sanity: the two rows are different heights of the page, so the strip is not mirrored onto
+            // itself. Swap them and the test must fail -- which is what "upside down" means.
+            True(promptTop != hintTop, "the strip's two rows land on the same picture row");
+
+            int gapInk = 0;
+            for (int y = promptTop + MonitorScreen.GlyphH; y < hintTop; y++)
+                for (int x = box.X; x < box.X + box.W; x++)
+                    if (InkPicture(tex, w, h, x, y)) gapInk++;
+            True(gapInk == 0, "the strip's two rows overlap (" + gapInk + " lit px between them)");
+            return "PASS  the key strip reads the right way up in the texture the GPU gets";
+        }
+
+        /// <summary>A whole page composed as SweepView.Repaint does, then flipped once, as a texture is.</summary>
+        private static Color32[] PageAsTexture(IGlyphSource glyphs, HRZeroDay.Core.Rules.SweepPage page,
+                                               string prompt)
+        {
+            int w = SweepScript.PageW, h = SweepScript.PageH;
+            var bandLines = new List<string> { page.Heading, string.Empty };
+            var bandColours = new List<string> { "warn", "text" };
+            for (int i = 0; i < page.Lines.Count && bandLines.Count < SweepScript.MaxRows; i++)
+            {
+                bandLines.Add(page.Lines[i]);
+                bandColours.Add("textdim");
+            }
+            var buf = SweepPageComposer.Compose(null, w, h, bandLines, bandColours, null,
+                                               SweepScript.StripTop, glyphs, Palette["void"], Palette["line"]);
+            SweepPageComposer.ComposeStrip(buf, w, h, SweepScript.StripRows(prompt, SweepScript.HintLine()),
+                                           glyphs, Palette["void"], Palette["line"], SweepScript.StripTop);
+            MonitorScreenRaster.FlipToTextureOrder(buf, w, h);       // the ONE flip the view applies
+            return buf;
+        }
+
+        /// <summary>Read a page buffer (texture order) at an x and a PICTURE row (y down from page top).</summary>
+        private static bool InkPicture(Color32[] tex, int w, int h, int x, int pictureY)
+        {
+            return Ink(tex, w, x, (h - 1) - pictureY);
+        }
+
+        private static int InkedCellsInPicture(Color32[] tex, int w, int h, int pictureTop, int left, string text)
+        {
+            int n = 0;
+            for (int ci = 0; ci < text.Length; ci++)
+            {
+                if (text[ci] == ' ') continue;
+                int gx = left + ci * (MonitorScreen.GlyphW + MonitorScreen.LetterGap);
+                bool any = false;
+                for (int gy = 0; gy < MonitorScreen.GlyphH && !any; gy++)
+                    for (int px = 0; px < MonitorScreen.GlyphW && !any; px++)
+                        if (InkPicture(tex, w, h, gx + px, pictureTop + gy)) any = true;
+                if (any) n++;
+            }
+            return n;
+        }
+
+        /// <summary>
         /// THE STRIP, THROUGH THE CODE THE VIEW ACTUALLY RUNS (v97).
         ///
         /// This test used to paint the strip with TextPanel.Paint at rows 6 and 16 -- a copy of the view
@@ -337,7 +429,7 @@ namespace HRZeroDay.Tests
         private static string CheckWalkStripCopyRenders()
         {
             var glyphs = RealAtlas();
-            int w = SweepScript.PageW, h = SweepScript.StripH;
+            int w = SweepScript.PageW;
             var page = new HRZeroDay.Core.Rules.SweepPage { Floor = "lift", Heading = "LIFT - LOCKED IN", IsLast = true };
             var lines = new string[]
             {
@@ -350,47 +442,39 @@ namespace HRZeroDay.Tests
             var box = SweepScript.KeyBandBox();
             for (int li = 0; li < lines.Length; li++)
             {
-                int top = box.Y + li * SweepScript.RowStep;
+                int top = SweepScript.StripTop + box.Y + li * SweepScript.RowStep;
                 int inked = InkedCells(buf, w, top, box.X, lines[li]);
-                True(inked >= NonSpace(lines[li]),
+                True(inked == NonSpace(lines[li]),
                      "the walk strip drew " + inked + " of " + NonSpace(lines[li]) + " glyph boxes on line " +
                      li + " ('" + lines[li] + "')");
             }
 
-            // and nothing bleeds outside the key box: the strip holds one prompt and one key line, both
-            // inside SweepScript.KeyBandBox(), with the border row left clear at the top
-            for (int y = 1; y < h; y++)
+            // and nothing bleeds outside the strip, or above its top border
+            for (int y = SweepScript.StripTop + 1; y < SweepScript.PageH; y++)
                 for (int x = 0; x < w; x++)
                 {
                     if (!Ink(buf, w, x, y)) continue;
-                    True(y >= box.Y && y < box.Y + box.H,
-                         "strip ink at row " + y + ", outside the key box " + box.Y + ".." +
-                         (box.Y + box.H - 1) + " -- the copy is not where SweepScript says it is");
+                    True(y >= SweepScript.StripTop + box.Y && y < SweepScript.StripTop + box.Y + box.H,
+                         "strip ink at page row " + y + ", outside the key box -- the copy is not where " +
+                         "SweepScript says it is");
                 }
             return "PASS  the walk's prompt and key line both render in full, inside the strip's own box";
         }
 
-        /// <summary>The 480x32 strip, composed exactly as SweepView.RepaintKeyLine composes it.</summary>
+        /// <summary>
+        /// A page-sized buffer whose strip holds `lines`, composed with the same two calls SweepView makes.
+        /// Page-sized on purpose: ComposeStrip paints in PAGE coordinates, so a 480x32 buffer would put the
+        /// rows (which start at StripTop + 7) outside the buffer and paint nothing -- which is exactly the
+        /// bug this helper exists to keep visible.
+        /// </summary>
         private static Color32[] StripAsTheViewPaintsIt(IGlyphSource glyphs, string[] lines)
         {
-            int w = SweepScript.PageW, h = SweepScript.StripH;
+            int w = SweepScript.PageW, h = SweepScript.PageH;
             var buf = new Color32[w * h];
             for (int i = 0; i < buf.Length; i++) buf[i] = Palette["void"];
-            for (int x = 0; x < w; x++) buf[x] = Palette["line"];
-
-            var rows = SweepScript.StripRows(lines[0], lines[1]);
-            var local = new List<MonitorScreenRaster.RasterRow>();
-            for (int i = 0; i < rows.Count; i++)
-                local.Add(new MonitorScreenRaster.RasterRow
-                {
-                    text = rows[i].Text,
-                    x = rows[i].X,
-                    top = rows[i].Top - SweepScript.StripTop,
-                    colour = rows[i].Colour
-                });
-            MonitorScreenRaster.RenderRows(buf, w, h, local, glyphs,
-                                           MonitorScreenRaster.RasterClip.Box(1, 1, w - 2, h - 1));
-            return buf;          // raster order (row 0 = the strip's top), before the texture flip
+            SweepPageComposer.ComposeStrip(buf, w, h, SweepScript.StripRows(lines[0], lines[1]), glyphs,
+                                           Palette["void"], Palette["line"], SweepScript.StripTop);
+            return buf;          // raster order (row 0 = page top), before the texture flip
         }
 
         /// <summary>

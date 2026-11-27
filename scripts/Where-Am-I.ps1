@@ -42,7 +42,18 @@ try {
     $head = (& git rev-parse --short HEAD).Trim()
     $branch = (& git rev-parse --abbrev-ref HEAD).Trim()
     $dirty = @(& git status --porcelain)
-    $count = ($dirty | Where-Object { $_ -ne '' }).Count
+    # Two files are expected to differ in every clone on purpose: the repo-root Apply-Bundle.ps1 is
+    # byte-identical to scripts\Apply-Bundle.ps1 (Apply-Bundle rewrites it) and .gitignore can be
+    # extended locally. Counting them as "dirty" is a warning nobody can act on, so it is not counted --
+    # but anything ELSE still is, because a dirty tree blocks Build-Bundle. (2026-11-27, BUG-058.)
+    $expected = @('Apply-Bundle.ps1')
+    $real = @($dirty | Where-Object {
+        $line = $_.Trim()
+        if ($line -eq '') { return $false }
+        $path = ($line -replace '^[A-Z?!]{1,2}\s+', '')
+        return -not ($expected -contains $path)
+    })
+    $count = $real.Count
     Write-Host ("  branch " + $branch + "   HEAD " + $head)
     if ($count -gt 0) { Warn ("working tree DIRTY -- " + $count + " file(s). Build-Bundle refuses a dirty tree.") }
     else { Ok "working tree clean" }

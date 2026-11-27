@@ -39,14 +39,17 @@ namespace HRZeroDay.Game.Interaction
 
         private GameObject _root;
         private SpriteRenderer _background;
-        private SpriteRenderer _textLayer;
-        private Texture2D _tex;           // the caption band on its own (kept for the size checks)
         private SpriteRenderer _fade;
         private IGlyphSource _glyphs;
         private int _cols;
 
-        private Texture2D _stripTex;      // the strip, painted once, composited into the page texture
         private Texture2D _pageTex;       // the whole page: room art + caption band + strip
+        // NOTE (v98): there is no strip texture any more. The strip used to be painted into a Texture2D and
+        // then read BACK with GetPixels32 to be composited into the page -- and GetPixels32 returns rows
+        // bottom-up while the composer treats every buffer as PNG order (top-down). The strip was flipped
+        // on the way in and again on the way out, so the walk's only UI rendered upside down (player
+        // screenshot, "bottom 32 px is upside down"). The strip is now painted straight into the page
+        // buffer, in the same pass, in the same coordinate space as the art and the caption.
 
         public bool IsOpen { get { return _root != null && _root.activeSelf; } }
         public int PageIndex { get { return _index; } }
@@ -81,12 +84,6 @@ namespace HRZeroDay.Game.Interaction
             _fade.transform.localScale = new Vector3(SweepScript.PageW / Ppu, SweepScript.PageH / Ppu, 1f);
             _fade.transform.localPosition = PageTransform.CanvasToWorld(SweepScript.PageW * 0.5f,
                                                                        SweepScript.PageH * 0.5f, Ppu);
-
-            // the strip (prompt + the player's key line) is painted once per page into its own small
-            // texture, then composited -- it never gets its own sprite, so it cannot float over the room.
-            _stripTex = new Texture2D(SweepScript.PageW, SweepScript.StripH, TextureFormat.RGBA32, false);
-            _stripTex.filterMode = FilterMode.Point;
-            _stripTex.name = "SweepStrip";
 
             // the whole page, painted per floor
             _pageTex = new Texture2D(SweepScript.PageW, SweepScript.PageH, TextureFormat.RGBA32, false);
@@ -183,66 +180,23 @@ namespace HRZeroDay.Game.Interaction
             // This method used to set both for the floor ART, and Repaint then replaced the sprite with
             // the composed page -- so the art decided the placement and the page inherited it by luck.
             // The art sprite is what Repaint reads PIXELS from; it is not what gets drawn.
-            RepaintKeyLine(page);
             Repaint(page, sprite);
             _fadeT = 0f;                 // black card in, then out: the page change reads as a change
         }
 
         /// <summary>
-        /// Paints the prompt into its own strip under the page: "[WALK 1/3]  [SPACE] WALK ON" (or CLOCK OUT
-        /// on the last page). Dark fill, 'signal' ink -- it is the only UI on the screen, so it has to be
-        /// the most obvious thing on it.
-        /// </summary>
-        private void RepaintKeyLine(SweepPage page)
-        {
-            if (_stripTex == null || _glyphs == null) return;
-            int w = _stripTex.width, h = _stripTex.height;
-            var fill = Colour("void", new Color32(11, 14, 19, 255));
-            var border = Colour("line", new Color32(43, 58, 77, 255));
-            var buf = new Color32[w * h];
-            for (int i = 0; i < buf.Length; i++) buf[i] = fill;
-            for (int x = 0; x < w; x++) buf[x] = border;      // strip-local row 0 = the strip's top edge
-
-            // Line 1: the page prompt (signal ink -- it is the only UI on the page).
-            // Line 2: the player's key line (dim ink -- present on every page so they never have to
-            // remember it, quiet enough not to compete with the prompt).
-            //
-            // TOP-DOWN, FROM CORE'S ROWS (v97). This used TextPanel.Paint, whose rows start 6 px down and
-            // whose pitch is hard-coded for a callout card; it then went through the CRT raster, which lays
-            // a line against the BOTTOM of a box. The strip now paints the two rows SweepScript.StripRows
-            // publishes, in strip-local coordinates, so the view, the tests and the Python twin all read
-            // the same two numbers.
-            var rows = SweepScript.StripRows(SweepScript.KeyLine(page, _index, _pages.Count),
-                                             SweepScript.HintLine());
-            var local = new List<MonitorScreenRaster.RasterRow>();
-            for (int i = 0; i < rows.Count; i++)
-                local.Add(new MonitorScreenRaster.RasterRow
-                {
-                    text = rows[i].Text,
-                    x = rows[i].X,
-                    top = rows[i].Top - SweepScript.StripTop,
-                    colour = rows[i].Colour
-                });
-
-            int painted = MonitorScreenRaster.RenderRows(buf, w, h, local, _glyphs,
-                                                         MonitorScreenRaster.RasterClip.Box(1, 1, w - 2, h - 1));
-            if (painted == 0)
-                Debug.LogError("SweepView: the key strip painted no glyphs for '" +
-                               rows[0].Text + "' / '" + rows[1].Text + "'. The walk's only UI would be a " +
-                               "blank bar -- check Resources/fonts/monitor_font_5x7 (json + png).");
-
-            MonitorScreenRaster.FlipToTextureOrder(buf, w, h);
-            _stripTex.SetPixels32(buf);
-            _stripTex.Apply(false);
-        }
-
-        /// <summary>
         /// Paints the whole page into one texture: floor art, caption band, strip -- composed by
-        /// SweepPageComposer (a pure function with its own tests), then flipped once for the GPU.
+        /// SweepPageComposer (a pure function with its own tests), then flipped ONCE for the GPU.
         ///
-        /// THIS METHOD MUST NOT BE ABLE TO LEAVE A BLANK PAGE. The first compositing attempt did exactly
-        /// that: the art blit threw, the catch swallowed it, and the walk showed an empty card. Every step
-        /// is now either total (compose always fills w*h) or reported in the Console.
+        /// THE STRIP IS PAINTED HERE, IN PAGE SPACE (v98). It used to be painted into its own 480x32
+        /// texture, uploaded flipped, then read back with GetPixels32 -- which returns rows BOTTOM-UP --
+        /// and composited as if it were top-down. Two flips, one of them invisible: the key strip, the only
+        /// UI on the walk, rendered mirrored ("bottom 32 px is upside down"). Painting it straight into the
+        /// page buffer means there is no second coordinate space left to get wrong.
+        ///
+        /// THIS METHOD MUST NOT BE ABLE TO LEAVE A BLANK PAGE. An earlier compositing attempt left an empty
+        /// card with no exception behind it. Every step is either total (compose always fills w*h) or
+        /// reported in the Console by name.
         /// </summary>
         private void Repaint(SweepPage page, Sprite art)
         {
@@ -265,21 +219,31 @@ namespace HRZeroDay.Game.Interaction
             }
 
             var artPixels = ArtToRaster(art, W, H, void_);
-            var stripPixels = ReadTexture(_stripTex);
 
             var buf = SweepPageComposer.Compose(artPixels, W, H, bandLines, bandColours,
-                                                stripPixels, SweepScript.StripTop, _glyphs, void_, line_);
+                                                null, SweepScript.StripTop, _glyphs, void_, line_);
+
+            // ---- the strip: two rows Core publishes, painted into the page buffer ----------------------
+            // Line 1: the page prompt (signal ink -- the only UI on the page).
+            // Line 2: the player's key line, quiet enough not to compete with it.
+            var keyRows = SweepScript.StripRows(SweepScript.KeyLine(page, _index, _pages.Count),
+                                                SweepScript.HintLine());
+            int stripInk = SweepPageComposer.ComposeStrip(buf, W, H, keyRows, _glyphs, void_, line_,
+                                                          SweepScript.StripTop);
+            if (stripInk == 0)
+                Debug.LogError("SweepView: the key strip painted no glyphs for '" + keyRows[0].Text +
+                               "' / '" + keyRows[1].Text + "'. The walk's only UI would be a blank bar -- " +
+                               "check Resources/fonts/monitor_font_5x7 (json + png).");
+
             MonitorScreenRaster.FlipToTextureOrder(buf, W, H);
             _pageTex.SetPixels32(buf);
             _pageTex.Apply(false);
 
             // The composed page is what draws: bind it to the ONE page layer, with the centre pivot it
-            // was created with. (Build already made this sprite; re-creating it here keeps a reload of
-            // the art from leaving a stale sprite on screen.)
+            // was created with.
             _background.sprite = Sprite.Create(_pageTex, new Rect(0, 0, W, H), new Vector2(0.5f, 0.5f), Ppu);
             _background.transform.localPosition = PageTransform.CanvasToWorld(W * 0.5f, H * 0.5f, Ppu);
 
-            // A blank walk page was the player's report on 2026-11-27 and it had no exception behind it.
             // If the composed page is one flat colour, say so loudly rather than showing a black card.
             var first = buf[0];
             bool allSame = true;
@@ -288,7 +252,7 @@ namespace HRZeroDay.Game.Interaction
             if (allSame)
                 Debug.LogError("SweepView: the composed page for '" + page.Floor + "' is a single flat colour " +
                                "(" + first.r + "," + first.g + "," + first.b + "). Art=" + (art != null) +
-                               " glyphs=" + (_glyphs != null) + " strip=" + (_stripTex != null));
+                               " glyphs=" + (_glyphs != null));
         }
 
         /// <summary>The floor art as a top-down raster. Null on failure -- the composer fills the page.</summary>
@@ -327,19 +291,10 @@ namespace HRZeroDay.Game.Interaction
             }
         }
 
-        private static Color32[] ReadTexture(Texture2D tex)
-        {
-            if (tex == null) return null;
-            try { return tex.GetPixels32(); }
-            catch (System.Exception) { return null; }
-        }
-
         private void OnDestroy()
         {
             // These two are created here, not imported: an un-destroyed Texture2D leaks for the session
             // and, in the editor, keeps the play-mode object alive after Stop.
-            if (_tex != null) Destroy(_tex);
-            if (_stripTex != null) Destroy(_stripTex);
             if (_pageTex != null) Destroy(_pageTex);
         }
 
