@@ -54,8 +54,8 @@ namespace HRZeroDay.Game.Interaction
         // CalloutPlacement is a pure function with its own tests.
         private const int PaddingX = 6;
         private const int PaddingY = 6;
-        private const int MaxWidthPx = 148;          // 22 columns at 5x7: a card, not a panel
-        private const int MinWidthPx = 74;
+        private const int MaxWidthPx = 176;          // 23 columns at 5x7: an index card, not a panel
+        private const int MinWidthPx = 96;
         private const int MaxLines = 6;              // 6 rows of text: a label + 5 body rows
         private const int MinBodyLines = 1;
 

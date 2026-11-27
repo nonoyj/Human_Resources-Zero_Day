@@ -106,12 +106,12 @@ namespace HRZeroDay.Tests
             var glyphs = RealAtlas();
             var lines = new List<string> { "SOMETHING ON THE DESK", "SPACE WALK  [S] SHIFT  [X] DESK" };
             var colours = new List<string> { "warn", "textdim" };
-            var buf = TextPanel.Paint(148, 69, lines, colours, glyphs, Fill["panel"], Fill["line"]);
+            var buf = TextPanel.Paint(176, 69, lines, colours, glyphs, Fill["panel"], Fill["line"]);
 
             for (int li = 0; li < lines.Count; li++)
             {
                 int top = 6 + li * (MonitorScreen.GlyphH + MonitorScreen.LineGap);
-                int inked = InkedCells(buf, 148, top, 8, lines[li]);
+                int inked = InkedCells(buf, 176, top, 8, lines[li]);
                 int want = NonSpace(lines[li]);
                 True(inked >= (int)(want * 0.9),
                      "line " + li + " drew " + inked + " of " + want + " glyph boxes -- the words are wrong");
@@ -122,7 +122,7 @@ namespace HRZeroDay.Tests
         private static string CheckTextPanelKeepsInkInsideItsBorder()
         {
             var glyphs = RealAtlas();
-            int w = 148, h = 69;
+            int w = 176, h = 69;
             var buf = TextPanel.Paint(w, h, new List<string> { "A SITE ON THE LEFT CHEEK IN THE PHOTO AND THE RIGHT" },
                                       new List<string> { "text" }, glyphs, Fill["panel"], Fill["line"]);
             for (int y = 0; y < h; y++)
@@ -148,16 +148,16 @@ namespace HRZeroDay.Tests
             // overlay allocates. This is the panel the player photographed as "~HHUIU I~ THE DEbK".
             var glyphs = RealAtlas();
             var lines = new List<string> { "SOMETHING ON THE DESK", "THE MUG IS WARM AND THE HANDLE" };
-            int cols = (148 - 2 * 6 + MonitorScreen.LetterGap) / (MonitorScreen.GlyphW + MonitorScreen.LetterGap);
+            int cols = (176 - 2 * 6 + MonitorScreen.LetterGap) / (MonitorScreen.GlyphW + MonitorScreen.LetterGap);
             int h = 2 * 6 + lines.Count * (MonitorScreen.GlyphH + MonitorScreen.LineGap) - MonitorScreen.LineGap;
             True(h >= 6 + (lines.Count - 1) * (MonitorScreen.GlyphH + MonitorScreen.LineGap) + MonitorScreen.GlyphH + 1,
                  "the card is " + h + " px tall and cannot hold " + lines.Count + " rows of text");
-            var buf = TextPanel.Paint(148, h, lines, new List<string> { "warn", "text" }, glyphs,
+            var buf = TextPanel.Paint(176, h, lines, new List<string> { "warn", "text" }, glyphs,
                                       Fill["panel"], Fill["line"]);
             for (int li = 0; li < lines.Count; li++)
             {
                 int top = 6 + li * (MonitorScreen.GlyphH + MonitorScreen.LineGap);
-                int inked = InkedCells(buf, 148, top, 8, lines[li]);
+                int inked = InkedCells(buf, 176, top, 8, lines[li]);
                 var missing = new System.Text.StringBuilder();
                 for (int ci = 0; ci < lines[li].Length; ci++)
                 {
@@ -166,7 +166,7 @@ namespace HRZeroDay.Tests
                     bool any = false;
                     for (int gy = 0; gy < MonitorScreen.GlyphH && !any; gy++)
                         for (int px = 0; px < MonitorScreen.GlyphW && !any; px++)
-                            if (Ink(buf, 148, gx + px, top + gy)) any = true;
+                            if (Ink(buf, 176, gx + px, top + gy)) any = true;
                     if (!any) missing.Append(lines[li][ci]);
                 }
                 True(inked >= (int)(NonSpace(lines[li]) * 0.9),
