@@ -75,11 +75,14 @@ def rgba(name, a=255):
 
 
 class Applicant:
-    def __init__(self, seed: int, synthetic=False, artifacts=(), female=False):
+    def __init__(self, seed: int, synthetic=False, artifacts=(), female=False, tone=None):
         s = seed
         # v9 (user: "make female applicants too"): explicit, not inferred, so the cast is visible in
         # ARCHETYPES and a designer can rebalance it without reading the drawing code.
         self.female = bool(female)
+        # Skin tone is EXPLICIT (see TONES). 'warm' is a 50% dither of orange and warn -- an existing
+        # palette pair, which the palette gate accepts, so the mid tone is not a new colour.
+        self.tone = tone if tone in TONES else TONES[seed % len(TONES)]
         self.seed = seed
         self.synthetic = synthetic
         self.artifacts = set(artifacts)
@@ -137,6 +140,10 @@ class Applicant:
         self.fidget = 0
 
     # ------------------------------------------------------------------ drawing
+    def face_tone(self):
+        """The tone name for this applicant; the pixel colour comes from _tone_key."""
+        return self.tone
+
     def draw(self, w=192, h=216) -> Image.Image:
         img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
         px = img.load()
@@ -399,13 +406,13 @@ class Applicant:
         # v11 FLAT: one tone for the whole face. tint 3 is the deepest of the ramp, which is the one that
         # reads as skin on its own -- the light tone was picked as a HIGHLIGHT to sit on a shade, and
         # alone it is traffic-cone orange. Features supply the contrast, not shading.
-        skin_face = P.ramp(self.skin_ramp, 3)
+        tone = self.face_tone()
         for y in range(head_top, chin_y + 1):
             hwid = max(1, head_half(y))
             if hwid <= 1 and y > cranium_cy:
                 continue
             for x in range(cx - hwid, cx + hwid + 1):
-                P.put(x, y, skin_face)
+                P.put(x, y, _tone_key(tone, x, y))
         if 'skin_band' in A:
             # ARTIFACT (the tell, not decoration): a hard 4-row posterised step, which is exactly the
             # kind of thing a flat face makes obvious. Kept -- it is evidence the player can see.
@@ -416,8 +423,9 @@ class Applicant:
             ex = cx + side * max(1, head_half(ear_y) - 1)
             for (dy, r) in ((0, 2), (1, 2), (2, 1), (3, 1)):
                 for k in range(-r, r + 1):
-                    P.put(ex + side * (1 + k // 2), ear_y + dy, skin_face)
-            P.put(ex + side, ear_y + 2, P.ramp(self.skin_ramp, 1))      # the fold, one step
+                    exx = ex + side * (1 + k // 2)
+                    P.put(exx, ear_y + dy, _tone_key(tone, exx, ear_y + dy))
+            P.put(ex + side, ear_y + 2, 'paperdim')                     # the fold: one darker step
 
         if 'ear' in A:
             # ARTIFACT: one perfectly rectangular slab, uniform colour, spanning hairline to
@@ -435,15 +443,15 @@ class Applicant:
         # FLAT too (v11): a gradient here was the other half of the split look. The single darker row at
         # the jaw is a CONTOUR -- without it the neck and the face merge into one shape.
         for (nx, ny) in taper(cx, chin_y - 2, neck_bottom, self.neck_w - 2, self.neck_w + 3):
-            P.put(nx, ny, skin_face)
+            P.put(nx, ny, _tone_key(tone, nx, ny))
         for nx in range(cx - self.neck_w, cx + self.neck_w + 1):
-            P.put(nx, chin_y - 3, P.ramp(self.skin_ramp, 1))
+            P.put(nx, chin_y - 3, 'paperdim')                         # the jaw contour, one step down
 
         # restore the chin: the same flat tone, so no pale band sits under it
         for yy in range(chin_y, min(chin_y + 4, neck_bottom)):
             hwid = max(1, head_half(yy))
             for x in range(cx - hwid, cx + hwid + 1):
-                P.put(x, yy, skin_face)
+                P.put(x, yy, _tone_key(tone, x, y))
         if 'skin_band' in A:
             # ARTIFACT: a hard 4-row posterised step instead of a soft gradient
             rect(cx - 10, 93 - breath, cx + 10, 96 - breath, self.skin_light)
@@ -704,28 +712,54 @@ class Applicant:
 
 # name -> (seed, synthetic, artifacts)
 # name -> (seed, synthetic, artifacts, female). 7 humans, 7 synthetics; three women per side.
+# SKIN TONE per archetype (v12, player: "lighter faces but also create varieties between dark and light").
+# This is an explicit, editorial choice, not a hash: a cast where every face sat on the same orange step read
+# as one person in different shirts. Four tones across the palette's warm ramp, assigned so no two adjacent
+# applicants look alike, and so both humans and synthetics span the range.
+#   dark   paperdim (138,109,59) | tan  orange (255,138,61) | warm  mix(orange,warn) | light  paper (242,232,213)
+TONES = ('dark', 'tan', 'warm', 'light')
+
 ARCHETYPES = {
+    # name:                   (seed, synthetic, artifacts, female, tone)
     # --- humans: identity variety, no artifacts
-    'human_solid_a':     (3,   False, (), False),
-    'human_solid_b':     (17,  False, (), False),
-    'human_solid_c':     (58,  False, (), True),      # older, glasses, age lines
-    'human_nervous_a':   (29,  False, (), True),
-    'human_nervous_b':   (71,  False, (), True),      # headscarf
-    'human_bait_a':      (41,  False, (), False),
-    'human_bait_b':      (86,  False, (), False),     # bearded, beanie
-    # --- synthetics: each carries a specific artifact set
-    'synthetic_polished_a':  (101, True, ('seam', 'mirror'), False),
-    'synthetic_polished_b':  (131, True, ('hands', 'skin_band'), True),
-    'synthetic_polished_c':  (163, True, ('glasses_merge', 'mirror'), False),
-    'synthetic_cloned_a':    (113, True, ('ear', 'shadow'), True),
-    'synthetic_cloned_b':    (149, True, ('hands', 'seam'), False),
-    'synthetic_collusion_a': (127, True, ('straight_badge', 'mirror'), True),
-    'synthetic_collusion_b': (173, True, ('shadow', 'no_blink'), False),
+    'human_solid_a':     (3,   False, (), False, 'warm'),
+    'human_solid_b':     (17,  False, (), False, 'light'),
+    'human_solid_c':     (58,  False, (), True,  'dark'),      # older, glasses, age lines
+    'human_nervous_a':   (29,  False, (), True,  'tan'),
+    'human_nervous_b':   (71,  False, (), True,  'light'),     # headscarf
+    'human_bait_a':      (41,  False, (), False, 'dark'),
+    'human_bait_b':      (86,  False, (), False, 'warm'),      # bearded, beanie
+    # --- synthetics: each carries a specific artifact set. They span the tones too: a tell must never be
+    # "the dark ones", which would teach the wrong lesson and read as a slur on the cast.
+    'synthetic_polished_a':  (101, True, ('seam', 'mirror'), False, 'tan'),
+    'synthetic_polished_b':  (131, True, ('hands', 'skin_band'), True, 'light'),
+    'synthetic_polished_c':  (163, True, ('glasses_merge', 'mirror'), False, 'dark'),
+    'synthetic_cloned_a':    (113, True, ('ear', 'shadow'), True, 'warm'),
+    'synthetic_cloned_b':    (149, True, ('hands', 'seam'), False, 'tan'),
+    'synthetic_collusion_a': (127, True, ('straight_badge', 'mirror'), True, 'light'),
+    'synthetic_collusion_b': (173, True, ('shadow', 'no_blink'), False, 'dark'),
 }
 
 
+# ---------------------------------------------------------------- skin tones (v12)
+# The player: "lighter faces but also create varieties between dark and light." Four tones, all built from
+# entries already in the palette. 'warm' is a 50% checker of two of them -- the same dither rule the art
+# bible uses for every other ramp -- so it is not a new colour and the palette gate still passes.
+TONES = ('dark', 'tan', 'warm', 'light')
+
+
+def _tone_key(tone, x, y):
+    if tone == 'dark':
+        return 'paperdim'
+    if tone == 'light':
+        return 'paper'
+    if tone == 'warm':
+        return 'warn' if (x + y) & 1 else 'orange'      # the dither: reads as one mid tone at 1x
+    return 'orange'
+
+
 def build_frame(state: Applicant, frame: int) -> Image.Image:
-    a = Applicant(state.seed, state.synthetic, state.artifacts, state.female)
+    a = Applicant(state.seed, state.synthetic, state.artifacts, state.female, state.tone)
     a.breathe = 1 if frame in (1, 2) else 0
     # ARTIFACT no_blink: the loop never blinks. Humans always do on frame 3.
     a.blink = (frame == 3) and ('no_blink' not in a.artifacts)
@@ -799,8 +833,8 @@ def main():
         return 2
     root = os.path.normpath(OUT)
     made = []
-    for name, (seed, syn, arts, fem) in ARCHETYPES.items():
-        st = Applicant(seed, syn, arts, fem)
+    for name, (seed, syn, arts, fem, tone) in ARCHETYPES.items():
+        st = Applicant(seed, syn, arts, fem, tone)
         p = os.path.join(root, 'applicants', f'app_{name}_192x216.png')
         os.makedirs(os.path.dirname(p), exist_ok=True)
         make_sheet(st).save(p)
@@ -808,7 +842,7 @@ def main():
         pseed = seed + 500 if name == 'synthetic_cloned_a' else seed
         p2 = os.path.join(root, 'portraits', f'portrait_{name}_96x96.png')
         os.makedirs(os.path.dirname(p2), exist_ok=True)
-        make_portrait(Applicant(pseed, syn, arts, fem)).save(p2)
+        make_portrait(Applicant(pseed, syn, arts, fem, tone)).save(p2)
         made.append(p2)
     print(f"wrote {len(made)} files for {len(ARCHETYPES)} archetypes")
     return 0

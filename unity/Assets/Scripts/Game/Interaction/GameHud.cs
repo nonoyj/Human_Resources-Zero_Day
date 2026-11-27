@@ -14,7 +14,11 @@ namespace HRZeroDay.Game.Interaction
     public sealed class GameHud : MonoBehaviour
     {
         private const int LineCount = 16;
-        private const float Step = 0.52f;
+        // "Text now is too big" (player, 2026-11-26). characterSize 0.26 with a 0.52 unit line step is a
+        // 1.7 glyph box; 0.19 with 0.36 is a 1.2 box -- the same 5x7 feel as the CRT, and it leaves the
+        // room readable behind it. These two numbers move together: the step must stay ~1.9 x the size or
+        // the lines collide, and the backing panel is sized from both.
+        private const float Step = 0.36f;
 
         private DeskBootstrap _game;
         private TextMesh[] _lines;
@@ -64,7 +68,7 @@ namespace HRZeroDay.Game.Interaction
                 go.transform.localPosition = new Vector3(0.45f, 16.25f - i * Step, -2f);
                 var text = go.AddComponent<TextMesh>();
                 text.font = font;
-                text.characterSize = 0.26f;          // compact: leaves the desk art readable
+                text.characterSize = 0.19f;          // compact: leaves the desk art readable
                 // TextMesh is a Component, not a Renderer -- the order goes on its MeshRenderer.
                 DeskRuntimeScene.SetTextMeshSorting(text, 220);   // above the letter page and the CRT
                 text.text = string.Empty;
@@ -120,8 +124,8 @@ namespace HRZeroDay.Game.Interaction
                 _panel.gameObject.SetActive(!letter && !walking && lines.Count > 0);
                 if (!letter && !walking && lines.Count > 0)
                 {
-                    float w = Mathf.Clamp(1f + maxLen * 0.24f, 4f, 14.5f);
-                    float h = lines.Count * Step + 0.6f;
+                    float w = Mathf.Clamp(0.5f + maxLen * 0.175f, 4f, 12.5f);   // ~0.175 unit per column
+                    float h = lines.Count * Step + 0.4f;
                     _panel.transform.localPosition = new Vector3(0.25f + w * 0.5f, 16.45f - h * 0.5f, -2.1f);
                     _panel.transform.localScale = new Vector3(w, h, 1f);
                 }

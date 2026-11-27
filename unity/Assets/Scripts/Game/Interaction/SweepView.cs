@@ -74,6 +74,11 @@ namespace HRZeroDay.Game.Interaction
                                                       (SweepScript.KeyStripH * 0.5f) / Ppu, -0.4f);
 
             // one texture for the whole caption band, allocated at the largest page and reused
+            // 1:1 with the canvas on purpose. This is a 5x7 bitmap font: it has no smaller size, and
+            // downscaling the texture to fake one would smear the glyphs. What CAN be made smaller is the
+            // panel around it -- the band is sized to the rows actually used, so a two-line trace is a thin
+            // bar and the room stays visible. (The player's "text is too big" was the desk HUD, which used
+            // the engine font at 1.7 glyph boxes; that is fixed in GameHud.)
             _tex = new Texture2D(SweepScript.BandW, SweepScript.BandHeight(MaxRows), TextureFormat.RGBA32, false);
             _tex.filterMode = FilterMode.Point;
             _tex.name = "SweepBand";
