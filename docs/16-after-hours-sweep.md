@@ -1,6 +1,6 @@
 # The after-hours sweep
 
-**Status:** rule implemented + tested 2026-11-26 · **Idea from:** the team · **Owner:** FE (scene) + BE2 (copy)
+**Status:** rule **and scene** implemented 2026-11-26 · **Idea from:** the team · **Owner:** FE (scene) + BE2 (copy)
 **Rule file:** `unity/Assets/Scripts/Core/Rules/Sweep.cs` · **Tests:** `tools/CoreTests/SweepTests.cs` (7)
 
 ---
@@ -30,7 +30,28 @@ with the losing condition — the walk is where the player *feels* the loss befo
 - **A clean day is not silent by accident.** `AfterShift(0)` returns one explicit quiet trace, so the
   routine still happens — which is the point of a routine.
 
-## 3. What the scene needs (FE)
+## 3. The scene, as built (2026-11-26)
+
+| Piece | File | What it owns |
+|---|---|---|
+| The rule | `Core/Rules/Sweep.cs` | which traces exist, escalation, `HasSweep`, final floor |
+| The pages | `Core/Rules/SweepScript.cs` | floors, captions, wrap, key line, the summary receipt |
+| The view | `Game/Interaction/SweepView.cs` | one 480x270 page per floor, band + text + key strip |
+| The wiring | `DeskBootstrap.Continue()` | the walk starts after the debrief of a day with `corruption > 0` |
+| The preview | `tools/comp/preview_sweep.py` | a twin that renders the walk without Unity |
+
+How a day ends now: **stamp → debrief → (walk, if anything got through) → day summary**. The summary gains
+one line the walk produced, e.g. *"THE WALK ENDED AT THE CORRIDOR. 2 THINGS WERE NOT YOURS."* — and no line
+at all on a clean day.
+
+Two things the first draft got wrong, both caught in the twin before Unity:
+
+1. **The words sat straight on the room art** and were unreadable wherever the background had detail.
+   Fixed with a caption band: solid `void` fill, 1 px `line` border, sized to the rows actually used.
+2. **The key prompt was drawn across the neon caps** at the bottom. The caps stay as decoration; the words
+   now sit on a black band just above them.
+
+## 3b. What the scene needs (FE) — original brief
 
 1. A `SweepRoot` laid over `Desk.unity` with the three floors as simple pan/step backgrounds
    (`desk`, `corridor`, `lift`). One sprite per floor; no new mechanics.
