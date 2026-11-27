@@ -67,6 +67,13 @@ the code tends to fix things nobody complained about.
 3. **v108 — the spoken intro**, when BE2's clips exist. The layout is already decided (ADR-009): `audio` per
    beat, optional, silent-safe.
 
+## 4a. The full list of what is owed
+
+`docs/86-whats-owed.md` — every feature the player has asked about, checked one by one against the repo
+(BUILT / PARTLY / PLANNED / NEEDS A DECISION), plus the things mentioned earlier that nobody has built yet
+(the consent screen, analytics emitting, the two missing endings, the Field Manual, Android). Read it with
+this page: **85 is when to stop, 86 is what comes after.**
+
 ## 5. What is parked, and stays parked until replenish
 
 From `docs/82-replenish-phase.md` and `docs/90-bug-log.md`:
