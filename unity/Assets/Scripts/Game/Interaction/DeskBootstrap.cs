@@ -415,8 +415,44 @@ namespace HRZeroDay.Game.Interaction
         public bool MenuMove(int delta)
         {
             if (!ShowingMenu) return false;
+            Menu.NoteKeyboardUse();
             Menu.Move(delta);
             return true;
+        }
+
+        /// <summary>
+        /// THE POINTER, while the menu is up (v119). The router has already converted the pointer to the
+        /// layout's 480x270 pixels, so the menu's hit tests are the same arithmetic the art is drawn with.
+        /// Hover selects the row under the pointer; a click either activates that row, or acts on the prop
+        /// it is over.
+        /// </summary>
+        public bool MenuPointer(int x, int y)
+        {
+            if (!ShowingMenu) return false;
+            Menu.SetPointer(x, y, Menu.Count);
+            return true;
+        }
+
+        public bool MenuPointerLeave()
+        {
+            if (!ShowingMenu) return false;
+            Menu.ClearPointer();
+            return true;
+        }
+
+        /// <summary>
+        /// A click on the front door, in canvas px. Row first (a row is what the player is pointing at), then
+        /// the props. Returns true when it was consumed; false when it landed on nothing, so the caller can
+        /// fall back to "any click chooses".
+        /// </summary>
+        public bool MenuClick(int x, int y)
+        {
+            if (!ShowingMenu) return false;
+            Menu.SetPointer(x, y, Menu.Count);
+            if (Menu.HoverRow >= 0) return MenuChoose();
+            if (Menu.HoverLamp) { Menu.ToggleLamp(); Cue(Sfx.Key); return true; }
+            if (Menu.HoverKeyboard) { Menu.TypeOnDesk(); Cue(Sfx.Key); return true; }
+            return false;
         }
 
         /// <summary>LEFT/RIGHT (and A/D) while the menu is up: step the selected row down/up.</summary>

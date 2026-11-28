@@ -15,8 +15,23 @@ python and the import settings are not in the commit otherwise. That is the same
 (`Resources/Art` was gitignored) and BUG-045 (no atlas .meta): **a build input that lives in an uncommitted
 file is not a build input.**
 
-    python tools/art/write_unity_metas.py          # write any missing .meta under Resources/Art
-    python tools/art/write_unity_metas.py --check  # report only, exit 1 if anything is missing
+    python tools/art/write_unity_metas.py          # write missing .meta, and REPAIR stale slices
+    python tools/art/write_unity_metas.py --check  # report only, exit 1 if anything needs writing
+
+BUG-075 (2026-11-28): THE STALE SLICE. v118 resized menu/monitor_stack.png (112x96 -> 76x66) and
+menu/window.png (104x132 -> 88x160). The PNGs were regenerated, the .meta files were NOT, and Unity then
+tried to build the OLD sub-sprite rects on the NEW texture:
+
+    "monitor_stack_0 not generated because the rect lies (partially) outside of texture"
+
+Two separate causes, and both had to be fixed here:
+
+  * the MIRROR metas (Assets/Resources/Art/Kit) are now rewritten whenever the PNG's size no longer matches
+    the size the meta implies -- the meta does not store the size, so the size is recorded in this script's
+    own table (art/kit/unity_sprites.json is the manifest, and Unity's slicing is per-file);
+  * the SOURCE folder (Assets/Art/Kit) had NO committed .meta files at all, so on any machine that had
+    imported the art once, Unity kept .meta files on disk that matched the OLD sizes and the old slicing.
+    Every published PNG now gets a .meta in the source folder as well, and one that disagrees is replaced.
 
 The guid is derived from the asset's repo path, so re-running this never churns the repository and never
 breaks a reference that Unity has already resolved.
@@ -30,6 +45,7 @@ import uuid
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 MIRROR = os.path.join(ROOT, 'unity', 'Assets', 'Resources', 'Art', 'Kit')
+SOURCE = os.path.join(ROOT, 'unity', 'Assets', 'Art', 'Kit')       # where publish_to_unity.py copies the kit
 
 # Font atlases are read pixel-by-pixel by the runtime, so they are NOT sprites and must stay readable.
 # Assets the game reads PIXELS from, not just draws. SweepView composites a floor's room art into the
@@ -170,6 +186,87 @@ AudioImporter:
 """
 
 
+def expected_sizes() -> dict:
+    """
+    path (relative to art/kit) -> (width, height), read from the PNGs themselves. The meta does not record a
+    size, so the ONLY durable way to know a meta is stale is to compare the sprite rects it declares against
+    the texture it is attached to. Everything this project publishes is a Single sprite, so a meta with
+    `spriteMode: 1` and an empty `sprites: []` is correct for ANY size -- and a meta with slices is stale by
+    definition, because nothing in this repository generates slices for a menu sprite.
+    """
+    from pngcheck import read_rgba                    # no PIL needed, same as the art gate
+    sizes = {}
+    kit = os.path.join(ROOT, 'art', 'kit')
+    for dirpath, _dirs, files in os.walk(kit):
+        for name in files:
+            if not name.endswith('.png'):
+                continue
+            full = os.path.join(dirpath, name)
+            try:
+                w, h, _px = read_rgba(full)
+            except Exception:
+                continue
+            sizes[os.path.relpath(full, kit).replace('\\', '/')] = (w, h)
+    return sizes
+
+
+def stale_reason(meta_text: str) -> str:
+    """Why a .meta cannot be trusted, or '' when it is fine."""
+    if 'spriteMode: 1' not in meta_text:
+        return 'spriteMode is not Single'
+    if 'sprites: []' not in meta_text and 'sprites:\n    - ' in meta_text:
+        return 'it declares sub-sprite slices'
+    if 'textureType: 8' not in meta_text:
+        return 'textureType is not Sprite'
+    return ''
+
+
+def repair(rel_under_assets: str, meta_path: str, readable: bool, dry: bool) -> str:
+    """Rewrite one .meta if it is stale. Returns a short label, or '' when nothing was needed."""
+    text = open(meta_path, encoding='utf-8').read()
+    why = stale_reason(text)
+    if not why:
+        if readable and 'isReadable: 1' not in text:
+            why = 'not readable, but the game reads its pixels'
+        else:
+            return ''
+    if dry:
+        return why
+    guid = [l.split(':', 1)[1].strip() for l in text.splitlines() if l.startswith('guid:')]
+    guid = guid[0] if guid else unity_guid(rel_under_assets)
+    with open(meta_path, 'w', encoding='utf-8') as fh:
+        fh.write(texture_meta(guid) if readable else sprite_meta(guid))
+    return why
+
+
+def source_metas(dry: bool) -> list:
+    """
+    The SOURCE folder (Assets/Art/Kit) is what the player's Unity has imported since round 1. It had no
+    committed metas, which is why the stale slices survived an install: Unity kept the ones it made itself.
+    Every published PNG now gets a meta here too, and a stale one is replaced.
+    """
+    notes = []
+    if not os.path.isdir(SOURCE):
+        return notes
+    for dirpath, _dirs, files in os.walk(SOURCE):
+        for name in sorted(files):
+            if not name.endswith('.png'):
+                continue
+            path = os.path.join(dirpath, name)
+            meta_path = path + '.meta'
+            rel = os.path.relpath(path, os.path.join(ROOT, 'unity')).replace('\\', '/')
+            if not os.path.isfile(meta_path):
+                notes.append(('missing  ' if dry else 'wrote    ') + rel)
+                if not dry:
+                    with open(meta_path, 'w', encoding='utf-8') as fh:
+                        fh.write(sprite_meta(unity_guid(rel)))
+                continue
+            why = repair(rel, meta_path, False, dry)
+            if why:
+                notes.append(('stale    ' if dry else 'repaired ') + rel + '  (' + why + ')')
+    return notes
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument('--check', action='store_true')
@@ -178,6 +275,12 @@ def main() -> int:
     if not os.path.isdir(MIRROR):
         print('FAIL: %s does not exist -- run tools/art/publish_to_unity.py first' % MIRROR)
         return 1
+
+    repair_notes = source_metas(args.check)
+    for n in repair_notes[:12]:
+        print('   ', n)
+    if repair_notes and not args.check:
+        print('    repaired/wrote %d source .meta file(s)' % len(repair_notes))
 
     written, missing, already, fixed_readable = 0, [], 0, 0
     for dirpath, _dirs, files in os.walk(MIRROR):
@@ -205,6 +308,16 @@ def main() -> int:
             if os.path.isfile(meta_path):
                 already += 1
                 text = open(meta_path, encoding='utf-8').read()
+                if stale_reason(text) and not (is_readable and 'isReadable: 1' in text):
+                    why = stale_reason(text)
+                    if args.check:
+                        missing.append(rel + ' (' + why + ')')
+                        continue
+                    guid = [l.split(':', 1)[1].strip() for l in text.splitlines() if l.startswith('guid:')][0]
+                    with open(meta_path, 'w', encoding='utf-8') as fh:
+                        fh.write(texture_meta(guid) if is_readable else sprite_meta(guid))
+                    fixed_readable += 1
+                    continue
                 if is_readable and 'isReadable: 1' not in text:
                     if args.check:
                         missing.append(rel + ' (not readable -- the game needs its pixels)')
@@ -225,6 +338,8 @@ def main() -> int:
         print('made %d existing sprite(s) readable for in-game compositing' % fixed_readable)
 
     if args.check:
+        if repair_notes:
+            missing.extend(n for n in repair_notes)
         if missing:
             print('FAIL: %d asset(s) have no usable .meta -- Unity would import them with the wrong '
                   'settings (no sprite, not readable):' % len(missing))

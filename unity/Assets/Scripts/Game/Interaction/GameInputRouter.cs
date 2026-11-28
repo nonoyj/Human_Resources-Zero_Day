@@ -25,6 +25,22 @@ namespace HRZeroDay.Game.Interaction
             if (bootstrap == null) bootstrap = FindFirstObjectByType<DeskBootstrap>();
         }
 
+        /// <summary>
+        /// Screen pixels -> the layout's 480x270 canvas pixels. Same orthographic conversion the hotspot
+        /// picker uses, so the menu's hit tests agree with everything else in the game.
+        /// </summary>
+        private void ToCanvas(UnityEngine.Vector2 screen, out int x, out int y)
+        {
+            var cam = Camera.main;
+            if (cam == null) { x = y = -1; return; }
+            int sw = Screen.width > 0 ? Screen.width : 1;
+            int sh = Screen.height > 0 ? Screen.height : 1;
+            int cx = (int)(screen.x * ReferenceWidth / sw);
+            int cy = (int)((sh - screen.y) * ReferenceHeight / sh);
+            x = cx < 0 ? 0 : (cx > ReferenceWidth - 1 ? ReferenceWidth - 1 : cx);
+            y = cy < 0 ? 0 : (cy > ReferenceHeight - 1 ? ReferenceHeight - 1 : cy);
+        }
+
         private void Update()
         {
             var game = bootstrap;
@@ -53,11 +69,26 @@ namespace HRZeroDay.Game.Interaction
                     if (kb.rightArrowKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame)
                     { game.MenuStep(1); return; }
                 }
+                // THE POINTER (v119). Hover is tracked every frame so the row under the cursor lights up,
+                // and a click is resolved against the row first and the room's props second. A click that
+                // lands on nothing still chooses -- the old behaviour -- so a keyboard player who happens to
+                // click somewhere harmless is never stuck.
                 var mm = Mouse.current;
+                var ts = Touchscreen.current;
+                int px = -1, py = -1;
+                if (mm != null) { var pos = mm.position.ReadValue(); ToCanvas(pos, out px, out py); }
+                else if (ts != null && ts.primaryTouch.press.isPressed)
+                { var pos = ts.primaryTouch.position.ReadValue(); ToCanvas(pos, out px, out py); }
+
+                if (px >= 0) game.MenuPointer(px, py);
+                else game.MenuPointerLeave();
+
                 bool tappedMenu = (mm != null && mm.leftButton.wasPressedThisFrame) ||
-                                  (Touchscreen.current != null &&
-                                   Touchscreen.current.primaryTouch.press.wasPressedThisFrame);
-                if (tappedMenu) game.MenuChoose();
+                                  (ts != null && ts.primaryTouch.press.wasPressedThisFrame);
+                if (tappedMenu)
+                {
+                    if (px < 0 || !game.MenuClick(px, py)) game.MenuChoose();
+                }
                 return;
             }
 

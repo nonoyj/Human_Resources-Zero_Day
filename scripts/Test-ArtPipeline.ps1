@@ -130,6 +130,18 @@ try {
         } finally { Pop-Location }
     }
 
+    S 'the game''s own rule suite runs (CoreTests)'
+        # v119: this suite existed since v100 and had NEVER been executed, because there was no C# compiler
+        # in the build box. The first run found two assertions that could never pass, a stale published
+        # palette and a stub JsonUtility that returned nothing. It runs on every gate from now on: a rule
+        # nobody enforces is a comment.
+        Push-Location $repo
+        try {
+            & dotnet run --project tools/CoreTests -v q --nologo 2>&1 | Out-Host
+            if ($LASTEXITCODE -ne 0) { D 'the core rule tests fail' } else { OK 'every core rule test passes' }
+        } finally { Pop-Location }
+    }
+
     S 'stubs do not declare package-only namespaces'
         # A stub that invents a package namespace makes the local gate green while Unity refuses to
         # compile the asmdef and opens in Safe Mode. Rules: tools/UnityStubs/ASSEMBLY-RULES.md

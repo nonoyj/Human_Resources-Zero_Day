@@ -410,3 +410,57 @@ single colour, and a single "light ramp" brightened whatever the lights touched.
 composite's geometry gate before it can ship, and a change to the tracking of the title is measured by the
 same function the game draws with. The palette is a single published JSON, generated, with the legacy keys
 preserved.
+
+## ADR-022 — the glow is a layer of STRENGTH, not a colour (v119)
+
+**Context.** The player's note was one sentence long: *"the darkness is good enough, only glow is missing."*
+The v118 room was lit by a pass that lifts a surface one step up its own material ramp; there was no
+bloom, and the back wall was already at the top of its ramp, so a glow made of the wall's own steps was
+arithmetically invisible.
+
+**Decision.** The glow ships as **one sprite the size of the canvas** (`menu/glow.png`), baked by
+`make_menu_room.py` from a distance transform of the room's real emitters (the glazing, the lit tubes, the
+mouth of the lamp). Its pixels do not mean colour, they mean **strength**: cold 0–3, warm 4–7.
+
+* The runtime lifts the surface under a glow pixel that many steps up that surface's *own* ramp.
+* When the ramp runs out, the leftover strength becomes a **dithered tint** — that fraction of pixels take the
+  glow's colour. This is the 16-bit way to fake a colour outside the palette.
+* The top band of each temperature is **emissive** and painted as-is: the 1–2 px hot rim.
+* **Warm wins** wherever the lamp is nearer, keeping the lamp the only warm thing in the frame.
+* The glow runs **after** the light pass and **after** the vignette, so a corner cannot eat a halo, and it
+  never touches the tube (the player is reading it) or the fixtures (a housing is not a surface).
+
+The palette gained two honest lit steps to make this possible: `wall_3` and `floor_3`, at 0.29 and 0.10 value —
+both under the 0.62 non-emissive ceiling. **A glow needs somewhere to go.**
+
+**Rejected alternatives.**
+
+1. *A radial gradient per light.* It is the wrong shape for a tall window and a hard-edged shade: the light
+   lands where the emitter already is (and is cut out), and the visible result is a ring around the object.
+   Tried, looked like sprayed dots, discarded.
+2. *A runtime blur / additive colour blend.* Both break the palette rule (a colour that is not a material step)
+   and cannot be tuned as art. The halos are baked, so the falloff is visible and edit-able in the generator.
+3. *Raising the exposure to make the glow read.* Rejected outright: the player said the darkness is right, and
+   the low-key measurement (71% of steps dark) is a gate.
+
+**Consequences.** Any future emitter must be added to `_emitters()` or its light will not exist, and any new
+material that a halo lands on needs a lit step at the top of its ramp or the glow on it is limited to a dither.
+
+## ADR-023 — the menu is pointer-first, and one selection at a time (v119)
+
+**Context.** The player asked whether the menu could be more interactive.
+
+**Decision.** The front door is interactable through the same 480×270 canvas every hit test in the game uses
+(`MenuLayout.RowAt`, `StackCellAt`, `InLamp`, `InKeyboard`), and **hover moves the selection** rather than
+drawing a second highlight. There is exactly one selected row at any moment, whether it was chosen by a key or
+by the pointer; a hovered-but-unselected row is drawn as a *preview* (cyan edge, white text, no fill).
+
+Room props answer too: the lamp can be switched off (the fastest demonstration that the warm side is light and
+not paint), and the keyboard lights and types. Both are reversible and neither can block progress.
+
+**Rejected.** *Hover-only highlighting* (two selections on screen is a lie in a keyboard menu);
+*mouse-look/parallax* (the room is one plane; moving the plane would break the layers); *a cursor sprite*
+(the OS pointer is already correct and a pixel cursor fights it at this scale).
+
+**Consequences.** Every future clickable region must be derived from `MenuLayout`, never from a literal, or a
+hover will eventually sit somewhere the pointer is not.

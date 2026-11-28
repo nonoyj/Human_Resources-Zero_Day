@@ -13,7 +13,7 @@ the same three lights with the same bands and falloff, so this render is a twin 
     desk         menu/desk.png              coffee + smoke, keyboard, mouse, application forms
     light        MenuLayout lights          3 sources, banded falloff, dithered seams only
 
-    python tools/art/make_menu_composite.py           # writes art/kit/reference/menu_v115_{1x,3x}.png
+    python tools/art/make_menu_composite.py           # writes art/kit/reference/menu_v119_{1x,3x}.png
     python tools/art/make_menu_composite.py --check    # geometry gate
 """
 import os
@@ -33,8 +33,8 @@ W, H = 480, 270
 # These MUST equal unity/Assets/Scripts/Core/Rules/MenuLayout.cs. check() asserts it against the sprite
 # sizes and the palette, so a stale number here fails the gate instead of quietly painting the room wrong.
 WIN_X, WIN_Y = 8, 10
-STACK_X, STACK_Y = 372, 96
-LAMP_X, LAMP_Y = 424, 62
+STACK_X, STACK_Y = 330, 68
+LAMP_X, LAMP_Y = 422, 62
 SRV_X, SRV_Y = 452, 80
 CRT_X, CRT_Y = 104, 10
 GLASS_X, GLASS_Y, GLASS_W, GLASS_H = CRT_X + 26, CRT_Y + 12, 228, 152
@@ -72,9 +72,13 @@ RAMPS = [
     ("cup_0", "cup_1"), ("cup_1", "cup_2"),
 ]
 
-STACK_XS = [375, 400, 425]
-STACK_YS = [98, 120]
-STACK_W, STACK_H = 22, 18
+# the cluster: (x, y, w, h) in canvas px, mirrored from MenuLayout.StackCells
+STACK_CELLS = [
+    (331, 92, 32, 26), (360, 90, 34, 28), (391, 93, 30, 25),
+    (336, 68, 30, 24), (363, 69, 32, 23), (392, 68, 34, 26),
+]
+STACK_TUBE = 3
+STACK_TABLE_TOP = STACK_Y + 60      # the slab under the tubes, in canvas px
 
 
 def kit(rel):
@@ -182,6 +186,75 @@ def dust_hash(x, y):
     return h ^ (h >> 16)
 
 
+# the glow layer, mirrored from MenuLayout.GlowSprites / GlowPos. It runs AFTER the vignette, exactly as
+# MenuView.Glow() does, and it only ever adds light.
+BAYER_MENU = ((0, 8, 2, 10), (12, 4, 14, 6), (3, 11, 1, 9), (15, 7, 13, 5))
+GLOW_POS = [('menu/glow', 0, 0)]
+
+
+def glow(img):
+    """
+    MenuView.Glow(): three pre-dithered halo sprites whose COLOUR IS A STRENGTH. Cold ramp 0-4, warm 5-9;
+    the top of each is the bloom's core and is painted as-is, everything else walks the surface under it up
+    its own material ramp by that many steps. A glow can therefore brighten a wall or a desk, and it can
+    never paint cyan onto them.
+    """
+    from menu_palette import PALETTE
+    up = {}
+    for low, high in MenuLayoutRamps():
+        up.setdefault(PALETTE[low], PALETTE[high])
+    ramp = ['teal_2', 'cyan_0', 'cyan_1', 'cyan_2',
+            'amber_1', 'amber_2', 'amber_3', 'amber_4']
+    strength = {}
+    for i, key in enumerate(ramp):
+        strength.setdefault(PALETTE[key], i % 5)
+    hot = 4        # nothing cold reaches it now; the warm ramp's top band is strength 3
+    out = img.load()
+    for rel, ox, oy in GLOW_POS:
+        g = kit(rel)
+        gp = g.load()
+        for y in range(g.height):
+            dy = oy + y
+            if not (0 <= dy < H):
+                continue
+            for x in range(g.width):
+                c = gp[x, y]
+                if c[3] == 0:
+                    continue
+                dx = ox + x
+                if not (0 <= dx < W):
+                    continue
+                if CRT_X <= dx < CRT_X + 260 and CRT_Y <= dy < CRT_Y + 186:
+                    continue                      # never wash the tube
+                s_ = strength.get(c[:3])
+                if not s_:
+                    continue
+                now = out[dx, dy][:3]
+                if s_ >= hot:
+                    out[dx, dy] = c
+                    continue
+                left = s_
+                for _ in range(s_):
+                    nxt = up.get(now)
+                    if nxt is None:
+                        break
+                    now = nxt
+                    left -= 1
+                if left > 0 and BAYER_MENU[dy & 3][dx & 3] < left * 5:
+                    now = c[:3]
+                out[dx, dy] = now + (255,)
+
+
+def MenuLayoutRamps():
+    """The ramp table, read from MenuLayout.cs so the twin and the game cannot drift apart."""
+    import re
+    src = open(os.path.join(ROOT, 'unity', 'Assets', 'Scripts', 'Core', 'Rules', 'MenuLayout.cs'),
+               encoding='utf-8').read()
+    body = src[src.index('Ramps ='):]
+    body = body[:body.index('};')]
+    return re.findall(r"\{\s*\"([a-z_0-9]+)\"\s*,\s*\"([a-z_0-9]+)\"\s*\}", body)
+
+
 def dust(img, clock=1.7):
     """
     MenuView.Dust(): motes that FALL. Deterministic in `clock`, so the still is the frame the game would
@@ -259,26 +332,40 @@ READOUTS = [
 
 def stack_screens(img, clock=2.4, breach=-1):
     """
-    MenuView.StackScreens(): each of the six tubes cycles a cybersecurity readout on its own beat, and one
-    of them can flood red for the breach. Drawn bright: they are emitters, so the light pass never lifts
-    them and they are the only other light in the room.
+    MenuView.StackScreens(), mirrored: the tube of EVERY cell is painted inside its own case, so the readout
+    follows the art instead of sitting on a fixed 3x2 grid (that grid is what made the cluster look like grey
+    stickers in v118). Cyan beam, brighter along the top of the tube, falling into teal at the bottom.
     """
     pal = PALETTE
     out = img.load()
-    for i in range(3):
-        for r in range(2):
-            n = i + r * 3
-            sx, sy = STACK_XS[i] + 2, STACK_YS[r] + 2
-            sw, sh = STACK_W - 4, STACK_H - 4
-            breached = n == breach
-            bg = pal['red_2'] if breached else pal['scr_1']
-            fg = pal['white'] if breached else pal['teal_3']
-            for yy in range(sy, sy + sh):
-                for xx in range(sx, sx + sw):
-                    out[xx, yy] = bg + (255,)
-            one, two = READOUTS[n % len(READOUTS)]
-            _mark(out, sx + 2, sy + 3, min(len(one), sw - 4), fg)
-            _mark(out, sx + 2, sy + 9, min(len(two), sw - 4), fg if not breached else pal['red_0'])
+    bezel, chin = 4, 6
+    for n, (cx, cy, cw, ch) in enumerate(STACK_CELLS):
+        sx, sy = cx + bezel, cy + bezel
+        sw, sh = cw - bezel * 2, ch - bezel - chin
+        if sw <= 0 or sh <= 0:
+            continue
+        breached = n == breach
+        glass = pal['red_2'] if breached else pal['teal_1']
+        beam = pal['white'] if breached else pal['cyan_2']
+        for yy in range(sy, sy + sh):
+            for xx in range(sx, sx + sw):
+                if not (0 <= xx < W and 0 <= yy < H):
+                    continue
+                t = yy - sy
+                c = glass
+                if t == 0:
+                    c = beam
+                elif t == 1 and (xx + yy) % 3 != 0:
+                    c = pal['cyan_1']
+                elif t >= sh - 2:
+                    c = pal['teal_0']
+                out[xx, yy] = c + (255,)
+        one, two = READOUTS[n % len(READOUTS)]
+        for line, text in enumerate((one, two)):
+            ly = sy + 2 + line * 3
+            if ly >= sy + sh - 1:
+                break
+            _mark(out, sx + 1, ly, min(len(text), sw - 2), beam)
 
 
 def _mark(out, x0, y, cells, colour):
@@ -287,8 +374,6 @@ def _mark(out, x0, y, cells, colour):
         x = x0 + i
         if 0 <= x < W and 0 <= y < H:
             out[x, y] = colour + (255,)
-        if 0 <= x < W and 0 <= y + 1 < H and i % 3 != 2:
-            out[x, y + 1] = colour + (255,)
 
 
 def paint_menu(img, rows, clock=2.4):
@@ -380,13 +465,30 @@ def geometry():
             problems.append('%s spills off the frame (%d,%d %dx%d)' % (name, x, y, w, h))
     # the backdrop pieces must not overlap. The desk is in FRONT, and the lamp's shade deliberately
     # hangs over the wall behind the server, so those two are excluded.
-    back = ['window', 'stack', 'crt', 'server']
+    # v119: the stack and the desk overlap ON PURPOSE -- the stack sprite now carries a table whose legs
+    # stand on the floor, and the desk is the front plane that the table stands behind. What must hold is
+    # that the cluster's TABLE TOP is in front of the monitor and clear of the glass.
+    back = ['window', 'crt', 'server']
     for i, a in enumerate(back):
         ax, ay, aw, ah = boxes[a]
         for b in back[i + 1:]:
             bx, by, bw, bh = boxes[b]
             if ax < bx + bw and bx < ax + aw and ay < by + bh and by < ay + ah:
                 problems.append('%s overlaps %s' % (a, b))
+    stx, sty, stw, sth = boxes['stack']
+    # the table stands BEHIND the monitor, so its slab must pass behind the glass, not across it
+    if STACK_TABLE_TOP >= GLASS_Y + GLASS_H:
+        problems.append('the cluster\'s table is level with the bottom of the glass, so it floats')
+    # the stack sprite may start west of the monitor's right edge -- it is behind it -- but enough of it
+    # must survive the monitor to read as a table: at least 50 px between the monitor and the server.
+    visible = (stx + stw) - (CRT_X + 260)
+    if visible < 50:
+        problems.append('only %d px of the table clears the monitor' % visible)
+    if sty + sth > DESK_Y + 6:
+        problems.append('the table\'s legs run past the desk\'s far edge into the front plane')
+    if sty + sth < DESK_Y - 2:
+        problems.append('the table stops in mid-air %d px above the floor plane'
+                        % (DESK_Y - (sty + sth)))
     if DESK_TOP > CRT_Y + 186:
         problems.append('the monitor floats above the desk')
     if DESK_TOP > 196:
@@ -439,13 +541,14 @@ def main():
     glass_material(img)
     light(img)
     vignette(img)
+    glow(img)          # the glow layer: after the vignette, and it only adds
     dust(img)
     stack_screens(img)
     paint_menu(img, labels())
     base = os.path.join(ROOT, 'art', 'kit', 'reference')
-    img.convert('RGB').save(os.path.join(base, 'menu_v118_1x.png'))
-    img.convert('RGB').resize((W * 3, H * 3), Image.NEAREST).save(os.path.join(base, 'menu_v118_3x.png'))
-    print('wrote art/kit/reference/menu_v118_{1x,3x}.png')
+    img.convert('RGB').save(os.path.join(base, 'menu_v119_1x.png'))
+    img.convert('RGB').resize((W * 3, H * 3), Image.NEAREST).save(os.path.join(base, 'menu_v119_3x.png'))
+    print('wrote art/kit/reference/menu_v119_{1x,3x}.png')
     return 0
 
 

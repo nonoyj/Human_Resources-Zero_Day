@@ -37,8 +37,15 @@ namespace HRZeroDay.Core.Rules
 
         // ---- the room's furniture, in draw order (back to front)
         public const int WindowX = 8, WindowY = 10;        // menu/window.png        88x122
-        public const int StackX = 372, StackY = 96;        // menu/monitor_stack.png 76x66, on a wall rail
-        public const int LampX = 424, LampY = 62;          // menu/lamp.png          56x124 -- the warm key
+        // v119: the cluster is BIGGER and it stands on a TABLE WITH LEGS. The sprite now carries the table
+        // top AND its legs, down to the floor plane behind the desk (StackFootY), so the whole thing is
+        // attached to the ground instead of hanging on the wall -- that was the player's "the table floats
+        // together with the monitor". It also had to move LEFT: a 116 px wide sprite at 372 would have run
+        // into the server.
+        public const int StackX = 330, StackY = 68;        // menu/monitor_stack.png 116x128, table on the floor
+        public const int LampX = 422, LampY = 62;          // menu/lamp.png          56x132 -- the warm key
+                                                           // 422, not 424: the pole is at sprite
+                                                           // x+27 and the server starts at 452
         public const int ServerX = 452, ServerY = 80;      // menu/server.png        26x112, three-quarter view
 
         // ---- the monitor the menu lives in: menu/crt.png 260x186, glass 228x152 at (26,12)
@@ -63,9 +70,73 @@ namespace HRZeroDay.Core.Rules
         // ---- sprite sizes, mirrored from tools/art/make_menu_room.py. The tests read these.
         public const int CrtW = 260, CrtH = 186;
         public const int WindowW = 88, WindowH = 160;
-        public const int StackW = 76, StackH = 66;
+        public const int StackW = 116, StackH = 88;
+
+        /// <summary>
+        /// The six tubes of the cluster, in canvas px: (x, y, w, h). They are NOT a grid -- the top row is
+        /// 30/32/30 wide, the bottom row 28/30/34, the rows interlock by 2-3 px and the whole block sags to
+        /// the right, because that is what "disarranged while sticking to each other" looks like. The art
+        /// (make_menu_room.py) and MenuView both index this table, so a click on a screen and the screen
+        /// that lights up can never disagree.
+        /// </summary>
+        /// <summary>
+        /// The GLOW LAYER (v119). Each entry is a sprite and where it sits on the canvas. These are blitted
+        /// AFTER the light pass and AFTER the vignette: a halo must not be darkened by the corner it is
+        /// glowing through, and keeping the layer separate is what lets one source be tuned alone. Every
+        /// glow sprite is transparent everywhere it does not emit, so the blit is a straight overlay.
+        /// </summary>
+        public static readonly string[] GlowSprites =
+        {
+            // ONE sprite, the size of the canvas: it is a distance-transform band map over the room's real
+            // emitters (the glazing, the lit tubes, the lamp's mouth), so it hugs whatever shapes the art
+            // gives it. Splitting it per-object would mean three overlapping band maps fighting at their
+            // intersections; one map has one answer everywhere.
+            "menu/glow",
+        };
+
+        /// <summary>The canvas position of each GlowSprites entry.</summary>
+        public static readonly int[][] GlowPos =
+        {
+            new[] { 0, 0 },        // 480x270
+        };
+
+        /// <summary>
+        /// How much light a halo pixel carries, WEAKEST FIRST. A glow sprite's colour is not a colour to
+        /// paint with, it is a STRENGTH: the index in this ramp says how many steps to lift the surface
+        /// under it (0 lifts nothing, 4 is the hot core and is painted as-is). This is why the glow layer
+        /// can never put a cyan blob on the wall -- it can only walk a material up its own ramp.
+        /// </summary>
+        public static readonly string[] GlowRamp =
+        {
+            "teal_2", "cyan_0", "cyan_1", "cyan_2",                          // 0-3, cold
+            "amber_1", "amber_2", "amber_3", "amber_4",                      // 4-7, warm
+        };
+
+        /// <summary>The index of a glow colour in GlowRamp, or -1 when the pixel is not part of the ramp.</summary>
+        public static int GlowStrength(string paletteKey)
+        {
+            for (int i = 0; i < GlowRamp.Length; i++) if (GlowRamp[i] == paletteKey) return i;
+            return -1;
+        }
+
+        public const int GlowHotLen = 4;      // the length of each half of GlowRamp
+        public const int GlowTintDiv = 6;     // leftover strength -> dithered tint: 1/8 of the pixels per step
+
+        public static readonly int[][] StackCells = new int[][]
+        {
+            new[] { 331, 92, 32, 26 }, new[] { 360, 90, 34, 28 }, new[] { 391, 93, 30, 25 },
+            new[] { 336, 68, 30, 24 }, new[] { 363, 69, 32, 23 }, new[] { 392, 68, 34, 26 },
+        };
+
+        public const int StackTableTop = 120;              // y of the table's slab (its front edge), canvas px
+        public const int StackFootY = 152;                 // the feet meet the floor plane here, behind the desk
+                                                           // slab: the desk is drawn after the stack, so it
+                                                           // interrupts the legs exactly at its far edge
         public const int ServerW = 26, ServerH = 112;
         public const int LampW = 56, LampH = 132;
+        public const int LampPoleX = LampX + 27, LampPoleW = 2;    // see MenuTests: the POLE must clear the
+                                                                   // server; the shade's overhang is deliberate
+                                                                   // and hangs over the wall behind it
         public const int FloorY = 196;
 
         // ---- type inside the glass: 2x title with TIGHT tracking, 2x ZERO DAY close under it, 1x rows
@@ -129,8 +200,12 @@ namespace HRZeroDay.Core.Rules
         {
             { "wall_0", "wall_1" },
             { "wall_1", "wall_2" },
+            // v119: the LIT steps. The wall and the floor needed one more entry each or the glow had no
+            // value left to lift into -- see menu_palette.py's v119 note.
+            { "wall_2", "wall_3" },
             { "floor_0", "floor_1" },
             { "floor_1", "floor_2" },
+            { "floor_2", "floor_3" },
             { "wood_0", "wood_1" },
             { "wood_1", "wood_2" },
             { "wood_2", "wood_3" },
@@ -180,6 +255,13 @@ namespace HRZeroDay.Core.Rules
         public static LightSource LampLight()
         {
             return new LightSource(LampX + 28, LampY + 70, 108, 122, 1.45, 1);
+        }
+
+        /// <summary>True when this light IS the lamp's -- so the front door can switch it off.</summary>
+        public static bool IsLampLight(LightSource l)
+        {
+            var lamp = LampLight();
+            return l.X == lamp.X && l.Y == lamp.Y && l.Strength == lamp.Strength;
         }
 
         public static LightSource[] Lights()
@@ -237,9 +319,13 @@ namespace HRZeroDay.Core.Rules
         /// blink together; one of them is the BREACH screen, which floods red at random and is the only
         /// place the AI's colour appears in the room.
         /// </summary>
-        public static readonly int[] StackScreenX = { 375, 400, 425 };
-        public static readonly int[] StackScreenY = { 98, 120 };
-        public const int StackScreenW = 22, StackScreenH = 18;
+        /// <summary>
+        /// v119: the tubes are painted INSIDE their own case now, so they are no longer a grid. The old
+        /// (StackScreenX/Y/W/H) grid is what made the cluster read as one wall of grey rectangles in v118:
+        /// the paint code drew an identical box in the same six places no matter how the art was arranged.
+        /// </summary>
+        public const int StackBezel = 4;                  // case thickness around the tube
+        public const int StackChin = 6;                   // ...and the moulding under it, where the badge lives
 
         /// <summary>The cybersecurity readouts the screens cycle through. Two lines, 5x7, upper case.</summary>
         public static readonly string[][] StackReadouts =
@@ -266,6 +352,51 @@ namespace HRZeroDay.Core.Rules
         {
             public int X, Y, W, H;
             public string Fill, TextInk;
+        }
+
+        /// <summary>
+        /// HIT TESTING (v119). Every rectangle the pointer can land on is derived here, from the same
+        /// numbers the art and the text are drawn from, so a hover highlight can never sit somewhere the
+        /// pointer is not. Row 0's pill starts at PillTop and each row is PillStep tall; the tube's rows
+        /// extend 2 px past the pill on every side so a near-miss still counts -- a 13 px target is small
+        /// enough without asking the player to be pixel-perfect.
+        /// </summary>
+        public static int RowAt(int x, int y, int count)
+        {
+            if (count <= 0) return -1;
+            if (x < PillX - 2 || x >= PillX + PillW + 2) return -1;
+            // Rows are contiguous (PillStep == PillH), so the bands TILE exactly: y / PillStep is the row.
+            // The first version gave each row 2 px of slop on both sides, which made neighbouring bands
+            // overlap and made the bottom two pixels of every row resolve to the row ABOVE it -- found by
+            // the pointer test, which is exactly what it is for.
+            int top = PillTop, bottom = PillTop + count * PillStep;
+            if (y < top - 2 || y >= bottom + 2) return -1;
+            int i = (y - top) / PillStep;
+            return i < 0 ? 0 : (i >= count ? count - 1 : i);
+        }
+
+        /// <summary>Which tube of the monitor cluster the pointer is over, or -1. Uses StackCells.</summary>
+        public static int StackCellAt(int x, int y)
+        {
+            for (int i = 0; i < StackCells.Length; i++)
+            {
+                int[] c = StackCells[i];
+                if (x >= c[0] && x < c[0] + c[2] && y >= c[1] && y < c[1] + c[3]) return i;
+            }
+            return -1;
+        }
+
+        /// <summary>The lamp's chimney and shade: clicking it toggles the room light.</summary>
+        public static bool InLamp(int x, int y)
+        {
+            return x >= LampX + 10 && x < LampX + 46 && y >= LampY + 20 && y < LampY + 112;
+        }
+
+        /// <summary>The keyboard on the desk: the first hint that the desk is a surface, not a backdrop.</summary>
+        public static bool InKeyboard(int x, int y)
+        {
+            // desk.png draws it at (300, desky+26+10) = (300, 186), 84x20 -- see make_menu_room.py
+            return x >= 300 && x < 384 && y >= 186 && y < 206;
         }
 
         public static Pill Row(int index, string fill, string ink)

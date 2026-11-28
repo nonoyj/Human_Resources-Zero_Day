@@ -121,7 +121,18 @@ namespace UnityEngine
         public bool Contains(Vector2 p) { return p.x >= x && p.x <= x + width && p.y >= y && p.y <= y + height; }
         public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; }
     }
-    public struct Color32 { public byte r, g, b, a; public Color32(byte r, byte g, byte b, byte a) { this.r = r; this.g = g; this.b = b; this.a = a; } }
+    public struct Color32
+    {
+        public byte r, g, b, a;
+        public Color32(byte r, byte g, byte b, byte a) { this.r = r; this.g = g; this.b = b; this.a = a; }
+        // Unity's Color32 IS comparable: it implements IEquatable and == / !=. The stub did not, so any
+        // `if (a == b)` on a colour compiled here and would have failed in the player's editor.
+        public static bool operator ==(Color32 x, Color32 y) { return x.r == y.r && x.g == y.g && x.b == y.b && x.a == y.a; }
+        public static bool operator !=(Color32 x, Color32 y) { return !(x == y); }
+        public override bool Equals(object o) { return o is Color32 && this == (Color32)o; }
+        public override int GetHashCode() { return r | (g << 8) | (b << 16) | (a << 24); }
+        public override string ToString() { return "RGBA(" + r + ", " + g + ", " + b + ", " + a + ")"; }
+    }
     public struct Color
     {
         public float r, g, b, a;
@@ -132,6 +143,20 @@ namespace UnityEngine
         public static Color clear { get { return new Color(0f, 0f, 0f, 0f); } }
         public static implicit operator Color(Color32 c) { return new Color(c.r / 255f, c.g / 255f, c.b / 255f, c.a / 255f); }
     }
+    /// <summary>
+    /// UnityEngine.Random (the static class). The headless gate needs it because the front door picks a
+    /// random screen to breach and a random gap between breaches. Deterministic in the stub so a gate run
+    /// is reproducible; Unity's own is used in the game.
+    /// </summary>
+    public static class Random
+    {
+        private static uint _seed = 0x9E3779B9u;
+        public static void InitState(int seed) { _seed = (uint)seed | 1u; }
+        public static float value { get { _seed = _seed * 1664525u + 1013904223u; return (_seed >> 8) / 16777216f; } }
+        public static float Range(float min, float max) { return min + (max - min) * value; }
+        public static int Range(int min, int max) { return max <= min ? min : min + (int)(value * (max - min)); }
+    }
+
     public enum FilterMode { Point, Bilinear, Trilinear }
     public enum TextureWrapMode { Repeat, Clamp, Mirror, MirrorOnce }
     public enum TextureImporterType { Default, Sprite, NormalMap }
@@ -145,6 +170,7 @@ namespace UnityEngine
     {
         public int width, height;
         public FilterMode filterMode;
+        public TextureWrapMode wrapMode;      // real Unity: Texture.wrapMode, settable on a Texture2D
         public Texture2D() { }
         public Texture2D(int w, int h, TextureFormat f, bool mips) { width = w; height = h; }
         public Color32[] GetPixels32() { return new Color32[width * height]; }
@@ -166,7 +192,12 @@ namespace UnityEngine
         public static Sprite Create(Texture2D tex, Rect r, Vector2 pivot, float ppu)
         { return new Sprite { texture = tex, rect = r }; }
     }
-    public class TextAsset : Object { public string text; }
+    public class TextAsset : Object
+    {
+        public string text;
+        public TextAsset() { }
+        public TextAsset(string t) { text = t; }
+    }
     public class Camera : Behaviour
     {
         public bool orthographic; public float orthographicSize; public CameraClearFlags clearFlags;
@@ -249,7 +280,23 @@ namespace UnityEngine
     public class BoxCollider2D : Collider2D { public Vector2 size; }
     public class Resources
     {
-        public static T Load<T>(string path) where T : Object { return null; }
+        // The test run reads the REAL shipped Resources folder: a palette that is stale, or an art file that
+        // was never published, must fail the suite rather than silently hand back null. Only TextAsset is
+        // served (that is all the rules tests need); textures stay null, as Unity would give for a missing
+        // asset, because a headless test cannot decode one.
+        public static readonly string Root = System.IO.Path.Combine("unity", "Assets", "Resources");
+
+        public static T Load<T>(string path) where T : Object
+        {
+            if (typeof(T) == typeof(TextAsset))
+            {
+                var file = System.IO.Path.Combine(Root, path.Replace('/', System.IO.Path.DirectorySeparatorChar) + ".json");
+                if (!System.IO.File.Exists(file)) return null;
+                var ta = new TextAsset(System.IO.File.ReadAllText(file));
+                return (T)(object)ta;
+            }
+            return null;
+        }
         public static T[] LoadAll<T>(string path) where T : Object { return null; }
         public static T GetBuiltinResource<T>(string path) where T : Object { return null; }
     }
@@ -299,11 +346,141 @@ namespace UnityEngine
     public enum KeyCode { None, Escape, Space, Return }
 
     public static class Time { public static float unscaledDeltaTime; public static float deltaTime; }
+    /// <summary>
+    /// UnityEngine.JsonUtility. The stub USED TO return default(T), which quietly made every headless test
+    /// that read shipped JSON pass on an empty dictionary -- the v119 palette test failed to notice that the
+    /// published palette.json was missing two colours, because this returned null. It now parses for real:
+    /// objects, arrays and primitives into public fields (and List&lt;T&gt; fields), which is the subset of
+    /// Unity's behaviour this project actually relies on.
+    /// </summary>
     public static class JsonUtility
     {
-        public static T FromJson<T>(string json) { return default(T); }
+        public static T FromJson<T>(string json)
+        {
+            var v = MiniJson.Parse(json);
+            return (T)Convert(v, typeof(T));
+        }
+
         public static string ToJson(object o) { return "{}"; }
         public static string ToJson(object o, bool pretty) { return "{}"; }
+
+        private static object Convert(object v, Type t)
+        {
+            if (v == null) return t.IsValueType ? Activator.CreateInstance(t) : null;
+            if (t == typeof(string)) return v as string;
+            if (t.IsPrimitive) return System.Convert.ChangeType(v, t);
+            if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>))
+            {
+                var list = (System.Collections.IList)Activator.CreateInstance(t);
+                var itemType = t.GetGenericArguments()[0];
+                if (v is List<object> items)
+                    foreach (var it in items) list.Add(Convert(it, itemType));
+                return list;
+            }
+            if (t.IsArray)
+            {
+                var elem = t.GetElementType();
+                var src = v as List<object> ?? new List<object>();
+                var arr = Array.CreateInstance(elem, src.Count);
+                for (int i = 0; i < src.Count; i++) arr.SetValue(Convert(src[i], elem), i);
+                return arr;
+            }
+            var obj = Activator.CreateInstance(t);
+            if (v is Dictionary<string, object> map)
+            {
+                foreach (var kv in map)
+                {
+                    var f = t.GetField(kv.Key, System.Reflection.BindingFlags.Public |
+                                               System.Reflection.BindingFlags.Instance);
+                    if (f != null) f.SetValue(obj, Convert(kv.Value, f.FieldType));
+                }
+            }
+            return obj;
+        }
+    }
+
+    /// <summary>A small, strict JSON reader. Enough for the shipped content; not a general parser.</summary>
+    public static class MiniJson
+    {
+        public static object Parse(string text)
+        {
+            int i = 0;
+            var v = ParseValue(text, ref i);
+            return v;
+        }
+
+        private static object ParseValue(string s, ref int i)
+        {
+            Skip(s, ref i);
+            if (i >= s.Length) return null;
+            char c = s[i];
+            if (c == '{')
+            {
+                i++;
+                var map = new Dictionary<string, object>();
+                Skip(s, ref i);
+                if (i < s.Length && s[i] == '}') { i++; return map; }
+                while (i < s.Length)
+                {
+                    Skip(s, ref i);
+                    string key = ParseString(s, ref i);
+                    Skip(s, ref i);
+                    if (i < s.Length && s[i] == ':') i++;
+                    map[key] = ParseValue(s, ref i);
+                    Skip(s, ref i);
+                    if (i < s.Length && s[i] == ',') { i++; continue; }
+                    if (i < s.Length && s[i] == '}') { i++; break; }
+                    break;
+                }
+                return map;
+            }
+            if (c == '[')
+            {
+                i++;
+                var list = new List<object>();
+                Skip(s, ref i);
+                if (i < s.Length && s[i] == ']') { i++; return list; }
+                while (i < s.Length)
+                {
+                    list.Add(ParseValue(s, ref i));
+                    Skip(s, ref i);
+                    if (i < s.Length && s[i] == ',') { i++; continue; }
+                    if (i < s.Length && s[i] == ']') { i++; break; }
+                    break;
+                }
+                return list;
+            }
+            if (c == '"') return ParseString(s, ref i);
+            if (c == 't' && i + 4 <= s.Length) { i += 4; return true; }
+            if (c == 'f' && i + 5 <= s.Length) { i += 5; return false; }
+            if (c == 'n' && i + 4 <= s.Length) { i += 4; return null; }
+            int start = i;
+            while (i < s.Length && (char.IsDigit(s[i]) || s[i] == '-' || s[i] == '+' || s[i] == '.' ||
+                                    s[i] == 'e' || s[i] == 'E')) i++;
+            var num = s.Substring(start, i - start);
+            if (num.IndexOf('.') >= 0 || num.IndexOf('e') >= 0 || num.IndexOf('E') >= 0)
+                return double.Parse(num, System.Globalization.CultureInfo.InvariantCulture);
+            return long.Parse(num, System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        private static string ParseString(string s, ref int i)
+        {
+            var sb = new System.Text.StringBuilder();
+            if (i < s.Length && s[i] == '"') i++;
+            while (i < s.Length && s[i] != '"')
+            {
+                if (s[i] == '\\' && i + 1 < s.Length) { i++; sb.Append(s[i]); }
+                else sb.Append(s[i]);
+                i++;
+            }
+            if (i < s.Length) i++;
+            return sb.ToString();
+        }
+
+        private static void Skip(string s, ref int i)
+        {
+            while (i < s.Length && char.IsWhiteSpace(s[i])) i++;
+        }
     }
     // SaveSystem writes to Application.persistentDataPath. Unity provides it; the stub points at a
     // temp dir so the headless runner can exercise the save path if a test ever needs the real file.

@@ -1477,3 +1477,57 @@ keys are added, and every legacy key (`void`, `panel`, `text`, `signal`, `danger
 HUD, the letter and the sweep read is preserved. A writer that replaced the file would blank the HUD and fail
 the art gate simultaneously. `Test-ArtPipeline.ps1` now runs the writer before the palette gate, so a stale
 `palette.json` fails the build instead of quietly tinting the game wrong.
+
+## BUG-075 -- v118 shipped without compiling, and the stale slices were a pipeline hole (2026-11-29)
+
+**Reported:** `MenuView.cs(311,35): error CS0266: Cannot implicitly convert type 'double' to 'float'`, plus
+`monitor_stack_0 not generated because the rect lies (partially) outside of texture` (and `window_0`).
+
+**Cause, part one.** `(hash & 0xFFFF) / 65535.0 * StackCycle` is a `double`; the field is a `float`. One cast.
+It survived a whole round because **there was no C# compiler in the build box**: the art gates and the Python
+twin renderer cannot see a type error. A build error outranks every art concern, and a round that changes C#
+without a `dotnet build` is not verified.
+
+**Cause, part two.** The runtime mirror (`Assets/Resources/Art/Kit`) had correct metas; the SOURCE folder
+(`Assets/Art/Kit`) had none committed at all. The player's editor had imported those PNGs once, written its own
+metas with slices, and kept them when v118 resized `monitor_stack.png` 112x96 -> 76x66 and `window.png`
+104x132 -> 88x160. Unity then tried to build the old rects on the new texture. Nothing in this repository ships
+a sliced menu sprite, so **a meta that declares slices is stale by definition**.
+
+**Fix.**
+- `dotnet` 8.0.428 installed at `/home/user/.dotnet`; `CompileCheck` is now part of the five gates and the zip
+  does not build unless it prints `Build succeeded.`
+- `write_unity_metas.py` writes a meta for every published PNG **in the source folder too**, and REPAIRS any
+  meta that declares slices / is not Single / is not a Sprite / is not readable, keeping the guid.
+  `--check` fails on both faults. 154 source metas written this round.
+- The CoreTests suite was run for the first time and found four more real defects (BUG-076, BUG-077).
+
+## BUG-076 -- two rule tests could never pass, and nobody knew (2026-11-29)
+
+**Found by:** `dotnet run --project tools/CoreTests`, first execution in the project's history.
+
+- `"the lamp runs into the server"` compared the lamp's FULL sprite width to the server, ignoring that the
+  shade deliberately overhangs the wall behind it. It now measures the **pole** (the thing that carries the
+  light) and leaves the overhang alone.
+- `"the desk does not meet the wall at the floor line"` compared the desk's **far edge** to `FloorY` (196).
+  A desk in front of a wall has its *front panel* on the floor, so the assertion was wrong, not the art. It now
+  asserts the desk **spans** the floor line.
+- `"the warm practical and the cold key are not on opposite sides of the eye line"` asserted `lamp.X > 480` --
+  a light that is only "on the right" if it is off the canvas. It compares to the frame's axis now.
+
+**Lesson.** Three assertions that were never true, in a suite that had never run. They are worth keeping
+because each one encodes a real composition rule; they had to be *corrected*, not deleted.
+
+## BUG-077 -- the headless JsonUtility returned default, so every JSON test was blind (2026-11-29)
+
+**Found while** writing the v119 glow-ramp test, which failed with *"the glow ramp names a colour the palette
+does not have: teal_2"* against a `palette.json` that plainly contained `teal_2`.
+
+**Cause.** `tools/UnityStubs/UnityStubs.cs` had `JsonUtility.FromJson<T>(string) => default(T)`, and
+`Resources.Load<T>` always returned `null`. Every headless test that read shipped content was therefore
+asserting against an empty dictionary and passing.
+
+**Fix.** The stub parses real JSON (objects, arrays, primitives into public fields and `List<T>`), and
+`Resources.Load<TextAsset>` reads the actual `unity/Assets/Resources` folder. With that in place the glow test
+immediately found a genuinely stale `palette.json` (71 colours, missing both v119 lit steps) -- see BUG-074's
+lesson, which it turns out was applied to the writer but not to the published file.

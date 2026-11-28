@@ -8,6 +8,8 @@
 using System;
 using System.Collections.Generic;
 using HRZeroDay.Core.Rules;
+using HRZeroDay.Game;
+using UnityEngine;
 
 namespace HRZeroDay.Tests
 {
@@ -28,6 +30,8 @@ namespace HRZeroDay.Tests
             yield return CheckTheRoomHasEveryPieceFromTheBrief();
             yield return CheckEveryLineFitsTheTube();
             yield return CheckTheMaterialsAreRampsNotColours();
+            yield return CheckThePointerCanLandOnEveryRow();
+            yield return CheckTheGlowOnlyEverAddsLight();
             yield return CheckTheMenuStopsTheClock();
         }
 
@@ -314,21 +318,40 @@ namespace HRZeroDay.Tests
             // other, and the dark between them.
             True(MenuLayout.WindowX + MenuLayout.WindowW <= MenuLayout.CrtX,
                  "the window runs into the monitor");
-            True(MenuLayout.CrtX + MenuLayout.CrtW <= MenuLayout.StackX,
-                 "the monitor covers the wall screens");
+            // v119: the stack now stands BEHIND the monitor -- its table's west end is hidden by the case,
+            // which is the depth cue that makes it furniture in a room. What must hold is that enough of it
+            // survives the monitor to read as a table, and that the cluster's table is not level with the
+            // glass (a table at the glass's height would read as wallpaper).
+            True(MenuLayout.StackX + MenuLayout.StackW - (MenuLayout.CrtX + MenuLayout.CrtW) >= 50,
+                 "the monitor hides the whole table");
+            True(MenuLayout.StackTableTop < MenuLayout.GlassY + MenuLayout.GlassH,
+                 "the table is level with the bottom of the glass");
+            True(MenuLayout.StackFootY >= MenuLayout.DeskY - 2 && MenuLayout.StackFootY <= MenuLayout.DeskY + 6,
+                 "the table's feet do not meet the floor plane behind the desk");
+            True(MenuLayout.StackY + MenuLayout.StackH <= MenuLayout.DeskY + 8,
+                 "the table's legs run into the desk's front plane");
             // the lamp stands ON the desk in FRONT of the wall screens -- it is drawn after them, and it
             // is the warm practical the whole frame is balanced against. It must be right of the monitor
             // and left of the server, or the two temperatures stop being on opposite sides.
             True(MenuLayout.LampX > MenuLayout.CrtX + MenuLayout.CrtW,
                  "the lamp is not right of the monitor");
-            True(MenuLayout.LampX + MenuLayout.LampW <= MenuLayout.ServerX + 8,
-                 "the lamp runs into the server");
+            // v119: the test used to compare the lamp's FULL sprite width, which includes the shade's
+            // overhang -- and that overhang is on purpose (the shade hangs over the wall behind the server,
+            // and the lamp is drawn last so it reads as in front). What must not happen is the POLE, the
+            // thing that carries the light, colliding with the cabinet.
+            True(MenuLayout.LampPoleX + MenuLayout.LampPoleW <= MenuLayout.ServerX,
+                 "the lamp's pole runs into the server");
             True(MenuLayout.LampY + MenuLayout.LampH >= MenuLayout.DeskTopY,
                  "the lamp does not stand on the desk");
 
             // the desk meets the wall where the floor starts, and the monitor stands on it
-            True(MenuLayout.DeskTopY >= MenuLayout.FloorY - 4 && MenuLayout.DeskTopY <= MenuLayout.FloorY + 6,
-                 "the desk does not meet the wall at the floor line");
+            // The desk's slab is at y 176 and the floor line at y 196, so the line crosses the desk's FRONT
+            // PANEL -- which is what a desk in front of a wall looks like. The v118 assertion compared the
+            // slab's far edge to the floor line and would have failed if the suite had ever been run; it
+            // never was, because there was no compiler in the build box until v119. The requirement is that
+            // the desk SPANS the floor line: surface above it, front panel below it.
+            True(MenuLayout.DeskTopY <= MenuLayout.FloorY && MenuLayout.DeskEdgeY >= MenuLayout.FloorY,
+                 "the desk does not stand across the floor line");
             True(MenuLayout.CrtY + MenuLayout.CrtH >= MenuLayout.DeskTopY - 4 &&
                  MenuLayout.CrtY + MenuLayout.CrtH <= MenuLayout.DeskTopY + 30,
                  "the monitor does not sit on the desk");
@@ -351,10 +374,14 @@ namespace HRZeroDay.Tests
             foreach (var l in lights)
                 True(l.Strength >= 1 && l.Strength <= MenuLayout.MaxLift,
                      "a light adds " + l.Strength + " steps; ambient light may add one and no more");
+            // "Opposite sides of the eye line" means the frame's vertical axis: the window's cold key is on
+            // the left, the lamp's warm practical on the right, and the tube sits between them. The old
+            // assertion compared the lamp to the FRAME width (lamp.X > 480), which can only be true if the
+            // lamp is off the canvas -- it could never have passed, and nothing ran it.
             var lamp = MenuLayout.LampLight();
-            var monitor = MenuLayout.MonitorLight();
-            True(lamp.X > MenuLayout.W && monitor.X < MenuLayout.W,
-                 "the warm practical and the cold key are not on opposite sides of the eye line");
+            var window = MenuLayout.WindowLight();
+            True(window.X < MenuLayout.W / 2 && lamp.X > MenuLayout.W / 2,
+                 "the warm practical and the cold key are not on opposite sides of the frame's axis");
             True(MenuLayout.FadeDrop > MenuLayout.FadeReach,
                  "the tube's light must reach further DOWN the desk than sideways");
             True(MenuLayout.CrtY + MenuLayout.CrtH + MenuLayout.FadeDrop > MenuLayout.DeskEdgeY,
@@ -461,6 +488,98 @@ namespace HRZeroDay.Tests
         /// asserted at its source rather than at the symptoms: while ShowingMenu or ShowingIntro is true,
         /// nothing may advance.
         /// </summary>
+        /// <summary>
+        /// v119: the menu is interactive, so every row must be reachable by POINTER as well as by key. The
+        /// hit test is the same table the pills are drawn from, and a near-miss of 2 px must still count --
+        /// a 13 px row is a small target on a phone. This check walks the centre of every row and the two
+        /// pixel band under it, and fails if any of them resolves to the wrong row or to none.
+        /// </summary>
+        private static string CheckThePointerCanLandOnEveryRow()
+        {
+            for (int screen = 0; screen < 3; screen++)
+            {
+                var items = screen == 0 ? MenuRules.Root(true, false)
+                          : screen == 1 ? MenuRules.Settings(false)
+                          : MenuRules.Consent(false, true);
+                for (int i = 0; i < items.Count; i++)
+                {
+                    int cx = MenuLayout.PillX + MenuLayout.PillW / 2;
+                    int cy = MenuLayout.PillTop + i * MenuLayout.PillStep + MenuLayout.PillH / 2;
+                    True(MenuLayout.RowAt(cx, cy, items.Count) == i,
+                         "the pointer does not land on row " + i + " of screen " + screen);
+                    // the row's own bottom pixel must belong to it, and so must its top one
+                    True(MenuLayout.RowAt(cx, MenuLayout.PillTop + i * MenuLayout.PillStep + MenuLayout.PillH - 1,
+                         items.Count) == i, "the last pixel of row " + i + " belongs to the row above it");
+                }
+                int mid = MenuLayout.PillX + MenuLayout.PillW / 2;
+                // 1 px above the first row and 1 px below the last still land on the block: the slop lives
+                // only at the OUTSIDE edges, never between two rows
+                True(MenuLayout.RowAt(mid, MenuLayout.PillTop - 1, items.Count) == 0,
+                     "a near-miss above the first row misses the block");
+                True(MenuLayout.RowAt(mid, MenuLayout.PillTop + items.Count * MenuLayout.PillStep, items.Count)
+                     == items.Count - 1, "a near-miss below the last row misses the block");
+                True(MenuLayout.RowAt(mid, MenuLayout.PillTop + items.Count * MenuLayout.PillStep + 4, items.Count) == -1,
+                     "the tube below the last row resolves to a row");
+            }
+            // the props: each hit box must be inside the canvas and over the thing it names
+            True(MenuLayout.StackCellAt(340, 100) >= 0, "the monitor cluster is not clickable");
+            True(MenuLayout.StackCellAt(MenuLayout.StackX - 4, 100) < 0, "the wall left of the cluster is clickable");
+            True(MenuLayout.InLamp(MenuLayout.LampX + 28, MenuLayout.LampY + 80), "the lamp is not clickable");
+            True(MenuLayout.InKeyboard(340, 196), "the keyboard is not clickable");
+            True(!MenuLayout.InLamp(MenuLayout.LampX + 28, MenuLayout.FloorY + 40), "the lamp's hit box reaches the floor");
+            return "PASS  every row and both interactive props answer the pointer, and the gaps between them do not";
+        }
+
+        /// <summary>
+        /// The glow layer may ONLY add light. It is built as a strength map over the palette's own ramps, and
+        /// the runtime walks each surface UP its own ramp -- so a glow pixel can never be a colour the surface
+        /// did not already belong to, except the emissive rim. This check is the arithmetic version of that
+        /// rule: for every strength in GlowRamp, the thing it lifts to must be a real palette step and the
+        /// ramp must be strictly increasing in value.
+        /// </summary>
+        private static string CheckTheGlowOnlyEverAddsLight()
+        {
+            var palette = MonitorScreenView.PaletteCached;
+            True(palette != null, "the palette did not load, so nothing can be checked about the light");
+            True(MenuLayout.GlowSprites.Length >= 1, "there is no glow layer at all");
+
+            double lastCold = -1, lastWarm = -1;
+            for (int i = 0; i < MenuLayout.GlowRamp.Length; i++)
+            {
+                Color32 c;
+                True(palette.TryGetValue(MenuLayout.GlowRamp[i], out c),
+                     "the glow ramp names a colour the palette does not have: " + MenuLayout.GlowRamp[i]);
+                double v = (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255.0;
+                if (i < MenuLayout.GlowHotLen)
+                {
+                    True(v >= lastCold, "the cold glow ramp is not increasing in value at step " + i);
+                    lastCold = v;
+                }
+                else
+                {
+                    True(v >= lastWarm, "the warm glow ramp is not increasing in value at step " + i);
+                    lastWarm = v;
+                }
+            }
+            // the warm ramp must actually be WARM, and the cold one cold: this is the two-temperature rule
+            Color32 cold0, warm0;
+            palette.TryGetValue(MenuLayout.GlowRamp[0], out cold0);
+            palette.TryGetValue(MenuLayout.GlowRamp[MenuLayout.GlowHotLen], out warm0);
+            True(cold0.b > cold0.r, "the cold glow is not cool");
+            True(warm0.r > warm0.b, "the warm glow is not warm");
+
+            // the ramp table must be able to lift the wall and the floor: the two surfaces every halo lands on
+            bool wallLit = false, floorLit = false;
+            for (int i = 0; i < MenuLayout.Ramps.GetLength(0); i++)
+            {
+                if (MenuLayout.Ramps[i, 0] == "wall_2") wallLit = true;
+                if (MenuLayout.Ramps[i, 0] == "floor_2") floorLit = true;
+            }
+            True(wallLit && floorLit,
+                 "the wall and the floor have no lit step, so the glow can only tint them (the v119 first attempt)");
+            return "PASS  the glow adds light up the palette's own ramps, cold on one side and warm on the other";
+        }
+
         private static string CheckTheMenuStopsTheClock()
         {
             // the tests run from the repo root (see ManifestBridgeTests), so this is a plain relative read

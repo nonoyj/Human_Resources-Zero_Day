@@ -21,7 +21,7 @@
     "stamps": 2,
     "desk": 13,
     "backgrounds": 3,
-    "menu": 7,
+    "menu": 8,
     "fx": 3,
     "fonts": 1,
     "sweep": 5
@@ -2264,6 +2264,25 @@
       }
     },
     {
+      "source": "art/kit/menu/glow.png",
+      "assetPath": "Assets/Art/Kit/menu/glow.png",
+      "width": 480,
+      "height": 270,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "menu",
+      "sha256_16": "2d3308eb490b6570",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
       "source": "art/kit/menu/lamp.png",
       "assetPath": "Assets/Art/Kit/menu/lamp.png",
       "width": 56,
@@ -2285,12 +2304,12 @@
     {
       "source": "art/kit/menu/monitor_stack.png",
       "assetPath": "Assets/Art/Kit/menu/monitor_stack.png",
-      "width": 76,
-      "height": 66,
+      "width": 116,
+      "height": 88,
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "menu",
-      "sha256_16": "6c2359ac63523872",
+      "sha256_16": "cfde72bba23028d4",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2551,6 +2570,7 @@
     "art/kit/reference/proposal_v117_palette.png",
     "art/kit/reference/proposal_v117_screens.png",
     "art/kit/reference/proposal_v117_ui.png",
+    "art/kit/reference/proposal_v118_screens.png",
     "art/kit/reference/screen_preview.png",
     "art/kit/reference/screen_preview_long.png",
     "art/kit/reference/sweep_composed_preview.png",

@@ -63,7 +63,7 @@ CRT_GLASS = (26, 12, 228, 152)      # x, y, w, h inside crt.png: the tube's pict
 
 # ---- window, table, server (their own sprite sizes) --------------------------------------------------
 WIN_W, WIN_H = 88, 160
-STACK_W, STACK_H = 76, 66
+STACK_W, STACK_H = 116, 88
 SRV_W, SRV_H = 26, 112
 LAMP_W, LAMP_H = 56, 132
 DESK_H = 120
@@ -297,71 +297,112 @@ def window():
 
 
 # ===================================================================================== monitor table
-def _screen(d, img, x, y, w, h, state='on'):
+def _screen(d, img, x, y, w, h, state='on', tilt=0):
     """
-    One of the table's monitors, in the same object language as the big one at a quarter the size:
-    a thin dark bezel, a tube that is BRIGHTER at the top than the bottom (a real tube's phosphor falls
-    off downward), a lit top edge, and a shadow under the case.
+    One CRT of the cluster. v119: the cases are 30-34 px wide with a chunky 4 px bezel and a tube that is
+    LIT, not grey -- at this size the tube is 3-4 pixels of colour and that colour is the whole read. The
+    previous version used scr_1 for the glass and it read as blank grey stickers; now the lit ones are
+    cyan and the dark ones are teal with a single sharp reflection.
     """
-    # the shadow it casts on the table, before the case is drawn
-    # case
+    y += 1 if tilt == 2 else 0
+    # the shadow the case drops on the table under it, and on the case below it
+    dither(img, x + 2, y + h, x + w, y + h + 2, 'void', 'steel_0', 0.4)
+    # the case: black outline, then the body, lit from the upper left
     box(d, x, y, x + w, y + h, 'void')
     box(d, x + 1, y + 1, x + w - 1, y + h - 1, 'steel_1')
+    dither(img, x + 1, y + 1, x + w - 1, y + h - 1, 'steel_1', 'steel_0', 0.35)
+    hline(d, x + 1, x + w - 1, y + 1, 'steel_2')
+    vline(d, x + 1, y + 1, y + h - 1, 'steel_2')
     cut_corners(d, x + 1, y + 1, x + w - 1, y + h - 1, 2, 'void')
-    hline(d, x + 2, x + w - 2, y + 1, 'steel_2')
 
-    tx0, ty0, tx1, ty1 = x + 2, y + 2, x + w - 3, y + h - 4
+    # the moulded bezel: 4 px of case, then the tube, then 6 px of chin where the badge lives
+    tx0, ty0, tx1, ty1 = x + 4, y + 4, x + w - 4, y + h - 6
+    if tx1 <= tx0 or ty1 <= ty0:
+        return
+    hline(d, tx0 - 1, tx1, ty0 - 1, 'steel_0')
+    vline(d, tx0 - 1, ty0 - 1, ty1, 'steel_0')
     if state == 'on':
-        box(d, tx0, ty0, tx1, ty1, 'scr_1')
-        # the phosphor's own falloff: the top third is the bright step, the bottom is the mid
-        dither(img, tx0, ty0 + (ty1 - ty0) // 2, tx1, ty1, 'scr_1', 'scr_0', 0.35)
-        box(d, tx0, ty0, tx1, ty0 + (ty1 - ty0) // 3, 'scr_2')
-        # a few data rows: at this size a screen needs two marks, not a paragraph
-        hline(d, tx0 + 2, tx1 - 2, ty0 + 3, 'steel_1')
-        hline(d, tx0 + 2, tx1 - 5, ty0 + 5, 'steel_0')
-    elif state == 'dead':
+        # phosphor: brightest where the beam is, falling off toward the bottom of the tube
+        box(d, tx0, ty0, tx1, ty1, 'teal_1')
+        box(d, tx0, ty0, tx1, ty0 + 2, 'cyan_0')
+        dither(img, tx0, ty0 + 1, tx1, ty0 + 5, 'teal_1', 'cyan_1', 0.5)
+        dither(img, tx0, ty1 - 4, tx1, ty1, 'teal_1', 'teal_0', 0.5)
+        # two rows of "data": a lit block and a dimmer one, not a paragraph
+        for i, (dy, x_end, col) in enumerate(((2, 8, 'cyan_2'), (5, 4, 'cyan_0'), (8, 10, 'cyan_1'))):
+            if ty0 + dy < ty1 - 1:
+                hline(d, tx0 + 1, tx0 + x_end, ty0 + dy, col)
+    elif state == 'cyber':
         box(d, tx0, ty0, tx1, ty1, 'void')
-        hline(d, tx0 + 2, tx1 - 2, ty0 + 3, 'steel_0')
-    else:                       # 'cyber': a green readout, the one that flickers
-        box(d, tx0, ty0, tx1, ty1, 'void')
-        for i in range(3):
-            hline(d, tx0 + 2, tx1 - 3 - i * 2, ty0 + 2 + i * 2, 'teal_2')
-    # the power LED, and the bottom bezel it sits in
+        for i in range(0, ty1 - ty0 - 1, 2):
+            hline(d, tx0 + 1, tx0 + 2 + ((i * 5) % max(2, tx1 - tx0 - 3)), ty0 + i, 'cyan_2' if i % 4 else 'cyan_1')
+    else:                                    # dead: dark glass, one 2 px reflection
+        box(d, tx0, ty0, tx1, ty1, 'teal_0')
+        hline(d, tx0 + 1, tx1 - 3, ty0 + 2, 'steel_2')
+        hline(d, tx0 + 1, tx1 - 5, ty0 + 3, 'steel_1')
+    # chin: the badge and the power LED
     hline(d, tx0, tx1, ty1 + 1, 'steel_0')
-    px(d, x + w - 4, y + h - 2, 'teal_3' if state == 'on' else 'red_1')
+    box(d, tx0, ty1 + 2, tx0 + 3, ty1 + 4, 'steel_2' if state != 'dead' else 'steel_1')
+    px(d, tx1 - 1, ty1 + 3, 'cyan_2' if state != 'dead' else 'red_1')
 
 
 def monitor_stack():
     """
-    The wall of screens, mounted on a steel rail between the monitor and the lamp.
+    The table of screens in the back of the room: BIGGER monitors, jumbled, standing on a TABLE THAT
+    TOUCHES THE FLOOR.
 
-    v116 drew this as a white monument: six white rectangles on a table of white rectangles, all at one
-    value, and the player read it as part of the wall. In the reference the small screens are
-    SILHOUETTES with barely-lit tubes -- dark cases, one or two lit faces. So: three by two, dark cases,
-    two lit, one dead, two running a green readout, on a rail that is one value above the wall.
+    What the player saw in v118, and why each part is different now:
+
+      * "the table floats together with the monitor" -- the sprite was 66 px tall and simply stopped in
+        mid-air. It is 128 px now and the legs run to y=126 of the sprite, which is canvas y 196 = FloorY.
+        There is a dithered contact shadow where each foot meets the floor.
+      * "make the monitors bigger and more disarranged while sticking to each other" -- 30-34 px cases
+        (was 22), rows that interlock by 3 px, a 1-2 px tilt on the case edges, and the two bottom cases
+        sit ON the slab while the others are propped against each other and overhang its left end.
+      * they were grey stickers -- see _screen(): the lit tubes are cyan now.
     """
     img = Image.new('RGBA', (STACK_W, STACK_H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     mw, mh = STACK_W, STACK_H
 
-    SW_, SH_ = 22, 18
-    xs = [3, 3 + SW_ + 3, 3 + 2 * (SW_ + 3)]
-    upper_y, lower_y = 2, 24
-    rail_y = 46
+    table_y = 52                      # the slab's front edge, in sprite space (canvas y 120)
+    leg_bottom = mh - 4               # the feet, at canvas y 152 -- the floor plane behind the desk edge
 
-    # ---- the rail: a steel bar the cases hang from, with two brackets to the wall
-    box(d, 0, rail_y, mw, rail_y + 3, 'steel_1')
-    hline(d, 0, mw, rail_y, 'steel_2')
-    hline(d, 0, mw, rail_y + 2, 'void')
-    for bx in (6, mw - 9):
-        box(d, bx, rail_y + 3, bx + 3, mh, 'steel_0')
-        vline(d, bx + 2, rail_y + 3, mh, 'void')
+    # ---- the table. Both posts are in the RIGHT half of the sprite (sprite x 38 and 106, canvas 368 and
+    #      436): the monitor is drawn after the stack and covers everything left of canvas x 364, so a post
+    #      at the sprite's left edge would be hidden and the table would read as one-legged. The slab is
+    #      allowed to vanish behind the monitor -- that is depth -- but the support must be visible.
+    box(d, 0, table_y, mw, table_y + 7, 'wood_1')
+    hline(d, 0, mw, table_y, 'wood_2')
+    dither(img, 0, table_y + 1, mw, table_y + 7, 'wood_1', 'wood_0', 0.45)
+    # the slab catches the light off the tubes above it: a cyan wash along the lit end
+    dither(img, 70, table_y + 1, mw, table_y + 4, 'wood_1', 'teal_1', 0.4)
+    box(d, 0, table_y + 7, mw, table_y + 9, 'wood_0')
+    hline(d, 0, mw, table_y + 8, 'void')
+    for lx in (46, 104):
+        box(d, lx, table_y + 9, lx + 6, leg_bottom - 2, 'wood_1')
+        vline(d, lx + 6, table_y + 9, leg_bottom - 2, 'void')
+        vline(d, lx, table_y + 10, leg_bottom - 2, 'wood_2')      # the lit edge, facing the monitor
+        dither(img, lx + 1, table_y + 9, lx + 6, leg_bottom - 2, 'wood_1', 'wood_0', 0.4)
+        box(d, lx - 2, leg_bottom - 3, lx + 9, leg_bottom, 'wood_0')   # a foot
+        hline(d, lx - 2, lx + 9, leg_bottom - 3, 'wood_2')
+        # the contact shadow UNDER the foot: what actually stops it floating
+        dither(img, lx - 3, leg_bottom, lx + 10, mh, 'void', 'floor_1', 0.6)
+    # the cross-brace, high up behind the cases: what makes it a table and not two sticks
+    box(d, 44, table_y + 15, 112, table_y + 18, 'wood_0')
+    hline(d, 44, 112, table_y + 15, 'wood_1')
 
-    states = [('on', 'dead'), ('cyber', 'on'), ('on', 'cyber')]
-    for i, sx in enumerate(xs):
-        _screen(d, img, sx, lower_y, SW_, SH_, states[i][0])
-    for i, sx in enumerate(xs):
-        _screen(d, img, sx, upper_y, SW_, SH_, states[i][1])
+    # ---- the cluster: six cases, tilted, overlapping, sagging to the right. The two bottom cases rest on
+    #      the slab (y + h == 52); the rest are propped on each other and overhang its left end.
+    cells = [
+        (1, 24, 32, 26, 'on'),       # bottom row
+        (30, 22, 34, 28, 'cyber'),
+        (61, 25, 30, 25, 'dead'),
+        (6, 0, 30, 24, 'cyber'),     # top row
+        (33, 1, 32, 23, 'on'),
+        (62, 0, 34, 26, 'on'),
+    ]
+    for (cx, cy, cw, ch, state) in cells:
+        _screen(d, img, cx, cy, cw, ch, state, tilt=(cx + cy) % 3)
     return img
 
 
@@ -672,6 +713,152 @@ def _step_up(current, low, high):
     return None
 
 
+# ===================================================================================== glow
+#  The player's v119 note was exact: "the darkness is good enough, only glow is missing". So this pass adds
+#  light and never removes it, and it is a SEPARATE LAYER -- three sprites, blitted after the light pass and
+#  after the vignette, so a halo cannot be darkened by the thing it is glowing through and the compositor
+#  (and the artist) can tune one source without touching the room.
+#
+#  Additive, and quantised to the palette's own up-steps so the halos never introduce a colour: every pixel
+#  is either transparent or an actual palette colour. Three ring levels, ordered-dithered, so the falloff
+#  reads as light on a 16-bit screen instead of as a Photoshop blur.
+
+#  Each halo pixel stores its STRENGTH in its colour: the ramp below is ordered weakest to strongest, and
+#  the runtime reads the rank (MenuLayout.GlowRamp) to know how far to lift the surface underneath. The
+#  brightest entry is treated as EMISSIVE and painted as-is -- that is the hot core of the bloom, the only
+#  place a glow is allowed to put down its own colour.
+COLD_RAMP = ('teal_2', 'cyan_0', 'cyan_1', 'cyan_2')
+
+#  HOW THE GLOW IS BUILT, and why it is not a radial blur.
+#
+#  A halo drawn as a radial gradient is the wrong shape for this room: the sources are a TALL window, a
+#  SHADE with a hard edge, and a big rectangle. A bell curve around their centres puts the light where the
+#  emitter already is (and therefore invisible, since the emitter is cut out) and leaves a ring around it.
+#  What actually reads as a bloom on a 16-bit screen is a set of BANDS AT A DISTANCE from the emitter's own
+#  silhouette -- 1 px of near-white hugging the edge, then a step of cyan, then a dithered half-step, then a
+#  sparse sprinkle. That is a distance transform, and it hugs whatever shape it is given.
+#
+#  Band -> colour, distance in pixels from the emitter:
+#      0      cyan_2      the hot rim, painted as-is by the runtime
+#      1-2    cyan_1      two lift steps
+#      3-4    cyan_0      one lift step, dithered 1-in-2
+#      5-7    cyan_0      one lift step, dithered 1-in-4
+BAYER4 = ((0, 8, 2, 10), (12, 4, 14, 6), (3, 11, 1, 9), (15, 7, 13, 5))
+#  The bands, as a SMOOTH field rather than three outlines. Strength falls as (1 - d/reach)^power, is
+#  quantised into three strengths and the boundary between any two is resolved with a Bayer threshold -- so
+#  the halo is dense at the emitter, ragged in the middle and a sparse sprinkle at its far edge, which is
+#  what a bloom looks like when it is drawn by hand at this resolution instead of blurred by a filter.
+#       strength 3  cyan_2 / amber_4   the hot rim, emissive: painted as-is by the runtime
+#       strength 2  cyan_1 / amber_3   two lift steps
+#       strength 1  cyan_0 / amber_2   one lift step
+COLD_BANDS = ('cyan_2', 'cyan_1', 'cyan_0')
+WARM_BANDS = ('amber_4', 'amber_3', 'amber_2')
+COLD_REACH, COLD_POWER = 70, 1.5
+WARM_REACH, WARM_POWER = 46, 1.4
+
+
+def _distance(mask, w, h):
+    """Chebyshev-ish distance, in px, from the nearest True pixel of `mask` (a 8-neighbour BFS)."""
+    INF = 999
+    dist = [[INF] * w for _ in range(h)]
+    frontier = [(x, y) for y in range(h) for x in range(w) if mask[y][x]]
+    for (x, y) in frontier:
+        dist[y][x] = 0
+    d = 0
+    while frontier and d < 16:
+        d += 1
+        nxt = []
+        for (x, y) in frontier:
+            for dy in (-1, 0, 1):
+                for dx in (-1, 0, 1):
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < w and 0 <= ny < h and dist[ny][nx] == INF:
+                        dist[ny][nx] = d
+                        nxt.append((nx, ny))
+        frontier = nxt
+    return dist
+
+
+def _emitters():
+    """
+    The room's emitters as two masks on the canvas: COLD (the window's glazing, every lit tube in the monitor
+    cluster) and WARM (the mouth of the lamp's shade). Two masks, because the lamp is the warm practical and
+    the whole frame is balanced on it being the only warm thing -- one ramp for both would lose that.
+    """
+    w, h = W, H
+    cold = [[False] * w for _ in range(h)]
+    warm = [[False] * w for _ in range(h)]
+
+    def paint(mask, sprite, ox, oy, accept):
+        for y in range(sprite.height):
+            for x in range(sprite.width):
+                p = sprite.getpixel((x, y))
+                if p[3] and accept(p[:3]):
+                    cx, cy = ox + x, oy + y
+                    if 0 <= cx < w and 0 <= cy < h:
+                        mask[cy][cx] = True
+
+    win = kit_rgba('menu/window.png')
+    paint(cold, win, 8, 10, lambda c: True)          # the whole glazing is the source
+    st = kit_rgba('menu/monitor_stack.png')
+    lit = set(PALETTE[k] for k in ('cyan_2', 'cyan_1', 'teal_1'))
+    paint(cold, st, 330, 68, lambda c: c in lit)     # only the lit tubes, not the steel around them
+    for y in range(62 + 92, 62 + 102):               # the shade's mouth, 30 px wide
+        for x in range(422 + 12, 422 + 44):
+            if 0 <= x < w and 0 <= y < h:
+                warm[y][x] = True
+    # The FIXTURES are not surfaces: the light leaves them, it does not land on them. Without this the
+    # distance map speckles the inside of every CRT case and the lamp's own shade, which is exactly the
+    # "glow sprayed over the art" look this pass exists to avoid.
+    solid = [[False] * w for _ in range(h)]
+    for rel, ox, oy in (('menu/monitor_stack.png', 330, 68), ('menu/lamp.png', 422, 62),
+                        ('menu/server.png', 452, 80), ('menu/crt.png', 104, 10)):
+        sp = kit_rgba(rel)
+        paint(solid, sp, ox, oy, lambda c: True)
+    return cold, warm, solid, w, h
+
+
+def kit_rgba(rel):
+    return Image.open(os.path.join(ROOT, 'art', 'kit', rel)).convert('RGBA')
+
+
+def glow():
+    """
+    The glow layer: ONE sprite, the size of the canvas.
+
+    Built from distance transforms of the emitters' own silhouettes -- so the light hugs the tall window, the
+    cluster's six tubes and the lamp's mouth instead of being a soft circle behind them -- and banded into
+    four palette steps per temperature. Warm wins wherever the lamp is nearer, which keeps the lamp the only
+    warm thing in the frame. The runtime reads each pixel's rank in GlowRamp as a STRENGTH and lifts the
+    surface under it; the rim band is emissive and is painted as-is.
+    """
+    cold, warm, solid, w, h = _emitters()
+    dc = _distance(cold, w, h)
+    dw = _distance(warm, w, h)
+    img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    out = img.load()
+    for y in range(h):
+        for x in range(w):
+            if solid[y][x]:
+                continue                      # a fixture is not a surface: the light leaves it
+            use_warm = dw[y][x] < dc[y][x]
+            d = dw[y][x] if use_warm else dc[y][x]
+            if d == 0:
+                continue
+            reach, power = (WARM_REACH, WARM_POWER) if use_warm else (COLD_REACH, COLD_POWER)
+            if d >= reach:
+                continue
+            bands = WARM_BANDS if use_warm else COLD_BANDS
+            t = (1.0 - d / float(reach)) ** power
+            # three strengths, and the seam between any two is a dither -- 0.75 of a band of jitter so the
+            # far edge is a sprinkle and the near field is solid
+            level = int(math.floor(t * len(bands) + (BAYER4[y & 3][x & 3] / 16.0 - 0.5) * 1.5))
+            if level < 0:
+                continue
+            out[x, y] = rgba(bands[min(len(bands) - 1, level)])
+    return img
+
+
 # ===================================================================================== gate
 def palette_gate(images):
     vals = set(PALETTE.values())
@@ -721,6 +908,8 @@ def main():
         'menu/crt.png': crt(),
         'menu/lamp.png': lamp(),
         'menu/desk.png': desk(),
+        # the glow layer: a SEPARATE set of sprites, blitted after the light pass and the vignette
+        'menu/glow.png': glow(),
     }
     bad = palette_gate(pieces.values())
     problems = structural_gate(pieces)

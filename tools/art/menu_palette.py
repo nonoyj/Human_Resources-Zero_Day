@@ -59,10 +59,15 @@ LOWKEY_CEILING = 0.62     # no NON-EMISSIVE step may be brighter than this: only
 RAMPS = {
     # the room's architecture: cold, dark, clearly BLUE-grey. The steps rotate 12 degrees each: shadow
     # violet, mid blue, lit blue-green where the screen reaches. Nothing here is above 0.19 value.
-    'wall':  [(236, .36, .085), (224, .32, .135), (212, .28, .185)],
+    # v119 adds a LIT step to the wall and the floor. Without one there is no value left to lift into: the
+    # back wall was already at the top of its ramp, so the window's glow could only be faked as a cyan tint
+    # sprinkled over it -- which is why the first v119 glow attempt looked like sprayed dots. `wall_3` is the
+    # value the wall takes when the city light actually lands on it: still dark (0.30 < LOWKEY_CEILING),
+    # still blue, one honest step up.
+    'wall':  [(236, .36, .085), (224, .32, .135), (212, .28, .185), (200, .24, .290)],
     # the floor: a violet-black tile. Its own hue family, two steps below the wall, so the wall/floor
     # line reads as a line and not as a change of light
-    'floor': [(276, .46, .022), (264, .40, .038), (252, .34, .060)],
+    'floor': [(276, .46, .022), (264, .40, .038), (252, .34, .060), (244, .30, .100)],
     # the desk: WARM. the one large warm surface, and the reason the frame is not monochrome cyan
     'wood':  [(14, .57, .050), (24, .56, .090), (32, .54, .140), (40, .48, .200), (48, .38, .280)],
     # steel: the monitor table and the server's case. cool, green-leaning (it reflects the screens),

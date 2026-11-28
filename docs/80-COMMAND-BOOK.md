@@ -152,7 +152,7 @@ that is what makes people think the editor must be closed. It does not.
 
 | Gate | Command | Passes when you see |
 |---|---|---|
-| Rules tests | `dotnet run --project tools\CoreTests` | `ALL TESTS PASSED` |
+| Rules tests | `dotnet run --project tools\CoreTests` | `ALL TESTS PASSED` (v119: runs on every gate now) |
 | Unity will compile | `dotnet build tools\UnityStubs\CompileCheck.csproj` | `Build succeeded.` |
 | Art + palette + stubs + layout | `.\scripts\Test-ArtPipeline.ps1` | `ART PIPELINE OK` |
 | PowerShell health | `.\scripts\Test-Scripts.ps1` | `All scripts healthy.` |
@@ -163,6 +163,18 @@ The last one exports `HEAD` with `git archive` and runs every other check **insi
 directory while you ran the commit.
 
 ---
+
+### 4a. If `dotnet` is missing on this machine (v119)
+
+The sandbox's build box had **no C# compiler at all** until v119, which is how an uncompilable v118 shipped.
+If `dotnet` is not found, install it once — it takes about a minute:
+
+```powershell
+curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 8.0 --install-dir $HOME/.dotnet --no-path
+$env:DOTNET_ROOT="$HOME/.dotnet"; $env:PATH="$env:DOTNET_ROOT:$env:PATH"
+```
+
+Then run the two gates above **before** a bundle. A build error outranks every art change.
 
 ## 5. Art pipeline (only when the art changes)
 

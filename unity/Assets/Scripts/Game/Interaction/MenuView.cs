@@ -78,6 +78,22 @@ namespace HRZeroDay.Game.Interaction
         public MenuScreen Screen { get { return _screen; } }
         public int Selected { get { return _index; } }
 
+        /// <summary>How many rows the current screen has -- the pointer hit test needs it.</summary>
+        public int Count { get { return _items == null ? 0 : _items.Count; } }
+
+        /// <summary>
+        /// Clicking the keyboard types a line onto the desk. It is the smallest possible proof that the
+        /// furniture is part of the interface, and it costs one string.
+        /// </summary>
+        public void TypeOnDesk()
+        {
+            _deskTyped = Math.Min(_deskTyped + 1, _deskTicks.Length);
+            Paint();
+        }
+
+        private int _deskTyped;
+        private static readonly string[] _deskTicks = { "OK", "OK OK", "OK OK OK", "WHY" };
+
         public static MenuView Attach(DeskBootstrap game)
         {
             var go = new GameObject(RootName);
@@ -138,6 +154,7 @@ namespace HRZeroDay.Game.Interaction
             GlassMaterial();
             Light();
             Vignette();
+            Glow();          // the glow is a SEPARATE layer, and it is LAST: light is added, never removed
             return true;
         }
 
@@ -177,16 +194,19 @@ namespace HRZeroDay.Game.Interaction
             // reverse lookup: a room pixel's colour -> the next step of its own material. One pass, then
             // it is arithmetic. Emitters (white, teal_4, scr_2, LEDs) are absent from this table and are
             // therefore never lifted.
-            var up = new Dictionary<Color32, Color32>();
-            for (int i = 0; i < MenuLayout.Ramps.GetLength(0); i++)
-            {
-                Color32 from, to;
-                if (!palette.TryGetValue(MenuLayout.Ramps[i, 0], out from)) continue;
-                if (!palette.TryGetValue(MenuLayout.Ramps[i, 1], out to)) continue;
-                if (!up.ContainsKey(from)) up[from] = to;
-            }
+            var up = UpTable();
+            if (up == null) return;
 
-            var lights = MenuLayout.Lights();
+            // the lamp can be switched off (v119): the room then keeps its two cold sources and loses the
+            // only warm one, which is precisely the demonstration that the warm side is LIGHT
+            var all = MenuLayout.Lights();
+            var lights = all;
+            if (!_lampOn)
+            {
+                var kept = new List<MenuLayout.LightSource>();
+                foreach (var L in all) if (!MenuLayout.IsLampLight(L)) kept.Add(L);
+                lights = kept.ToArray();
+            }
             for (int y = 0; y < H; y++)
             {
                 for (int x = 0; x < W; x++)
@@ -231,6 +251,106 @@ namespace HRZeroDay.Game.Interaction
                     _room[idx] = once;
                 }
             }
+        }
+
+        /// <summary>
+        /// The glow layer (v119). The player's note was "the darkness is good enough, only glow is missing",
+        /// so this pass only ever ADDS light: three pre-dithered halo sprites, overlaid additively by taking
+        /// the brighter of the two palette steps. It runs after the vignette so a corner cannot eat a halo,
+        /// and it skips the tube's own glass so the text you are reading never gets a wash over it.
+        ///
+        /// The halos are sprites and not arithmetic on purpose: the falloff is ordered-dithered in the art,
+        /// where it can be seen and tuned, and the runtime does one lookup per pixel.
+        /// </summary>
+        private void Glow()
+        {
+            var up = UpTable();
+            var palette = MonitorScreenView.PaletteCached;
+            if (up == null || palette == null) return;
+
+            // colour -> strength, for the ten glow keys. Two ramps of five: cold 0-4, warm 5-9, and the top
+            // of each is the emissive core of a bloom.
+            var strength = new Dictionary<Color32, int>();
+            for (int i = 0; i < MenuLayout.GlowRamp.Length; i++)
+            {
+                Color32 c;
+                if (palette.TryGetValue(MenuLayout.GlowRamp[i], out c) && !strength.ContainsKey(c))
+                    strength[c] = i % MenuLayout.GlowHotLen;
+            }
+
+            for (int i = 0; i < MenuLayout.GlowSprites.Length; i++)
+            {
+                var tex = Resources.Load<Texture2D>(KitRoot + MenuLayout.GlowSprites[i]);
+                if (tex == null) continue;                       // a missing glow is a soft failure
+                Color32[] px;
+                try { px = tex.GetPixels32(); }
+                catch (Exception) { continue; }
+                int tw = tex.width, th = tex.height;
+                int ox = MenuLayout.GlowPos[i][0], oy = MenuLayout.GlowPos[i][1];
+                for (int y = 0; y < th; y++)
+                {
+                    int dy = oy + y;
+                    if (dy < 0 || dy >= H) continue;
+                    for (int x = 0; x < tw; x++)
+                    {
+                        var c = px[(th - 1 - y) * tw + x];
+                        if (c.a == 0) continue;
+                        int dx = ox + x;
+                        if (dx < 0 || dx >= W) continue;
+                        // never wash the tube: it is the thing being read
+                        if (dx >= MenuLayout.CrtX && dx < MenuLayout.CrtX + MenuLayout.CrtW &&
+                            dy >= MenuLayout.CrtY && dy < MenuLayout.CrtY + MenuLayout.CrtH) continue;
+
+                        int idx = dy * W + dx;
+                        if (_room[idx].a == 0) continue;
+                        int s;
+                        if (!strength.TryGetValue(c, out s)) continue;
+                        if (s <= 0) continue;
+
+                        Color32 now = _room[idx];
+                        if (s >= MenuLayout.GlowHotLen)
+                        {
+                            // the core of the bloom is an emitter: paint it, do not lift toward it
+                            _room[idx] = c;
+                            continue;
+                        }
+                        // otherwise: walk the surface UP its own ramp, s steps. When the ramp runs out --
+                        // and the back wall is already at the top of its ramp, which is exactly where the
+                        // window's halo lands -- the leftover strength becomes a DITHERED tint: that
+                        // fraction of the pixels take the glow's own colour, the rest stay as they are.
+                        // That is how a 16-bit screen fakes a colour that is not in the ramp, and it is
+                        // why the halo reads as light on the wall instead of being invisible on it.
+                        int remaining = s;
+                        for (int step = 0; step < s && remaining > 0; step++)
+                        {
+                            Color32 next;
+                            if (!up.TryGetValue(now, out next)) break;
+                            now = next;
+                            remaining--;
+                        }
+                        if (remaining > 0 &&
+                            MenuLayout.Bayer4[((dy & 3) << 2) | (dx & 3)] < remaining * MenuLayout.GlowTintDiv)
+                            now = c;
+                        _room[idx] = now;
+                    }
+                }
+            }
+        }
+
+        /// <summary>The room's colour -> next-step-up table, shared by the light pass and the glow pass.</summary>
+        private Dictionary<Color32, Color32> UpTable()
+        {
+            var palette = MonitorScreenView.PaletteCached;
+            if (palette == null) return null;
+            var up = new Dictionary<Color32, Color32>();
+            for (int i = 0; i < MenuLayout.Ramps.GetLength(0); i++)
+            {
+                Color32 from, to;
+                if (!palette.TryGetValue(MenuLayout.Ramps[i, 0], out from)) continue;
+                if (!palette.TryGetValue(MenuLayout.Ramps[i, 1], out to)) continue;
+                if (!up.ContainsKey(from)) up[from] = to;
+            }
+            return up;
         }
 
         /// <summary>
@@ -308,10 +428,13 @@ namespace HRZeroDay.Game.Interaction
             _root.SetActive(true);
             // the six screens start at six different points in their cycles, or they blink in unison
             for (int i = 0; i < _screenPhase.Length; i++)
-                _screenPhase[i] = (MenuLayout.DustHash(i, 7) & 0xFFFF) / 65535f * MenuLayout.StackCycle;
+                _screenPhase[i] = (float)((MenuLayout.DustHash(i, 7) & 0xFFFF) / 65535.0 * MenuLayout.StackCycle);
             _breachNext = UnityEngine.Random.Range((float)MenuLayout.BreachMin, (float)MenuLayout.BreachMax);
             _breachScreen = -1;
             _breachLeft = 0f;
+            // the tube is cold for a beat, then the rows type themselves in (see Text())
+            _bootReveal = 0f;
+            _clock = 0f;
             Paint();
             return true;
         }
@@ -336,11 +459,62 @@ namespace HRZeroDay.Game.Interaction
         /// their readouts, one of them can flood red for the breach, and the dust falls. Nothing else
         /// moves -- a menu where the furniture drifts is a menu nobody can read.
         /// </summary>
+        // ---- v119 interactivity -------------------------------------------------------------------
+        // What the pointer is over, in canvas px: the row it is on, the tube of the cluster, and whether it
+        // is on a prop that reacts. Recorded by DeskBootstrap (which owns the pointer) and drawn by the
+        // renderer, so hover is a STATE of the menu and not a separate overlay that can disagree with it.
+        private int _hoverRow = -1;
+        private int _hoverCell = -1;
+        private bool _hoverLamp, _hoverKeyboard;
+
+        /// <summary>The pointer, in canvas px, or (-1,-1) when there is no pointer (keyboard-only play).</summary>
+        public void SetPointer(int x, int y, int rowCount)
+        {
+            if (!_open) return;
+            int row = MenuLayout.RowAt(x, y, rowCount);
+            int cell = MenuLayout.StackCellAt(x, y);
+            bool lamp = MenuLayout.InLamp(x, y);
+            bool kb = MenuLayout.InKeyboard(x, y);
+            if (row == _hoverRow && cell == _hoverCell && lamp == _hoverLamp && kb == _hoverKeyboard) return;
+            _hoverRow = row; _hoverCell = cell; _hoverLamp = lamp; _hoverKeyboard = kb;
+            if (row >= 0 && row != _index) { _index = row; _hoverDirty = true; }
+            Paint();
+        }
+
+        /// <summary>Clears the pointer state (the mouse left the window, or a controller took over).</summary>
+        public void ClearPointer()
+        {
+            if (_hoverRow < 0 && _hoverCell < 0 && !_hoverLamp && !_hoverKeyboard) return;
+            _hoverRow = -1; _hoverCell = -1; _hoverLamp = false; _hoverKeyboard = false;
+            Paint();
+        }
+
+        public int HoverRow { get { return _hoverRow; } }
+        public int HoverCell { get { return _hoverCell; } }
+        public bool HoverLamp { get { return _hoverLamp; } }
+        public bool HoverKeyboard { get { return _hoverKeyboard; } }
+
+        /// <summary>
+        /// The keyboard's reveal: when the player moves with a key or a stick, the rows show their own keys
+        /// (UP/DOWN/ENTER) in place of the footer's one-line hint. Switches itself off again after a few
+        /// seconds of pointer silence, because a permanent cheat-sheet is clutter.
+        /// </summary>
+        public void NoteKeyboardUse()
+        {
+            _keyboardHint = 1f;
+        }
+
+        private float _keyboardHint;
+        private bool _hoverDirty;
+        private bool _lampOn = true;
+        private float _bootReveal;
+
         private void Update()
         {
             if (!_open || _tex == null) return;
             float dt = Time.unscaledDeltaTime;
             _clock += dt;
+            if (_keyboardHint > 0f) _keyboardHint = Math.Max(0f, _keyboardHint - dt * 0.35f);
 
             // the breach: a random screen, rationed to one every 14-26 s
             if (_breachLeft > 0f)
@@ -491,6 +665,7 @@ namespace HRZeroDay.Game.Interaction
 
             StackScreens(_frame);
             Dust(_frame);
+            Props();          // v119: the lamp and the keyboard answer the pointer
             Text(_frame);
 
             MonitorScreenRaster.FlipToTextureOrder(_frame, W, H);
@@ -508,51 +683,79 @@ namespace HRZeroDay.Game.Interaction
             // the six readouts cycle in this order; the table lives in MenuLayout so the twin renderer
             // (tools/art/make_menu_composite.py) paints exactly what the game paints
             var readouts = MenuLayout.StackReadouts;
-            Color32 on = Ink("scr_1", new Color32(97, 104, 100, 255));
-            Color32 hot = Ink("scr_2", new Color32(200, 238, 240, 255));
-            Color32 dim = Ink("teal_1", new Color32(20, 50, 55, 255));
+            Color32 on = Ink("teal_1", new Color32(9, 20, 26, 255));
+            Color32 hot = Ink("white", new Color32(232, 242, 244, 255));
+            Color32 dim = Ink("teal_0", new Color32(5, 9, 13, 255));
             Color32 off = Ink("void", new Color32(9, 11, 15, 255));
-            Color32 red = Ink("red_2", new Color32(224, 63, 84, 255));
+            Color32 red = Ink("red_2", new Color32(194, 58, 81, 255));
+            Color32 beam = Ink("cyan_2", new Color32(101, 194, 194, 255));
+            Color32 beam_dither = Ink("cyan_1", new Color32(42, 113, 122, 255));
+            Color32 line_colour = Ink("cyan_2", new Color32(101, 194, 194, 255));
+            Color32 led = Ink("cyan_2", new Color32(101, 194, 194, 255));
+            Color32 white = Ink("white", new Color32(232, 242, 244, 255));
 
-            for (int i = 0; i < 3; i++)
+            // the tube of cell n, in canvas px -- the case's bevel, then the chin. Same numbers as the
+            // generator (make_menu_room.py::_screen), so the paint lands inside the case that was drawn.
+            for (int n = 0; n < MenuLayout.StackCells.Length; n++)
             {
-                for (int r = 0; r < 2; r++)
+                int[] cell = MenuLayout.StackCells[n];
+                int bx = MenuLayout.StackBezel, chin = MenuLayout.StackChin;
+                int sx = cell[0] + bx;
+                int sy = cell[1] + bx;
+                int sw = cell[2] - bx * 2;
+                int sh = cell[3] - bx - chin;
+                if (sw <= 0 || sh <= 0) continue;
+                bool breached = (_breachScreen == n && _breachLeft > 0f);
+
+                // the flicker: a 3-step brightness on a fast, non-periodic beat. A CRT that is CAPTURED
+                // by a camera flickers; this is the whole reason the cluster reads as live hardware.
+                float phase = _clock * 2.2f + _screenPhase[n] + (n % 3) * 1.7f;
+                int flick = (int)(phase * 3f) % 5;
+                Color32 glass = breached ? red : (flick == 4 ? dim : (flick == 3 ? off : on));
+
+                for (int y = sy; y < sy + sh; y++)
                 {
-                    int sx = MenuLayout.StackScreenX[i] + 2;
-                    int sy = MenuLayout.StackScreenY[r] + 2;
-                    int sw = MenuLayout.StackScreenW - 4;
-                    int sh = MenuLayout.StackScreenH - 4;
-                    bool breached = (_breachScreen == i + r * 3 && _breachLeft > 0f);
-
-                    // the flicker: a 3-step brightness on a fast, non-periodic beat
-                    float phase = _clock * 2.2f + _screenPhase[i + r * 3] + r * 1.7f;
-                    int flick = (int)(phase * 3f) % 5;
-                    Color32 bg = breached ? red : (flick == 4 ? dim : (flick == 3 ? off : on));
-
-                    for (int y = sy; y < sy + sh; y++)
-                        for (int x = sx; x < sx + sw; x++)
-                        {
-                            if (x < 0 || y < 0 || x >= W || y >= H) continue;
-                            buf[y * W + x] = bg;
-                        }
-
-                    // the readout itself: two lines of cybersecurity text, painted as bars of the
-                    // glyph width the screen can hold. At 18 px tall, a paragraph is noise; two lines of
-                    // "AUTH 0X4F2 / HANDSHAKE" is a machine reporting.
-                    var lines = readouts[(i + r * 3) % readouts.Length];
-                    for (int line = 0; line < lines.Length && line < 2; line++)
+                    for (int x = sx; x < sx + sw; x++)
                     {
-                        int ly = sy + 3 + line * 6;
-                        int lw = Math.Min(lines[line].Length, sw - 4);
-                        for (int c = 0; c < lw; c++)
-                        {
-                            int x = sx + 2 + c;
-                            if (x < 0 || x >= W || ly < 0 || ly >= H) continue;
-                            buf[ly * W + x] = breached ? hot : (flick == 4 ? dim : hot);
-                            if (ly + 1 < H) buf[(ly + 1) * W + x] = breached ? red : (flick == 4 ? dim : on);
-                        }
+                        if (x < 0 || y < 0 || x >= W || y >= H) continue;
+                        // the beam: the top of the tube is always brighter, the bottom falls into teal
+                        int t = y - sy;
+                        Color32 c = glass;
+                        if (t == 0) c = breached ? hot : beam;
+                        else if (t == 1 && (x + y) % 3 != 0) c = beam_dither;
+                        else if (t >= sh - 2) c = dim;
+                        buf[y * W + x] = c;
                     }
                 }
+
+                // the readout: two lines of cybersecurity text at 20-28 px wide, painted as bars. A
+                // paragraph at this size is noise; "AUTH 0X4F2 / HANDSHAKE" is a machine reporting.
+                // HOVER (v119): the tube under the pointer brightens a step and its LED goes white -- the
+                // cluster is six machines, and pointing at one should make it feel looked-at.
+                if (n == _hoverCell)
+                {
+                    glass = breached ? red : (flick == 3 ? dim : on);
+                    if (glass == on) { for (int y = sy; y < sy + sh; y++) for (int x = sx; x < sx + sw; x++) if (x >= 0 && x < W && y >= 0 && y < H) buf[y * W + x] = beam_dither; }
+                }
+
+                var lines = readouts[n % readouts.Length];
+                for (int line = 0; line < lines.Length && line < 3; line++)
+                {
+                    int ly = sy + 2 + line * 3;
+                    if (ly >= sy + sh - 1) break;
+                    int lw = Math.Min(lines[line].Length, sw - 2);
+                    for (int i = 0; i < lw; i++)
+                    {
+                        int x = sx + 1 + i;
+                        if (x < 0 || x >= W || ly < 0 || ly >= H) continue;
+                        buf[ly * W + x] = breached ? white : line_colour;
+                    }
+                }
+
+                // the power LED in the corner of the chin, mirrored from the art
+                int led_x = sx + sw - 1, led_y = cell[1] + cell[3] - 3;
+                if (led_x >= 0 && led_x < W && led_y >= 0 && led_y < H)
+                    buf[led_y * W + led_x] = breached ? white : led;
             }
         }
 
@@ -563,7 +766,7 @@ namespace HRZeroDay.Game.Interaction
         /// </summary>
         private void Dust(Color32[] buf)
         {
-            if (MenuLayout.DustCount <= 0) return;
+            if (buf == null || buf.Length < W * H || MenuLayout.DustCount <= 0) return;
             Color32 grain = Ink("steel_1", new Color32(26, 31, 38, 255));
             Color32 faint = Ink("wall_2", new Color32(24, 28, 32, 255));
             for (int i = 0; i < MenuLayout.DustCount; i++)
@@ -604,16 +807,109 @@ namespace HRZeroDay.Game.Interaction
             // header reading as a fourth row
             Rule(buf, MenuLayout.RuleTop);
 
+            // THE BOOT REVEAL (v119). The rows do not pop in: the tube warms up, then each row types itself
+            // in 90 ms apart. It is 0.5 s of ceremony that makes the front door feel like a machine waking
+            // up rather than a pause screen -- and it is skipped entirely once the player has moved a key,
+            // because a player who is already playing should never be made to wait for an animation.
+            _bootReveal = Math.Min(1f, _bootReveal + Time.unscaledDeltaTime * 3.2f);
+            bool revealing = _bootReveal < 1f && _keyboardHint <= 0f;
             var rows = BuildRows();
+            float revealRows = _bootReveal * (rows.Count + 1.5f);
             for (int i = 0; i < rows.Count; i++)
             {
-                var pill = MenuLayout.Row(i, rows[i].Selected ? "cyan_1" : "void",
-                                          rows[i].Selected ? "void" : "paper_2");
+                if (revealing && i >= revealRows) break;
+                bool hovered = i == _hoverRow && !rows[i].Selected;
+                var pill = MenuLayout.Row(i, rows[i].Selected ? "cyan_1" : (hovered ? "steel_1" : "void"),
+                                          rows[i].Selected ? "void" : (hovered ? "white" : "paper_2"));
                 DrawPill(buf, pill, rows[i].Selected);
-                CentreIn(buf, rows[i].Label, pill, rows[i].Selected ? "void" : "paper_2");
+                // the hover case: draw the row's edge in the tube's cyan, one pixel, no fill. A hovered row
+                // is a PREVIEW of the selection, so it gets the selection's colour and none of its weight.
+                if (hovered) HoverEdge(buf, pill);
+                CentreIn(buf, rows[i].Label, pill, rows[i].Selected ? "void" : (hovered ? "white" : "paper_2"));
+                // the keyboard hint, on the selected row, while the player is using the keyboard
+                if (rows[i].Selected && _keyboardHint > 0.05f)
+                    Centre(buf, "[UP/DOWN] MOVE   [ENTER] CHOOSE", MenuLayout.FooterTop, "amber_3", 1);
             }
 
+            // what the keyboard typed, if anything: a small line on the desk's near edge, above the footer
+            if (_deskTyped > 0)
+                Centre(buf, _deskTicks[_deskTyped - 1], MenuLayout.FooterTop - 8, "cyan_1", 1);
+
             Centre(buf, Footer_(), MenuLayout.FooterTop, "paper_2", 1);
+        }
+
+        /// <summary>
+        /// PROPS THAT ANSWER (v119). Two of the room's objects are interactive, and both react in the same
+        /// language as the rows: a hover warms them, a click does something small and harmless.
+        ///
+        ///   the lamp     -- hover lifts the shade's mouth a step; click toggles the warm key off and on.
+        ///                   Turning the light off is the fastest way to show a player that the glow is
+        ///                   LIGHT and not paint, and it reads as "this room is object, not backdrop".
+        ///   the keyboard -- hover lights the keycaps; click types a line onto the tube's footer. A joke,
+        ///                   but it is the cheapest proof that the desk is part of the interface.
+        /// </summary>
+        private void Props()
+        {
+            if (_hoverLamp)
+            {
+                // the shade's mouth, warm: two rows under the fixture, dithered at the ends
+                Color32 hot = Ink(_lampOn ? "amber_4" : "steel_2", new Color32(232, 242, 244, 255));
+                int mx = MenuLayout.LampX + 28, my = MenuLayout.LampY + 96;
+                for (int y = my; y < my + 3; y++)
+                {
+                    for (int x = mx - 14; x < mx + 14; x++)
+                    {
+                        if (x < 0 || x >= W || y < 0 || y >= H) continue;
+                        int d = Math.Abs(x - mx);
+                        if (d > 10 && ((x + y) & 1) == 0) continue;
+                        _frame[y * W + x] = hot;
+                    }
+                }
+            }
+            if (_hoverKeyboard)
+            {
+                Color32 lit = Ink("cyan_2", new Color32(101, 194, 194, 255));
+                // the keycaps are at (305 + col*7, 190 + row*4), 5x2 each -- see make_menu_room.py
+                for (int row = 0; row < 2; row++)
+                    for (int col = 0; col < 11; col++)
+                    {
+                        int x = 305 + col * 7, y = 190 + row * 4;
+                        if (x < 0 || x + 5 > W || y < 0 || y + 2 > H) continue;
+                        for (int yy = y; yy < y + 2; yy++)
+                            for (int xx = x; xx < x + 5; xx++)
+                                if (((xx + yy) & 1) == 0) _frame[yy * W + xx] = lit;
+                    }
+            }
+        }
+
+        /// <summary>Click the lamp: the warm key goes off, and the glow layer is told (see BuildRoom).</summary>
+        public void ToggleLamp()
+        {
+            _lampOn = !_lampOn;
+            BuildRoom();
+            Paint();
+        }
+
+        public bool LampOn { get { return _lampOn; } }
+
+        /// <summary>One pixel of the tube's cyan around a hovered row: the preview of the selection.</summary>
+        private void HoverEdge(Color32[] buf, MenuLayout.Pill p)
+        {
+            Color32 c = Ink("cyan_1", new Color32(42, 113, 122, 255));
+            for (int x = p.X + 1; x < p.X + p.W - 1; x++)
+            {
+                if (x < MenuLayout.GlassX || x >= MenuLayout.GlassX + MenuLayout.GlassW) continue;
+                if (p.Y >= MenuLayout.GlassY && p.Y < MenuLayout.GlassY + MenuLayout.GlassH) buf[p.Y * W + x] = c;
+                int b = p.Y + p.H - 1;
+                if (b >= MenuLayout.GlassY && b < MenuLayout.GlassY + MenuLayout.GlassH) buf[b * W + x] = c;
+            }
+            for (int y = p.Y + 1; y < p.Y + p.H - 1; y++)
+            {
+                if (y < MenuLayout.GlassY || y >= MenuLayout.GlassY + MenuLayout.GlassH) continue;
+                int x0 = p.X, x1 = p.X + p.W - 1;
+                if (x0 >= MenuLayout.GlassX && x0 < MenuLayout.GlassX + MenuLayout.GlassW) buf[y * W + x0] = c;
+                if (x1 >= MenuLayout.GlassX && x1 < MenuLayout.GlassX + MenuLayout.GlassW) buf[y * W + x1] = c;
+            }
         }
 
         private void Rule(Color32[] buf, int y)
