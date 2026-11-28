@@ -302,8 +302,13 @@ def lamp():
 
 
 # ===================================================================================== wall clock
-CLOCK_X, CLOCK_Y = 388, 22          # top-left of the 30x30 face: on the wall, right of the window and clear
-CLOCK_SIZE = 30                     # of the tube's own top edge (the tube starts at row 43)
+# v130.4 (the player: "The wall clock is covered by the monitor transfer it to the center"). This face used
+# to be at x 388 -- directly behind the CRT, whose body runs 268..454. Being "on the wall, clear of the tube's
+# top edge" is not the same as being VISIBLE: the monitor is mounted on that same wall and covers it. The face
+# now sits centred on the free wall between the window (right edge 168) and the monitor (left edge 268).
+# Keep these three in step with RoomClockView.x/y/size -- CoreTests asserts they agree.
+CLOCK_X, CLOCK_Y = 203, 22          # top-left of the 30x30 face, centred on the free wall segment
+CLOCK_SIZE = 30
 
 
 def wall_clock():

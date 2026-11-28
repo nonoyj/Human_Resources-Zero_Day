@@ -178,7 +178,7 @@ def main():
     ap.add_argument('--check', action='store_true')
     a = ap.parse_args()
     if not HAVE_PIL:
-        print('Pillow required'); return 2
+        print('Pillow required (pip install pillow) -- the panel code itself is not known to be wrong'); return 3
     if a.check:
         return check()
 

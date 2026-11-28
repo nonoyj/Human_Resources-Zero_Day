@@ -36,11 +36,17 @@ MIRRORS = [
     os.path.join(ROOT, 'unity', 'Assets', 'Resources', 'Art', 'Kit'),
 ]
 
-try:
-    from PIL import Image
-except ImportError:                                                    # pragma: no cover
-    print('Pillow is required to cut frames (pip install pillow)')
-    raise SystemExit(2)
+# Pillow CUTS frames; it never has to CHECK them. The import used to be at the top and unconditional, so
+# `--check` -- the mode every gate and every fresh clone runs -- died with "Pillow is required to cut frames"
+# on a machine that only wanted to know whether the frames were there. That is the difference between
+# "your art is broken" and "you have not installed a drawing library" (BUG-016, again, in the check path).
+def _pillow():
+    try:
+        from PIL import Image
+        return Image
+    except ImportError:                                                # pragma: no cover
+        print('Pillow is required to CUT frames (pip install pillow). Nothing is known to be wrong with the art.')
+        raise SystemExit(3)
 
 
 def frames_for(entry: dict):
@@ -80,7 +86,7 @@ def main() -> int:
             if args.check:
                 continue
 
-            with Image.open(os.path.join(ROOT, 'art', 'kit', sub.split('frames')[0].rstrip('/'), name)) as sheet:
+            with _pillow().open(os.path.join(ROOT, 'art', 'kit', sub.split('frames')[0].rstrip('/'), name)) as sheet:
                 sheet = sheet.convert('RGBA')
                 index = [f['name'] for f in entry['sprites']].index(
                     os.path.splitext(filename)[0].split('__', 1)[1])

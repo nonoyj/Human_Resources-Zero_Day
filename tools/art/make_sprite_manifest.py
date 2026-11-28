@@ -20,7 +20,32 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pngcheck import read_rgba  # noqa: E402
-from PIL import Image  # noqa: E402
+
+# Pillow is for DRAWING art. VERIFYING it must never need a pip install: on the player's machine it is not
+# installed, and a gate that dies on ModuleNotFoundError reports "the art is broken" when the truth is
+# "Pillow is not here" (BUG-037, and BUG-016 before it). The size of a PNG is in its IHDR header -- 24 bytes
+# past the signature -- so read that, and only reach for Pillow if something ever needs a real decode.
+try:
+    from PIL import Image  # noqa: E402
+except Exception:            # noqa: BLE001 -- any import failure just means "no Pillow", not "broken art"
+    Image = None
+
+
+def _need_pillow(what: str):
+    """Exit 3 -- the gate's own 'I could not even start' code, distinct from 'the art is wrong' (1)."""
+    if Image is None:
+        print(f'needs Pillow to {what}. Nothing is known to be wrong with the art.')
+        print('    fix: python -m pip install pillow')
+        raise SystemExit(3)
+
+
+def png_size(path: str):
+    """(width, height) from the PNG header. No Pillow, no decode, no pip."""
+    with open(path, 'rb') as fh:
+        head = fh.read(33)
+    if not head.startswith(b'\x89PNG\r\n\x1a\n') or head[12:16] != b'IHDR':
+        raise SystemExit(f'{path}: not a PNG')
+    return int.from_bytes(head[16:20], 'big'), int.from_bytes(head[20:24], 'big')
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 KIT = os.path.join(ROOT, 'art', 'kit')
@@ -102,7 +127,7 @@ def sprite_entry(path: str, folder: str) -> dict:
 
 def whole_entry(path: str, folder: str) -> dict:
     """A single-frame sprite: no slicing, one rect, the same import settings as its folder."""
-    w, h = Image.open(path).size
+    w, h = png_size(path)
     rel = os.path.relpath(path, KIT).replace(os.sep, '/')
     sha = hashlib.sha256(open(path, 'rb').read()).hexdigest()[:16]
     name = os.path.splitext(os.path.basename(path))[0]

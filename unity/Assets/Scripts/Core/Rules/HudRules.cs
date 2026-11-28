@@ -396,14 +396,28 @@ namespace HRZeroDay.Core.Rules
             }
         }
 
+        /// <summary>
+        /// The fill of a pad that has been chosen (keyboard-armed). v130.4, BUG-040: the default here was
+        /// `white`, and InkKey returns `white` for an armed pad -- so every armed pad that is not Approve,
+        /// Reject or Continue printed WHITE ON WHITE. It was invisible on a keyboard and it is invisible on a
+        /// screenshot, which is how it survived: the mouse never lands there. Armed is not "the brightest
+        /// thing", it is "the same pad, chosen", so it keeps its ramp and gains one step.
+        /// </summary>
         public static string ArmedFillKey(HudId id)
         {
             switch (id)
             {
                 case HudId.Approve: return "cyan_3";
                 case HudId.Reject: return "amber_4";
-                case HudId.Continue: return "cyan_4";
-                default: return "white";
+                // v130.4: cyan_4 does not exist -- the cyan ramp is four steps, 0..3. A key the palette has
+                // never had paints MAGENTA and logs a warning per frame, which is exactly what the player saw
+                // on the Continue pad. Every key written here must exist in art/kit/palette.json; CoreTests
+                // now asserts that for all three fill tables, so the next one cannot be invented silently.
+                case HudId.Continue: return "cyan_3";
+                case HudId.Letter: return "steel_2";
+                case HudId.Alerts: return "amber_2";
+                case HudId.Help: return "steel_2";
+                default: return "amber_3";     // the flag tabs: their own warm ramp, one step up
             }
         }
 
@@ -412,7 +426,10 @@ namespace HRZeroDay.Core.Rules
             switch (id)
             {
                 case HudId.Approve: return "cyan_1";     // the pad that says yes is the cold bright one
-                case HudId.Reject: return "amber_2";     // the pad that says no is warm, never red-on-red
+                // v130.4: amber_2 is luma 0.23 -- the label on it was measured at a 0.21 gap, and a 5x7 font
+                // needs 0.30. The pad that says no is one step brighter (amber_3, 0.36) so its ink clears the
+                // bar; still warm, still never red-on-red, and still the quieter of the two pads.
+                case HudId.Reject: return "amber_3";
                 case HudId.Continue: return "cyan_2";
                 case HudId.Letter: return "steel_1";
                 default: return "steel_2";               // the plaques: a lit edge, dark body
@@ -426,10 +443,14 @@ namespace HRZeroDay.Core.Rules
         public static string InkKey(HudId id, HudState s)
         {
             if (s == HudState.Disabled) return "steel_0";
+            // v130.4, BUG-040 -- "Texts are hardly visible", measured rather than argued.
+            //   The label on a bright pad used to be `void` when idle and `white` when hovered/armed. On the
+            //   HOVERED/ARMED fill (cyan_3, luma 0.74) white is a 0.20 gap and void is 0.72; on a plain pad
+            //   (steel_1, 0.13) void is nearly the fill and white is 0.81. So the rule is not "bright pads get
+            //   dark ink" -- it is "ink goes the opposite way from the fill", and the three big pads are the
+            //   only objects whose fill is bright enough to need dark ink in EVERY state.
             bool bright = id == HudId.Approve || id == HudId.Reject || id == HudId.Continue;
-            if (bright)
-                return (s == HudState.Hover || s == HudState.Armed) ? "white" : "void";
-            return s == HudState.Idle ? "paper_2" : "white";
+            return bright ? "void" : "white";
         }
 
         public static string EdgeKey(HudId id, HudState s)
@@ -445,13 +466,16 @@ namespace HRZeroDay.Core.Rules
             if (s == HudState.Disabled) return "void";
             if (flagged) return "amber_2";
             return s == HudState.Idle ? "steel_1" : "paper_1";
+            // (a flag tab's idle ink below is paper_2 on steel_1 -- 0.72 vs 0.22 value, which measures fine;
+            //  it is only the two bright PADS that were ink-on-same-value, because their fill is a mid step.)
         }
 
         public static string FlagInkKey(bool flagged, HudState s)
         {
             if (s == HudState.Disabled) return "steel_0";
-            if (flagged) return "void";
-            return s == HudState.Idle ? "paper_2" : "white";
+            // a TICKED flag is amber_2 fill (0.23): void ink on it is a 0.21 gap, i.e. the tick was invisible
+            // exactly when it mattered. The tick is white on amber, 0.71.
+            return "white";
         }
     }
 }

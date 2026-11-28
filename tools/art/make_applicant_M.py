@@ -137,32 +137,57 @@ def half_at(y):
 #   no_blink      the eyes never close, so frame 3 is the same as frame 0
 VARIANTS = {
     # ---------------- humans: identity variety, no tells
-    'human_solid_a':     dict(seed=3,   syn=False, traits=(), female=False, tone='warm',  hair=0, style=0),
-    'human_solid_b':     dict(seed=17,  syn=False, traits=(), female=False, tone='light', hair=1, style=1),
+    'human_solid_a':     dict(seed=3,   syn=False, traits=(), female=False, tone='warm',  hair=0, style=0, outfit='suit'),
+    'human_solid_b':     dict(seed=17,  syn=False, traits=(), female=False, tone='light', hair=1, style=1, outfit='sweater'),
     'human_solid_c':     dict(seed=58,  syn=False, traits=(), female=True,  tone='dark',  hair=2, style=2,
-                              glasses=True, age=True),
-    'human_nervous_a':   dict(seed=29,  syn=False, traits=(), female=True,  tone='tan',   hair=2, style=3),
-    'human_nervous_b':   dict(seed=71,  syn=False, traits=(), female=True,  tone='light', hair=0, style=7),
+                              glasses=True, age=True, outfit='blouse'),
+    'human_nervous_a':   dict(seed=29,  syn=False, traits=(), female=True,  tone='tan',   hair=2, style=3, outfit='shirt'),
+    'human_nervous_b':   dict(seed=71,  syn=False, traits=(), female=True,  tone='light', hair=0, style=7, outfit='jacket'),
     'human_bait_a':      dict(seed=41,  syn=False, traits=(), female=False, tone='dark',  hair=2, style=0,
-                              beard=2),
+                              beard=2, outfit='coat'),
     'human_bait_b':      dict(seed=86,  syn=False, traits=(), female=False, tone='warm',  hair=1, style=8,
-                              beard=1),
+                              beard=1, outfit='suit'),
     # ---------------- synthetics: each carries a specific tell set. They span the tones too: a tell must
     # never be "the dark ones", which would teach the wrong lesson and read as a slur on the cast.
     'synthetic_polished_a':  dict(seed=101, syn=True, traits=('seam', 'mirror'), female=False, tone='tan',
-                                  hair=2, style=1),
+                                  hair=2, style=1, outfit='suit'),
     'synthetic_polished_b':  dict(seed=131, syn=True, traits=('cuffs', 'skin_band'), female=True, tone='light',
-                                  hair=0, style=3),
+                                  hair=0, style=3, outfit='blouse'),
     'synthetic_polished_c':  dict(seed=163, syn=True, traits=('glasses_merge', 'mirror'), female=False,
-                                  tone='dark', hair=1, style=0, glasses=True),
+                                  tone='dark', hair=1, style=0, glasses=True, outfit='suit'),
     'synthetic_cloned_a':    dict(seed=113, syn=True, traits=('ear', 'shadow'), female=True, tone='warm',
-                                  hair=2, style=2),
+                                  hair=2, style=2, outfit='blouse'),
     'synthetic_cloned_b':    dict(seed=149, syn=True, traits=('cuffs', 'seam'), female=False, tone='tan',
-                                  hair=2, style=0),
+                                  hair=2, style=0, outfit='sweater'),
     'synthetic_collusion_a': dict(seed=127, syn=True, traits=('straight_badge', 'mirror'), female=True,
-                                  tone='light', hair=1, style=2),
+                                  tone='light', hair=1, style=2, outfit='shirt'),
     'synthetic_collusion_b': dict(seed=173, syn=True, traits=('shadow', 'no_blink'), female=False, tone='dark',
-                                  hair=2, style=6),
+                                  hair=2, style=6, outfit='coat'),
+}
+
+# ===================================================================================== the wardrobe
+# v130.4 (the player: "Btw varieties for the applicants outfit and look").
+#
+# Until now every one of the fourteen variants wore the SAME grey suit: paint_body wrote 'wall_2' for the
+# shoulders, 'steel_1' for collar and cuffs, and the lanyard was always cyan. Fourteen people, one uniform.
+# That is the "a variant table is not variety" bug (H6 in the orders) wearing clothes.
+#
+# A garment is a PLACE on a ramp, never a colour table, so a jacket still lights correctly under the desk
+# lamp and still passes the one-palette gate:
+#   jacket  shoulders + chest          `site`: the shoulder/chest ramp
+#   collar  collar + cuffs + placket   one step lighter than the jacket
+#   strap   the lanyard                `site`: the badge's own accent
+#   shirt   bare V of shirt under it   light, because a shirt is the lightest thing in a wardrobe
+#
+# Six looks over fourteen people. Humans get all six; synthetics share them, because a synthetic is BUILT to
+# pass, so on average it dresses more conventionally than a human does -- that irony is the point.
+OUTFITS = {
+    'suit':  dict(jacket=('wall', 2),  collar=('steel', 1), shirt=('steel', 2), strap=('cyan', 1), tie_mask=False),
+    'sweater': dict(jacket=('steel', 1), collar=('steel', 2), shirt=('paper', 1), strap=('cyan', 1), tie_mask=False),
+    'shirt':  dict(jacket=('cup', 1),   collar=('cup', 2),   shirt=('paper', 0), strap=('hair', 2),  tie_mask=False),
+    'blouse': dict(jacket=('paper', 1), collar=('paper', 2), shirt=('cup', 2),   strap=('red', 1),   tie_mask=False),
+    'coat':   dict(jacket=('wood', 1),  collar=('wood', 2),  shirt=('paper', 1), strap=('amber', 2), tie_mask=False),
+    'jacket': dict(jacket=('scr', 0),   collar=('scr', 1),   shirt=('steel', 2), strap=('cyan', 2),  tie_mask=False),
 }
 
 # hair colours, by ramp place. Black/brown/grey are three PLACES on the `hair` ramp, never three tables.
@@ -499,6 +524,11 @@ def paint_body(img, st, frame):
     desk in front of him is the ROOM's slab (make_desk_room.desk_slab_M), never a drawn edge in the sprite.
     """
     A = st['traits']
+    W = OUTFITS.get(st.get('outfit', 'suit'), OUTFITS['suit'])
+    JACKET = '%s_%d' % W['jacket']
+    COLLAR = '%s_%d' % W['collar']
+    SHIRT = '%s_%d' % W['shirt']
+    STRAP = '%s_%d' % W['strap']
     build = 42 + 6 * (st['seed'] % 3)                   # shoulder half-width: 42 / 48 / 54
     breath = 1 if frame == 1 else 0
     fidget = 1 if frame == 2 else 0
@@ -530,24 +560,32 @@ def paint_body(img, st, frame):
         if fidget:
             hw += 1 if y < top + 30 else 0
         for x in range(CX - hw, CX + hw + 1):
-            put(img, x, y, 'wall_2')
+            put(img, x, y, JACKET)
         for x in range(CX - hw, CX - int(hw * 0.45)):
             if bayer(x, y) < 0.55:
-                put(img, x, y, 'steel_2')
+                put(img, x, y, COLLAR)
         for x in range(CX + int(hw * 0.55), CX + hw + 1):
             if bayer(x, y) < 0.6:
-                put(img, x, y, 'wall_0')
+                put(img, x, y, JACKET)   # the far shoulder: same garment, in the room's shadow
 
-    # ---- the collar: two wedges off the neck, one step lighter than the shirt
+    # ---- the shirt: the bare V between the lapels. Draw it FIRST, then the lapels over it, so the V is a
+    # shape cut out of the jacket rather than a stripe painted on it.
+    for y in range(top + 2, H):
+        t = (y - top) / float(H - top)
+        vw = max(2, int(11 - 7 * t))                    # the V narrows as it goes down
+        for x in range(CX - vw, CX + vw + 1):
+            put(img, x, y, SHIRT)
+
+    # ---- the collar: two wedges off the neck, in the garment's own lighter step
     for y in range(top, top + 14):
         w = 12 + (y - top) // 2
         for x in range(CX - w, CX - 7):
-            put(img, x, y, 'steel_1')
+            put(img, x, y, COLLAR)
         for x in range(CX + 8, CX + w + 1):
-            put(img, x, y, 'steel_1')
+            put(img, x, y, COLLAR)
     for y in range(top + 14, H):
         for x in range(CX - 6, CX + 7):
-            put(img, x, y, 'steel_1')
+            put(img, x, y, COLLAR)
 
     # ---- the cuffs, at the frame's bottom edge: the tell that replaced "fists on the desk"
     cuff_y = H - 16
@@ -556,16 +594,16 @@ def paint_body(img, st, frame):
         cx0 = CX + side * int(build * 0.78)
         for y in range(cuff_y, H):
             for x in range(cx0 - cw, cx0 + cw):
-                put(img, x, y, 'steel_1' if 'cuffs' not in A else 'steel_2')
+                put(img, x, y, COLLAR if 'cuffs' not in A else JACKET)
         if 'cuffs' not in A:
             for x in range(cx0 - cw, cx0 + cw):        # a human cuff has a seam and a wrist gap
-                put(img, x, cuff_y, 'steel_0')
+                put(img, x, cuff_y, SHIRT)
             put(img, cx0 - cw, cuff_y, 'wall_0')
             put(img, cx0 + cw - 1, cuff_y, 'wall_0')
         else:
             # TELL: one solid block, identical on both sides, no seam, no wrist gap
             for x in range(cx0 - cw, cx0 + cw):
-                put(img, x, cuff_y, 'steel_2')
+                put(img, x, cuff_y, JACKET)
 
     # ---- the lanyard: two straps, cyan with a lit edge
     swing = 1 if frame == 2 else 0
@@ -573,8 +611,9 @@ def paint_body(img, st, frame):
         for i in range(0, 46):
             y = top + 10 + i
             x = int(CX + side * (10 + i * 0.06) + (swing if side > 0 else 0))
-            put(img, x, y, 'cyan_0')
-            put(img, x + side, y, 'cyan_1')
+            put(img, x, y, STRAP)
+            ramp_stem = STRAP.rsplit('_', 1)[0]
+            put(img, x + side, y, '%s_%d' % (ramp_stem, min(4, int(STRAP.rsplit('_', 1)[1]) + 1)))
 
     # ---- the badge: 27x22, hung at the straps' meeting point
     bx, by = CX - 13, top + 56 - (1 if fidget else 0)

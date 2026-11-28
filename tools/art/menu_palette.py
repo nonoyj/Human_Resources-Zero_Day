@@ -123,7 +123,12 @@ RAMPS = {
     # the AI's colour. rationed to the breach and the stamp
     'red':   [(6, .62, .175), (358, .76, .410), (350, .70, .760)],
     # the breach/selection cyan: brighter than teal, used for text and the selected row
-    'cyan':  [(194, .62, .285), (187, .66, .480), (180, .48, .760)],
+    # v130.4, BUG-039: the ramp used to STOP AT THREE. HudRules asks for cyan_3 (the Continue pad's hover ink)
+    # and cyan_4 (the approved pad, armed), so ObjectPlate painted both as MAGENTA on the player's screen and
+    # logged a warning per frame. A material list that the code can index past is not a material list. Four
+    # steps, so every key HudRules names exists -- and the brightest step is EMISSIVE, which is what a pad
+    # that is telling you to press it should be.
+    'cyan':  [(196, .62, .285), (189, .64, .440), (181, .52, .620), (173, .42, .820)],
 }
 
 # What the code calls each step. The sprite generators and MenuView.cs both use these names, so a
@@ -211,7 +216,7 @@ def hexof(rgb):
 
 
 # ---------------------------------------------------------------------------------------- the gate
-EMISSIVE = {'white', 'teal_4', 'scr_2', 'cyan_2', 'red_2', 'amber_4', 'scr_2'}   # light sources
+EMISSIVE = {'white', 'teal_4', 'scr_2', 'cyan_2', 'cyan_3', 'red_2', 'amber_4', 'scr_2'}   # light sources
 
 
 def check() -> list:

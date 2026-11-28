@@ -109,7 +109,11 @@ namespace HRZeroDay.Game.Interaction
         public bool DayFinished { get { return _shift.DayFinished; } }
         public float ObservationSeconds { get { return _observationSeconds; } }
 
-        public ApplicantViewData Current { get { return ApplicantViewData.From(_shift.Current); } }
+        /// <summary>The person in the chair, or null between applicants -- see ShiftController.Current (BUG-038).</summary>
+        public ApplicantViewData Current
+        {
+            get { var rec = _shift.Current; return rec == null ? null : ApplicantViewData.From(rec); }
+        }
 
         public void Tick(float unscaledDeltaTime)
         {
@@ -167,8 +171,10 @@ namespace HRZeroDay.Game.Interaction
         {
             if (Finished || DayFinished) return false;
             _observationSeconds = 0f;
-            _ledger.Begin(_shift.Current);
-            _paperwork = Paperwork.For(_shift.Current, Seed);
+            var rec = _shift.Current;
+            if (rec == null) return false;                  // the day is over; there is nobody to begin
+            _ledger.Begin(rec);
+            _paperwork = Paperwork.For(rec, Seed);
             _tools.AdvanceToDay(_shift.Day);
             if (ApplicantChanged != null) ApplicantChanged(Current);
             return true;

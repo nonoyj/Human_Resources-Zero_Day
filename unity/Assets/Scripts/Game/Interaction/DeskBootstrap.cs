@@ -414,13 +414,41 @@ namespace HRZeroDay.Game.Interaction
         /// Same three inputs the rest of the game uses for "is the desk being worked", so the screen can
         /// never be on during the ending or off during an interview.
         /// </summary>
+        /// <summary>
+        /// IS THE MONITOR SWITCHED ON BY THE PLAYER? (v130.4.)
+        ///
+        /// The player asked, literally: "How to turn on the monitor." Until now they could not -- the tube's
+        /// state was decided entirely by the game (ON at the desk, IDLE over the walk, OFF at the ending), so
+        /// the one light the brief said must be switchable *by the player* had no switch on it. This is that
+        /// switch: F (or a tap on the monitor's glass) flips it, the same way L flips the letter.
+        /// It is an OVERRIDE, not a replacement: `ScreenStateNow()` still owns the three automatic cases, and
+        /// the override can only ever turn the tube OFF (never force it on during the ending or the walk).
+        /// </summary>
+        public bool MonitorSwitchOff { get { return _monitorOff; } }
+        private bool _monitorOff;
+
+        /// <summary>Flip the monitor's power. Returns the state it is in afterwards (true = lit).</summary>
+        public bool ToggleMonitor()
+        {
+            _monitorOff = !_monitorOff;
+            return !_monitorOff;
+        }
+
+        /// <summary>The canvas rect of the monitor's glass, so a tap on it is a power button. Mirrors
+        /// ScreenLight's measured glass (x 273..454, top-down rows 69..162 on the 480x270 canvas).</summary>
+        public const int MonitorGlassL = 273, MonitorGlassR = 454, MonitorGlassT = 69, MonitorGlassB = 162;
+
         public ScreenState ScreenStateNow()
         {
             // A menu over a live run keeps the tube IDLE rather than OFF: the run is still behind the door,
             // and the door's own room is lit by MenuView, not by this light. The one case that is genuinely
             // dark is the ending, where the desk is not the thing on screen any more.
-            return ScreenLight.StateFor(ShowEnding && !_showingDaySummary, ShowingSweep, _showingDaySummary,
-                                        ShowingMenu);
+            var s = ScreenLight.StateFor(ShowEnding && !_showingDaySummary, ShowingSweep, _showingDaySummary,
+                                         ShowingMenu);
+            // the player's own switch only ever takes light away: OFF stays OFF, and an ON becomes IDLE
+            // (a dark screen that still throws a little spill, which is what a monitor on standby does)
+            if (_monitorOff && s != ScreenState.Off) return ScreenState.Idle;
+            return s;
         }
 
         public void Restart()

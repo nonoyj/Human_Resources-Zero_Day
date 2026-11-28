@@ -24,8 +24,17 @@ namespace HRZeroDay.Game
     {
         public const string RootName = "RoomClock";
 
-        /// <summary>The clock face's rect in canvas px, top-down. Mirrors make_desk_room.CLOCK_X/Y/CLOCK_SIZE.</summary>
-        public int x = 388, y = 22, size = 30;
+        /// <summary>
+        /// The clock face's rect in canvas px, top-down (left, top, size). Mirrors
+        /// make_desk_room.CLOCK_X / CLOCK_Y / CLOCK_SIZE.
+        ///
+        /// v130.4 (the player: "The wall clock is covered by the monitor transfer it to the center"): the face
+        /// was painted at x 388 on a 480-wide canvas, and the CRT is mounted at x 268 with a 186-wide body --
+        /// the clock sat BEHIND the monitor. A clock you cannot see is not a clock. It now sits at x 226, which
+        /// is the centre of the wall segment the player actually looks at, clear of the monitor's left edge
+        /// (268) by 12 px and clear of the window's right edge (52+116=168) by 28 px.
+        /// </summary>
+        public int x = 203, y = 22, size = 30;
 
         public float progress;        // 0..1, written by DeskLightDriver every frame
         private int _lastMinute = -1;

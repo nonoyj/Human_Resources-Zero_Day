@@ -63,7 +63,32 @@ namespace HRZeroDay.Core.Data
         public int DaySyntheticCaught { get; private set; }
 
         public IList<ApplicantRecord> Today { get { return _days[Day]; } }
-        public ApplicantRecord Current { get { return _days[Day][CurrentIndex]; } }
+
+        /// <summary>
+        /// The person in the chair, or null once the day is over.
+        ///
+        /// v130.4, BUG-038: this used to be `_days[Day][CurrentIndex]` with no guard. The moment the last
+        /// applicant of a day is stamped, CurrentIndex == Count, and every UI that reads Current during the
+        /// debrief / day summary / ending throws ArgumentOutOfRangeException -- once per frame, 486 of them
+        /// on the player's screen. "There is nobody in the chair" is a state the game spends real time in,
+        /// so it has to be representable. Every caller already checks for null (GameHudObjects, MonitorScreen,
+        /// LetterView, DeskBootstrap); the reader was the only thing that disagreed with them.
+        /// </summary>
+        public ApplicantRecord Current { get { return PersonAt(Day); } }
+
+        /// <summary>
+        /// The person at <paramref name="index"/> of the day on screen, or null when there is nobody there.
+        /// (BUG-038: the old reader was `_days[Day][CurrentIndex]` with no guard, so the frame after the last
+        /// stamp -- the debrief, the day summary, the ending, a menu over a dead run -- threw
+        /// ArgumentOutOfRangeException once per frame, 486 times on the player's screen.)
+        /// </summary>
+        public ApplicantRecord PersonAt(int index)
+        {
+            List<ApplicantRecord> today;
+            if (_days == null || !_days.TryGetValue(Day, out today) || today == null) return null;
+            if (index < 0 || index >= today.Count) return null;
+            return today[index];
+        }
         public bool DayFinished { get { return CurrentIndex >= _days[Day].Count; } }
         public bool RunFinished { get { return Outcome != RunOutcome.InProgress; } }
         public Dictionary<int, List<ApplicantRecord>> AllDays { get { return _days; } }

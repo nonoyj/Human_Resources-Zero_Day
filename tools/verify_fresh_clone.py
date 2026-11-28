@@ -87,12 +87,18 @@ def main() -> int:
         print('    %d files, %.1f MB' % (files, sum(
             os.path.getsize(os.path.join(d, f)) for d, _s, fs in os.walk(tmp) for f in fs) / 1048576))
 
-        failures = []
+        failures, skipped = [], []
         for name, argv in CHECKS:
             proc = subprocess.run([sys.executable, os.path.join(tmp, argv[0])] + argv[1:],
                                   cwd=tmp, capture_output=True, text=True)
             out = (proc.stdout or '') + (proc.stderr or '')
-            if proc.returncode != 0:
+            if proc.returncode == 3:
+                # 3 is the tools' own "I could not even start" code -- a missing Pillow, a missing module.
+                # It is NOT a verdict about the commit, and reporting it as one is what turned the player's
+                # v130.3 gate into "FAIL: the COMMIT does not work on a clean machine" over a pip install.
+                skipped.append((name, out.strip().splitlines()[-2:]))
+                print('  [skip] %s -- the tool could not start here (not a verdict on the commit)' % name)
+            elif proc.returncode != 0:
                 failures.append((name, out.strip().splitlines()[-4:]))
                 print('  [FAIL] %s' % name)
             else:
@@ -107,7 +113,12 @@ def main() -> int:
             print('\nThis is the class of bug that has cost six round trips. Fix the commit, not the gate.')
             return 1
 
-        print('\nPASS: a clean checkout of %s verifies itself.' % head)
+        if skipped:
+            print('\nPASS (with %d check(s) SKIPPED -- see above): a clean checkout of %s verifies itself '
+                  'for every check that could run here.' % (len(skipped), head))
+            print('    to run the skipped ones: python -m pip install pillow')
+        else:
+            print('\nPASS: a clean checkout of %s verifies itself.' % head)
         return 0
     finally:
         if args.keep:

@@ -28,6 +28,8 @@ namespace HRZeroDay.Tests
             yield return Check("two_taps_on_touch_only", TwoTapsOnTouchOnly);
             yield return Check("palette_ladder_is_authored", PaletteLadderIsAuthored);
             yield return Check("security_is_a_shape_before_a_number", SecurityIsAShapeBeforeANumber);
+            yield return Check("every_hud_colour_key_exists", EveryHudFillKeyExists);
+            yield return Check("every_label_reads_on_its_fill", EveryLabelReadsOnItsFill);
             yield return Check("the_tube_lights_every_static_surface", TheTubeLightsEveryStaticSurface);
             yield return Check("the_tube_lights_the_desk_not_the_floor", TheTubeLightsTheDeskNotTheFloor);
             yield return Check("the_menu_lamp_lights_the_desk_objects", TheMenuLampLightsTheDeskObjects);
@@ -236,6 +238,105 @@ namespace HRZeroDay.Tests
                 last = filled;
             }
             return "PASS  the security score is a 5-cell bar before it is a number, and the two agree";
+        }
+
+        /// <summary>
+        /// A LABEL MUST BE READABLE ON THE THING IT IS PRINTED ON (v130.4, BUG-040).
+        ///
+        /// The player: "Texts are hardly visible." The cause was not the font -- it was that a stamp pad's
+        /// label was painted in `void` (luminance 0.03) on a `cyan_1` fill (0.42), and the readings were
+        /// painted in paper over a dark room with a shadow that only appeared next to its own ink. A contrast
+        /// rule that is not measured is a preference, so this measures: for every object the HUD draws, the
+        /// ink's luminance and the fill's luminance must differ by at least MIN_INK_GAP.
+        /// </summary>
+        private const double MIN_INK_GAP = 0.30;    // WCAG's 3:1 for large text, expressed as Rec.709 luma
+
+        private static double Luma(int[] c)
+        {
+            return (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255.0;
+        }
+
+        private static string EveryLabelReadsOnItsFill()
+        {
+            string path = Path.Combine("unity", "Assets", "Resources", "palette.json");
+            var pal = new Dictionary<string, int[]>();
+            using (var doc = JsonDocument.Parse(File.ReadAllText(path)))
+            {
+                foreach (var e in doc.RootElement.EnumerateArray())
+                {
+                    var v = e.GetProperty("value");
+                    pal[e.GetProperty("key").GetString()] = new[]
+                    {
+                        v.GetProperty("r").GetInt32(), v.GetProperty("g").GetInt32(), v.GetProperty("b").GetInt32()
+                    };
+                }
+            }
+
+            var worst = 9.0;
+            var worstId = "";
+            foreach (HudId id in Enum.GetValues(typeof(HudId)))
+            {
+                foreach (HudState st in Enum.GetValues(typeof(HudState)))
+                {
+                    // DISABLED is the one state that is allowed to be quiet: "grey means dead" (v126) -- a
+                    // pad you cannot use is drawn dark on dark ON PURPOSE, and refusing the click is what tells
+                    // the player, not the contrast. The rule under test is about labels the player must read.
+                    if (st == HudState.Disabled) continue;
+                    string fillKey = HudRules.FillKey(id, st);
+                    string inkKey = HudRules.InkKey(id, st);
+                    True(pal.ContainsKey(fillKey), "missing fill key " + fillKey + " for " + id);
+                    True(pal.ContainsKey(inkKey), "missing ink key " + inkKey + " for " + id);
+                    double gap = System.Math.Abs(Luma(pal[inkKey]) - Luma(pal[fillKey]));
+                    if (gap < worst) { worst = gap; worstId = id + "/" + st; }
+                    True(gap >= MIN_INK_GAP,
+                         "the label on " + id + " (" + st + ") is " + inkKey + " on " + fillKey + ": a luma gap " +
+                         "of " + gap.ToString("0.00") + ", under the " + MIN_INK_GAP.ToString("0.00") +
+                         " a 5x7 font needs at this size -- this is the player's 'texts are hardly visible'");
+                }
+            }
+            return "PASS  every label clears " + MIN_INK_GAP.ToString("0.00") +
+                   " luma of its own fill (worst: " + worstId + " at " + worst.ToString("0.00") + ")";
+        }
+
+        /// <summary>
+        /// EVERY COLOUR KEY THE HUD ASKS FOR MUST EXIST (v130.4, BUG-039).
+        ///
+        /// The player's screen showed a MAGENTA Continue pad and this warning, once per frame:
+        ///   [HR//0D] palette key 'cyan_3' is missing -- painting magenta so it shows
+        /// The palette's cyan ramp stopped at cyan_2 while HudRules asked for cyan_3 and cyan_4. Nothing
+        /// caught it because the fill tables are strings and the palette is JSON; a string cannot be
+        /// type-checked, so it has to be TESTED. This walks every key the three fill tables can return and
+        /// asks the published palette whether it is there.
+        /// </summary>
+        private static string EveryHudFillKeyExists()
+        {
+            string path = Path.Combine("unity", "Assets", "Resources", "palette.json");
+            True(File.Exists(path), "the published palette is missing: " + path);
+            var have = new HashSet<string>();
+            using (var doc = JsonDocument.Parse(File.ReadAllText(path)))
+            {
+                foreach (var e in doc.RootElement.EnumerateArray())
+                    have.Add(e.GetProperty("key").GetString());
+            }
+
+            var wanted = new List<string>();
+            foreach (HudId id in Enum.GetValues(typeof(HudId)))
+            {
+                wanted.Add(HudRules.FillKey(id));
+                wanted.Add(HudRules.HoverFillKey(id));
+                wanted.Add(HudRules.ArmedFillKey(id));
+            }
+            var missing = new List<string>();
+            foreach (var k in wanted)
+            {
+                if (!have.Contains(k)) missing.Add(k);
+            }
+            missing.Sort();
+            True(missing.Count == 0,
+                 "the HUD asks for palette keys the palette does not have (they paint MAGENTA): " +
+                 string.Join(", ", missing.ToArray()));
+            return "PASS  every colour key the HUD can ask for exists in the palette (" +
+                   new HashSet<string>(wanted).Count + " keys)";
         }
 
         /// <summary>

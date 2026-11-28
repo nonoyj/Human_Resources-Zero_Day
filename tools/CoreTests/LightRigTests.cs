@@ -53,6 +53,8 @@ namespace HRZeroDay.Tests
             yield return Check("clock_never_runs_backwards", ClockNeverRunsBackwards);
             yield return Check("clock_hands_fit_the_face", ClockHandsFitTheFace);
             yield return Check("clock_words_match_the_hour", ClockWordsMatchTheHour);
+            yield return Check("the_clock_is_not_under_the_monitor", ClockIsClearOfTheMonitor);
+            yield return Check("the_cast_wears_more_than_one_outfit", TheCastWearsMoreThanOneOutfit);
             yield return Check("variety_every_variant_ships", VarietyEveryVariantShips);
             yield return Check("variety_is_stable_and_spread", VarietyIsStableAndSpread);
             yield return Check("variety_frames_are_not_copies", VarietyFramesAreNotCopies);
@@ -431,6 +433,107 @@ namespace HRZeroDay.Tests
             True(total > 15, "a run has more applicants than that: " + total);
             True(seen.Count >= 4, "a whole run used only " + seen.Count + " distinct faces for " + total +
                                   " people -- that is the bug this rule exists to stop");
+        }
+
+        /// <summary>
+        /// THE CLOCK IS ON THE WALL THE PLAYER CAN SEE (v130.4, the player: "The wall clock is covered by the
+        /// monitor transfer it to the center").
+        ///
+        /// The face was painted at x 388 on a 480 canvas and drawn over by the CRT, whose body runs 268..454.
+        /// This test reads BOTH numbers from the two files that own them -- the painter's constants and the
+        /// view's -- and asserts three things: they agree with each other, the face sits clear of the monitor,
+        /// and it sits clear of the window. A position is a coordinate before it is a colour.
+        /// </summary>
+        private static void ClockIsClearOfTheMonitor()
+        {
+            string root = RepoRoot();
+            string painter = System.IO.File.ReadAllText(System.IO.Path.Combine(root, "tools", "art", "make_desk_room.py"));
+            string view = System.IO.File.ReadAllText(System.IO.Path.Combine(root, "unity", "Assets", "Scripts",
+                                                                          "Game", "Desk", "RoomClockView.cs"));
+
+            int px = ReadConst(painter, "CLOCK_X, CLOCK_Y = ", 0);
+            int py = ReadConst(painter, "CLOCK_X, CLOCK_Y = ", 1);
+            int size = ReadConst(painter, "CLOCK_SIZE = ", 0);
+            int vx = ReadConst(view, "public int x = ", 0);
+            int vy = ReadConst(view, "public int x = ", 1);
+            int vs = ReadConst(view, "public int x = ", 2);
+
+            True(px == vx && py == vy && size == vs,
+                 "the clock the room paints (" + px + "," + py + "," + size + ") and the clock the hands are " +
+                 "drawn on (" + vx + "," + vy + "," + vs + ") disagree -- the hands would float off the face");
+
+            const int MONITOR_L = 268, MONITOR_R = 454;    // desk_layout.json: the CRT's own anchor and width
+            const int WINDOW_R = 168;                      // the window's right edge: 52 + 116
+            True(px + size <= MONITOR_L,
+                 "the clock runs to x " + (px + size) + ", which is under the monitor (its left edge is " +
+                 MONITOR_L + ") -- the player cannot see it");
+            True(px >= WINDOW_R,
+                 "the clock starts at x " + px + ", which is on the window (its right edge is " + WINDOW_R + ")");
+            // and it should be CENTRED on the free wall, which is the player's actual request
+            int freeMid = (WINDOW_R + MONITOR_L) / 2;
+            int clockMid = px + size / 2;
+            True(System.Math.Abs(clockMid - freeMid) <= 12,
+                 "the clock's centre is at " + clockMid + " but the free wall's centre is " + freeMid);
+        }
+
+        private static int ReadConst(string text, string marker, int index)
+        {
+            int at = text.IndexOf(marker, StringComparison.Ordinal);
+            True(at >= 0, "could not find '" + marker + "' -- the constant moved and this test is stale");
+            string rest = text.Substring(at + marker.Length);
+            int line = rest.IndexOf('\n');
+            if (line < 0) line = rest.Length;
+            string head = rest.Substring(0, line);
+            int hash = head.IndexOf('#');
+            if (hash >= 0) head = head.Substring(0, hash);
+            var parts = head.Split(',');
+            True(parts.Length > index, "'" + marker + "' no longer has " + (index + 1) + " values");
+            // `x = 226, y = 22, size = 30` -- each part after the first carries its own name, so take the LAST
+            // token: the number.
+            var m = System.Text.RegularExpressions.Regex.Match(parts[index], @"-?\d+");
+            True(m.Success, "'" + marker + "' part " + index + " is not a number: '" + parts[index] + "'");
+            return int.Parse(m.Value);
+        }
+
+        /// <summary>
+        /// THE CAST WEARS MORE THAN ONE OUTFIT (v130.4, the player: "Btw varieties for the applicants outfit
+        /// and look").
+        ///
+        /// Every one of the fourteen variants used to be painted in the same grey suit -- a variant table is not
+        /// variety (orders/09, H6), and it had happened once already with complexions. This reads the painter's
+        /// own OUTFITS table and its own cast, and asserts that the wardrobe is actually used: a spread of looks,
+        /// no single look dominating the cast, and every variant naming an outfit that exists.
+        /// </summary>
+        private static void TheCastWearsMoreThanOneOutfit()
+        {
+            string src = System.IO.File.ReadAllText(System.IO.Path.Combine(RepoRoot(), "tools", "art",
+                                                                           "make_applicant_M.py"));
+            int at = src.IndexOf("OUTFITS = {", StringComparison.Ordinal);
+            True(at >= 0, "the painter has no OUTFITS table any more -- this test is stale");
+            int end = src.IndexOf("\n}", at, StringComparison.Ordinal);
+            string block = src.Substring(at, end - at);
+            var looks = new System.Text.RegularExpressions.Regex("'(suit|sweater|shirt|blouse|coat|jacket)':");
+            int outfits = looks.Matches(block).Count;
+            True(outfits >= 4, "the wardrobe has " + outfits + " looks -- the player asked for variety");
+
+            int vas = src.IndexOf("VARIANTS = {", StringComparison.Ordinal);
+            True(vas >= 0, "the painter has no VARIANTS table any more");
+            int vend = src.IndexOf("\n# hair colours", vas, StringComparison.Ordinal);
+            if (vend < 0) vend = src.IndexOf("\n}", vas, StringComparison.Ordinal);
+            string cast = src.Substring(vas, vend - vas);
+            var used = new System.Text.RegularExpressions.Regex("outfit='([a-z]+)'").Matches(cast);
+            True(used.Count >= 10, "only " + used.Count + " variants name an outfit -- the rest wear the default");
+            var counts = new System.Collections.Generic.Dictionary<string, int>();
+            for (int i = 0; i < used.Count; i++)
+            {
+                string k = used[i].Groups[1].Value;
+                True(block.Contains("'" + k + "':"), "a variant wears '" + k + "', which is not in OUTFITS");
+                counts[k] = counts.ContainsKey(k) ? counts[k] + 1 : 1;
+            }
+            True(counts.Count >= 4, "the cast wears only " + counts.Count + " distinct looks");
+            foreach (var kv in counts)
+                True(kv.Value <= used.Count * 0.6,
+                     "'" + kv.Key + "' is worn by " + kv.Value + " of " + used.Count + " people -- that is a uniform");
         }
 
         private static void ClockWordsMatchTheHour()

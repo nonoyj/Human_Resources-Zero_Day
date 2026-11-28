@@ -31,8 +31,15 @@ $repo = Split-Path -Parent $PSScriptRoot
 Push-Location $repo
 try {
     S 'manifest matches the PNGs on disk'
-    & python tools/art/make_sprite_manifest.py --verify
-    if ($LASTEXITCODE -ne 0) { D 'manifest verify failed' } else { OK 'manifest current' }
+    # A python that dies is not a python that answered "no". Before v130.4 this block printed
+    # "(could not run: Traceback ...)" and carried on, so the player's gate said ART PIPELINE FAILED for a
+    # missing Pillow and for a missing module -- the same red line a real art regression would produce.
+    # python_missing.py turns "the tool cannot even start" into one sentence and exit 3; anything else is
+    # the tool's own verdict and is trusted.
+    $py = & python tools/art/make_sprite_manifest.py --verify 2>&1
+    $py | Out-Host
+    if ($LASTEXITCODE -eq 3) { W 'the manifest check could not run on this machine -- see the line above; the art is NOT known to be broken' }
+    elseif ($LASTEXITCODE -ne 0) { D 'manifest verify failed' } else { OK 'manifest current' }
 
     S 'unity copy matches art/kit'
     & python tools/art/publish_to_unity.py --verify

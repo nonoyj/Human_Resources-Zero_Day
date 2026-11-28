@@ -124,6 +124,8 @@ namespace HRZeroDay.Game.Interaction
                 if (kb.lKey.wasPressedThisFrame) game.ToggleLetter();
                 if (kb.xKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame) game.CloseLetter();
                 if (kb.hKey.wasPressedThisFrame) game.ToggleHelp();
+                // F = the monitor's power switch (v130.4). The player asked how to turn it on; this is how.
+                if (kb.fKey.wasPressedThisFrame) game.ToggleMonitor();
                 // ALERTS (v119.6): TAB is the one key the desk and the letter both honour, because the panel is
                 // read-only and never steals a decision. ESC closes it before it closes anything else.
                 if (kb.tabKey.wasPressedThisFrame) game.ToggleAlerts();
@@ -217,6 +219,16 @@ namespace HRZeroDay.Game.Interaction
             // that state, so there is nothing to special-case here.
             if (bootstrap.HudObjects != null && !bootstrap.HudObjects.IsEmpty && bootstrap.HudObjects.Click(hx, hy))
                 return;
+
+            // A TAP ON THE MONITOR IS ITS POWER BUTTON (v130.4). The glass is the one object on the desk that
+            // the brief says the player must be able to switch, and a key alone is not discoverable on a
+            // touchscreen. It comes after the HUD so a stamp pad over the glass still wins.
+            if (hx >= DeskBootstrap.MonitorGlassL && hx <= DeskBootstrap.MonitorGlassR &&
+                hy >= DeskBootstrap.MonitorGlassT && hy <= DeskBootstrap.MonitorGlassB)
+            {
+                bootstrap.ToggleMonitor();
+                return;
+            }
 
             // Whatever the object layer did NOT take: the letter page and the three full-screen states own
             // the rest of the screen, and the desk behind them is inert. This used to be one long `return`

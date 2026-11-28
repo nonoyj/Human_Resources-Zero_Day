@@ -142,6 +142,32 @@ namespace HRZeroDay.Game.Desk
             if (buffer == null || palette == null || glyphs == null || string.IsNullOrEmpty(text)) return 0;
             Color32 ink = Key(palette, inkKey);
             Color32 shadow = Key(palette, shadowKey);
+            // v130.4, BUG-040 -- "Texts are hardly visible."
+            //   The shadow used to be drawn ONLY under the ink, so it was a 1 px ring around a glyph drawn on
+            //   top of the dark 3D room, in a 5x7 font at 16 PPU. A shadow that appears nowhere except next to
+            //   its own ink does not separate that ink from the background; it draws a slightly darker outline
+            //   inside the same dark background. The shadow is now painted for the WHOLE CELL -- every pixel of
+            //   every character box -- before any ink, so each glyph sits on a dark tile that is 2-3 x its own
+            //   ink area. That is what makes a light 5x7 font legible over a photographic-ish room.
+            Color32 cellShadow = shadow;
+            if (cellShadow.r == ink.r && cellShadow.g == ink.g && cellShadow.b == ink.b)
+                cellShadow = new Color32(0, 0, 0, 255);        // a caller that passed the ink twice still reads
+            for (int c = 0; c < text.Length; c++)
+            {
+                int cx0 = x + c * glyphs.CellW;
+                for (int gy = 0; gy < glyphs.CellH; gy++)
+                {
+                    for (int gx = 0; gx < glyphs.CellW; gx++)
+                    {
+                        // the tile: one pixel of bleed on every side, so a glyph's edge pixel still has a dark
+                        // neighbour to sit against at game scale
+                        Plot(buffer, w, h, cx0 + gx, top + gy, cellShadow);
+                        if (gx == 0) Plot(buffer, w, h, cx0 - 1, top + gy, cellShadow);
+                        if (gy == 0) Plot(buffer, w, h, cx0 + gx, top - 1, cellShadow);
+                        if (gx == 0 && gy == 0) Plot(buffer, w, h, cx0 - 1, top - 1, cellShadow);
+                    }
+                }
+            }
             int painted = 0;
             for (int c = 0; c < text.Length; c++)
             {
@@ -152,7 +178,6 @@ namespace HRZeroDay.Game.Desk
                         if (!glyphs.InkAt(text[c], gx, gy)) continue;
                         int px = x + c * glyphs.CellW + gx;
                         int py = top + gy;
-                        Plot(buffer, w, h, px + 1, py + 1, shadow);   // a 1 px shadow, not a glow
                         Plot(buffer, w, h, px, py, ink);
                         painted++;
                     }

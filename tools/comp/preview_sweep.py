@@ -270,7 +270,7 @@ def main():
                     help='verify the walk without writing a file: every floor present, nothing overflowing')
     a = ap.parse_args()
     if not HAVE_PIL:
-        print('Pillow required'); return 2
+        print('Pillow required (pip install pillow) -- the page code itself is not known to be wrong'); return 3
 
     if a.check:
         return check()

@@ -87,7 +87,10 @@ namespace HRZeroDay.Tests
         /// </summary>
         private static DecisionResult Decide(ShiftController shift, bool playPerfectly)
         {
-            var a = shift.Current;
+            // PersonAt(CurrentIndex), not Current: Submit() advances the chair, so the person you are deciding
+            // about is the one at CurrentIndex BEFORE the call -- reading Current after a stamp is the null
+            // case, on purpose (BUG-038).
+            var a = shift.PersonAt(shift.CurrentIndex);
             bool shouldReject = a.Truth == GroundTruth.Synthetic || a.Truth == GroundTruth.HumanBait;
             bool reject = playPerfectly ? shouldReject : !shouldReject;
 

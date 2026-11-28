@@ -24,6 +24,7 @@ namespace UnityEngine.InputSystem
     {
         public static Keyboard current { get; internal set; }
 
+        public ButtonControl fKey = new ButtonControl();      // v130.4: the monitor's power switch
         public ButtonControl lKey = new ButtonControl();
         public ButtonControl xKey = new ButtonControl();
         public ButtonControl hKey = new ButtonControl();
