@@ -266,24 +266,55 @@ namespace HRZeroDay.Core.Rules
         }
 
         /// <summary>
-        /// WARM light: the lamp. Its pool is small and hard, it lands on the desk's right end and the
-        /// wall behind it, and it is the only warm light in the frame (rule 1).
+        /// WARM light: the lamp. It is the only warm source in the frame (rule 1).
+        ///
+        /// THE LAMP'S POOL WAS UPSIDE DOWN (v120, the player's catch). The light used to sit at
+        /// (LampX+28, LampY+70) -- 70 px down the sprite, which is the lamp's FOOT -- with a 108x122 radius.
+        /// That put the brightest part of the pool on the WALL behind the fixture and on the base, and reached
+        /// only 52 px below the foot, so the desk under the shade caught almost nothing and the paper under it
+        /// caught nothing at all. A player standing in front of the picture reads that as light shining
+        /// UPWARD, which is exactly what was reported.
+        ///
+        /// The bulb is INSIDE the shade, so the pool is centred under the shade's mouth and offset toward the
+        /// shade's overhang; the radius is asymmetric -- long downward onto the desk, short upward onto the
+        /// wall -- and a second, dimmer BOUNCE source sits on the desk surface itself, which is what makes the
+        /// paper, the mug and the keys pick up a warm skirting instead of stopping dead at the pool's edge.
         /// </summary>
         public static LightSource LampLight()
         {
-            return new LightSource(LampX + 28, LampY + 70, 108, 122, 1.45, 1);
+            // the shade's mouth: the sprite's shade spans y+20..y+96, its mouth is the bottom of that
+            int mouthY = LampY + 96;
+            // Falloff 1.15 (tighter than before) so the pool has an EDGE and reads as a cone of light rather
+            // than a fog; Ry 132 downward-biased by the offset below.
+            return new LightSource(LampX + 26, mouthY + 14, 104, 132, 1.15, 1);
+        }
+
+        /// <summary>
+        /// THE BOUNCE (v120). Light that lands on the desk does not stop at the desk: it comes back up off the
+        /// paper and the varnish. One dim source lying ON the surface, a step weaker than the lamp, so the
+        /// things standing in the pool are lit from BELOW-BEHIND instead of floating dark inside a bright oval.
+        /// It is not a second lamp -- it is the same lamp, seen twice.
+        /// </summary>
+        public static LightSource LampBounceLight()
+        {
+            return new LightSource(LampX + 26, LampY + 118, 74, 54, 2.10, 1);
         }
 
         /// <summary>True when this light IS the lamp's -- so the front door can switch it off.</summary>
         public static bool IsLampLight(LightSource l)
         {
-            var lamp = LampLight();
-            return l.X == lamp.X && l.Y == lamp.Y && l.Strength == lamp.Strength;
+            // BOTH lamp sources switch with the fixture: turning the lamp off must also take its bounce away,
+            // or the desk keeps a warm pool with nothing above it making it.
+            var cone = LampLight();
+            var bounce = LampBounceLight();
+            return (l.X == cone.X && l.Y == cone.Y) || (l.X == bounce.X && l.Y == bounce.Y);
         }
 
         public static LightSource[] Lights()
         {
-            return new[] { WindowLight(), LampLight(), MonitorLight() };
+            // v120: the lamp now contributes TWO sources (the cone and its bounce off the desk). The order is
+            // back to front: the window's cold fill, the lamp's cone, the bounce, then the tube's key.
+            return new[] { WindowLight(), LampLight(), LampBounceLight(), MonitorLight() };
         }
 
         /// <summary>
@@ -363,6 +394,25 @@ namespace HRZeroDay.Core.Rules
 
         /// <summary>How fast a screen's readout changes. Slow: these are machines, not a slot machine.</summary>
         public const double StackCycle = 2.6;
+
+        // ------------------------------------------------------------------ selection & confirm
+        //
+        // SELECTION vs CONFIRM (v120). Two states, two looks, and the rules live here so the view cannot
+        // invent a third:
+        //
+        //   ARMED      the row the pointer / keys are on. A CYAN frame and a glowing label, no fill -- it is a
+        //              target being aimed at, not a decision.
+        //   CONFIRMED  the row that was pressed and is waiting for its second press on TOUCH. The frame goes
+        //              WHITE-hot and the label inverts to `void` on a lit fill: the only place in the UI where
+        //              a fill is brighter than the text, which is what makes "already pressed" unmissable.
+        //
+        // Mouse and keyboard never see CONFIRMED for longer than one frame: a mouse click IS a decision, and
+        // asking a desktop player to press twice would be a tax. Touch asks twice because a thumb on a glass
+        // panel has no hover, and a single tap that fires is how a player credits the wrong screen.
+        public const float TouchConfirmSeconds = 1.5f;
+
+        /// <summary>How long a touch must wait between arming a row and confirming it. 0 disables the step.</summary>
+        public static float ConfirmWindow(bool touchInput) { return touchInput ? TouchConfirmSeconds : 0f; }
 
         // ------------------------------------------------------------------ rows
         public struct Pill

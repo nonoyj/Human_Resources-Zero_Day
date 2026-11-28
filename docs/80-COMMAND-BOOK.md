@@ -171,7 +171,9 @@ that is what makes people think the editor must be closed. It does not.
 
 | Gate | Command | Passes when you see |
 |---|---|---|
-| Rules tests | `dotnet run --project tools\CoreTests` | `ALL TESTS PASSED` (v119: runs on every gate now) |
+| Rules tests | `dotnet run --project tools\CoreTests` | `ALL TESTS PASSED` (v120: + `LightingTests`, 6 checks) |
+| **One palette** | `python tools\art\art_palette.py --check` | `PASS: one palette -- 74 colours, 13 ramps, 26 legacy aliases` |
+| **The tube's light, as a picture** | `python tools\comp\preview_screenlight.py --state on` | `wrote ... top: no tube light, bottom: on (level 1.00)` |
 | Unity will compile | `dotnet build tools\UnityStubs\CompileCheck.csproj` | `Build succeeded.` |
 | Art + palette + stubs + layout | `.\scripts\Test-ArtPipeline.ps1` | `ART PIPELINE OK` |
 | PowerShell health | `.\scripts\Test-Scripts.ps1` | `All scripts healthy.` |
@@ -194,6 +196,31 @@ $env:DOTNET_ROOT="$HOME/.dotnet"; $env:PATH="$env:DOTNET_ROOT:$env:PATH"
 ```
 
 Then run the two gates above **before** a bundle. A build error outranks every art change.
+
+### 4b. The v120 art commands
+
+```powershell
+# the ONE palette: desk kit colours are aliases onto the menu's ramp steps.
+python tools\art\art_palette.py --check          # -> PASS: one palette -- 74 colours ...
+
+# the room painting (the WIDE window lives here; make_art_kit.py does NOT draw the room any more)
+python tools\art\promote_composition_L.py        # -> off-palette px: 0
+
+# the people
+python tools\art\make_applicants.py               # -> wrote 28 files for 14 archetypes
+
+# publish, manifest, metas -- in this order, every time the art changes
+python tools\art\make_sprite_manifest.py
+python tools\art\publish_to_unity.py
+python tools\art\write_unity_metas.py
+
+# look at it without opening Unity
+python tools\comp\twin_desk.py --applicant human_solid_a --out $env:TEMP\desk.png
+python tools\comp\preview_screenlight.py --state on --out $env:TEMP\tube.png
+```
+
+`off-palette px: 0` is the only acceptable number from the room painter. `PASS: one palette` is the only
+acceptable output from `art_palette.py --check`.
 
 ## 5. Art pipeline (only when the art changes)
 

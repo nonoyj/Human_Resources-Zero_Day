@@ -108,6 +108,21 @@ namespace HRZeroDay.Game
                 driver.shift = shift;
             }
 
+            // ---- THE TUBE AS A LIGHT (v120, request E). Attached after the room exists, so it can capture
+            // the background's pixels and repaint them in place. `SeedFrom` teaches it the room's palette,
+            // so the light can only ever walk a pixel up its OWN ramp -- it cannot invent a colour.
+            if (created.ContainsKey("background"))
+            {
+                var bg = created["background"].GetComponent<SpriteRenderer>();
+                var tube = ScreenLight.Attach(root);
+                if (tube != null)
+                {
+                    SpriteRenderer monitor = created.ContainsKey("monitor")
+                        ? created["monitor"].GetComponent<SpriteRenderer>() : null;
+                    tube.Bind(bg, monitor);
+                }
+            }
+
             // the applicant gets the idle driver and the whole 4-frame strip
             if (created.ContainsKey("applicant"))
             {

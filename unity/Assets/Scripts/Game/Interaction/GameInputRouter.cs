@@ -83,8 +83,11 @@ namespace HRZeroDay.Game.Interaction
                 if (px >= 0) game.MenuPointer(px, py);
                 else game.MenuPointerLeave();
 
-                bool tappedMenu = (mm != null && mm.leftButton.wasPressedThisFrame) ||
-                                  (ts != null && ts.primaryTouch.press.wasPressedThisFrame);
+                bool mouseClick = mm != null && mm.leftButton.wasPressedThisFrame;
+                bool touchTap = ts != null && ts.primaryTouch.press.wasPressedThisFrame;
+                bool tappedMenu = mouseClick || touchTap;
+                // A THUMB IS NOT A CURSOR (v120): the menu asks twice for a decision on touch only.
+                bool byTouch = touchTap && !mouseClick;
                 if (tappedMenu && px >= 0)
                 {
                     // THE ROOM IS NOT A BUTTON (v119.5, BUG-086). This line used to read
@@ -93,7 +96,7 @@ namespace HRZeroDay.Game.Interaction
                     // MenuLayout.RowAt, that meant a click anywhere on screen pressed CREDITS. Now the
                     // click has to land on a row or a prop, and a click on the room does nothing at all,
                     // which is what makes the props read as props.
-                    game.MenuClick(px, py);
+                    game.MenuClick(px, py, byTouch);
                 }
                 return;
             }

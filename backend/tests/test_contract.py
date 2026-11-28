@@ -150,3 +150,66 @@ def test_research_export_is_aggregated(client):
 def test_pii_key_detection_is_recursive():
     assert db.contains_pii({"a": [{"b": {"email": "x"}}]}) is True
     assert db.contains_pii({"a": [{"b": {"decision": "reject"}}]}) is False
+
+
+# --------------------------------------------------------------------------- v120: the owed two
+# Both of these were listed in ../README.md as "owed". A limit that is only a table and a purge that is
+# only a promise are the same bug: the code says one thing and the schema says another.
+
+def _new_run(client, device_key=None):
+    device_key = device_key or str(uuid.uuid4())
+    run_id = str(uuid.uuid4())
+    r = client.post("/v1/runs", json={"deviceKey": device_key, "runId": run_id,
+                                      "seed": 7, "build": "v120"})
+    assert r.status_code == 201, r.text
+    return device_key, run_id
+
+
+def test_events_are_rate_limited_per_device(client):
+    """60 writes per 10 minutes, then 429 with a Retry-After the client can obey."""
+    _device, run_id = _new_run(client)
+    event = {"t": "0.0", "type": "app_open", "payload": {}}
+    accepted = 0
+    for _ in range(db.RATE_MAX + 2):
+        r = client.post(f"/v1/runs/{run_id}/events", json={"events": [event]})
+        if r.status_code == 202:
+            accepted += 1
+        else:
+            assert r.status_code == 429, r.text
+            assert int(r.headers["Retry-After"]) > 0
+            break
+    assert accepted == db.RATE_MAX, f"accepted {accepted}, the budget is {db.RATE_MAX}"
+
+
+def test_the_window_turns_over(client):
+    """At the end of the window the same key is allowed again -- the limit must not be a lifetime ban."""
+    with db.connect() as conn:
+        conn.execute("DELETE FROM rate_limits")
+        assert db.rate_check_and_count(conn, "run:window-test", "2026-01-01T00:00:00+00:00")[0]
+        for _ in range(db.RATE_MAX - 1):
+            db.rate_check_and_count(conn, "run:window-test", "2026-01-01T00:01:00+00:00")
+        allowed, _retry = db.rate_check_and_count(conn, "run:window-test", "2026-01-01T00:02:00+00:00")
+        assert not allowed, "the 61st write inside the window was allowed"
+        allowed, _retry = db.rate_check_and_count(conn, "run:window-test", "2026-01-01T00:20:00+00:00")
+        assert allowed, "the window never turns over: this key is banned for life"
+
+
+def test_purge_removes_every_run_and_its_events(client):
+    device, run_id = _new_run(client)
+    client.post(f"/v1/runs/{run_id}/events",
+                json={"events": [{"t": "1.0", "type": "app_open", "payload": {}}]})
+    r = client.delete(f"/v1/devices/{device}", headers=AUTH)
+    assert r.status_code == 200, r.text
+    assert r.json()["runsRemoved"] >= 1
+    with db.connect() as conn:
+        assert conn.execute("SELECT 1 FROM runs WHERE device_key = ?", (device,)).fetchone() is None
+        assert conn.execute("SELECT 1 FROM run_events WHERE run_id = ?", (run_id,)).fetchone() is None
+        assert conn.execute("SELECT 1 FROM rate_limits WHERE key = ?", ("run:" + device,)).fetchone() is None
+
+
+def test_purge_needs_the_key_and_says_nothing_about_unknown_devices(client):
+    """No key -> 401. Unknown device -> 200 with 0 removed, NOT 404: a 404 is an oracle for which keys exist."""
+    assert client.delete(f"/v1/devices/{uuid.uuid4()}").status_code == 401
+    r = client.delete(f"/v1/devices/{uuid.uuid4()}", headers=AUTH)
+    assert r.status_code == 200 and r.json()["runsRemoved"] == 0
+    assert client.delete("/v1/devices/not-a-uuid", headers=AUTH).status_code == 422

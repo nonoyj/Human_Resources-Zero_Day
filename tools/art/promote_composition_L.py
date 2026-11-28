@@ -165,6 +165,115 @@ def window_night(img, d, x, row, w, h):
     d.line([x - 2, row + h + 1, x + w + 2, row + h + 1], fill=rgba('void'))
 
 
+# --------------------------------------------------------------------------- the wide window (v120)
+#
+# THE WINDOW MOVES BEHIND NOTHING (v120, request C). The player: "stack the monitor panel IN FRONT OF
+# THE WINDOW so the applicant has room to be looked at". In v119 the window's glass ran x 246..466 and
+# the applicant stood at x 288 at 0.96 -- so his shoulders, jacket and the top of his head were painted
+# over by his own background. He was the smallest thing on screen and the busiest thing on screen at the
+# same time, which is the opposite of "look at this person".
+#
+# What this builds instead, and why it is drawn as ONE sprite:
+#   * The FRAME is a full window: x 176..472, y 8..152. It is 88 px wider on the left than v119's, so the
+#     monitor (case x 14..168) now sits INSIDE the window's horizontal span and covers its left mullion.
+#     The monitor is the front layer (sorting 0) drawn after the background, so it truly IS in front.
+#   * The GLASS is the union of three lit panes round a cross of mullions, and the CENTRE opening is
+#     deliberately cleared: 240..408 x 96..152 is sky, city and frame only -- a dark plate for the
+#     applicant's head and shoulders to stand against. A person in front of a window at night is a
+#     SILHOUETTE EDGE-FRONT: backlit, with the cold key down his left side.
+#   * The lower sill is at y152, ABOVE the desk (DESK_ROW 206), so there is 54 px of wall between the
+#     sill and the desk. The applicant's body runs from his head into the desk band, so he is a person
+#     standing behind a desk that is in front of him -- not a portrait pasted on glass.
+#
+# The pane above the centre opening keeps the moon and the stars; the two lower panes keep the skyline.
+WIDE_X, WIDE_Y, WIDE_W, WIDE_H = 168, 8, 304, 144   # its left edge MEETS the monitor's right edge (168)
+MULL_X = (240, 408)          # the centre opening's vertical edges
+MULL_Y = 96                  # the centre opening's ceiling
+
+
+def window_wide(img, d):
+    """The night window, watertight, with the centre opening left open for the applicant."""
+    from ragged import LCG
+
+    rnd = LCG(0x77AA)
+    x, row, w, h = WIDE_X, WIDE_Y, WIDE_W, WIDE_H
+    gx0, gy0, gx1, gy1 = x + 2, row + 2, x + w - 2, row + h - 2
+
+    # ---- frame: TWO steps (outer case, inner reveal), so it is a wall opening and not a painted panel
+    d.rectangle([x, row, x + w, row + h], fill=rgba('panel2'))
+    d.rectangle([x, row, x + w, row + h], outline=rgba('linehi'))
+    d.rectangle([x + 1, row + 1, x + w - 1, row + h - 1], outline=rgba('line'))
+    # lit top edge / shaded bottom edge: the same bevel the monitor's case gets
+    d.line([x + 1, row + 1, x + w - 1, row + 1], fill=rgba('linehi'))
+    d.line([x + 1, row + h - 1, x + w - 1, row + h - 1], fill=rgba('void'))
+
+    # ---- glass, one pane at a time: above the centre opening, left of it, right of it
+    panes = ((gx0, gy0, gx1, MULL_Y - 2),
+             (gx0, MULL_Y + 2, MULL_X[0] - 2, gy1),
+             (MULL_X[1] + 2, MULL_Y + 2, gx1, gy1))
+    for (px0, py0, px1, py1) in panes:
+        d.rectangle([px0, py0, px1, py1], fill=rgba('void'))
+
+    # ---- the sky: three flat steps, hard boundaries (a checker read as noise at 1x)
+    sky_bottom = gy1 - 44
+    d.rectangle([gx0, gy0, gx1, sky_bottom - 34], fill=rgba('void'))
+    d.rectangle([gx0, gy0 + 34, gx1, sky_bottom - 12], fill=rgba('panel'))
+    d.rectangle([gx0, sky_bottom - 12, gx1, sky_bottom], fill=rgba('panel2'))
+    # a haze line where the city's light hits the sky, only across the panes that show sky
+    for (px0, py0, px1, py1) in panes:
+        by = min(sky_bottom - 1, py1)
+        if by > py0:
+            d.line([px0, by, px1, by], fill=rgba('line'))
+
+    # ---- the moon and its stars live in the TOP pane only (they must not sit on the applicant)
+    mx, my = gx1 - 46, gy0 + 22
+    d.ellipse([mx - 7, my - 7, mx + 7, my + 7], fill=rgba('paper'))
+    d.ellipse([mx - 2, my - 5, mx + 8, my + 5], fill=rgba('void'))    # the crescent's bite, sky-coloured
+    for _ in range(26):
+        sx = rnd.irange(gx0 + 4, gx1 - 4)
+        sy = rnd.irange(gy0 + 2, max(gy0 + 3, sky_bottom - 26))
+        if abs(sx - mx) < 10 and abs(sy - my) < 10:
+            continue
+        d.point((sx, sy), fill=rgba('textdim' if rnd.below(0.55) else 'paper'))
+
+    # ---- skyline: two silhouette bands in the SIDE and BOTTOM panes; the centre opening stays clear
+    def band(px0, px1, top, bottom, base, lit_p, lit_tones):
+        bx = px0
+        while bx < px1:
+            bw = rnd.irange(9, 22)
+            bh = rnd.irange(8, max(9, bottom - top))
+            bx1 = min(px1, bx + bw)
+            by0 = bottom - bh
+            d.rectangle([bx, by0, bx1, bottom], fill=rgba(base))
+            for wy in range(by0 + 3, bottom - 2, 4):
+                for wx in range(bx + 2, bx1 - 1, 3):
+                    if rnd.below(lit_p):
+                        d.point((wx, wy), fill=rgba(rnd.pick(lit_tones)))
+            bx = bx1 + rnd.irange(1, 4)
+
+    band(gx0, MULL_X[0] - 2, sky_bottom - 30, gy1, 'panel', 0.06, ('warn', 'orange'))
+    band(MULL_X[1] + 2, gx1, sky_bottom - 30, gy1, 'panel', 0.10, ('warn', 'orange'))
+    # the far band is LIGHTER than the near one: depth comes from value, not from a haze rectangle
+    band(gx0, MULL_X[0] - 2, sky_bottom - 10, gy1 - 10, 'void', 0.0, ())
+    band(MULL_X[1] + 2, gx1, sky_bottom - 10, gy1 - 10, 'void', 0.0, ())
+
+    # ---- the mullions: 2 px `panel2` with a 1 px lit edge on their left, drawn LAST so they cut the sky
+    for mxx in MULL_X:
+        d.rectangle([mxx, MULL_Y, mxx + 1, gy1 + 2], fill=rgba('panel2'))
+        d.line([mxx, MULL_Y, mxx, gy1 + 2], fill=rgba('linehi'))
+    d.rectangle([gx0, MULL_Y, gx1, MULL_Y + 1], fill=rgba('panel2'))
+    d.line([gx0, MULL_Y, gx1, MULL_Y], fill=rgba('linehi'))
+    # the sill: one lit step + its shadow, so the window has a bottom you could put a plant on
+    d.rectangle([x - 2, row + h, x + w + 2, row + h + 3], fill=rgba('panel'))
+    d.line([x - 2, row + h, x + w + 2, row + h], fill=rgba('linehi'))
+    d.line([x - 2, row + h + 3, x + w + 2, row + h + 3], fill=rgba('void'))
+
+    # ---- ONE warm light in the city, low and left: the street the office looks out on, which is the
+    #      only warm thing in the cold half of the frame (rule 1)
+    d.point((gx0 + 12, gy1 - 3), fill=rgba('warn'))
+    d.point((gx0 + 13, gy1 - 3), fill=rgba('glow_amber'))
+
+
 def noticeboard(img, d, x, row, w=84, h=48):
     """Cork board: ragged outer silhouette, crooked papers, one curling corner."""
     from ragged import LCG, ragged_rect, chip_corners, scuff
@@ -321,13 +430,21 @@ def room(level=0):
         pips = ('danger', 'dangerdim')
     # Bigger city, per user 2026-11-26: frame runs from just below the shoulder line (row 145) all the
     # way above the head (row 8) and reads as a proper skyline behind him.
-    window_night(img, d, 244, 8, 224, 137)
+    # v120: the WIDE window. The monitor (case x 14..168) is drawn in front of it and covers its left
+    # mullion, which is the player's request C read literally -- see window_wide's header.
+    window_wide(img, d)
     noticeboard(img, d, 20, 22, 84, 48)
     wall_clock(img, d, 126, 44,
                hand='textdim' if level == 0 else ('danger' if level == 1 else 'dangerdim'),
                dot='signal' if level == 0 else 'danger')
-    filing_cabinet(img, d, 206, FLOOR_ROW)
-    plant_pot(img, d, 252, FLOOR_ROW,
+    # THE FILING CABINET IS GONE from this wall (v120). At x 206 it stood INSIDE the window's left pane --
+    # a cabinet in the sky reads as a building -- and at 168 it stood on top of the new frame. There is no
+    # honest wall left for a 44 px cabinet between the board, the clock, the monitor and a window that now
+    # spans 168..472, so it is not drawn rather than drawn badly. It is still in the kit (`filing_cabinet()`
+    # is untouched) for any future composition that has a wall to stand it against.
+    # the plant moves ONTO the window's sill, inside the left lower pane, out of the centre opening where
+    # the applicant now stands: a plant on a sill is right, a plant in the sky is not.
+    plant_pot(img, d, 214, WIDE_Y + WIDE_H + 1, h=30,
               leaf='signaldim' if level == 0 else 'line', tip='signal' if level == 0 else 'linehi')
 
     # floor strip

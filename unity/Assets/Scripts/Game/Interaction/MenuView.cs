@@ -569,6 +569,7 @@ namespace HRZeroDay.Game.Interaction
         /// <summary>Clears the pointer state (the mouse left the window, or a controller took over).</summary>
         public void ClearPointer()
         {
+            if (_hoverLamp) _hoverWarmLeft = 0.18f;      // one breath of warmth as the pointer leaves
             if (_hoverRow < 0 && _hoverCell < 0 && !_hoverLamp && !_hoverKeyboard) return;
             _hoverRow = -1; _hoverCell = -1; _hoverLamp = false; _hoverKeyboard = false;
             Paint();
@@ -590,6 +591,13 @@ namespace HRZeroDay.Game.Interaction
         }
 
         private float _keyboardHint;
+        private float _hoverWarmLeft;      // how long the lamp hover's warmth lingers after the pointer leaves
+        // the touch confirm: the row a first tap armed, and how long it stays armed (v120)
+        private int _armedRow = -1;
+        private float _armedLeft;
+        /// <summary>True while a touch tap is waiting for its confirming second tap.</summary>
+        public bool ConfirmArmed { get { return _armedRow >= 0 && _armedLeft > 0f; } }
+        public int ArmedRow { get { return _armedRow; } }
         private bool _lampOn = true;
         private float _bootReveal;
 
@@ -599,6 +607,16 @@ namespace HRZeroDay.Game.Interaction
             float dt = Time.unscaledDeltaTime;
             _clock += dt;
             if (_keyboardHint > 0f) _keyboardHint = Math.Max(0f, _keyboardHint - dt * 0.35f);
+            if (_armedRow >= 0)
+            {
+                _armedLeft -= dt;
+                if (_armedLeft <= 0f) { _armedRow = -1; Paint(); }     // it went stale: un-arm, visibly
+            }
+            if (_hoverWarmLeft > 0f)
+            {
+                _hoverWarmLeft = Math.Max(0f, _hoverWarmLeft - dt);
+                if (_hoverWarmLeft <= 0f) Paint();       // the last repaint is the one that clears it
+            }
 
             // the keyboard's text window: types itself in, sits, then fades out TypeWindowSeconds after the
             // last click on the keyboard. It repaints only while it is doing something, and the last repaint
@@ -947,18 +965,29 @@ namespace HRZeroDay.Game.Interaction
             {
                 if (revealing && i >= revealRows) break;
                 bool hovered = i == _hoverRow && !rows[i].Selected;
+                bool armed = i == _armedRow && _armedLeft > 0f;
                 // THE SELECTION (v119.4, BUG-083). It was a near-white fill (paper_2 on cyan_1), which read
                 // as "this row is disabled" -- grey text on a white bar, the most muted thing on the screen,
                 // chosen for the most likely next action. The selection is now the tube's own CYAN at its
                 // mid step, the label cut out in `void`: a lit readout, which is what the console language
                 // in this room already says. Colour carries the meaning; brightness carries the emphasis.
-                var pill = MenuLayout.Row(i, rows[i].Selected ? "cyan_1" : (hovered ? "steel_1" : "void"),
-                                          rows[i].Selected ? "void" : (hovered ? "white" : "paper_2"));
-                DrawPill(buf, pill, rows[i].Selected);
+                // ---- THE THREE STATES (v120). ARMED is the row the player is pointing at (a cyan frame and a
+                // glowing label); CONFIRMED is the row a touch has pressed once (a hot fill with the label cut
+                // out). The two contrasts are deliberately opposite: one is light AROUND dark text, the other
+                // is dark text IN light -- which is how a player tells "aiming" from "pressed" at a glance.
+                var pill = MenuLayout.Row(i, armed ? "cyan_2" : (rows[i].Selected ? "void" : (hovered ? "void" : "void")),
+                                          (armed || rows[i].Selected) ? "void" : (hovered ? "white" : "paper_2"));
+                DrawPill(buf, pill, rows[i].Selected || armed);
                 // the hover case: draw the row's edge in the tube's cyan, one pixel, no fill. A hovered row
                 // is a PREVIEW of the selection, so it gets the selection's colour and none of its weight.
-                if (hovered) HoverEdge(buf, pill);
-                CentreIn(buf, rows[i].Label, pill, rows[i].Selected ? "void" : (hovered ? "white" : "paper_2"));
+                if (hovered && !armed) HoverEdge(buf, pill);
+                string ink = (armed || rows[i].Selected) ? "void" : (hovered ? "white" : "paper_2");
+                CentreIn(buf, rows[i].Label, pill, ink);
+                // THE SELECTION GLOWS (v120): the selected row's own label steps UP its ink ramp and is
+                // dithered at the glyph edges, so the words read as lit from inside the bar rather than cut
+                // out of it. The bar steps DOWN at the same time (void), which is what gives the glow somewhere
+                // to go -- two light things next to each other is not contrast.
+                if (rows[i].Selected && !armed) GlowLabel(buf, rows[i].Label, pill);
                 // the keyboard hint, on the selected row, while the player is using the keyboard
                 if (rows[i].Selected && _keyboardHint > 0.05f)
                     Centre(buf, "[UP/DOWN] MOVE   [ENTER] CHOOSE", MenuLayout.FooterTop, "amber_3", 1);
@@ -1074,19 +1103,39 @@ namespace HRZeroDay.Game.Interaction
         {
             if (_hoverLamp)
             {
-                // the shade's mouth, warm: two rows under the fixture, dithered at the ends
-                Color32 hot = Ink(_lampOn ? "amber_4" : "steel_2", new Color32(232, 242, 244, 255));
-                int mx = MenuLayout.LampX + 28, my = MenuLayout.LampY + 96;
-                for (int y = my; y < my + 3; y++)
+                // ---- THE WHOLE FIXTURE ANSWERS (v120). The player: "the lamp hover lights up only the bottom
+                // part, could we make the whole lamp and everything near it lit up as well". It used to paint
+                // three rows under the shade's mouth. Now the hover walks every pixel of the lamp's own
+                // bounding box UP ITS OWN RAMP (shade, pole, base), and separately warms the desk inside the
+                // lamp's pool -- so hovering says "this is one object that lights that surface", which is the
+                // truth, instead of "there is a bright line here".
+                if (_lampOn) HoverWarm(MenuLayout.LampX - 6, MenuLayout.LampY - 4,
+                                       MenuLayout.LampW + 12, MenuLayout.LampH + 8, 1);
+                else HoverWarm(MenuLayout.LampX - 6, MenuLayout.LampY - 4,
+                               MenuLayout.LampW + 12, MenuLayout.LampH + 8, 0);
+
+                // its pool: everything standing in the light gets the same treatment, dithered at the edge so
+                // the pool has no hard rim (a rim reads as paint -- rule 2)
+                var pool = MenuLayout.LampLight();
+                for (int y = MenuLayout.DeskY; y < H; y++)
                 {
-                    for (int x = mx - 14; x < mx + 14; x++)
+                    for (int x = 0; x < W; x++)
                     {
-                        if (x < 0 || x >= W || y < 0 || y >= H) continue;
-                        int d = Math.Abs(x - mx);
-                        if (d > 10 && ((x + y) & 1) == 0) continue;
-                        _frame[y * W + x] = hot;
+                        double dx = (x - pool.X) / (double)pool.Rx;
+                        double dy = (y - pool.Y) / (double)pool.Ry;
+                        double r = Math.Sqrt(dx * dx + dy * dy);
+                        if (r >= 1.0) continue;
+                        if (r > 0.72 && ((x + y) & 1) != 0) continue;      // the soft edge
+                        int i = y * W + x;
+                        var up = UpTable();
+                        Color32 lifted;
+                        if (up != null && up.TryGetValue(_frame[i], out lifted)) _frame[i] = lifted;
                     }
                 }
+            } else if (_hoverWarmLeft > 0f)
+            {
+                // the hover fades: repaint so the room goes back to how it was, not stay warm under the mouse
+                Paint();
             }
             if (_hoverKeyboard)
             {
@@ -1104,6 +1153,59 @@ namespace HRZeroDay.Game.Interaction
             }
         }
 
+        /// <summary>
+        /// Lifts a rectangle one step up each pixel's own ramp. The honest version of "highlight": it cannot
+        /// invent a colour, only walk a material toward the light it is already under.
+        /// </summary>
+        private void HoverWarm(int x0, int y0, int w, int h, int steps)
+        {
+            if (steps <= 0) return;
+            var up = UpTable();
+            if (up == null) return;
+            for (int y = Math.Max(0, y0); y < Math.Min(H, y0 + h); y++)
+            {
+                for (int x = Math.Max(0, x0); x < Math.Min(W, x0 + w); x++)
+                {
+                    int i = y * W + x;
+                    Color32 lifted;
+                    if (!up.TryGetValue(_frame[i], out lifted)) continue;   // an emitter stays an emitter
+                    _frame[i] = lifted;
+                }
+            }
+        }
+
+        /// <summary>
+        /// A TAP, as opposed to a click (v120). Touch has no hover: the first tap ARMS the row under the
+        /// finger, the second one (within MenuLayout.TouchConfirmSeconds) confirms it. Returns true when the
+        /// tap should be treated as a decision -- so the caller does not need to know the rule.
+        ///
+        /// Mouse and keyboard never come through here; DeskBootstrap calls ArmOrConfirm only for touch.
+        /// </summary>
+        public bool ArmOrConfirm(int row)
+        {
+            if (row < 0) { _armedRow = -1; _armedLeft = 0f; Paint(); return false; }
+            if (_armedRow == row && _armedLeft > 0f)
+            {
+                _armedRow = -1; _armedLeft = 0f;
+                _index = row;
+                Paint();
+                return true;                       // the second tap: this IS the decision
+            }
+            _armedRow = row;
+            _armedLeft = MenuLayout.TouchConfirmSeconds;
+            _index = row;
+            Paint();
+            return false;                          // the first tap only arms it
+        }
+
+        /// <summary>Drops an armed row (the pointer moved elsewhere, or the window lost focus).</summary>
+        public void CancelArm()
+        {
+            if (_armedRow < 0) return;
+            _armedRow = -1; _armedLeft = 0f;
+            Paint();
+        }
+
         /// <summary>Click the lamp: the warm key goes off, and the glow layer is told (see BuildRoom).</summary>
         public void ToggleLamp()
         {
@@ -1113,6 +1215,52 @@ namespace HRZeroDay.Game.Interaction
         }
 
         public bool LampOn { get { return _lampOn; } }
+
+        /// <summary>
+        /// THE SELECTED LABEL GLOWS (v120). The bar is `void`, the label is `white`, and this lays a one-pixel
+        /// dithered halo of `cyan_2` AROUND each glyph -- the same ordered dither the light uses, so the glow
+        /// is part of the room's lighting language and not a web-style text-shadow. It reads as phosphor: the
+        /// words are the thing emitting, which is what the player asked for ("make the screen text glow when
+        /// they are selected").
+        /// </summary>
+        private void GlowLabel(Color32[] buf, string text, MenuLayout.Pill pill)
+        {
+            Color32 halo = Ink("cyan_2", new Color32(101, 194, 194, 255));
+            int width = text.Length * (MenuLayout.GlyphW + MenuLayout.LetterGap) - MenuLayout.LetterGap;
+            int left = pill.X + (pill.W - width) / 2;
+            int top = pill.Y + (pill.H - MenuLayout.GlyphH) / 2;
+            for (int ci = 0; ci < text.Length; ci++)
+            {
+                char ch = text[ci];
+                if (ch == ' ') continue;
+                int penX = left + ci * (MenuLayout.GlyphW + MenuLayout.LetterGap);
+                for (int gy = -1; gy <= MenuLayout.GlyphH; gy++)
+                {
+                    for (int gx = -1; gx <= MenuLayout.GlyphW; gx++)
+                    {
+                        // only the ring: a cell that is itself inked is drawn by the label, not by the halo
+                        bool inside = gx >= 0 && gx < MenuLayout.GlyphW && gy >= 0 && gy < MenuLayout.GlyphH;
+                        if (inside && _glyphs.InkAt(ch, gx, gy)) continue;
+                        if (!inside && !AdjacentInk(ch, gx, gy)) continue;
+                        int x = penX + gx, y = top + gy;
+                        if (x < pill.X + 1 || x >= pill.X + pill.W - 1) continue;
+                        if (y < pill.Y + 1 || y >= pill.Y + pill.H - 1) continue;
+                        if (((x + y) & 1) != 0) continue;              // ordered dither, no solid shadow
+                        buf[y * W + x] = halo;
+                    }
+                }
+            }
+        }
+
+        /// <summary>Is a neighbouring cell inside the glyph box inked? Used to draw a 1 px ring only.</summary>
+        private bool AdjacentInk(char ch, int gx, int gy)
+        {
+            if (gx >= 0 && gx < MenuLayout.GlyphW && gy >= 0 && gy < MenuLayout.GlyphH) return _glyphs.InkAt(ch, gx, gy);
+            int x0 = gx < 0 ? 0 : (gx >= MenuLayout.GlyphW ? MenuLayout.GlyphW - 1 : gx);
+            int y0 = gy < 0 ? 0 : (gy >= MenuLayout.GlyphH ? MenuLayout.GlyphH - 1 : gy);
+            // a corner of the ring only counts if the diagonal's two neighbours are both in the box
+            return _glyphs.InkAt(ch, x0, y0);
+        }
 
         /// <summary>One pixel of the tube's cyan around a hovered row: the preview of the selection.</summary>
         private void HoverEdge(Color32[] buf, MenuLayout.Pill p)

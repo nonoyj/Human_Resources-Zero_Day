@@ -28,6 +28,7 @@
     <Compile Include="ArcTests.cs" />
     <Compile Include="AudioTests.cs" />
     <Compile Include="MenuTests.cs" />
+    <Compile Include="LightingTests.cs" />
     <Compile Include="SecurityTests.cs" />
     <Compile Include="IntroTests.cs" />
     <Compile Include="../../unity/Assets/Scripts/Core/**/*.cs" />
@@ -54,6 +55,8 @@
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/DeskSceneBuilder.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/RoomLighting.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/DeskLightDriver.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Desk/ScreenLight.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Desk/PaletteLadder.cs" />
     <Compile Include="../UnityStubs/UnityStubs.cs" />
     <!-- Package stubs live in their own file, included here and ONLY here: Unity never compiles
          anything under tools/, so the engine stubs stay package-free (ASSEMBLY-RULES.md). -->

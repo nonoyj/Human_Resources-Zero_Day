@@ -370,7 +370,10 @@ namespace HRZeroDay.Tests
             // THE LIGHT: two sources of OPPOSITE temperature, and one step each. "Cinematic dark" is not
             // "cyan everywhere" -- the warm practical is what proves the cold one is cold (docs/17).
             var lights = MenuLayout.Lights();
-            True(lights.Length == 3, "the room is lit by " + lights.Length + " sources, the film look needs three");
+            // v120: FOUR sources, because the lamp contributes a cone AND its bounce off the desk. The film
+            // look still needs the same three THINGS -- cold key, warm practical, and the tube between them --
+            // so the assertion is about temperature, not about a count that would forbid the bounce.
+            True(lights.Length == 4, "the room is lit by " + lights.Length + " sources; the lamp needs its cone and its bounce");
             foreach (var l in lights)
                 True(l.Strength >= 1 && l.Strength <= MenuLayout.MaxLift,
                      "a light adds " + l.Strength + " steps; ambient light may add one and no more");
@@ -382,6 +385,21 @@ namespace HRZeroDay.Tests
             var window = MenuLayout.WindowLight();
             True(window.X < MenuLayout.W / 2 && lamp.X > MenuLayout.W / 2,
                  "the warm practical and the cold key are not on opposite sides of the frame's axis");
+            // ---- THE LAMP SHINES DOWN (v120, the player's catch: "the lamp glows upward") -------------
+            // The light's origin must be at the shade's MOUTH, and the pool must reach further down the
+            // canvas than up it. The old source sat at the lamp's FOOT with a symmetric radius, so the wall
+            // behind the fixture was the brightest thing in the pool and the desk under it caught nothing.
+            var cone = MenuLayout.LampLight();
+            True(cone.Y > MenuLayout.LampY + MenuLayout.LampH / 2,
+                 "the lamp's light is centred above the shade -- it would light the wall and not the desk");
+            True(cone.Y + cone.Ry > MenuLayout.DeskY, "the lamp's pool does not reach the desk");
+            True(MenuLayout.LampBounceLight().Y > cone.Y,
+                 "the bounce light is not below the cone (it must lie on the desk surface)");
+            True(MenuLayout.LampBounceLight().Ry < cone.Ry,
+                 "the bounce is as big as the lamp itself -- a bounce is a skirting, not a second lamp");
+            // and it is the SAME lamp: switching the fixture off takes both away
+            True(MenuLayout.IsLampLight(cone) && MenuLayout.IsLampLight(MenuLayout.LampBounceLight()),
+                 "the bounce does not switch with the lamp -- turning it off would leave a warm pool");
             True(MenuLayout.FadeDrop > MenuLayout.FadeReach,
                  "the tube's light must reach further DOWN the desk than sideways");
             True(MenuLayout.CrtY + MenuLayout.CrtH + MenuLayout.FadeDrop > MenuLayout.DeskEdgeY,

@@ -92,6 +92,11 @@ def _connect(url: str):
         path = path or "./hr0d.db"
         conn = sqlite3.connect(path)
         conn.row_factory = sqlite3.Row
+        # SQLITE DOES NOT ENFORCE FOREIGN KEYS UNLESS ASKED, PER CONNECTION. The schema says
+        # `ON DELETE CASCADE` on run_events, and without this line that clause does nothing at all -- which
+        # was invisible until a purge test asked "did the events go too?" and they had not. Postgres enforces
+        # it by default, so this is the one place the two engines genuinely differ at runtime.
+        conn.execute("PRAGMA foreign_keys = ON")
         return conn
     import psycopg  # PostgreSQL in production
 
@@ -156,3 +161,70 @@ def contains_pii(obj) -> bool:
 
 def dumps(obj) -> str:
     return json.dumps(obj, separators=(",", ":"), sort_keys=True)
+
+
+# --------------------------------------------------------------------------- rate limits (v120)
+# The table has existed since v1 and NOTHING enforced it. A limit that is only a table is a comment.
+# Fixed window, 60 writes per 10 minutes per device key, which is what ../README.md promises.
+RATE_WINDOW_SECONDS = 600
+RATE_MAX = 60
+
+
+def rate_check_and_count(conn, key: str, now: str | None = None) -> tuple[bool, int]:
+    """Count one request against `key`'s window. Returns (allowed, seconds_until_reset).
+
+    Fixed-window, not sliding: the client retries on flaky networks, and a sliding window makes a retry
+    storm behave differently from a burst of new work, which is a distinction that would only ever hurt
+    an honest player on a bad connection. The reset is returned so the client can back off properly.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    now_dt = datetime.fromisoformat(now) if now else datetime.now(timezone.utc)
+    stamp = now_dt.isoformat()
+    row = conn.execute(
+        "SELECT window_start, count FROM rate_limits WHERE key = ?", (key,)).fetchone()
+    if row is None:
+        conn.execute(
+            "INSERT INTO rate_limits (key, window_start, count, purge_after) VALUES (?, ?, ?, ?)",
+            (key, stamp, 1,
+             (now_dt + timedelta(seconds=RATE_WINDOW_SECONDS)).isoformat()))
+        return True, RATE_WINDOW_SECONDS
+    start = datetime.fromisoformat(row[0])
+    elapsed = (now_dt - start).total_seconds()
+    if elapsed >= RATE_WINDOW_SECONDS:                     # the window turned over: start a new one
+        conn.execute(
+            "UPDATE rate_limits SET window_start = ?, count = 1, purge_after = ? WHERE key = ?",
+            (stamp, (now_dt + timedelta(seconds=RATE_WINDOW_SECONDS)).isoformat(), key))
+        return True, RATE_WINDOW_SECONDS
+    count = int(row[1]) + 1
+    conn.execute("UPDATE rate_limits SET count = ? WHERE key = ?", (count, key))
+    return count <= RATE_MAX, int(RATE_WINDOW_SECONDS - elapsed)
+
+
+def purge_rate_windows(conn, now: str | None = None) -> int:
+    """Drop every window that has expired. Called on write paths, so the table cannot grow without bound."""
+    from datetime import datetime, timezone
+
+    now_dt = datetime.fromisoformat(now) if now else datetime.now(timezone.utc)
+    cur = conn.execute("DELETE FROM rate_limits WHERE purge_after < ?", (now_dt.isoformat(),))
+    return cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
+
+
+def purge_device(conn, device_key: str) -> int:
+    """THE RIGHT TO BE FORGOTTEN, for one device (v120). Returns how many runs were removed.
+
+    A player who asks to be deleted cannot be answered with "we anonymised it": the key IS the identity the
+    runs are joined on. Deleting the runs cascades to their events (`ON DELETE CASCADE` + the pragma in
+    connect()), and the rate-limit window for that key goes too, because an orphaned window would keep a
+    deleted device throttled after it no longer exists.
+    """
+    # EVENTS FIRST, EXPLICITLY. The cascade is on, and this is still written out: a purge is the one
+    # operation where "the database should have done it" is not an acceptable answer, and this SQL also runs
+    # unchanged on Postgres, where the cascade is enforced by the server rather than by a pragma.
+    conn.execute(
+        "DELETE FROM run_events WHERE run_id IN (SELECT run_id FROM runs WHERE device_key = ?)",
+        (device_key,))
+    cur = conn.execute("DELETE FROM runs WHERE device_key = ?", (device_key,))
+    removed = cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
+    conn.execute("DELETE FROM rate_limits WHERE key = ?", ("run:" + device_key,))
+    return removed

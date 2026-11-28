@@ -137,6 +137,19 @@ async def post_events(run_id: str, request: Request):
     if not db.is_uuid(run_id):
         return _err(422, "Unprocessable Entity", "runId must be a UUID.")
     raw = await request.body()
+    # THE LIMIT IS ENFORCED HERE (v120). 60 writes / 10 min per run's device key -- the table existed since
+    # v1 and nothing read it, which made it a comment. The key is the RUN's device, so one client cannot
+    # spend another client's budget; the purge keeps the table from growing one dead row per device forever.
+    with db.connect() as conn:
+        device = conn.execute("SELECT device_key FROM runs WHERE run_id = ?", (run_id,)).fetchone()
+        key = "run:" + (device[0] if device else run_id)
+        allowed, retry_after = db.rate_check_and_count(conn, key)
+        db.purge_rate_windows(conn)
+    if not allowed:
+        response = _err(429, "Too Many Requests",
+                        "This device key is over its event budget; back off and retry.")
+        response.headers["Retry-After"] = str(retry_after)
+        return response
     if len(raw) > MAX_BODY_BYTES:
         return _err(413, "Payload Too Large", "Body exceeds 256 KB.")
     try:
@@ -188,6 +201,27 @@ async def finish_run(run_id: str, request: Request):
             return _err(404, "Not Found", "Unknown runId.")
         total = conn.execute("SELECT COUNT(*) FROM runs").fetchone()[0]
     return {"rank": None, "totalRuns": total}
+
+
+@app.delete("/v1/devices/{device_key}", status_code=200)
+def purge_device(device_key: str, authorization: str | None = Header(default=None)):
+    """THE RIGHT TO BE FORGOTTEN, for one device key (v120, owed in ../README.md).
+
+    A deletion request cannot be answered with "the data is anonymous": the device key IS the identity the
+    runs join on, and a leaderboard row is reconstructable from it. This removes every run the key ever
+    made, cascading to their events, plus the key's rate-limit window (an orphaned window would leave a
+    deleted device throttled). It needs the CONTENT_KEY, for the same reason publishing a pack does.
+
+    It answers with 200 and a count even when there was nothing to delete: a purge endpoint that says
+    "not found" for a key it has never seen is an oracle for which keys exist.
+    """
+    if not _check_content_key(authorization):
+        return _err(401, "Unauthorized", "CONTENT_KEY is required to purge a device.")
+    if not db.is_uuid(device_key):
+        return _err(422, "Unprocessable Entity", "deviceKey must be a UUID.")
+    with db.connect() as conn:
+        removed = db.purge_device(conn, device_key)
+    return {"purged": True, "runsRemoved": removed}
 
 
 @app.get("/v1/leaderboard")

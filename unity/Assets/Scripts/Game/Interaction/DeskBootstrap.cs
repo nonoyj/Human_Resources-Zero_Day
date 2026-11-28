@@ -132,6 +132,11 @@ namespace HRZeroDay.Game.Interaction
 
         private void Start()
         {
+            // THE TUBE ASKS THE DESK WHAT IT IS DOING (v120, request E). Wired here, not in Awake: the room
+            // is built by DeskRuntimeScene and its ScreenLight may not exist yet when this component wakes.
+            var tube = Tube;
+            if (tube != null) tube.want = ScreenStateNow;
+
             if (Hud == null) Hud = GameHud.Attach(this);
             else Hud.Bind(this);
             if (string.IsNullOrEmpty(watchCopy)) watchCopy = "HOLD STILL. THE TELL IS SMALL.";
@@ -368,6 +373,24 @@ namespace HRZeroDay.Game.Interaction
             }
         }
 
+        /// <summary>The desk's ScreenLight, found once; null until the room is built.</summary>
+        private ScreenLight Tube { get { return _tube != null ? _tube : (_tube = FindAnyObjectByType<ScreenLight>()); } }
+        private ScreenLight _tube;
+
+        /// <summary>
+        /// The tube's live state (v120, request E). The desk reads this every frame; nothing else decides.
+        /// Same three inputs the rest of the game uses for "is the desk being worked", so the screen can
+        /// never be on during the ending or off during an interview.
+        /// </summary>
+        public ScreenState ScreenStateNow()
+        {
+            // A menu over a live run keeps the tube IDLE rather than OFF: the run is still behind the door,
+            // and the door's own room is lit by MenuView, not by this light. The one case that is genuinely
+            // dark is the ending, where the desk is not the thing on screen any more.
+            return ScreenLight.StateFor(ShowEnding && !_showingDaySummary, ShowingSweep, _showingDaySummary,
+                                        ShowingMenu);
+        }
+
         public void Restart()
         {
             if (Session == null) return;
@@ -513,11 +536,26 @@ namespace HRZeroDay.Game.Interaction
         /// the props. Returns true when it was consumed; false when it landed on nothing, so the caller can
         /// fall back to "any click chooses".
         /// </summary>
-        public bool MenuClick(int x, int y)
+        public bool MenuClick(int x, int y) { return MenuClick(x, y, false); }
+
+        /// <summary>
+        /// The same click, told whether it came from a THUMB (v120). Touch has no hover, so a row needs two
+        /// taps: the first arms it (and shows the armed state), the second confirms. Everything else -- the
+        /// lamp, the keyboard, a click that lands on the room -- behaves exactly as it does with a mouse,
+        /// because those are props, not decisions.
+        /// </summary>
+        public bool MenuClick(int x, int y, bool touch)
         {
             if (!ShowingMenu) return false;
             Menu.SetPointer(x, y, Menu.Count);
-            if (Menu.HoverRow >= 0) return MenuChoose();
+            if (Menu.HoverRow >= 0)
+            {
+                if (!touch) return MenuChoose();
+                if (Menu.ArmOrConfirm(Menu.HoverRow)) { Cue(Sfx.Key); return MenuChoose(); }
+                Cue(Sfx.Key);                       // armed: the same key click a move makes, so it is felt
+                return true;
+            }
+            Menu.CancelArm();                       // a tap elsewhere drops the armed row, visibly
             if (Menu.HoverLamp) { Menu.ToggleLamp(); Cue(Sfx.Key); return true; }
             if (Menu.HoverKeyboard) { Menu.TypeOnDesk(); Cue(Sfx.Key); return true; }
             return false;

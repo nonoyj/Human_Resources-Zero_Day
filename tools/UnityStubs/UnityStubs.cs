@@ -31,6 +31,10 @@ namespace UnityEngine
         public static float Sin(float v) => (float)System.Math.Sin(v);
         public static float Cos(float v) => (float)System.Math.Cos(v);
         public static float LerpUnclamped(float a, float b, float t) => a + (b - a) * t;
+        public const float Rad2Deg = 57.29578f;
+        public const float PI = 3.14159265f;
+        public static float Atan2(float y, float x) => (float)System.Math.Atan2(y, x);
+        public static float DeltaAngle(float a, float b) { float d = Repeat(b - a + 180f, 360f) - 180f; return d; }
         public static float Repeat(float t, float length) => t - (float)System.Math.Floor(t / length) * length;
         public static float MoveTowards(float a, float b, float d) => System.Math.Abs(b - a) <= d ? b : a + Sign(b - a) * d;
     }
@@ -215,9 +219,9 @@ namespace UnityEngine
     }
     public class Sprite : Object
     {
-        public Rect rect; public Texture2D texture;
+        public Rect rect; public Texture2D texture; public float pixelsPerUnit = 16f;
         public static Sprite Create(Texture2D tex, Rect r, Vector2 pivot, float ppu)
-        { return new Sprite { texture = tex, rect = r }; }
+        { return new Sprite { texture = tex, rect = r, pixelsPerUnit = ppu }; }
     }
     public class TextAsset : Object
     {
@@ -382,7 +386,7 @@ namespace UnityEngine
 
     public enum KeyCode { None, Escape, Space, Return }
 
-    public static class Time { public static float unscaledDeltaTime; public static float deltaTime; }
+    public static class Time { public static float unscaledTime; public static float unscaledDeltaTime; public static float deltaTime; }
     /// <summary>
     /// UnityEngine.JsonUtility. The stub USED TO return default(T), which quietly made every headless test
     /// that read shipped JSON pass on an empty dictionary -- the v119 palette test failed to notice that the

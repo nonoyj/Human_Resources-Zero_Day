@@ -355,6 +355,22 @@ class Applicant:
                 rect(hx - 9, hy + 3, hx - 8, hy + 8, self.skin_mid)
                 rect(hx - 9, hy + 3, hx - 8, hy + 8, self.skin_mid)  # thumb tucked at the side
 
+        # ---------------- THE JACKET CATCHES THE WINDOW (v13, request B)
+        # The same cold key that rims his face lands on the top of his left shoulder. Without it the jacket
+        # is a silhouette and the head is a lit object sitting on top of it, which is the "cut out and
+        # stacked" look. It follows the SAME side as the face rim, dies before the collar, and is dithered
+        # on its inner pixel so it never becomes a drawn outline.
+        if 'no_rim' not in A:
+            for y in range(top + 1, min(torso_bot, top + 30)):
+                half = torso_half(y)
+                if half < 10:
+                    continue
+                x = cx - half
+                if ((y + 1) & 1) == 0:
+                    continue                       # 1 px on, 1 px off: wrap, not line
+                P.put(x + 1, y, 'linehi')
+                P.put(x + 2, y, 'line')            # its second step, on the inside of the edge
+
         # ---------------- head (v6: sphere + jaw, per the user's reference sheet)
         # A human head reads as round. v5 still tapered like a column; the samples the player sent are all
         # built from a circular cranium with a narrow jaw wedge under it, so this is a real sphere:
@@ -397,6 +413,11 @@ class Applicant:
                 return cranium_half(y)
             return max(cranium_half(y), jaw_half(y))
 
+        # v13 keeps the silhouette per row so the RIM pass below does not have to guess where the head's
+        # edge is -- it re-derives it, and a second copy of that arithmetic is a bug waiting to happen.
+        self._head_half = head_half
+        self._head_rows = (head_top, chin_y)
+
         # ---- FACE (v11): FLAT. The player's instruction, 2026-11-26: "don't attempt to put shadows
         # anymore, just give us a normal face."
         # v9 shaded the head as three concentric tone planes around a light point, and v10 added a rim
@@ -417,6 +438,23 @@ class Applicant:
             # ARTIFACT (the tell, not decoration): a hard 4-row posterised step, which is exactly the
             # kind of thing a flat face makes obvious. Kept -- it is evidence the player can see.
             rect(cx - 10, 93 - breath, cx + 10, 96 - breath, self.skin_light)
+
+        # ---- THE JAW GETS ITS OWN TWO MARKS (v13, request B)
+        # A flat-filled silhouette is a shape; a face is a shape with a BOTTOM. The chin and the jawline are
+        # the two places a viewer looks for that, and both were missing: the head ran into the neck in one
+        # tone with a single contour row across it.
+        #   * one dithered row under the jaw, one step down the skin ramp, stopping short of the left rim
+        #     (the window is on his left, so the chin's shadow falls right);
+        #   * two darker pixels at the jaw's corner, which is the single cheapest way to say "this edge turns".
+        # the shadow is the skin ramp's FIRST step, not `ink`: at step 0 this row is a black line under the
+        # face, i.e. an outline, which is the thing the review rejected. One step down and dithered, it is a
+        # cheekbone. It also only runs on the RIGHT of the chin -- the window is on his left.
+        _jh = head_half(chin_y - 1)
+        for x in range(cx + int(_jh * 0.20), cx + _jh + 1):
+            if ((x + chin_y) & 1) == 0:
+                P.put(x, chin_y, P.ramp(self.skin_ramp, 1))
+        # the jaw's corner: ONE pixel, and it is the darkest the face is allowed to be
+        P.put(cx + _jh, chin_y - 2, P.ramp(self.skin_ramp, 0))
 
         ear_y = jaw_top + 4
         for side in (-1, 1):
@@ -444,8 +482,13 @@ class Applicant:
         # the jaw is a CONTOUR -- without it the neck and the face merge into one shape.
         for (nx, ny) in taper(cx, chin_y - 2, neck_bottom, self.neck_w - 2, self.neck_w + 3):
             P.put(nx, ny, _tone_key(tone, nx, ny))
-        for nx in range(cx - self.neck_w, cx + self.neck_w + 1):
-            P.put(nx, chin_y - 3, 'paperdim')                         # the jaw contour, one step down
+        # THE NECK CONTOUR IS NOT A COLLAR (v13). This row used to run the whole neck in `paperdim`, which at
+        # 1x is a GOLD band -- it read as a striped collar painted onto his throat, and on the lighter tones
+        # it read as a gap between his head and his body. Three dithered pixels directly under the chin say
+        # "the neck starts here" without drawing a second hem.
+        for nx in range(cx - self.neck_w + 1, cx + self.neck_w):
+            if ((nx + chin_y) & 1) == 0:
+                P.put(nx, chin_y - 2, P.ramp(self.skin_ramp, 1))
 
         # restore the chin: the same flat tone, so no pale band sits under it
         for yy in range(chin_y, min(chin_y + 4, neck_bottom)):
@@ -591,6 +634,10 @@ class Applicant:
         # marks, not modelling -- the modelling was the part that read as a stain on the cheek.
         P.put(cx - 1, eye_y + 12, P.ramp(self.skin_ramp, 1))
         P.put(cx, eye_y + 12, P.ramp(self.skin_ramp, 1))
+        # the nose's own shadow, one row under its right side (the window is on his LEFT, so the shadow
+        # falls right): a nose that casts nothing is a sticker, and this is the cheapest pixel in the face
+        P.put(cx + 2, eye_y + 13, P.ramp(self.skin_ramp, 1))
+        P.put(cx + 3, eye_y + 12, P.ramp(self.skin_ramp, 1))
         # mouth: dark line, lit lower lip, and a soft shadow beneath
         mouth_y = eye_y + (27 if self.female else 28)
         lip = 6 if not self.female else 7                    # a fuller mouth, not a different mouth
@@ -615,6 +662,39 @@ class Applicant:
                      P.ramp(self.skin_ramp, 1), P.ramp(self.skin_ramp, 2), seed=3)
             P.dither(cx + eye_dx - 4, eye_y + 8, cx + eye_dx + 3, eye_y + 8,
                      P.ramp(self.skin_ramp, 1), P.ramp(self.skin_ramp, 2), seed=5)
+
+        # ---------------- THE WINDOW'S COLD RIM (v13, request B)
+        #
+        # The player moved the window behind the applicant (request C), which means he is now BACKLIT: the
+        # night glass is the brightest thing at his edges and the office's cold key comes over his left
+        # shoulder. Nothing in the sprite said so -- he was a flat cut-out standing in front of a light,
+        # which is the one thing that makes a person look pasted on.
+        #
+        # This is a 1 px rim, dithered to 2 px at its brightest, on the silhouette's LEFT side and along the
+        # TOP of the shoulder: light WRAPS a rounded form, so it is strongest at the temple and the shoulder
+        # cap and dies before the crown. It steps the skin UP its own ramp (never a new colour) and it does
+        # not touch the hair or the jacket, because those are already their darkest step and a rim on them
+        # would read as a drawn outline -- the thing the bible forbids.
+        #
+        # Per-side control, because a rim is directional: `rim_side` is -1 (left, the window) for every
+        # applicant by default, +1 for the editions whose seat faces the other way.
+        if 'no_rim' not in A:
+            rim = P.ramp(self.skin_ramp, 3)
+            rim_dim = P.ramp(self.skin_ramp, 2)
+            top, bot = self._head_rows
+            for y in range(top + 2, min(bot, top + int(hw * 1.55)) + 1):
+                hwid = max(0, self._head_half(y))
+                if hwid < 4:
+                    continue
+                # the rim fades as the form turns away: full at the temple rows, one step at the crown
+                dy = abs(y - (top + int(hw * 0.72))) / float(hw)
+                hot = dy < 0.55
+                for d in range(1, 3 if hot else 2):
+                    x = cx - hwid + d - 1
+                    if d == 2 and (y & 1):
+                        continue                         # the second pixel is dithered, never solid
+                    if _tone_key(self.face_tone(), x, y) != 'paper' and d == 1:
+                        P.put(x, y, rim if hot else rim_dim)
 
         # ---------------- glasses
         if self.glasses and self.glasses_shape == 1:

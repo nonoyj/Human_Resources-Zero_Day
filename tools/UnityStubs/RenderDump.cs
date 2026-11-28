@@ -14,6 +14,7 @@ using System.IO;
 using System.Reflection;
 using UnityEngine;
 using HRZeroDay.Game.Interaction;
+using HRZeroDay.Core.Rules;
 
 public static class RenderDump
 {
@@ -40,6 +41,7 @@ public static class RenderDump
             // still "not typed yet" and the dump shows a menu with no options in it
             typeof(MenuView).GetField("_bootReveal", flags).SetValue(view, 1f);
             if (args.Length > 2 && args[2] == "keyboard") { view.TypeOnDesk(); view.TypeOnDesk(); typeof(MenuView).GetField("_typeReveal", flags).SetValue(view, 1f); }
+            if (args.Length > 2 && args[2] == "lamphover") { view.SetPointer(MenuLayout.LampX + 28, MenuLayout.LampY + 70, 5); }
             if (args.Length > 2 && args[2] == "fade") { view.TypeOnDesk(); view.TypeOnDesk(); typeof(MenuView).GetField("_typeReveal", flags).SetValue(view, 0.45f); typeof(MenuView).GetField("_typeLeft", flags).SetValue(view, 0f); }
 
             // Paint() needs a real Texture2D + sprite renderer, which the stub does not build. So run the

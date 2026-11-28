@@ -111,16 +111,20 @@ hash-pinned), `/v1/admin/packs` (validates), `/v1/runs` (idempotent, PII-key ref
 `/v1/runs/{id}/events` (202 partial accept, 256 KB cap), `/v1/runs/{id}/finish`, `/v1/leaderboard`,
 `/v1/research/export`.
 
+**Done in v120** (two of the queue, both with tests): **rate limits are enforced** (60 event writes / 10 min
+per device key, `429` + `Retry-After`, expired windows purged on write) and **`DELETE /v1/devices/{key}`**
+purges a device's runs, their events and its rate window. While doing the purge: SQLite ignores
+`ON DELETE CASCADE` unless `PRAGMA foreign_keys = ON` is set **per connection** — it is now, in `db.py`, and
+the purge still deletes the events explicitly, because a deletion request is not the place to trust a cascade.
+
 Still owed, in priority order — **this is your work queue**:
 
 1. **Object storage.** Upload packs to MinIO/S3 under their hash name and fill `sha256`/`bytes`. Nothing yet
    proves the URL serves the hash it claims.
-2. **Rate limits** — 60 requests / 10 min per device key. The `rate_limits` table exists; nothing enforces it.
-3. **Ops console** — pack list, revoke, counters.
-4. **`DELETE /v1/devices/{key}`** — purge for retroactive opt-out (the research-ethics commitment).
-5. **Deploy** (SG/PH) + HTTPS + a backup *restore drill* + a CI grep that fails if PII appears in logs.
-6. **Load/soak**: 20 devices × 20 runs, p95 < 400 ms.
-7. **OpenAPI** committed + `fixtures/` for the client's contract tests.
+2. **Ops console** — pack list, revoke, counters.
+3. **Deploy** (SG/PH) + HTTPS + a backup *restore drill* + a CI grep that fails if PII appears in logs.
+4. **Load/soak**: 20 devices × 20 runs, p95 < 400 ms.
+5. **OpenAPI** committed + `fixtures/` for the client's contract tests.
 
 **Deploy gotcha, already known:** `backend/app/db.py` is SQLite-only (`?` placeholders). Before Postgres,
 switch to `%s` and test both — the `DATABASE_URL` plumbing already supports both.
@@ -140,6 +144,30 @@ switch to `%s` and test both — the `DATABASE_URL` plumbing already supports bo
 - **Tests are the contract.** A number with no test is a rumour (see BUG-065 for how that cost a round).
 
 ---
+
+## 6b. The v120 rules (light, palette, confirm)
+
+Five rules this round added, each with a bug behind it. They apply to every future round.
+
+1. **One palette, two renderers.** `tools/art/art_palette.py` is the authority: the desk's 24 kit colours are
+   **aliases** onto the menu's `material_N` ramp steps, and `python3 tools/art/art_palette.py --check` must
+   print PASS before any bundle. An alias may not move a colour by more than 64 unless it is listed in
+   `HUE_MOVED` with a reason; `paper`/`paperdim` are the one colour pair that never moves (the letter is the
+   surface the game is read on).
+2. **A light needs a named emitter, and the emitter's numbers are the bug.** The lamp's pool was centred on
+   the lamp's FOOT and lit the wall; the tube had no light at all; the first screen-light pass centred its
+   pool on the glass and lit the wall too — the same mistake twice. If a surface should be lit, write down
+   where the light leaves the object and put the pool's centre on the surface it lands on.
+3. **Light walks a pixel UP ITS OWN RAMP.** `material_N -> material_N+1`, read from the published
+   `palette.json` through `PaletteLadder`. Never sort a palette by brightness to find "the next step" — that
+   is how a cold grey gets lit into a warm cream. Shadows walk the same ladder down.
+4. **A decision on touch costs two taps; a decision with a mouse costs one.** `MenuLayout.ConfirmWindow(touch)`
+   is the rule, `MenuView.ArmOrConfirm` the state, `DeskBootstrap.MenuClick(x, y, touch)` the wiring. The armed
+   row must look DIFFERENT from the selected row (opposite contrast), or the player cannot tell aiming from
+   committing.
+5. **Preview the light offline before opening Unity.** `tools/comp/preview_screenlight.py` applies the same
+   rule to the twin render and writes a before/after sheet. If the picture and the game disagree, the RULE is
+   wrong — fix it in both places in the same commit.
 
 ## 7. If you are stuck
 
