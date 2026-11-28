@@ -82,8 +82,15 @@ tools/UnityStubs/obj/
 # "working tree not clean (264 entries)" install -- which blocks Build-Bundle and made the player's
 # Apply-Bundle report a dirty tree. The metas that MATTER (Resources: isReadable, point filter, PPU 16)
 # stay tracked; these do not.
-unity/Assets/Art.meta
-unity/Assets/Art/**/*.meta
+# REVERSED IN v119 (BUG-075). Ignoring these fixed BUG-058's dirty tree and CREATED BUG-075: Unity keeps
+# whatever .meta it wrote itself, so when v118 resized monitor_stack.png and window.png the player's editor
+# still had the OLD source metas with slices on them and threw "the rect lies (partially) outside of
+# texture" on every import. The metas are import settings -- a build input that lives in an uncommitted
+# file is not a build input. They are TRACKED now. The dirty-tree problem they were solving is solved the
+# right way instead: tools/art/write_unity_metas.py writes a meta for every published PNG, so a fresh
+# install has nothing untracked to add.
+# unity/Assets/Art.meta
+# unity/Assets/Art/**/*.meta
 # scratch clones used by script tests
 .idtest/
 # agent scratch dirs (script tests) -- keep them out of the repo, always
