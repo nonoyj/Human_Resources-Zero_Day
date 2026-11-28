@@ -1,7 +1,7 @@
 # HR//0D — working state
 
-**One page. If you read only one file, read this one.** Updated 2026-11-27 (bundle **v106**,
-commit `46d9206`, `main` pushed).
+**One page. If you read only one file, read this one.** Updated 2026-11-25 (bundle **v125**,
+commit `58286fe`, `main` pushed).
 
 > **Three files outrank this one:**
 > `AGENTS.md` — the rules an AI agent must follow (gates, the replace rule, the contracts, the work queues).
@@ -25,12 +25,16 @@ is a person and who is a synthetic. 480×270, Unity 6, painterly pixel art. Wind
 
 ## Current state
 
+**The v120 look is in**: one palette (the desk's kit colours are aliases onto the front door's ramps), a
+wide window with an empty centre opening that the applicant stands inside, a lamp that lights the desk
+instead of the wall, and a tube that is genuinely ON — it lights the desk, the props and their shadows.
 **Playable.** Press Play in an empty scene and `GameBoot` builds the desk. Interview → read the letter on
 the CRT → inspect artifacts → stamp → day summary → after-hours sweep.
 
 | Gate | Command | Status |
 |---|---|---|
-| Headless tests (**152**) | `dotnet run --project tools\CoreTests` | pass |
+| Headless tests (**189**) | `dotnet run --project tools\CoreTests` | pass |
+| **One palette** (v120) | `python tools\art\art_palette.py --check` | `PASS: one palette -- 74 colours` |
 | Art + stub + layout gate | `.\scripts\Test-ArtPipeline.ps1` | OK |
 | Script health | `.\scripts\Test-Scripts.ps1` | healthy |
 | **Unity will compile** | `dotnet build tools\UnityStubs\CompileCheck.csproj` | succeeded |
