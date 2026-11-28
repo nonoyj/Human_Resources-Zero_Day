@@ -19,8 +19,8 @@
     "ui": 18,
     "icons": 18,
     "stamps": 2,
-    "desk": 13,
-    "backgrounds": 3,
+    "desk": 16,
+    "backgrounds": 4,
     "menu": 8,
     "fx": 3,
     "fonts": 1,
@@ -1979,6 +1979,25 @@
       }
     },
     {
+      "source": "art/kit/desk/foreground_M.png",
+      "assetPath": "Assets/Art/Kit/desk/foreground_M.png",
+      "width": 480,
+      "height": 19,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "f77a02410eaf68a6",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
       "source": "art/kit/desk/id_card.png",
       "assetPath": "Assets/Art/Kit/desk/id_card.png",
       "width": 84,
@@ -2006,6 +2025,25 @@
       "spriteMode": "Single",
       "kind": "desk",
       "sha256_16": "71a7f82ffb5a3940",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/desk/monitor_M.png",
+      "assetPath": "Assets/Art/Kit/desk/monitor_M.png",
+      "width": 192,
+      "height": 108,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "6a26ffa30a6cefee",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2082,6 +2120,25 @@
       "spriteMode": "Single",
       "kind": "desk",
       "sha256_16": "ab70c8fd619cf80f",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/desk/monitor_stand_M.png",
+      "assetPath": "Assets/Art/Kit/desk/monitor_stand_M.png",
+      "width": 54,
+      "height": 40,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "5580c1c378d9f1c8",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2215,6 +2272,25 @@
       "spriteMode": "Single",
       "kind": "background",
       "sha256_16": "bf56224fc51dfbb4",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/backgrounds/office_M0.png",
+      "assetPath": "Assets/Art/Kit/backgrounds/office_M0.png",
+      "width": 480,
+      "height": 270,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "background",
+      "sha256_16": "75fa3ef3569d17de",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
