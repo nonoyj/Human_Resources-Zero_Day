@@ -49,6 +49,17 @@ def _pillow():
         raise SystemExit(3)
 
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from pngcheck import read_rgba     # noqa: E402  -- the dependency-free decoder the art gates use
+
+
+def _cell_rgba(sheet_path, rect):
+    """The frame's pixels, read without Pillow."""
+    _w, _h, px = read_rgba(sheet_path)
+    x, y, w, h = rect
+    return [px[(y + j) * _w + (x + i)] for j in range(h) for i in range(w)]
+
+
 def frames_for(entry: dict):
     """-> [(relative_dir, filename)] for every frame of a Multiple-mode sprite."""
     asset_path = entry['assetPath']                       # Assets/Art/Kit/applicants/app_x_192x216.png
@@ -79,11 +90,28 @@ def main() -> int:
 
         for sub, filename in frames_for(entry):
             wanted += 1
-            absent = [m for m in MIRRORS if not os.path.isfile(os.path.join(m, sub, filename))]
+            paths = [os.path.join(m, sub, filename) for m in MIRRORS]
+            absent = [p for p in paths if not os.path.isfile(p)]
+            stale = []
             if not absent:
-                continue
+                # BUG-041 (the player: "the applicant is the old art"): this loop used to `continue` the
+                # moment a frame FILE existed, so a frame cut in v127 was never cut again -- not in v130,
+                # not in v130.4. The game draws these files (DeskSceneBuilder.LoadFrames), not the strip, so
+                # the applicant on screen was weeks old while every gate said "56 frames present". A file
+                # that exists is not a file that is CURRENT.
+                index = [f['name'] for f in entry['sprites']].index(
+                    os.path.splitext(filename)[0].split('__', 1)[1])
+                rect = entry['sprites'][index]['rect']
+                sheet_path = os.path.join(ROOT, 'art', 'kit', sub.split('frames')[0].rstrip('/'), name)
+                want = _cell_rgba(sheet_path, rect)
+                for pth in paths:
+                    _w2, _h2, have = read_rgba(pth)
+                    if have != want:
+                        stale.append(pth)
+                if not stale:
+                    continue
             missing.append(os.path.join(sub, filename))
-            if args.check:
+            if absent or args.check:
                 continue
 
             with _pillow().open(os.path.join(ROOT, 'art', 'kit', sub.split('frames')[0].rstrip('/'), name)) as sheet:
@@ -100,12 +128,12 @@ def main() -> int:
 
     if args.check:
         if missing:
-            print('FAIL: %d animation frame(s) missing -- a clone would not boot:' % len(missing))
+            print('FAIL: %d animation frame(s) missing or STALE -- a clone would draw the wrong applicant:' % len(missing))
             for m in missing[:6]:
                 print('   ', m)
             print('  run: python tools/art/extract_frames.py')
             return 1
-        print('PASS: all %d animation frames exist in both mirrors' % wanted)
+        print('PASS: all %d animation frames exist in both mirrors AND match their strips' % wanted)
         return 0
 
     print('%d frames across %d strips: %d written, %d already present'

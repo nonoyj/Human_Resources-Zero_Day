@@ -15,6 +15,9 @@ namespace HRZeroDay.Game
         public ShiftController shift;
         /// <summary>Seconds left on the CURRENT applicant; MonitorScreenView owns that timer.</summary>
         public MonitorScreenView screen;
+        /// <summary>The surface baker that actually holds the lit pixels (v130.5). The lamp's switch has to
+        /// reach the thing that owns the room's lit surfaces, or it only changes the light's formula.</summary>
+        public ScreenLight surfaces;
         /// <summary>Seconds left on the current applicant. Owned by whatever drives the shift clock;
         /// the room light and the HUD must read the same number or the sky lies about the time.</summary>
         public double currentApplicantRemaining = ShiftClock.SecondsPerApplicant;
@@ -46,7 +49,15 @@ namespace HRZeroDay.Game
             if (lighting != null) lighting.Apply(progress);
             // ONE progress, three readers: the room's tint, the lamp's level and the wall clock's hands.
             if (clock != null) clock.progress = (float)progress;
-            if (lamp != null) lamp.SetOn(lampOn);
+            if (lamp != null)
+            {
+                lamp.SetOn(lampOn);
+                // THE FIXTURE AND THE ROOM MUST AGREE (v130.5, BUG-040). The lamp's level is ramped over a
+                // second, so the room crossfades with it instead of snapping: the wood under the shade gains
+                // its step as the shade brightens, and loses it as the shade goes dull. This one line is what
+                // was missing between the switch and the light.
+                if (surfaces != null) surfaces.lampOn = lampOn;
+            }
         }
     }
 }

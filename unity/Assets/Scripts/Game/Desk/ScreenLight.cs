@@ -128,7 +128,24 @@ namespace HRZeroDay.Game
         private Dictionary<Color32, Color32> _down;
 
         /// <summary>The lamp's state, pushed in by LampView. False = the desk's second practical is off.</summary>
-        public bool lampOn = true;
+        /// <remarks>
+        /// v130.5 (BUG-040): this is a PROPERTY with a setter because a light the player can switch has to
+        /// REPAINT when it is switched. It was a public field, and `DeskLightDriver` wrote the lamp's level
+        /// into `LampView` every frame while nothing ever wrote it back here -- so switching the lamp changed
+        /// the fixture's tint and left every lit surface in the room exactly as bright as before. The plumbing
+        /// stopped one object short of the pixels.
+        /// </remarks>
+        public bool lampOn
+        {
+            get { return _lampOn; }
+            set
+            {
+                if (_lampOn == value) return;
+                _lampOn = value;
+                Repaint();          // the desk's surfaces re-bake against the rig with the lamp out
+            }
+        }
+        private bool _lampOn = true;
         /// <summary>How much of the room's own light (window + floor bounce) is present, 0..1: the daylight
         /// stages multiply this, so a night shift does not look like a noon one with a different tint.</summary>
         public float roomLevel = 1f;

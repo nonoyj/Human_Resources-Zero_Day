@@ -156,7 +156,15 @@ namespace HRZeroDay.Game
             }
             var clock = RoomClockView.Attach(root);
             var lightDriver = root.gameObject.GetComponent<DeskLightDriver>();
-            if (lightDriver != null) { lightDriver.clock = clock; lightDriver.lamp = lamp; }
+            if (lightDriver != null)
+            {
+                lightDriver.clock = clock;
+                lightDriver.lamp = lamp;
+                // v130.5 (BUG-040): the driver is what carries the lamp's switch into the room's light, and
+                // `screen` is the one object that owns the surfaces the lamp lands on. It was never assigned,
+                // so the lamp could be switched and nothing in the room could hear it.
+                lightDriver.surfaces = tube;
+            }
 
             // the applicant gets the idle driver and the whole 4-frame strip
             if (created.ContainsKey("applicant"))
@@ -261,7 +269,22 @@ namespace HRZeroDay.Game
         public static void ConfigureCamera(Camera cam, CanvasSpec spec)
         {
             cam.orthographic = true;
-            cam.orthographicSize = spec.height / (2f * spec.pixelsPerUnit);
+            // ---- THE ROOM MUST BE WHOLE, NOT WIDE (v130.5, BUG-044).
+            //
+            // This was `spec.height / (2 * ppu)` with the camera centred on the canvas: a fixed VERTICAL
+            // world height. On anything wider than 16:9 -- a windowed editor at 1920x1080 is not, but the
+            // envelope the game is played in, 16:9 is -- the camera then shows MORE width than 480 px, and the
+            // 480 px composition is letterboxed with the empty background down both sides. Worse in the other
+            // direction: a narrower viewport crops the room's right edge, which is where the monitor, the lamp
+            // and the clock stand.
+            //
+            // The fix is one line of arithmetic: fit the WHOLE canvas and let the slack fall outside it, so
+            // the composition is always complete and always centred. `Mathf.Max` of the two fits is the
+            // "contain" rule every 2D camera should start from.
+            float viewAspect = cam.aspect > 0.01f ? cam.aspect : (spec.width / (float)spec.height);
+            float fitByHeight = spec.height / (2f * spec.pixelsPerUnit);
+            float fitByWidth = spec.width / (2f * spec.pixelsPerUnit * viewAspect);
+            cam.orthographicSize = Mathf.Max(fitByHeight, fitByWidth);
             cam.transform.position = new Vector3(spec.width / (2f * spec.pixelsPerUnit),
                                                  spec.height / (2f * spec.pixelsPerUnit), -10f);
             cam.clearFlags = CameraClearFlags.SolidColor;

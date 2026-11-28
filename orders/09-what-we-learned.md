@@ -232,3 +232,34 @@ add the entry here.
 - **RULE: if the brief says the player turns something on, there is an input that turns it on, and it is in
   the same place as the object** (a tap on the glass) as well as on a key.
 
+### H14. A FILE THAT EXISTS IS NOT A FILE THAT IS CURRENT (the old applicant)
+- The player, twice: "the applicant is only a one person now, but its the old art". The frame extractor cut
+  each animation frame ONLY IF THE FILE WAS MISSING. Fifty-six frames existed, so fifty-six were skipped,
+  on every run, for weeks -- while the gate printed "all animation frames exist in both mirrors". The game
+  draws those frame files, never the strips, so the person on his screen was a version we had replaced six
+  rounds ago, and every appearance/variety test we owned was testing the strips instead.
+- **RULE: a generator that skips work because the OUTPUT exists must compare CONTENT.** "Present" is not a
+  state worth asserting, and a suite that only asserts presence keeps saying PASS after the product is wrong.
+
+### H15. A CONTROL WITH NO ACKNOWLEDGEMENT IS A DEAD CONTROL
+- The player: "nothing pops out when the lamp is clicked". The click DID work: the room rebuilt and the warm
+  pool went out. He could not see it, because the only change was a slightly lighter room and a 56x132 sprite.
+  A switch whose whole visible effect is the thing it switched is invisible when the switched thing is small.
+- **RULE: every prop click emits something the player can see from where the pointer was** -- a flare, a
+  movement, a change of state drawn large. "It works" and "it looks like it works" are one requirement.
+
+### H16. A LIGHT UNDER ONE RAMP STEP IS NOT A LIGHT
+- Three sources in the game room were measured this round: the lamp at 0.4 steps, the clock at 0.3, the lamp's
+  pool at 0.5 (16 % of pixels lifted, dithered). The renderer FLOORS the integer part of the light and dithered
+  the remainder, so a source under 1.0 shows, at most, one pixel in thirty-two. The player's sentence -- "make
+  everything that produces light actually make it visible that it produce light" -- was, literally, arithmetic
+  he could not see.
+- **RULE: every light in a rig is at least ONE whole step on the object it exists to light, and the gate asks
+  that object, not the source's own centre.** `every_light_lands_on_its_neighbours`.
+
+### H17. TWO LISTS OF ONE SCREEN WILL DISAGREE, AND THE PLAYER WILL PRESS THE ONE HE CAN SEE
+- The front door painted its rows from `MenuScreenText.Root` and acted on them from `MenuRules.Root`. On a
+  first-run profile (no CONTINUE) the painter still drew five rows: index 1 was NEW SHIFT on the glass and
+  FIELD MANUAL to the game. The player's report -- "Clicking new run does not do anything" -- was exact.
+- **RULE: a screen with two row models has a test that walks BOTH and compares label, action and order.** If
+  the paint can drift from the action, it drifts in the state nobody booted.

@@ -57,6 +57,9 @@ namespace HRZeroDay.Game.Interaction
                     // ONE key, one action. v110 could fire twice on a frame where two bindings were true
                     // (arrow and WASD both pressed, say), which is how a toggle appears not to work at all.
                     if (kb.escapeKey.wasPressedThisFrame) { game.MenuBack(); return; }
+                    // K = the front door's lamp (v130.5). The room's props are clickable, but a key that
+                    // switches the key light is how a player proves to themselves that the light IS the lamp.
+                    if (kb.kKey.wasPressedThisFrame) { game.MenuToggleLamp(); return; }
                     if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame)
                     { game.MenuChoose(); return; }
                     if (kb.upArrowKey.wasPressedThisFrame || kb.wKey.wasPressedThisFrame)
@@ -126,6 +129,9 @@ namespace HRZeroDay.Game.Interaction
                 if (kb.hKey.wasPressedThisFrame) game.ToggleHelp();
                 // F = the monitor's power switch (v130.4). The player asked how to turn it on; this is how.
                 if (kb.fKey.wasPressedThisFrame) game.ToggleMonitor();
+                // K = the DESK LAMP's switch (v130.5). The room has two practicals; F was the only switch on
+                // the desk, so the lamp was the one light the player could not prove was lighting anything.
+                if (kb.kKey.wasPressedThisFrame) game.ToggleLamp();
                 // ALERTS (v119.6): TAB is the one key the desk and the letter both honour, because the panel is
                 // read-only and never steals a decision. ESC closes it before it closes anything else.
                 if (kb.tabKey.wasPressedThisFrame) game.ToggleAlerts();
@@ -227,6 +233,15 @@ namespace HRZeroDay.Game.Interaction
                 hy >= DeskBootstrap.MonitorGlassT && hy <= DeskBootstrap.MonitorGlassB)
             {
                 bootstrap.ToggleMonitor();
+                return;
+            }
+
+            // ...AND THE LAMP IS SWITCHED THE SAME WAY (v130.5). The lamp stands in front of the monitor's
+            // right edge on this desk, so the tube's glass gets first refusal above; the fixture's own body
+            // is what catches the tap here.
+            if (DeskBootstrap.InLampBox(hx, hy))
+            {
+                bootstrap.ToggleLamp();
                 return;
             }
 

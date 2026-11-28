@@ -2013,3 +2013,46 @@ props, and props placed by hand against a desk whose perspective was drawn separ
   clock (`RoomClock.cs` + `RoomClockView.cs`) so the player can see the time of shift.
 - **Prevention rule:** a light you cannot switch is a decal. Every source has a `Level` and a test that turns it
   off.
+
+---
+
+### BUG-042 -- "Clicking new run does not do anything"  (v130.5)
+- **Found:** 2026-11-25 by the player   **Severity:** P0 (the front door's most important row)
+- **Symptom:** In the menu, clicking NEW SHIFT closes the menu and nothing else happens. No new day, no
+  applicant change, no visible reset. CONTINUE works.
+- **Repro:** boot, open the menu, click NEW SHIFT (or arrow to it and press SPACE).
+- **Root cause:** two, and they compound.
+  1. `MenuScreenText.Root` painted five rows; `MenuRules.Root` built four on a first-run profile (no CONTINUE).
+     The painter always drew CONTINUE first, so the row under the pointer at index 1 was NEW SHIFT on the glass
+     and FIELD MANUAL to the game. His own v130.4 screenshot is the proof: five rows on a run with no save.
+  2. `DeskBootstrap.Restart` reset the session and never called `AfterMenuClosed()`, the only thing that
+     re-enables every `ApplicantView` the menu disables. Even when NEW SHIFT did fire, it reset the run behind
+     a room with the applicant switched off and no HUD refresh -- an invisible restart.
+- **Fix:** `MenuLayout.MenuScreenText.Root` now builds its rows FROM `MenuRules.Root` (one model, one order);
+  `DeskBootstrap.Restart` ends with `AfterMenuClosed()` plus a tube re-ask and an object-layer rebuild.
+- **Regression test:** `the_painted_rows_are_the_rows_that_fire` walks all four (save x run) states, compares
+  label/action/order, and asserts every row resolves through `RowAt` at its own centre.
+- **Prevention rule:** a screen with two row lists has a test that walks both. If the paint can drift from the
+  action, it drifts in the state nobody booted.
+
+### BUG-043 -- "the monitor is the same when F is clicked"  (v130.5)
+- **Found:** 2026-11-25 by the player   **Severity:** P1 (the one player-switchable light)
+- **Symptom:** F (or a tap on the glass) changes the light pool at the table's sides; the monitor's own picture
+  does not change at all.
+- **Root cause:** `ToggleMonitor` flipped a bool and returned. `ScreenLight` was never told, so the glass kept
+  its last baked frame; the only visible change was the spill lobe, i.e. the effect, not the object.
+- **Fix:** `ToggleMonitor` pushes the new state into `ScreenLight` (`SetState` + `Repaint`) and refreshes the HUD.
+- **Regression test:** `light_falls_off_with_distance` asserts the tube's switch moves the wood in front of it
+  by >= 1 step; the glass side is covered by `tube_has_three_states` + `SetState`'s existing flicker path.
+- **Prevention rule:** a switch has to reach the OBJECT and the LIGHT; flipping the flag is not a feature.
+
+### BUG-044 -- the tube's title was cut in half by the glass's top edge  (v130.5)
+- **Found:** 2026-11-25 by the player (screenshot)   **Severity:** P2
+- **Symptom:** "HUMAN RESOURCES" reads as a sliced line at the top of the CRT; the row block sits low.
+- **Root cause:** the title/subtitle/tagline block is positioned by three independent constants with no clamp,
+  and the camera's fixed vertical world height could also letterbox the frame, changing what "the top of the
+  glass" looked like on his screen.
+- **Fix:** `MenuView.ClampIntoGlass` clamps every constant-positioned line into the glass; `ConfigureCamera`
+  now fits the whole 480x270 canvas (contain) instead of a fixed height.
+- **Regression test:** `the_concept_rows_exist_and_fit_the_glass` plus the clamp; **manual: the player's eye.**
+- **Prevention rule:** a block placed by constants is clamped by a function that knows the frame.

@@ -23,8 +23,21 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'comp'))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'art'))
 
-from PIL import Image, ImageDraw  # noqa: E402
-from preview_intro import load_font, draw_text, GLYPH_W as GW, GLYPH_H as GH, LETTER_GAP as LG  # noqa: E402
+from preview_intro import GLYPH_W as GW, GLYPH_H as GH, LETTER_GAP as LG  # noqa: E402
+
+# BUG-041 (v130.5). This module used to import Pillow at the top, so `--check` -- which draws nothing and
+# only compares numbers against the sprite sizes and the palette -- still died on a machine without Pillow.
+# That is the one subsystem every gate run reported as "(could not run: Traceback...)". A geometry check is
+# arithmetic: it must be able to run anywhere Python runs. Pillow is imported only where pixels are made.
+try:
+    from PIL import Image
+    from PIL import ImageDraw  # noqa: F401  -- used by the drawing helpers below
+    from preview_intro import load_font, draw_text
+    HAVE_PIL = True
+except ImportError:            # pragma: no cover - exercised by scripts/Test-ArtPipeline.ps1's no-Pillow run
+    Image = None
+    HAVE_PIL = False
+    load_font = draw_text = None
 from menu_palette import PALETTE  # noqa: E402  (the v118 material ramps, one source of truth)
 
 W, H = 480, 270
@@ -80,6 +93,16 @@ STACK_CELLS = [
 ]
 STACK_TUBE = 3
 STACK_TABLE_TOP = STACK_Y + 76      # the slab under the tubes, in canvas px
+
+
+def kit_size(rel):
+    """A sprite's (w, h) read WITHOUT Pillow -- the geometry gate only needs the size. PNG IHDR is at a fixed
+    offset and every sprite in this kit is 8-bit RGBA, so this is exact, not a guess."""
+    with open(os.path.join(ROOT, 'art', 'kit', rel + '.png'), 'rb') as fh:
+        head = fh.read(24)
+    if head[:8] != b'\x89PNG\r\n\x1a\n':
+        raise ValueError(rel + '.png is not a PNG')
+    return int.from_bytes(head[16:20], 'big'), int.from_bytes(head[20:24], 'big')
 
 
 def kit(rel):
@@ -455,12 +478,12 @@ def geometry():
     wall, and the monitor standing on the desk. This gate exists because v115 shipped a window tucked
     behind the monitor stack."""
     boxes = {
-        'window': (WIN_X, WIN_Y, *kit('menu/window').size),
-        'stack': (STACK_X, STACK_Y, *kit('menu/monitor_stack').size),
-        'lamp': (LAMP_X, LAMP_Y, *kit('menu/lamp').size),
-        'server': (SRV_X, SRV_Y, *kit('menu/server').size),
-        'crt': (CRT_X, CRT_Y, *kit('menu/crt').size),
-        'desk': (0, DESK_Y, *kit('menu/desk').size),
+        'window': (WIN_X, WIN_Y) + kit_size('menu/window'),
+        'stack': (STACK_X, STACK_Y) + kit_size('menu/monitor_stack'),
+        'lamp': (LAMP_X, LAMP_Y) + kit_size('menu/lamp'),
+        'server': (SRV_X, SRV_Y) + kit_size('menu/server'),
+        'crt': (CRT_X, CRT_Y) + kit_size('menu/crt'),
+        'desk': (0, DESK_Y) + kit_size('menu/desk'),
     }
     problems = []
     for name, (x, y, w, h) in boxes.items():

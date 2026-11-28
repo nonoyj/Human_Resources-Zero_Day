@@ -617,6 +617,11 @@ namespace HRZeroDay.Game.Interaction
                 _hoverWarmLeft = Math.Max(0f, _hoverWarmLeft - dt);
                 if (_hoverWarmLeft <= 0f) Paint();       // the last repaint is the one that clears it
             }
+            if (_lampFlare > 0f)
+            {
+                _lampFlare = Math.Max(0f, _lampFlare - dt / FlareSeconds);
+                Paint();                                  // the flare is a frame-by-frame decay, so repaint
+            }
 
             // the keyboard's text window: types itself in, sits, then fades out TypeWindowSeconds after the
             // last click on the keyboard. It repaints only while it is doing something, and the last repaint
@@ -1004,6 +1009,8 @@ namespace HRZeroDay.Game.Interaction
                     Centre(buf, "[UP/DOWN] MOVE   [ENTER] CHOOSE", MenuLayout.FooterTop, "amber_3", 1);
             }
 
+            if (_lampFlare > 0f) LampFlare(buf);
+
             // the keyboard's text window, over the tube, above the footer
             if (TypeWindowOpen) TextWindow(buf);
 
@@ -1221,9 +1228,22 @@ namespace HRZeroDay.Game.Interaction
         public void ToggleLamp()
         {
             _lampOn = !_lampOn;
+            // ---- THE FLASH (v130.5, BUG-039). The player: "nothing pops out when the lamp is clicked".
+            // The switch DID work -- the room rebuilt and the warm pool went out -- and he could not see it,
+            // because the only thing that changed was a lighter room and the fixture's own 56x132 sprite. A
+            // control with no acknowledgement reads as a dead control. This is the acknowledgement: a short
+            // warm ring at the shade's mouth that the player can see from any state, so "I clicked it" and
+            // "it did something" are the same event on screen.
+            _lampFlare = 1f;
             BuildRoom();
             Paint();
         }
+
+        /// <summary>0..1, decays over FLARE_SECONDS. Non-zero = the lamp was just switched.</summary>
+        private float _lampFlare;
+
+        /// <summary>How long the lamp's acknowledgement lasts. Long enough to notice while looking elsewhere.</summary>
+        public const float FlareSeconds = 0.55f;
 
         public bool LampOn { get { return _lampOn; } }
 
@@ -1271,6 +1291,34 @@ namespace HRZeroDay.Game.Interaction
             int y0 = gy < 0 ? 0 : (gy >= MenuLayout.GlyphH ? MenuLayout.GlyphH - 1 : gy);
             // a corner of the ring only counts if the diagonal's two neighbours are both in the box
             return InkTopDown(ch, x0, y0);
+        }
+
+        /// <summary>
+        /// THE LAMP'S ACKNOWLEDGEMENT (v130.5). A ring of the warm ramp around the shade's mouth, expanding
+        /// and thinning as `_lampFlare` falls -- the same ordered dither the room's light uses, so it reads as
+        /// light leaving the fixture rather than as a UI sticker. When the lamp was switched OFF the ring is
+        /// cold, because the last thing a dead lamp emits is nothing warm.
+        /// </summary>
+        private void LampFlare(Color32[] buf)
+        {
+            Color32 warm = Ink(_lampOn ? "amber_3" : "cyan_1", new Color32(224, 168, 92, 255));
+            int cx = MenuLayout.LampX + 28;
+            int cy = MenuLayout.LampY + 26;            // the shade's mouth
+            float grow = 1.6f - _lampFlare;            // the ring travels outward as it fades
+            int r = (int)(6f + 22f * grow);
+            float fade = _lampFlare;
+            for (int dy = -r; dy <= r; dy++)
+            {
+                for (int dx = -r; dx <= r; dx++)
+                {
+                    int d = (int)Math.Sqrt(dx * dx + dy * dy);
+                    if (d > r - 2 || d < r - 4) continue;
+                    int x = cx + dx, y = cy + dy;
+                    if (x < 0 || y < 0 || x >= W || y >= H) continue;
+                    if (fade * 16f <= MenuLayout.Bayer4[(x & 3) + 4 * (y & 3)]) continue;
+                    buf[y * W + x] = warm;
+                }
+            }
         }
 
         /// <summary>One pixel of the tube's cyan around a hovered row: the preview of the selection.</summary>
@@ -1343,6 +1391,16 @@ namespace HRZeroDay.Game.Interaction
         {
             int width = MenuLayout.LineWidth(text, scale);
             int left = MenuLayout.TextX + (MenuLayout.TextW - width) / 2;
+            // ---- AND IT HAS TO FIT THE GLASS (v130.5, BUG-044).
+            // The player's v130.4 screenshot: "HUMAN RESOURCES" is cut in half by the top edge of the tube.
+            // At 2x the glyph cell is 14 px tall and the painter inks from `top - 1`, so a title at row 31
+            // needs row 30 and the glass starts at row 22 -- that part fits. What did NOT fit was the whole
+            // BLOCK: title row 31..44, "ZERO DAY" 47..61 and the tagline 73..81 run to row 81, while the rows
+            // begin at 92. It fits by 10 px on paper, and it does not fit on his screen, which means something
+            // above the rows is drawn lower than the paper says. Rather than guess which, the block is packed
+            // to the top of the glass and given ROOM: the title's top and the 2x lines' tops are clamped, so
+            // no combination of the three constants can push a line out of the tube again.
+            top = ClampIntoGlass(top, MenuLayout.GlyphH * scale);
             // v126: the title no longer bled a column to fake weight. At 2x a bleed is a 2 px shear on ONE
             // side of every letter -- that is the "distorted" the player could see but not name. Weight comes
             // from the scale and the tight gap; anything else is a dent.
@@ -1354,7 +1412,23 @@ namespace HRZeroDay.Game.Interaction
             int cell = (MenuLayout.GlyphW + MenuLayout.LetterGap) * scale;
             int width = text.Length * cell - MenuLayout.LetterGap * scale;
             int left = MenuLayout.TextX + (MenuLayout.TextW - width) / 2;
+            top = ClampIntoGlass(top, MenuLayout.GlyphH * scale);
             DrawScaled(buf, text, left, top, ink, scale, MenuLayout.LetterGap, 0);
+        }
+
+        /// <summary>
+        /// No line of text may start above the tube's glass or end below it (v130.5, BUG-044). One function,
+        /// used by every block that is positioned by a constant, so a constant that is wrong is a line that
+        /// moves instead of a word that is cut in half.
+        /// </summary>
+        private static int ClampIntoGlass(int top, int lineHeight)
+        {
+            // the painter inks from top-1, so the first legal row is GlassY+1
+            int min = MenuLayout.GlassY + 1;
+            int max = MenuLayout.GlassY + MenuLayout.GlassH - lineHeight - 1;
+            if (top < min) return min;
+            if (top > max) return max;
+            return top;
         }
 
         private void CentreIn(Color32[] buf, string text, MenuLayout.Pill pill, string ink)

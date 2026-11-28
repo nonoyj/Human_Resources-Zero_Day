@@ -431,7 +431,61 @@ namespace HRZeroDay.Game.Interaction
         public bool ToggleMonitor()
         {
             _monitorOff = !_monitorOff;
+            // THE SWITCH HAS TO REACH THE TUBE (v130.5, BUG-043). The player: "the table lights at the sides
+            // while the monitor is the same when F is clicked". Flipping the flag alone changes NOTHING that
+            // has been drawn: the glass keeps its last baked frame, and the only thing that visibly moved was
+            // the light pool -- which is the spill, i.e. the effect, not the object. The tube is told here.
+            var tube = Tube;
+            if (tube != null)
+            {
+                tube.SetState(ScreenStateNow());     // the state the rest of the game would ask for, now
+                tube.Repaint();                      // the room's surfaces re-baked against the new rig
+            }
+            if (Hud != null) Hud.RefreshNow();
+            Cue(Sfx.Key);
             return !_monitorOff;
+        }
+
+        // --------------------------------------------------------------- the lamp (v130.5, BUG-040)
+        /// <summary>The desk lamp is ON. New shifts start with it on; the switch is `ToggleLamp`.</summary>
+        public bool LampOn { get { return _lampOn; } }
+        private bool _lampOn = true;
+
+        /// <summary>Where the fixture stands on the canvas, TOP-DOWN rows, read off desk_layout.json:
+        /// the lamp layer is 56x132 at bottom-left (420,55), i.e. rows 83..214. Handing a player a light
+        /// they can see and no way to touch it is the same as not having the light.</summary>
+        public const int LampBoxL = 420, LampBoxR = 476, LampBoxT = 83, LampBoxB = 215;
+
+        public static bool InLampBox(int x, int y)
+        {
+            return x >= LampBoxL && x <= LampBoxR && y >= LampBoxT && y <= LampBoxB;
+        }
+
+        /// <summary>
+        /// THE LAMP'S SWITCH (v130.5). Before this the desk lamp had no switch at all: `DeskLightDriver.lampOn`
+        /// was a constant `true`, so the second practical was decoration. Now L, or a tap on the fixture,
+        /// takes the room's warm light away and puts it back -- and because the lamp's pool is its own source
+        /// in `LightRig`, its neighbours (the mug, the forms, the wood under the shade) gain and lose a ramp
+        /// step as it goes. That is the player's rule: a light that produces light must be SEEN landing on the
+        /// things around it, and the only way to be sure it is landing is to be able to turn it off.
+        /// </summary>
+        public bool ToggleLamp()
+        {
+            _lampOn = !_lampOn;
+            DriveLamp();
+            Cue(Sfx.Key);
+            return _lampOn;
+        }
+
+        /// <summary>Pushes the lamp's state into the fixture, the driver and the light, all three.</summary>
+        private void DriveLamp()
+        {
+            var driver = GetComponent<DeskLightDriver>();
+            if (driver != null) driver.lampOn = _lampOn;
+            var lamp = GetComponentInChildren<LampView>(true);
+            if (lamp != null) lamp.SetOn(_lampOn);
+            var tube = Tube;
+            if (tube != null) tube.lampOn = _lampOn;      // repaints the desk's surfaces with the lamp out
         }
 
         /// <summary>The canvas rect of the monitor's glass, so a tap on it is a power button. Mirrors
@@ -463,9 +517,6 @@ namespace HRZeroDay.Game.Interaction
             Save = new SaveData();
             Save.runSeed = seed;
             Session = new DeskSession(seed);
-            // a new RUN is a new first minute, so the intro is shown again (it is once per profile, and R
-            // starts a fresh profile). Deliberately after Save is recreated.
-            TryStartIntro();
             // A restart is a new run: the old save must not resurrect itself on next launch.
             SaveSystem.Delete();
             Presenter = new EvidencePresenter(Session, DeskLayout.Load(),
@@ -488,6 +539,24 @@ namespace HRZeroDay.Game.Interaction
             CloseLetter();
             var stamps = FindStamp();
             if (stamps != null) stamps.Cancel();
+
+            // ---- AND THE ROOM COMES BACK ON (v130.5, BUG-042).
+            //
+            // The player's report was four words: "Clicking new run does not do anything." He was right, and
+            // the reason was not the button -- `Menu.Choose()` returned true, `Menu.Close()` ran, and this
+            // method reset the whole session. What it did NOT do was tell anything on screen. `TryStartMenu`
+            // disables every `ApplicantView` in the room so nothing ticks behind the door, and only
+            // `AfterMenuClosed` switches them back on -- so a NEW SHIFT reset the run behind a room with no
+            // applicant in it, no HUD refresh, no intro, and no save. Every gate passed: the session was
+            // correct and the screen was empty. A reset the player cannot SEE is not a restart.
+            //
+            // `AfterMenuClosed` is called rather than copied, so the two ways out of the front door --
+            // CONTINUE and NEW SHIFT -- run the same four steps and cannot drift apart again.
+            _monitorOff = false;                     // a new shift starts with the tube on
+            var tube = Tube;
+            if (tube != null) tube.want = ScreenStateNow;
+            if (HudObjects != null) HudObjects.Build();
+            AfterMenuClosed();
         }
 
         // --------------------------------------------------------------- the front door
@@ -664,6 +733,15 @@ namespace HRZeroDay.Game.Interaction
                 Menu.Close();
                 AfterMenuClosed();
             }
+            return true;
+        }
+
+        /// <summary>K while the menu is up: the front door's lamp, the same switch the click uses.</summary>
+        public bool MenuToggleLamp()
+        {
+            if (!ShowingMenu) return false;
+            Menu.ToggleLamp();
+            Cue(Sfx.Key);
             return true;
         }
 

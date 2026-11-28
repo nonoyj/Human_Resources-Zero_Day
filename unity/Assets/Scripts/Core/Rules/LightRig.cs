@@ -187,6 +187,20 @@ namespace HRZeroDay.Core.Rules
         // mouth is canvas row 88 and it hangs 62 px above the wood. The game's room stands the same fixture
         // on the wood at x 420 (see desk_layout.json), so the cone keeps the menu's px and drops its rows.
         public const int LampX = 444, LampY = 118, LampRx = 52, LampRy = 50;
+        /// <summary>
+        /// The shade's mouth, where the cone starts: the fixture's base is on the wood at canvas x 420..476
+        /// (desk_layout lamp layer, 56x132 at bottom-left (420,55)), the shade hangs at rows 83..111, so its
+        /// mouth is row 112 and the light leaves from there. Named because "the lamp's light" and "the lamp's
+        /// centre" are two different points and v130.5's gate failed on the difference.
+        /// </summary>
+        public const int LampMouthY = 112;
+        /// <summary>Where the fixture's light POOL lands on the wood (v130.5). The lamp stands at the right
+        /// end of the desk, so its pool has to reach LEFT along the wood to touch anything: the nearest object
+        /// is the mouse 78 px away. Centred at the fixture's foot, wide enough to hold the mouse at full
+        /// strength, tight enough to die before the far end of the desk -- which is the distance the player
+        /// asked to see.</summary>
+        public const int LampPoolY = 180, LampPoolRx = 100, LampPoolRy = 36;
+        public const float LampPoolStrength = 2.0f;
 
         // clock (v130): the new wall clock, upper right of the wall, above the tube.
         public const int ClockX = 404, ClockY = 40, ClockRx = 54, ClockRy = 38;
@@ -194,10 +208,27 @@ namespace HRZeroDay.Core.Rules
         // glow: the room's floor bounce. Wide, weak, always on -- it is what stops black.
         // v130: the lamp's own bounce off the wood IS this fill, so the desk and the menu share one source
         // instead of the rig inventing a fifth. It sits where MenuLayout.LampBounceLight puts it.
-        public const int GlowX = 384, GlowY = 176, GlowRx = 160, GlowRy = 30;
+        // v130.5: CENTRED ON THE OBJECTS, NOT ON THE DESK'S EDGE. The pool sat at row 176 -- the wood's far
+        // edge -- with a 30 px vertical reach, so every object standing on the wood (mug, forms, keyboard,
+        // mouse: rows 173..206) was already one third of the way down the falloff before it got any light,
+        // and the nearest of them measured 0.89 of a ramp step. Less than one step is invisible. Moved down to
+        // row 186 with a 34 px reach, the objects sit in the pool's plateau, and the light still dies before
+        // it reaches the front lip.
+        public const int GlowX = 384, GlowY = 186, GlowRx = 160, GlowRy = 34;
         /// <summary>The tube's cold key must also light the desk's right half, which the bounce does not
         /// reach. Since v130 these come in one list from the tube's own spill.</summary>
-        public const int GlowStrength = 50;   // hundredths: the menu's LampBounceLight strength, 0.50
+        /// <summary>
+        /// THE LAMP'S LEVEL, IN RAMP STEPS (v130.5, BUG-040). It was `0.50f * roomLevel` -- a HALF STEP -- since
+        /// the day the lamp joined the desk rig, and a half step is not a light. The renderer rounds light by
+        /// flooring the integer part and dithering the fraction, so half a step turns one in thirty-two pixels
+        /// up by one ramp step: the player's report was "make everything that produces light actually make
+        /// visible that it produce light by making the objects around it receive its light based on distance",
+        /// and this is why the desk lamp was the one fixture on his desk whose light he could not see landing.
+        ///
+        /// A whole step at the pool's centre, the same as the cone, and a distance falloff under it: the mug
+        /// and the forms at the pool's middle take a full step, the far end of the desk takes a dithered half.
+        /// </summary>
+        public const float GlowStrength = 1.6f;
 
         public readonly List<LightSource> Sources = new List<LightSource>();
 
@@ -277,15 +308,28 @@ namespace HRZeroDay.Core.Rules
             rig.Sources.Add(new LightSource(LightKind.Window, WindowX, WindowY, WindowRx, WindowRy,
                                             1.95f * roomLevel, 1f, 0.35f, false));
             rig.Sources.Add(new LightSource(LightKind.Glow, GlowX, GlowY, GlowRx, GlowRy,
-                                            0.50f * roomLevel, 0f, -1f, true));
+                                            GlowStrength * lamp, 0f, -1f, true));
             var deskTube = new LightSource(LightKind.Tube, TubeGlassX, TubePoolY, TubeRx, TubeRy,
                                            1.5f, -0.3f, 1f, true) { Level = tube };
             deskTube.WithSpill(TubeSpillRx, TubeSpillRy, TubeSpillStrength);
             rig.Sources.Add(deskTube);
-            rig.Sources.Add(new LightSource(LightKind.Lamp, LampX, LampY, LampRx, LampRy,
-                                            1.15f, -0.9f, 0.4f, true) { Level = lamp });
+            // THE CONE LEAVES THE SHADE (v130.5). It was centred at row 118 with a 50 px half-height, i.e.
+            // 50 px ABOVE the fixture's own shade, lighting the wall over it -- the same "light travels up"
+            // bug the menu fixed in v126, still living in the game's room. Centred on the mouth, it lands on
+            // the wood the lamp stands on and dies before the far end of the desk.
+            // THE LAMP'S OWN POOL (v130.5, BUG-040). Two bugs in one source: it was centred 50 px ABOVE the
+            // fixture (light travelling up the wall, the v126 menu bug still alive in the game's room), and it
+            // reached 0.4 of a ramp step at its own foot -- under one step, which the renderer cannot show at
+            // all. Now it is on the wood where the lamp stands, hot enough to be a whole step at the mouse,
+            // and it dies before the far end of the desk so the distance is legible.
+            rig.Sources.Add(new LightSource(LightKind.Lamp, LampX, LampPoolY, LampPoolRx, LampPoolRy,
+                                            LampPoolStrength, -0.9f, 0.4f, true) { Level = lamp });
+            // THE CLOCK'S OWN LIGHT (v130.5). 0.30 of a step is not a light: the renderer floors the integer
+            // part, so a source under 1.0 shows nothing except a one-in-thirty-two dither. The clock reads
+            // because the room is dark and its face is bright, not because of this source -- but if the source
+            // stays in the list it has to do its job. One whole step, and the wall around it gains a step.
             rig.Sources.Add(new LightSource(LightKind.Clock, ClockX, ClockY, ClockRx, ClockRy,
-                                            0.3f, -0.4f, 1f, true));
+                                            1.0f, -0.4f, 1f, true));
             return rig;
         }
 

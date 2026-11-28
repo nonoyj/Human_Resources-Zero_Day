@@ -84,6 +84,14 @@ namespace HRZeroDay.Game
             {
                 // an OFF object is drawn one step down its own ramp, never made translucent: alpha stays 255
                 _sr.color = level > 0.5f ? _on : _off;
+                // ---- AND THE SHADE ITSELF REACTS (v130.5, BUG-040).
+                // The player: "make everything that produces light actually make it visible that it produce
+                // light". A tint on the whole 56x132 fixture is not visible -- it is mostly POLE, and a pole
+                // does not light up. So the fixture shrinks toward its own base as it goes out: 3% is small
+                // enough to stay on the pixel grid and big enough that the lamp visibly SETTLES when it is
+                // switched. The shade's size is the honest tell, because the shade is what changes temperature.
+                float k = 1f - 0.032f * (1f - level);
+                _sr.transform.localScale = new Vector3(k, k, 1f);
             }
             else if (!_warned)
             {

@@ -239,6 +239,7 @@ namespace UnityEngine
     public class Camera : Behaviour
     {
         public bool orthographic; public float orthographicSize; public CameraClearFlags clearFlags;
+        public float aspect = 16f / 9f;      // Unity: the viewport's aspect; 16:9 here so headless builds match
         public Color backgroundColor;
         public static Camera main;
         public Vector3 ScreenToWorldPoint(Vector3 screen) { return new Vector3(); }

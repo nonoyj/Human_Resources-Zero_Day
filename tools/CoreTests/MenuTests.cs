@@ -33,6 +33,12 @@ namespace HRZeroDay.Tests
             yield return CheckThePointerCanLandOnEveryRow();
             yield return CheckTheGlowOnlyEverAddsLight();
             yield return CheckTheMenuStopsTheClock();
+            // v130.5 (BUG-042): the player's "Clicking new run does not do anything" was the click path, but
+            // the first thing that could have caused it was the row the click RESOLVES to. Two lists build
+            // these five rows -- MenuRules for the actions, MenuLayout/MenuScreenText for the paint -- and
+            // nothing held them against each other. A drift there presses one row and shows another.
+            yield return ThePaintedRowsAreTheRowsThatFire();
+            yield return TheLampIsWhereItIsDrawn();
         }
 
         private static void True(bool condition, string message)
@@ -718,6 +724,82 @@ namespace HRZeroDay.Tests
             True(MenuRules.Bar(4f) == "##########", "an out-of-range volume did not clamp to full");
             True(MenuRules.Percent(0.8f) == "80%", "the percentage is wrong: " + MenuRules.Percent(0.8f));
             return "PASS  volume moves in 10% steps and clamps; the bar is exactly ten atlas cells";
+        }
+
+        /// <summary>
+        /// THE PAINT AND THE ACTION ARE THE SAME FIVE ROWS (v130.5, BUG-042).
+        ///
+        /// The front door builds its rows twice: `MenuRules.Root` for the logic (`Choose`, `Move`, what the
+        /// pointer acts on) and `MenuScreenText.Root` for the pixels. When those drift, the player clicks the
+        /// row he can SEE and the game presses the row that is at that INDEX -- which is exactly what "clicking
+        /// new run does not do anything" would look like if NEW SHIFT were painted on row 1 and acted as row 1
+        /// with a different action. Nothing tested it, so nothing caught it. Now the two lists must agree on
+        /// label, action and order for all four save states.
+        /// </summary>
+        private static string ThePaintedRowsAreTheRowsThatFire()
+        {
+            bool[] flags = { false, true };
+            foreach (bool hasSave in flags)
+                foreach (bool inProgress in flags)
+                {
+                    var logic = MenuRules.Root(hasSave, inProgress);
+                    var paint = MenuScreenText.Root(hasSave, inProgress, 0);
+                    True(logic.Count == paint.Count,
+                         "save=" + hasSave + " run=" + inProgress + ": the menu ACTS on " + logic.Count +
+                         " rows and PAINTS " + paint.Count);
+                    for (int i = 0; i < logic.Count; i++)
+                    {
+                        True(logic[i].Action == paint[i].Action,
+                             "row " + i + ": painted '" + paint[i].Label + "' fires " + logic[i].Action +
+                             " but the logic says " + paint[i].Action);
+                        True(logic[i].Label == paint[i].Label,
+                             "row " + i + ": the logic calls it '" + logic[i].Label + "' and the screen " +
+                             "paints '" + paint[i].Label + "'");
+                        // and every row must be inside the tube's glass, or it is a row the pointer can never
+                        // resolve: `RowAt` refuses anything outside `InGlass`
+                        var pill = MenuLayout.Row(i, "void", "white");
+                        True(MenuLayout.InGlass(pill.X, pill.Y) &&
+                             MenuLayout.InGlass(pill.X + pill.W - 1, pill.Y + pill.H - 1),
+                             "row " + i + " ('" + logic[i].Label + "') is not inside the glass -- the " +
+                             "pointer cannot land on it");
+                        True(MenuLayout.RowAt(pill.X + pill.W / 2, pill.Y + pill.H / 2, logic.Count) == i,
+                             "a click on the middle of row " + i + " resolves to row " +
+                             MenuLayout.RowAt(pill.X + pill.W / 2, pill.Y + pill.H / 2, logic.Count));
+                    }
+                }
+            return "PASS  action and paint agree on all four save states, and every row is a target";
+        }
+
+        /// <summary>
+        /// THE LAMP'S TARGET IS THE LAMP (v130.5, BUG-039).
+        ///
+        /// The player: "nothing pops out when the lamp is clicked." The hit box was a 36 px column down the
+        /// middle of a 56x132 sprite: it caught 63% of the fixture's painted pixels and missed the SHADE,
+        /// which is the part of a lamp a player aims at. This check asks the sprite itself where it is drawn
+        /// and requires the target to cover it.
+        /// </summary>
+        private static string TheLampIsWhereItIsDrawn()
+        {
+            // every corner and the middle of the sprite's box, in canvas px
+            int[][] points =
+            {
+                new[] { MenuLayout.LampX, MenuLayout.LampY },
+                new[] { MenuLayout.LampX + MenuLayout.LampW - 1, MenuLayout.LampY },
+                new[] { MenuLayout.LampX, MenuLayout.LampY + MenuLayout.LampH - 1 },
+                new[] { MenuLayout.LampX + MenuLayout.LampW - 1, MenuLayout.LampY + MenuLayout.LampH - 1 },
+                new[] { MenuLayout.LampX + MenuLayout.LampW / 2, MenuLayout.LampY + MenuLayout.LampH / 2 }
+            };
+            foreach (var p in points)
+                True(MenuLayout.InLamp(p[0], p[1]),
+                     "the lamp is drawn at (" + p[0] + "," + p[1] + ") and the click does not reach it");
+            // the shade: the sprite's top third, which the old box missed entirely
+            int shadeY = MenuLayout.LampY + 14;
+            True(MenuLayout.InLamp(MenuLayout.LampX + 28, shadeY),
+                 "a click on the SHADE at y" + shadeY + " does nothing -- the shade is what a player aims at");
+            // and it must not swallow the room: the fixture is 56 px wide, not half the screen
+            True(!MenuLayout.InLamp(MenuLayout.LampX - 30, MenuLayout.LampY + 40),
+                 "the lamp's target reaches 30 px left of the fixture");
+            return "PASS  the lamp's target covers the fixture it is drawn with, shade included";
         }
     }
 }

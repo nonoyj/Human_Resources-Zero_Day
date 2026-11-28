@@ -509,7 +509,11 @@ namespace HRZeroDay.Core.Rules
         /// <summary>The lamp's chimney and shade: clicking it toggles the room light.</summary>
         public static bool InLamp(int x, int y)
         {
-            return x >= LampX + 10 && x < LampX + 46 && y >= LampY + 20 && y < LampY + 112;
+            // v130.5 (the player: "nothing pops out when the lamp is clicked"). The hit box was a 36 px column
+            // down the middle of a 56x132 sprite, so it caught 63% of the fixture's painted pixels -- and the
+            // part it MISSED was the shade, which is the only part of a lamp a player aims at. A target is
+            // where the object is drawn, not where someone guessed its middle was.
+            return x >= LampX - 2 && x < LampX + LampW + 2 && y >= LampY && y < LampY + LampH;
         }
 
         /// <summary>The keyboard on the desk: the first hint that the desk is a surface, not a backdrop.</summary>
@@ -554,15 +558,27 @@ namespace HRZeroDay.Core.Rules
         public const string Subtitle = "ZERO DAY";
         public const string Tagline = "NOT EVERY APPLICANT IS A PERSON";
 
+        /// <summary>
+        /// THE ROOT SCREEN, IN THE ORDER IT IS PAINTED AND PRESSED (v130.5, BUG-042).
+        ///
+        /// This method used to BUILD the five rows itself while `MenuRules.Root` built them again, and the two
+        /// disagreed in exactly the state the player was in. A first-run profile has NO CONTINUE: the logic
+        /// offers four rows (START, NEW SHIFT, FIELD MANUAL, SETTINGS/Credits...) and this painter always
+        /// painted five, with CONTINUE first. So index 1 -- the row under the pointer when he clicked the
+        /// second line -- meant NEW SHIFT to the screen and FIELD MANUAL to the game, and "clicking new run
+        /// does not do anything" was the best available description of what he saw: the menu closed onto the
+        /// manual, or did nothing visible at all. His own v130.4 screenshot shows it: five rows on a run with
+        /// no save.
+        ///
+        /// The row model now comes from ONE place. If the paint and the action can drift again, they drift
+        /// together, and `the_painted_rows_are_the_rows_that_fire` fails on the build instead of in his hands.
+        /// </summary>
         public static List<MenuRow> Root(bool hasSave, bool runInProgress, int index)
         {
             var rows = new List<MenuRow>();
-            rows.Add(Row(MenuAction.Continue,
-                hasSave ? (runInProgress ? "CONTINUE RUN" : "CONTINUE") : "START", index == 0));
-            rows.Add(Row(MenuAction.NewRun, "NEW SHIFT", index == 1));
-            rows.Add(Row(MenuAction.OpenManual, "FIELD MANUAL", index == 2));
-            rows.Add(Row(MenuAction.OpenSettings, "SETTINGS", index == 3));
-            rows.Add(Row(MenuAction.OpenCredits, "CREDITS", index == 4));
+            var items = MenuRules.Root(hasSave, runInProgress);
+            for (int i = 0; i < items.Count; i++)
+                rows.Add(Row(items[i].Action, items[i].Label, index == i));
             return rows;
         }
 

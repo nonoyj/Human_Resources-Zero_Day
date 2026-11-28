@@ -26,6 +26,7 @@ namespace UnityEngine.InputSystem
 
         public ButtonControl fKey = new ButtonControl();      // v130.4: the monitor's power switch
         public ButtonControl lKey = new ButtonControl();
+        public ButtonControl kKey = new ButtonControl();
         public ButtonControl xKey = new ButtonControl();
         public ButtonControl hKey = new ButtonControl();
         public ButtonControl tabKey = new ButtonControl();   // real UnityEngine.InputSystem.Keyboard member

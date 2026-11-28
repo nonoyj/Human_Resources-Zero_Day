@@ -116,11 +116,15 @@ namespace HRZeroDay.Tests
             True(rig.Find(LightKind.Clock) != null, "the desk's room carries the clock source");
             True(rig.Sources.Count == 5, "desk: window, glow, tube, lamp, clock -- five, one more than the menu");
 
-            // and it must actually put light on the wood it stands on, not just exist
-            int x = LightRig.LampX, y = LightRig.LampY;
+            // and it must actually put light on the wood it stands on, not just exist.
+            // v130.5: this used to sample (LampX, LampY) -- the source's own centre -- which is the one pixel
+            // guaranteed to be lit if the source is anywhere near it. It sampled the arithmetic, not the desk.
+            // It now samples the WOOD at the fixture's foot, where a player looks.
+            int x = LightRig.LampX, y = LightRig.LampPoolY + 14;
             var dark = LightRig.ForDesk(tubeOn: true, lampOn: false, roomLevel: 1f);
-            True(rig.LightAt(x, y) >= dark.LightAt(x, y),
-                 "lamp on and lamp off must not light the wood the same");
+            True(rig.LightAt(x, y) > dark.LightAt(x, y),
+                 "the wood at the lamp's foot is " + dark.LightAt(x, y) + " steps with the lamp off and " +
+                 rig.LightAt(x, y) + " with it on -- switching the lamp must change the desk");
             True(rig.Sources.Count > dark.Sources.Count - 1, "the lamp stays in the list when it is off");
         }
 

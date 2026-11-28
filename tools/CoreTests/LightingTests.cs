@@ -33,6 +33,13 @@ namespace HRZeroDay.Tests
             yield return Check("the_tube_lights_every_static_surface", TheTubeLightsEveryStaticSurface);
             yield return Check("the_tube_lights_the_desk_not_the_floor", TheTubeLightsTheDeskNotTheFloor);
             yield return Check("the_menu_lamp_lights_the_desk_objects", TheMenuLampLightsTheDeskObjects);
+            // v130.5 (BUG-040). The player's standing rule, as a gate: "make everything that produces light
+            // actually make it visible that it produce light by making the objects around it receive its
+            // light based on distance." Two checks: one proves every source is worth at least one ramp step
+            // at the objects nearest it, the other proves the light FALLS OFF with distance instead of
+            // arriving as a flat coat of paint.
+            yield return Check("every_light_lands_on_its_neighbours", EveryLightLandsOnItsNeighbours);
+            yield return Check("light_falls_off_with_distance", LightFallsOffWithDistance);
         }
 
         private static string Check(string name, Func<string> body)
@@ -383,5 +390,121 @@ namespace HRZeroDay.Tests
             }
             return "PASS  every ramp is a run of consecutive, brightening steps";
         }
+
+        /// <summary>
+        /// EVERY LIGHT IS WORTH A RAMP STEP WHERE IT LANDS (v130.5, BUG-040).
+        ///
+        /// The player's rule, stated as arithmetic: a thing that produces light must make the objects around
+        /// it measurably brighter, and brighter BY DISTANCE. The renderer shows a light as an integer number
+        /// of palette steps (floor of the sum) plus a dithered fraction. A source that contributes 0.5 steps
+        /// at its own centre is invisible -- it turns one pixel in thirty-two up by one step, which is why
+        /// the desk lamp was the one fixture the player could not see lighting anything. So: at the object
+        /// nearest each source, the source alone must be worth at least one whole step.
+        /// </summary>
+        private static string EveryLightLandsOnItsNeighbours()
+        {
+            var rig = LightRig.ForDesk(tubeOn: true, lampOn: true, roomLevel: 1f);
+            // WHERE EACH LIGHT IS SUPPOSED TO BE SEEN, on the objects it actually neighbours. A light's target
+            // is the thing it exists to make readable -- the lamp's is the wood and the mouse it stands beside,
+            // the tube's is the glass and the keyboard in front of it, the clock's is its own face. Sampling the
+            // source's own centre (which is what this test used to do) proves nothing: a source is always
+            // lit at its own centre.
+            var targets = new Dictionary<LightKind, int[]>
+            {
+                { LightKind.Lamp,   new[] { 366, 189 } },   // the mouse, at the fixture's foot
+                { LightKind.Glow,   new[] { 304, 186 } },   // the keyboard, on the wood the lamp pools over
+                { LightKind.Tube,   new[] { 300, 190 } },   // the wood in front of the glass
+                { LightKind.Clock,  new[] { LightRig.ClockX, LightRig.ClockY } },  // the clock's own face
+            };
+            string report = "";
+            foreach (var src in rig.Sources)
+            {
+                if (!src.IsOn) continue;
+                if (!targets.ContainsKey(src.Kind)) continue;      // the window is the room's cold fill
+                var t = targets[src.Kind];
+                float c = src.Contribution(t[0], t[1]);
+                True(c >= 1.0f,
+                     "the " + src.Kind + " light is worth only " + c.ToString("0.00") +
+                     " ramp steps at (" + t[0] + "," + t[1] + ") -- under one whole step the renderer cannot " +
+                     "show it at all, so the player sees no light landing");
+                // and it must reach ZERO somewhere, or it is a flat tint over the whole room
+                True(src.Contribution(src.X + 900, src.Y + 400) <= 0.001f,
+                     "the " + src.Kind + " light never reaches zero -- it is a coat of paint");
+                report += src.Kind + "=" + c.ToString("0.00") + " ";
+            }
+            return "PASS  every light is at least one step on the thing it exists to light (" + report.Trim() + ")";
+        }
+
+        /// <summary>
+        /// THE PLAYER'S RULE, STATED AS A SWITCH (v130.5, BUG-040).
+        ///
+        /// "Make everything that produces light actually make it visible that it produce light by making the
+        /// objects around it receive its light based on distance."
+        ///
+        /// The testable form of that sentence is not "the pool is bright at its centre" -- a wide flat wash
+        /// passes that and still looks like tinted paint, and the first version of this check passed a lamp
+        /// that lit the far end of the desk as hard as its own foot. It is: SWITCH THE LIGHT AND THE OBJECT
+        /// NEXT TO IT MUST CHANGE BY A VISIBLE AMOUNT. The renderer shows a light as whole palette steps (the
+        /// floor of the sum) plus a dithered fraction, so the bar is one whole step, and the object nearest
+        /// the lamp must gain it while an object across the desk gains less or nothing. Turning it off must
+        /// give every one of them back.
+        /// </summary>
+        private static string LightFallsOffWithDistance()
+        {
+            var on = LightRig.ForDesk(tubeOn: true, lampOn: true, roomLevel: 1f);
+            var off = LightRig.ForDesk(tubeOn: true, lampOn: false, roomLevel: 1f);
+
+            // the objects the desk carries, from ScreenLight.Props -- canvas points on each one
+            var spots = new[]
+            {
+                new { name = "mouse by the lamp", x = 366, y = 189 },   // nearest the lamp at x444
+                new { name = "keyboard", x = 304, y = 186 },
+                new { name = "forms", x = 127, y = 190 },
+                new { name = "coffee mug", x = 56, y = 190 },   // furthest from it
+            };
+
+            float nearGain = 0f, farGain = 0f;
+            for (int i = 0; i < spots.Length; i++)
+            {
+                int lit = on.LightAt(spots[i].x, spots[i].y);
+                int dark = off.LightAt(spots[i].x, spots[i].y);
+                int gain = lit - dark;
+                True(gain >= 0, "switching the lamp ON made " + spots[i].name + " DARKER (" +
+                                dark + " -> " + lit + " steps)");
+                if (i == 0) nearGain = gain;
+                if (i == spots.Length - 1) farGain = gain;
+            }
+            True(nearGain >= 1,
+                 "the object nearest the lamp (" + spots[0].name + ") gains " + nearGain +
+                 " steps when the lamp is switched on -- less than one whole step is not a visible light");
+            True(nearGain > farGain,
+                 "the lamp lights the far end of the desk (" + farGain + " steps) as hard as its own foot (" +
+                 nearGain + ") -- that is a wash, not a light with a distance");
+
+            // and the light must be MONOTONIC away from the lamp, so nothing pokes out brighter further off
+            var pool = on.Find(LightKind.Glow);
+            float prev = float.MaxValue;
+            int y = LightRig.DeskRow + 14;
+            for (int dx = 0; dx <= 260; dx += 20)
+            {
+                float c = pool.Contribution(pool.X - dx, y);
+                True(c <= prev + 0.0001f,
+                     "the lamp's light got BRIGHTER " + dx + " px away from it (" + prev.ToString("0.000") +
+                     " -> " + c.ToString("0.000") + ")");
+                prev = c;
+            }
+
+            // the TUBE's own switch, on the same rule: the glass in front of it must change
+            var tubeOff = LightRig.ForDesk(tubeOn: false, lampOn: true, roomLevel: 1f);
+            int woodLit = on.LightAt(300, 190), woodDark = tubeOff.LightAt(300, 190);
+            True(woodLit > woodDark,
+                 "turning the tube off does not dim the wood in front of it (" + woodLit + " -> " +
+                 woodDark + " steps)");
+
+            return "PASS  lamp ON gains " + nearGain + " step(s) at the " + spots[0].name + " and " +
+                   farGain + " at the " + spots[spots.Length - 1].name + "; the tube changes the wood by " +
+                   (woodLit - woodDark);
+        }
+
     }
 }
