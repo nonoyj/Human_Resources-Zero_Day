@@ -27,6 +27,7 @@
     <Compile Include="SaveResumeTests.cs" />
     <Compile Include="ArcTests.cs" />
     <Compile Include="AudioTests.cs" />
+    <Compile Include="MenuTests.cs" />
     <Compile Include="SecurityTests.cs" />
     <Compile Include="IntroTests.cs" />
     <Compile Include="../../unity/Assets/Scripts/Core/**/*.cs" />

@@ -32,6 +32,9 @@ namespace HRZeroDay.Game.Interaction
         public SweepView Walk { get; private set; }
         public IntroView Intro { get; private set; }
         public HRZeroDay.Game.Audio.GameAudio Sound { get; private set; }
+        public MenuView Menu { get; private set; }
+        /// <summary>True while the front door is up. Input goes to it and nothing behind it moves.</summary>
+        public bool ShowingMenu { get { return Menu != null && Menu.IsOpen; } }
 
         public bool LetterOpen { get { return Letter != null && Letter.gameObject.activeSelf; } }
         public bool ShowDebrief { get { return _showingDebrief; } }
@@ -138,12 +141,17 @@ namespace HRZeroDay.Game.Interaction
             // room that is already running -- that is the difference between "a scene" and "a menu".
             EnsureAudio();
 
+            // THE FRONT DOOR, THEN THE INTRO, THEN THE DESK (v110). The menu comes first because it is where
+            // consent and the audio settings live -- the two things the save file had no home for. The intro
+            // is shown after it, because the player has now said "start".
+            bool atDoor = TryStartMenu();
+
             // THE INTRO, BEFORE THE FIRST SHIFT (v102). The words are the content team's
             // (content/intro/intro_01.json); this side only shows them, once per profile, and steps out of
             // the way if there is nothing to show. It runs AFTER the desk is built and AFTER the room is
             // running, so the first thing behind the card is the room the player is about to work in --
             // not an empty screen, and not a silent one.
-            TryStartIntro();
+            if (!atDoor) TryStartIntro();
             if (ResumedFromSave)
                 watchCopy = "SHIFT RESUMED - DAY " + Session.Day + " / " + watchCopy;
             PersistSave();                  // a run that is quit on day 1 must still persist
@@ -329,6 +337,124 @@ namespace HRZeroDay.Game.Interaction
             CloseLetter();
             var stamps = FindStamp();
             if (stamps != null) stamps.Cancel();
+        }
+
+        // --------------------------------------------------------------- the front door
+        /// <summary>
+        /// Shows the menu on boot. Failure is silent: no atlas, no menu, and the desk starts as before -- a
+        /// front door that can stop the game opening is worse than no front door.
+        /// </summary>
+        private bool TryStartMenu()
+        {
+            try
+            {
+                if (Menu == null)
+                {
+                    Menu = MenuView.Attach(this);
+                    if (!Menu.Build()) { Menu = null; return false; }
+                }
+                bool hasSave = Save != null;
+                bool inProgress = Session != null && !Session.Finished;
+                var p = Save == null ? null : Save.profile;
+                bool decided = p != null && p.consentDecided;
+                bool granted = p != null && p.consentGranted;
+                float room = p == null ? 0.8f : p.bedVolume;
+                float sfx = p == null ? 0.9f : p.sfxVolume;
+                bool muted = p != null && p.muted;
+
+                if (Menu.Open(hasSave, inProgress, decided, granted, room, sfx, muted))
+                {
+                    Presenter.Hide();
+                    if (Hud != null) Hud.RefreshNow();
+                    return true;            // the intro waits: two full-screen cards must never stack
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[HR//0D] menu unavailable: " + ex.Message + " -- starting at the desk.");
+                if (Menu != null) Menu.Close();
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// What happens when the door closes. If the player has never seen the intro, this is when they see
+        /// it -- after the menu, never underneath it. Anything that goes wrong leaves the desk running.
+        /// </summary>
+        private void AfterMenuClosed()
+        {
+            TryStartIntro();
+            if (Hud != null) Hud.RefreshNow();
+            PersistSave();
+        }
+
+        /// <summary>
+        /// The player's data decision, written to the save IMMEDIATELY: a consent that only exists in memory is
+        /// not consent. Declining records a decision too -- "no" is an answer, and the game must not ask again.
+        /// </summary>
+        public void ApplyConsent(bool granted)
+        {
+            if (Save == null) Save = new SaveData();
+            if (Save.profile == null) Save.profile = new PlayerProfile();
+            Save.profile.consentDecided = true;
+            Save.profile.consentGranted = granted;
+            Save.profile.consentVersion = ConsentRules.Version;
+            PersistSave();
+        }
+
+        /// <summary>UP/DOWN while the menu is up.</summary>
+        public bool MenuMove(int delta)
+        {
+            if (!ShowingMenu) return false;
+            Menu.Move(delta);
+            return true;
+        }
+
+        /// <summary>SPACE/ENTER while the menu is up. Returns true when the press was consumed.</summary>
+        public bool MenuChoose()
+        {
+            if (!ShowingMenu) return false;
+            if (!Menu.Choose())
+            {
+                Cue(Sfx.Key);
+                return true;
+            }
+
+            // a row that leaves the menu: the bootstrap owns what happens next
+            var action = Menu.SelectedAction();
+            Menu.Close();
+            switch (action)
+            {
+                case MenuAction.NewRun:
+                    Restart();                  // a new run is a new first minute: the intro shows again
+                    break;
+                case MenuAction.Continue:
+                    // already resumed in Awake: the desk is behind the menu, so closing it IS continuing
+                    AfterMenuClosed();
+                    break;
+            }
+            return true;
+        }
+
+        /// <summary>ESC while the menu is up: back a screen, or close the menu and start playing.</summary>
+        public bool MenuBack()
+        {
+            if (!ShowingMenu) return false;
+            if (Menu.Back())
+            {
+                Menu.Close();
+                AfterMenuClosed();
+            }
+            return true;
+        }
+
+        /// <summary>S while the menu is up: jump straight to settings.</summary>
+        public bool MenuSettings()
+        {
+            if (!ShowingMenu) return false;
+            if (Menu.Screen != MenuScreen.Settings) Menu.OpenSettings();
+            return true;
         }
 
         // --------------------------------------------------------------- sound

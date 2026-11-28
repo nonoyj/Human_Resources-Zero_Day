@@ -21,7 +21,15 @@ namespace HRZeroDay.Core.Data
     {
         public string displayName = "OFFICER";
         public AvatarConfig avatar = new AvatarConfig();
-        public bool consentGiven;
+        public bool consentGiven;            // legacy (pre-v110): kept so old saves load
+        /// <summary>
+        /// The research-ethics decision (v110, ADR-016). `consentDecided` separates "said no" from "was never
+        /// asked" -- without it, a decline is indistinguishable from silence and the game would nag forever.
+        /// `consentVersion` records which version of the notice they agreed to, so a changed promise is re-asked.
+        /// </summary>
+        public bool consentDecided;
+        public bool consentGranted;
+        public int consentVersion;
         public bool introSeen;
         public bool tutorialDone;
 

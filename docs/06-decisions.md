@@ -235,3 +235,33 @@ Consequences:
   what makes an AI-authored email provable on the day it arrives (the fairness invariant applies here too).
 - The intro, the interview and the inbox then all ask one question in three registers, which is the reason
   to do it at all.
+
+## ADR-016 -- The front door: a menu, a consent that is a decision, and the two settings that matter (2026-11-27)
+
+**Context.** Q20: "the menu comes first." The save file has carried `profile.consentGiven` since v090 but
+nothing ever set it, and the audio settings added in v105 lived in memory only -- they were lost on quit. The
+game also had no way back to a menu once the desk was up.
+
+**Decision.**
+1. **The menu is the first thing after the room loads, and the intro plays behind it, never under it.** A
+   full-screen card over a full-screen card is a bug the player would report as "the game froze".
+2. **Consent is a decision, not a default.** `profile.consentDecided` + `consentGranted` + `consentVersion`
+   are written the instant the player toggles. Declining is recorded as an answer, so the game stops asking;
+   `consentVersion` means a changed promise is re-asked rather than silently inherited. The notice is ten
+   lines, in the atlas, saying what is recorded, what is never recorded, why, that it is off by default, and
+   that saying no changes nothing.
+3. **`consentGiven` (pre-v110) is kept as a load-only field** so old saves do not lose their answer.
+4. **The menu paints in the game's own pixels**: one 480x270 RGBA32 texture, 5x7 atlas, sorting order 240,
+   above the intro card's 230. A settings menu in Unity's default UI font would be the only thing in the game
+   that looks like a different game.
+5. **Every label is a paintability constraint, not a style choice** -- upper case, atlas characters only, and
+   short enough for one line of the card. `tools/comp/preview_menu.py --check` fails the build if a label
+   grows past what the atlas can draw or the card can hold.
+6. **CONTINUE exists only with a save** (and says "CONTINUE THE RUN" when a run is in progress); a fresh
+   profile gets START. No dead rows, ever.
+7. **Failure is silent**: no atlas, an exception, a missing save -- the desk starts exactly as it did in v109.
+   A front door that can stop the game opening is worse than no front door.
+
+**Consequences.** Returning to the menu is `ESC` at the root screen; the run is not lost because the desk
+never stopped running. New Run restarts the first minute. Android gets the same screen later (after Phase 2),
+which is why nothing here is keyboard-only in shape: the router treats a tap as CHOOSE.

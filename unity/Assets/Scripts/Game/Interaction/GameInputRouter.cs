@@ -32,6 +32,25 @@ namespace HRZeroDay.Game.Interaction
 
             var kb = Keyboard.current;
 
+            // THE FRONT DOOR OWNS EVERY KEY WHILE IT IS UP (v110). It comes before the intro and before the
+            // desk: nothing behind the menu may move, and no key may stamp an applicant the player cannot see.
+            if (game.ShowingMenu)
+            {
+                if (kb != null)
+                {
+                    if (kb.escapeKey.wasPressedThisFrame) game.MenuBack();
+                    else if (kb.upArrowKey.wasPressedThisFrame || kb.wKey.wasPressedThisFrame) game.MenuMove(-1);
+                    else if (kb.downArrowKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame) game.MenuMove(1);
+                    else if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame) game.MenuChoose();
+                }
+                var mm = Mouse.current;
+                bool tappedMenu = (mm != null && mm.leftButton.wasPressedThisFrame) ||
+                                  (Touchscreen.current != null &&
+                                   Touchscreen.current.primaryTouch.press.wasPressedThisFrame);
+                if (tappedMenu) game.MenuChoose();
+                return;
+            }
+
             // THE INTRO OWNS EVERY KEY WHILE IT IS UP (v102). It is the first thing the player sees, and
             // nothing behind it may move: pressing A during the intro must not stamp the first applicant.
             // SPACE/ENTER steps a beat, X/ESC leaves, everything else is swallowed until it closes.
