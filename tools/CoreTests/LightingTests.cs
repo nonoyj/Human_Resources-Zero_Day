@@ -27,6 +27,7 @@ namespace HRZeroDay.Tests
             yield return Check("tube_pool_lands_on_the_desk", TubePoolLandsOnTheDesk);
             yield return Check("two_taps_on_touch_only", TwoTapsOnTouchOnly);
             yield return Check("palette_ladder_is_authored", PaletteLadderIsAuthored);
+            yield return Check("security_is_a_shape_before_a_number", SecurityIsAShapeBeforeANumber);
         }
 
         private static string Check(string name, Func<string> body)
@@ -122,6 +123,36 @@ namespace HRZeroDay.Tests
                  "the confirm window is " + MenuLayout.TouchConfirmSeconds + " s -- too short to press twice, " +
                  "or so long that a stale row fires");
             return "PASS  a thumb confirms twice, a mouse once";
+        }
+
+        /// <summary>
+        /// Request G / docs/89 §7: "prefer shape/bar over raw number". The security score is five cells and
+        /// then the digits, and the two must agree at every boundary -- a bar that says 3 while the digits
+        /// say 59 is worse than no bar at all.
+        /// </summary>
+        private static string SecurityIsAShapeBeforeANumber()
+        {
+            var full = SecurityRules.CornerLine(100);
+            var none = SecurityRules.CornerLine(0);
+            True(full.StartsWith("SECURITY "), "the corner line does not start with the thing it is about");
+            // at zero the line still NAMES itself and still shows five empty cells: silence would be worse
+            True(none.StartsWith("SECURITY ") && none.Contains("\u25AF"), "a zero rating shows no empty cells");
+            int bars = 0;
+            foreach (char c in full) if (c == '\u25AE') bars++;
+            True(bars == 5, "a perfect score fills " + bars + " of 5 cells");
+            bars = 0;
+            foreach (char c in none) if (c == '\u25AE') bars++;
+            True(bars == 0, "a zero score fills " + bars + " cells");
+            // monotonic: more score can never mean fewer filled cells
+            int last = -1;
+            for (int score = 0; score <= 100; score += 5)
+            {
+                int filled = 0;
+                foreach (char c in SecurityRules.CornerLine(score)) if (c == '\u25AE') filled++;
+                True(filled >= last, "the bar went DOWN from " + (last) + " to " + filled + " at score " + score);
+                last = filled;
+            }
+            return "PASS  the security score is a 5-cell bar before it is a number, and the two agree";
         }
 
         /// <summary>

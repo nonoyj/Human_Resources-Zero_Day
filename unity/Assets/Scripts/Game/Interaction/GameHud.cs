@@ -33,6 +33,7 @@ namespace HRZeroDay.Game.Interaction
 
         private DeskBootstrap _game;
         private TextMesh _text;
+        private TextMesh _corner;
         private bool _bound;
         private SpriteRenderer _panel;
 
@@ -84,6 +85,21 @@ namespace HRZeroDay.Game.Interaction
             // TextMesh is a Component, not a Renderer -- the order goes on its MeshRenderer.
             DeskRuntimeScene.SetTextMeshSorting(_text, 220);   // above the letter page and the CRT
             _text.text = string.Empty;
+
+            // ---- THE SECURITY CORNER (v120, docs/89 §7 rule 1: the centre belongs to the play)
+            // The score used to sit in the top-left block as another line of prose. A score belongs in a
+            // CORNER, and it belongs as a SHAPE first: `SECURITY ▮▮▮▯▯ 62` is read in one glance, where
+            // `SECURITY 62 STABLE` has to be parsed. The word stays, because a number alone does not say
+            // which way is good -- but it is the last thing on the line, not the first.
+            var cornerGo = new GameObject("SecurityCorner");
+            cornerGo.transform.SetParent(transform, false);
+            _corner = cornerGo.AddComponent<TextMesh>();
+            _corner.font = font;
+            _corner.characterSize = 0.17f;
+            _corner.anchor = TextAnchor.UpperRight;
+            _corner.alignment = TextAlignment.Right;
+            DeskRuntimeScene.SetTextMeshSorting(_corner, 220);
+            _corner.text = string.Empty;
         }
 
         /// <summary>
@@ -149,6 +165,22 @@ namespace HRZeroDay.Game.Interaction
             // The block is pinned to the top-left of the canvas and grows DOWN, in canvas px.
             if (letter) _text.transform.localPosition = new Vector3(0.5f, 8.6f, -2f);
             else _text.transform.localPosition = new Vector3(0.45f, 16.25f, -2f);
+
+            // ---- the corner: the same three facts that decide whether it shows at all
+            if (_corner != null)
+            {
+                bool showCorner = !letter && !walking && !intro && !_game.ShowEnding && _game.Session != null;
+                _corner.gameObject.SetActive(showCorner);
+                if (showCorner)
+                {
+                    int score = SecurityRules.Compute(_game.Session.Trust, _game.Session.CorruptionLevel,
+                                                      _game.Session.Shift.SyntheticsHired);
+                    _corner.text = SecurityRules.CornerLine(score);
+                    // bottom-right of the 90% title-safe inset (docs/89 §7 rule 7): a phone with a notch or a
+                    // rounded corner must not be able to eat the one number that says you are losing.
+                    _corner.transform.localPosition = new Vector3(9.35f, -8.35f, -2f);
+                }
+            }
 
             if (_panel != null)
             {
@@ -297,17 +329,28 @@ namespace HRZeroDay.Game.Interaction
             // v119.6: the shift line now carries the two counters the team asked for (docs/87 A1/A3), both
             // DERIVED -- the day is the shift's own day, and SECURITY is SecurityRules.Compute over the live
             // trust / corruption / hires, so it can never drift from the popup's headline.
-            Add(result, "HUMAN RESOURCES // ZERO DAY");
-            Add(result, "DAY " + s.Day + "/5  SECURITY " + SecurityRules.Compute(s.Trust, s.CorruptionLevel,
-                        s.Shift.SyntheticsHired) + " " + SecurityRules.BandWord(
-                        SecurityRules.Compute(s.Trust, s.CorruptionLevel, s.Shift.SyntheticsHired)));
-            Add(result, "HIRED " + s.Shift.SyntheticsHired + "/" + ShiftController.HireLimitForDefeat +
-                        "   TRUST " + s.Trust + "   CORRUPT " + s.CorruptionLevel + "/3" +
-                        "   SUBJECT " + (s.Shift.CurrentIndex + 1) + "/" + s.Shift.Today.Count);
-            Add(result, (v.FullName ?? "APPLICANT") + " / " + (v.Role ?? "OPEN ROLE") + " / ID " + (v.IdNumber ?? "-"));
-            Add(result, "CLICK THE PERSON TO INSPECT");
-            Add(result, "[L] LETTER  [1-5] FLAGS/REASON  [6] INSUFFICIENT");
-            Add(result, "[A] APPROVE  [S] REJECT  [SPACE] NEXT  [TAB] ALERTS  [H] HELP");
+            // ---- THE HUD EARNED ITS PIXELS (v120, docs/89 §7)
+            // The block used to be SEVEN lines, five of which never changed: two counters, an identity line,
+            // a prompt and two key strips. Eight pixels of the corner, permanently, in a game whose whole
+            // subject is a person's face. Rule 5 of the research ("anything that can appear only when
+            // relevant should fade in and out") and rule 3 ("shape before number") are the two that apply
+            // here, so:
+            //
+            //   * the TITLE is gone. It is on the front door, on the letter and on the ending; the player
+            //     knows the name of the game they are playing.
+            //   * the shift block is THREE facts, and the security score moved to the bottom-RIGHT corner
+            //     (where a score belongs) -- see SecurityCorner() below.
+            //   * the identity line is a SUBJECT index and a name, no id number: the id is on the letter.
+            //   * the key prompts are ONE line, and only while the player has not yet stamped anything.
+            Add(result, "DAY " + s.Day + "/5   SUBJECT " + (s.Shift.CurrentIndex + 1) + "/" + s.Shift.Today.Count);
+            Add(result, (v.FullName ?? "APPLICANT") + " / " + (v.Role ?? "OPEN ROLE"));
+            Add(result, "TRUST " + s.Trust + "   HIRED " + s.Shift.SyntheticsHired + "/" + ShiftController.HireLimitForDefeat);
+            if (!_game.StampedToday)
+            {
+                Add(result, "");
+                Add(result, "[L] LETTER   [1-5] FLAGS   [A] APPROVE   [S] REJECT   [TAB] ALERTS");
+                Add(result, "CLICK THE PERSON TO INSPECT");
+            }
             if (_game.HelpVisible)
             {
                 Add(result, "");

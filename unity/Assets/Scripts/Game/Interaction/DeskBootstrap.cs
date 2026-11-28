@@ -45,6 +45,24 @@ namespace HRZeroDay.Game.Interaction
         /// <summary>The after-hours walk is on screen. Input goes to the walk while this is true.</summary>
         public bool ShowingSweep { get { return Walk != null && Walk.IsOpen; } }
         public bool ShowEnding { get { return Session != null && Session.Finished && !_showingDebrief; } }
+
+        /// <summary>
+        /// Has the player already stamped the person in the chair (v120)? The HUD uses this to stop printing
+        /// its key prompts after the one decision of the interview: the keys are instructions, and an
+        /// instruction that is still on screen after it has been followed is a pixel that has not earned
+        /// its place (docs/89 §7, rule 5).
+        /// </summary>
+        public bool StampedToday
+        {
+            get
+            {
+                if (Decision == null) return false;
+                // `_lastStampedIndex` is set by OnCommitted; a new applicant clears it in OnApplicantChanged.
+                return _lastStampedIndex >= 0 && Session != null && Session.Shift != null &&
+                       _lastStampedIndex == Session.Shift.CurrentIndex;
+            }
+        }
+        private int _lastStampedIndex = -1;
         public DecisionResult LastDecision { get; private set; }
         public DayResult LastDay { get; private set; }
         public bool HelpVisible { get { return _helpVisible; } }
@@ -728,6 +746,8 @@ namespace HRZeroDay.Game.Interaction
         private void OnCommitted(DecisionResult result)
         {
             LastDecision = result;
+            // the HUD stops printing its key prompts from here until the next person sits down
+            _lastStampedIndex = Session == null || Session.Shift == null ? -1 : Session.Shift.CurrentIndex;
 
             // ---- THE ALERTS THIS CALL RAISES (v119.6). Raised HERE, at the moment of the decision, from the
             // result the rules already computed -- not on the summary screen, and not by the HUD. One place,
@@ -790,6 +810,7 @@ namespace HRZeroDay.Game.Interaction
         private void OnApplicantChanged(ApplicantViewData view)
         {
             _showingDebrief = false;
+            _lastStampedIndex = -1;
             // the file is slapped down on the desk
             Cue(Sfx.Page);
             CloseLetter();

@@ -173,6 +173,35 @@ namespace HRZeroDay.Core.Rules
             return "SECURITY " + rating + " " + BandWord(rating);
         }
 
+        /// <summary>
+        /// THE SHAPE, BEFORE THE NUMBER (v120, docs/89 §7 rule 3). Five cells, filed from the rating, then the
+        /// digits, then the word: `SECURITY ▮▮▮▯▯ 62 SHAKY`. A player reads a short bar long before they read
+        /// "62", and the five cells are the same 0..100 scale the digits are, so the two can never disagree --
+        /// `SecurityBar` is the only place the division happens, and LightingTests walks it at every boundary.
+        ///
+        /// The cells are `▮` (U+25AE) and `▯` (U+25AF): both are in the legacy font Unity ships, they are the
+        /// same width, and they are NOT colour tells -- the blind-mode rule says a state may never be carried
+        /// by colour alone, and a count of filled cells survives being printed in one ink.
+        /// </summary>
+        public static int BarCells(int rating)
+        {
+            int cells = (Clamp(rating) * BarCellCount + 50) / 100;   // rounded, integer only
+            return cells < 0 ? 0 : (cells > BarCellCount ? BarCellCount : cells);
+        }
+
+        public const int BarCellCount = 5;
+        public const char BarFull = '\u25AE';
+        public const char BarEmpty = '\u25AF';
+
+        /// <summary>The corner line: shape, then number, then the word.</summary>
+        public static string CornerLine(int rating)
+        {
+            var bar = new System.Text.StringBuilder(BarCellCount);
+            int cells = BarCells(rating);
+            for (int i = 0; i < BarCellCount; i++) bar.Append(i < cells ? BarFull : BarEmpty);
+            return "SECURITY " + bar + " " + Clamp(rating) + " " + BandWord(rating);
+        }
+
         // ---- alerts (Q3) --------------------------------------------------------------------------
         public static SecurityAlert Alert(AlertKind kind, int day, string applicantId)
         {
