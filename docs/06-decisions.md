@@ -176,3 +176,62 @@ Consequences:
 - Covered by a test (*"a voiced intro gets 32 s and keeps its beats; a silent one is still cut at 25 s"*),
   because this is exactly the kind of number that gets quietly changed later.
 - The intro stays skippable (X/ESC) and once per profile, which is why 32 s is not a burden.
+
+## ADR-012 — The Security Rating: one number, visible during a shift, explained by a popup
+**Date:** 2026-11-27 · **Status:** Accepted (player decision, docs/88 Q1–Q4)
+
+The company has **one number, 0–100, starting at 70**, banded `STABLE` (70+) / `SHAKY` (40–69) /
+`BREACHED` (<40), built from **trust 60 % + corruption 30 % + synthetics hired 10 %**. It is visible **during
+a shift**, and clicking ALERTS opens a popup that shows how the number is made. It can rise as well as fall.
+
+Consequences:
+- **The scale is anchored.** A healthy company (full trust, corruption 0, no synthetics) reads exactly 70;
+  catastrophic reads 0. Without the anchor, "start at 70" and "60/30/10" contradict each other — a fresh run
+  computes 100, the HUD opens on a perfect score, and there is nowhere to go but down. The first test written
+  for this caught exactly that.
+- `Breakdown()` scales and anchors identically to `Compute()`, so the three contributions on the popup always
+  add up to the number on the HUD (asserted across 200+ input combinations).
+- Four alert kinds only: **a synthetic was hired** (loudest), **two mismatches on one file**, **a verification
+  contradicted the application**, **corruption rose a level**. Fact outranks inference: a double mismatch is
+  severity 1, a verified lie is severity 2.
+- Alert lines are **upper case**, because they are painted with the 5×7 atlas. The atlas gate caught sentence
+  case on the first pass.
+
+## ADR-013 — The inbox arrives as an event, not as a screen you open
+**Date:** 2026-11-27 · **Status:** Accepted (player decision, docs/88 Q11)
+
+Mail does not sit in a menu waiting to be read. **The system triggers an inbox event randomly**, and the
+player reads it when it happens. This changes the shape of the email feature from "a screen" to "an
+interruption with a decision in it", which is a better fit for a game about a desk nobody leaves.
+
+Consequences:
+- An email event **interrupts** the desk (never mid-stamp: the trigger is checked between applicants).
+- Because it interrupts, it must be **skippable/deferrable** — no player should lose a shift's rhythm to a
+  random mail. Deferring is itself a choice (see ADR-014: ignoring is a decision with a cost).
+- The 8 written emails stay valid; what changes is *when* they arrive.
+
+## ADR-014 — An email decision changes the company, not a counter
+**Date:** 2026-11-27 · **Status:** Accepted (player decision, docs/88 Q12)
+
+Refusing / granting / ignoring an email must **not** merely nudge tomorrow's corruption. Each choice has a
+**consequence on the company**: refusing a genuine employee's access request loses you a colleague (a named
+person, who then appears in the walk with a problem); granting a real attack raises corruption; *ignoring* is
+never free. The wrong choice must be felt as a story beat, not as a number.
+
+Consequences:
+- Every email needs **three outcomes**, each with: a company effect, a security-rating effect, and **one line
+  of consequence** the next morning. That is a content cost (8 emails × 3 outcomes) and a rules table.
+- The consequence must be **visible**: a person who no longer appears, a name in the day summary, an alert.
+- This makes the email system a *source* of day events rather than a parallel feature.
+
+## ADR-015 — "From an AI" is a real third category
+**Date:** 2026-11-27 · **Status:** Accepted (player decision, docs/88 Q13)
+
+Emails are **legit / attack / from an AI**. The AI category is not a writing style — it is mechanically
+different, and it is what ties the inbox to the game's core question ("is this a person?").
+
+Consequences:
+- A third rule set and a third tell family, so the inbox needs a **spec paragraph in `docs/07`** before code:
+  what makes an AI-authored email provable on the day it arrives (the fairness invariant applies here too).
+- The intro, the interview and the inbox then all ask one question in three registers, which is the reason
+  to do it at all.

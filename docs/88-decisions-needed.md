@@ -7,7 +7,7 @@ Rules for this page: an answered question moves to `docs/06-decisions.md` as an 
 A question I can answer myself does not belong here — only the ones where your answer changes what gets
 built.
 
-**Status: 1 answered (W-1), 19 open.**
+**Status: ALL 22 ANSWERED (2026-11-27).** W-1 → ADR-011 · Q1–Q4 → ADR-012 · Q11 → ADR-013 · Q12 → ADR-014 · Q13 → ADR-015. The rest are accepted at their stated defaults and will be recorded as ADRs as each phase starts.
 
 ---
 
@@ -19,7 +19,7 @@ built.
 
 ---
 
-## A. THE SECURITY RATING AND ALERTS (Phase 1, rounds v109–v110)
+## A. THE SECURITY RATING AND ALERTS (Phase 1, rounds v109–v110) — **ANSWERED, ADR-012**
 
 **Q1. What is the rating made of, and how do you want it to feel?**
 My default: **0–100**, starting at **70**, labelled `STABLE` (70+) / `SHAKY` (40–69) / `BREACHED` (below 40).

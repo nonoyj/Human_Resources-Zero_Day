@@ -42,6 +42,7 @@ internal static class Program
         lines.AddRange(ArcTests.RunAll());             // day 1 -> day 5 -> an ending, end to end
         lines.AddRange(IntroTests.RunAll());           // the intro slot: BE2's script, our frame
         lines.AddRange(AudioTests.RunAll());           // the mix: what the game sounds like, as numbers
+        lines.AddRange(SecurityTests.RunAll());        // the company's one number, and its four alerts
         foreach (var line in lines)
         {
             Console.WriteLine(line);
