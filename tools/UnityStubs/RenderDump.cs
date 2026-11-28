@@ -31,6 +31,11 @@ public static class RenderDump
             fld.SetValue(view, HRZeroDay.Game.MonitorScreenView.Load(
                 "fonts/monitor_font_5x7", HRZeroDay.Game.MonitorScreenView.PaletteCached));
             var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            // "nolamp": build the room with the warm practical switched OFF, so the dump can be DIFFED
+            // against the normal one. That difference IS the lamp's light, and it is the only way to check
+            // that the light lands on the desk rather than on the wall without opening Unity.
+            if (args.Length > 2 && args[2] == "nolamp")
+                typeof(MenuView).GetField("_lampOn", flags).SetValue(view, false);
             var m = typeof(MenuView).GetMethod("BuildRoom", flags);
             if (m == null) { Console.WriteLine("no BuildRoom"); return 2; }
             m.Invoke(view, null);

@@ -73,6 +73,15 @@ READABLE = (
     'Art/Kit/menu/glow_lamp.png',
     'Art/Kit/menu/glow_tube.png',
     'Art/Kit/menu/glow_window.png',
+    # THE DESK'S OWN ROOM (v120, request E). ScreenLight is the desk's monitor as a LIGHT: it captures the
+    # room's pixels, projects the tube's pool down onto the desk, lifts the props that face the glass and
+    # pushes the desk behind them down its ramp. Every one of those needs the room readable. Without it the
+    # tube logs "the background is not readable" and the monitor stays a dark decal -- which is exactly what
+    # the player reported. The three corruption stages are covered because RoomLighting swaps between them.
+    'Art/Kit/backgrounds/office_L0.png',
+    'Art/Kit/backgrounds/office_L1.png',
+    'Art/Kit/backgrounds/office_L2.png',
+    'Art/Kit/desk/desk_foreground.png',
 )
 
 

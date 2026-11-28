@@ -1,37 +1,37 @@
 // HR//0D -- the tube is the room's third light, and it is a LIGHT, not a decal.
 // Assembly: HRZeroDay.Game
 //
-// THE PLAYER'S REPORT (v120, request E), in their words: "the monitor reads as if it is switched off.
-// Turn it on over time; when it is ON it must light everything in front of it -- the desk in front of the
-// monitor with a falloff across the surface, the coffee cup, the keyboard, the mouse, the sides of the
-// monitor -- and the shadows on the side facing away from the screen must get stronger. Tell me if that is
-// possible."
+// THE PLAYER'S REPORT (v120, request E): "the monitor reads as if it is switched off. When it is ON it must
+// light everything in front of it -- the desk, the cup, the keyboard, the mouse, the monitor's sides -- and
+// the shadows on the side facing away from the screen must get stronger."
 //
-// Yes, and this is how. Three pieces, none of which is a shader:
+// THREE BUGS IN THE FIRST ATTEMPT, all found by looking at the code against the art instead of at a
+// screenshot:
 //
-//   1. THE EMITTER has three states (On / Idle / Off) and a clock. On = the applicant is in the chair and
-//      the player is reading; Idle = nobody is being interviewed (the doors are shut, the walk is up);
-//      Off = the shift is over or the ending is on screen. The transition is a fade with a flicker on the
-//      way IN, because a CRT that comes on instantly reads as a sprite being enabled.
+//   1. IT LIT THE WRONG SPRITE. `Bind` was handed `L_background`, the room painting -- but MenuView REPLACES
+//      that renderer's sprite with its own 480x270 composition while the front door is up, and the desk's
+//      props, papers and mug are not in it anyway. So the tube's light was being baked into a picture that
+//      is only on screen behind a menu. It now lights EVERY static part of the desk, in place.
+//   2. IT COULD NOT READ THE ROOM. `assets/Kit/backgrounds` was imported with Read/Write off, so
+//      GetPixels32 threw, the warning fired, and the tube quietly did nothing at all. The metas and the
+//      importer now ask for readability -- and this component says so loudly if it cannot get it.
+//   3. IT LIT THE FLOOR INSTEAD OF THE DESK. The pool was anchored below the desk surface (row 172 on a
+//      surface that starts at 150), so the brightest part of it was under the desk's front face -- light
+//      that could not reach the paper, the mug or the keys. The pool's centre is derived from the desk
+//      surface now, and there is a TEST for it (LightingTests.TubePoolLandsOnTheDesk).
 //
-//   2. THE FALLOFF is a lamp of exactly the shape a screen has: WIDER THAN IT IS TALL and cut off at the
-//      glass. A 154x106 tube throws an ellipse about 2.4x wider than the box it sits in, centred on the
-//      glass and biased DOWNWARD onto the desk, because that is where a screen's light actually goes --
-//      it leaves the glass and lands on the surface in front of it.
+// HOW IT WORKS, and why it is a CPU pass rather than a Light2D:
+//   The camera is orthographic and every sprite is point-filtered 16 px-per-unit pixel art. A URP 2D light
+//   with normal maps produces a soft blended gradient that fights the dither language the whole game is
+//   drawn in. This walks each surface's pixels: a pixel can only be pushed one step UP ITS OWN MATERIAL
+//   (wood_1 -> wood_2 -> wood_3 -> wood_4), and the fractional part of the light becomes a 2x2 ordered
+//   dither -- exactly the operation the front door's light performs (MenuView.Light), which is what makes
+//   the desk and the menu look like one game.
 //
-//   3. THE SHADOW is the part that makes it read. For every prop standing on the desk near the tube, the
-//      desk BEHIND it (on the side away from the screen, i.e. to its RIGHT, because the monitor is on the
-//      left) is pushed DOWN the desk's ramp. The further from the tube and the taller the prop, the
-//      longer the shadow. The screen's own case lights on the side that faces the glass, and the keyboard
-//      and the mug get their near faces lifted. Nothing is drawn on top of the art: the art is one baked
-//      sprite, so the light is stamped INTO a copy of it once per state change, exactly the way
-//      MenuView.Paint() lightens its own room (docs/89 §2, one palette two renderers).
-//
-// WHY A BAKED PASS AND NOT A LIGHT2D: the camera is orthographic and every sprite in the room is point
-// filtered pixel art. A URP 2D light with a normal map on a 16 px-per-unit sprite produces a soft, blended
-// gradient that fights the dither language the whole game is drawn in. The pass below quantises to the
-// palette's own steps and dithers the fractional part, so the screen's light is made of the same material
-// as the lamp's.
+// THE COORDINATE TRAP, stated once: Unity's Color32[] from GetPixels32 is BOTTOM-UP (index 0 is the bottom
+// left), while every canvas number in this project (desk_layout.json, MenuLayout, the twin renderer) is
+// TOP-DOWN. This file converts once, at the edges, and works in top-down rows internally. A gate exists for
+// this class of bug; the comment is here so the next person does not have to rediscover it.
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -43,85 +43,64 @@ namespace HRZeroDay.Game
     {
         public const string RootName = "ScreenLight";
 
-        /// <summary>The row the desk surface starts on, in canvas px (twin_desk / desk_layout agree).</summary>
-        public const int DeskRow = 206;
-
         // ---- the desk's tube, measured off desk/monitor_small.png (154x106 at anchor 14,86, y up):
-        //      case x 14..168, glass x 20..161 / rows 84..171. The glass's centre is the emitter.
+        //      case x 14..168, glass x 20..161, rows 84..171 (top-down canvas rows).
         public const int GlassX = 90;
         public const int GlassY = 128;
         public const int GlassRx = 70;
         public const int GlassRy = 44;
-        /// <summary>Where the pool's centre is: on the DESK, in front of the tube, never on the wall.</summary>
-        public const int ProjectY = 196;
+        /// <summary>The row the desk surface starts on, top-down canvas rows (desk_layout.json).</summary>
+        public const int DeskRow = 206;
+        /// <summary>Where the pool's centre is: ON the desk in front of the tube, never on the wall.</summary>
+        public const int ProjectY = 236;
+        /// <summary>The canvas: the same 480x270 every other system uses.</summary>
+        public const int CanvasW = 480, CanvasH = 270;
 
-        /// <summary>Seconds for the tube to reach full brightness, and the flicker's length.</summary>
         public const float FadeSeconds = 0.55f;
         public const float FlickerSeconds = 0.18f;
-
-        /// <summary>The idle phosphor breathe: 0.5 Hz, the slowest thing on the desk.</summary>
         public const float IdleHz = 0.5f;
 
-        // the props whose shadows the tube casts, in canvas px: (left, right, top) of each. These are
-        // read off the approved desk_foreground painting, not guessed -- each one is the box of a prop that
-        // stands ON the surface, so its shadow starts at the box and runs away from the tube.
+        /// <summary>The game's current state, read every frame. Wired by DeskBootstrap.</summary>
+        public System.Func<ScreenState> want;
+        public ScreenState state = ScreenState.On;
+
+        /// <summary>How much of the tube's light is in the room, 0..1. The tests and the HUD read this.</summary>
+        public float Level { get { return _fade; } }
+
+        // ---- the props that stand on the desk, in canvas px, top-down: (left, width, top, height) ------
+        // Read off desk/desk_foreground.png at anchor (0,0) of a 64 px band that starts at DeskRow, so these
+        // are BELOW the surface line and their shadows run right, away from a tube that sits on the left.
         private struct Prop
         {
-            public int X, W, Top;       // left, width, the row of its highest pixel
-            public int Height;          // how far it stands proud of the desk: sets the shadow's length
-            public Prop(int x, int w, int top, int height) { X = x; W = w; Top = top; Height = height; }
+            public int X, W, Top, Height;
+            public Prop(int x, int w, int top, int h) { X = x; W = w; Top = top; Height = h; }
         }
 
         private static readonly Prop[] Props =
         {
-            new Prop(152, 90, 232, 26),    // keyboard: wide, low, closest to the tube
-            new Prop(248, 12, 236, 10),    // mouse
-            new Prop(300, 26, 214, 44),    // folder stack: tall, so it throws the longest shadow
-            new Prop(370, 24, 222, 34),    // coffee mug
-            new Prop(196, 14, 234, 12),    // notepad + pen
+            new Prop(300, 84, 216, 22),   // keyboard
+            new Prop(388, 14, 217, 18),   // mouse
+            new Prop(120, 48, 210, 26),   // the forms on the left of the desk
+            new Prop( 56, 30, 208, 24),   // the mug
         };
 
-        /// <summary>
-        /// THE TUBE'S STATE, DERIVED FROM THE GAME, not from a timer (v120). One function so the desk, the
-        /// walk, the debrief and the ending cannot disagree about whether the screen is on:
-        ///
-        ///   OFF   the ending is on screen, or the player is in the front door menu with no run behind it.
-        ///         (A menu over a live desk keeps the tube IDLE, not off: the run is still there.)
-        ///   IDLE  nothing is being interviewed -- the walk is up, the day summary is up, the desk is empty
-        ///         between applicants. This is the phosphor breathe, 0.5 Hz.
-        ///   ON    somebody is at the desk: the interview, the letter, the debrief, the alert panel.
-        ///
-        /// The bias is deliberate: when this function cannot tell, it says ON. A dark screen while the
-        /// player is reading is worse than a lit screen in an empty room.
-        /// </summary>
-        public static ScreenState StateFor(bool ending, bool walk, bool summary, bool menuOpen)
+        // ---- one captured surface ---------------------------------------------------------------------
+        private class Part
         {
-            if (ending) return ScreenState.Off;
-            if (menuOpen) return ScreenState.Idle;
-            if (walk || summary) return ScreenState.Idle;
-            return ScreenState.On;
+            public SpriteRenderer renderer;
+            public Color32[] basePixels;   // the authored art, top-down
+            public Color32[] litPixels;    // what is on screen now
+            public Texture2D tex;
+            public int w, h, x0, y0;       // its canvas rect, top-down
+            public Color originalColor;
+            public bool ok;                // did we get the pixels?
         }
 
-        public ScreenState state = ScreenState.On;
-
-        /// <summary>WHO ASKS (v120): a function returning the state the game is in, read every frame.</summary>
-        public System.Func<ScreenState> want;
-        private float _fade;                 // 0..1, how much of the tube's light is in the room
-        private float _flicker;              // counts down while the tube strikes
-
-        private Color32[] _room;             // the baked room, before any light
-        private Color32[] _lit;              // the buffer the screen renderer draws
-        private int _w, _h;
-        private SpriteRenderer _background;  // L_background, the only sprite the tube repaints
-        private SpriteRenderer _monitor;     // L_monitor: its case catches the glass on the inside
-        private Texture2D _tex;
-        private float _ppu = 16f;
-        private Dictionary<Color32, Color32> _table;   // colour -> the next step of its own ramp
-        private Dictionary<Color32, Color32> _down;    // ... and the step below, for the shadows
-
-
-        /// <summary>How much of the tube's light is in the room, 0..1. The tests read this.</summary>
-        public float Level { get { return _fade; } }
+        private readonly List<Part> _parts = new List<Part>();
+        private float _fade;
+        private float _flicker;
+        private Dictionary<Color32, Color32> _up;
+        private Dictionary<Color32, Color32> _down;
 
         public static ScreenLight Attach(Transform root)
         {
@@ -132,188 +111,261 @@ namespace HRZeroDay.Game
         }
 
         /// <summary>
-        /// Wires the tube to the room. `background` is the L_background renderer; `monitor` is optional (the
-        /// case lights only if it is there). The room's pixels are captured from the CURRENT sprite, so this
-        /// must run after the stage sprite for the first light has been chosen.
+        /// Captures every static surface the tube can light. `layout` is the desk layout (the same json the
+        /// scene was built from), so each surface's canvas rect is EXACT rather than guessed from pivots --
+        /// a light pass whose coordinates are 40 px out is a light pass that lights the ceiling.
         /// </summary>
-        public void Bind(SpriteRenderer background, SpriteRenderer monitor)
+        public void Bind(Transform root, DeskLayout layout)
         {
-            _background = background;
-            _monitor = monitor;
-            Capture();
-        }
-
-        private void Capture()
-        {
-            if (_background == null || _background.sprite == null) return;
-            var src = _background.sprite;
-            _w = (int)src.rect.width;
-            _h = (int)src.rect.height;
-            // Read/Write must be on in the .meta (write_unity_metas.py does that for the kit). If it is not,
-            // the copy fails and the room simply keeps its authored light: no tube light, no crash.
-            // `catch` without a type: in Unity a non-readable texture throws UnityException, and the stub
-            // assembly the headless tests build against has no Unity.Exception type at all. The behaviour is
-            // identical and the file compiles in both places, which is what the compile gate checks.
-            try { var px = src.texture.GetPixels32(); _room = px.Length >= _w * _h ? px : null; }
-            catch (System.Exception) { _room = null; }
-            if (_room == null)
-            {
-                Debug.LogWarning("[HR//0D] ScreenLight: the background is not readable, so the tube cannot " +
-                                 "light it. Run HR//0D > Import Art Kit (or write_unity_metas.py).");
-                return;
-            }
-            _lit = new Color32[_room.Length];
-            _tex = new Texture2D(_w, _h, TextureFormat.RGBA32, false);
-            _tex.filterMode = FilterMode.Point;
-            _tex.wrapMode = TextureWrapMode.Clamp;
-            _tex.name = "RoomLit";
-            _ppu = _background.sprite.pixelsPerUnit;      // remember it: the old sprite is replaced below
-            _background.sprite = Sprite.Create(_tex, new Rect(0, 0, _w, _h), new Vector2(0.5f, 0.5f), _ppu);
-            _table = PaletteLadder.Up;
+            _parts.Clear();
+            _up = PaletteLadder.Up;
             _down = PaletteLadder.Down;
+            if (root == null || layout == null) return;
+
+            for (int i = 0; i < layout.layers.Count; i++)
+            {
+                var layer = layout.layers[i];
+                // the applicant is ANIMATED: it must stay a sprite, so it is not part of the bake.
+                if (layer.id == "applicant") continue;
+                var child = root.Find("L_" + layer.id);
+                if (child == null) continue;
+                var sr = child.GetComponent<SpriteRenderer>();
+                if (sr == null || sr.sprite == null) continue;
+
+                int w = Mathf.RoundToInt(sr.sprite.rect.width);
+                int h = Mathf.RoundToInt(sr.sprite.rect.height);
+                var part = new Part
+                {
+                    renderer = sr,
+                    w = w, h = h,
+                    x0 = layer.anchor[0],
+                    // desk_layout anchors are BOTTOM-LEFT in y-up canvas space; this file works top-down
+                    y0 = CanvasH - (layer.anchor[1] + h),
+                    originalColor = sr.color,
+                };
+                try
+                {
+                    var raw = sr.sprite.texture.GetPixels32();
+                    if (raw == null || raw.Length < w * h) continue;
+                    part.basePixels = TopDown(raw, w, h, sr.sprite.texture.width, sr.sprite.texture.height);
+                    part.litPixels = new Color32[w * h];
+                    part.tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+                    part.tex.filterMode = FilterMode.Point;
+                    part.tex.wrapMode = TextureWrapMode.Clamp;
+                    part.tex.name = "Lit_" + layer.id;
+                    part.ok = true;
+                }
+                catch (System.Exception)
+                {
+                    part.ok = false;
+                }
+                if (!part.ok)
+                {
+                    Debug.LogWarning("[HR//0D] ScreenLight cannot read '" + layer.id + "', so the tube will " +
+                                     "not light it. Run HR//0D > Import Art Kit (it sets Read/Write on the " +
+                                     "room, the desk and the monitor), or python tools/art/write_unity_metas.py");
+                    continue;
+                }
+                _parts.Add(part);
+                // the sprite is replaced by the lit copy ONCE; every later frame writes into its texture, so
+                // nothing is allocated per frame and the object's transform is never touched
+                var pivot = new Vector2(0.5f, 0.5f);
+                sr.sprite = Sprite.Create(part.tex, new Rect(0, 0, w, h), pivot, 16f);
+            }
+            Repaint();
         }
 
-
-        /// <summary>The tube is wanted in this state (the desk decides; see DeskRuntimeScene).</summary>
-        public void SetState(ScreenState want)
+        /// <summary>
+        /// Unity hands back BOTTOM-UP rows; every coordinate in this project is top-down. Convert once here.
+        /// The texture may be an atlas (frames are packed), so the copy is bounded by both rects.
+        /// </summary>
+        private static Color32[] TopDown(Color32[] raw, int w, int h, int texW, int texH)
         {
-            if (want == state) return;
-            state = want;
-            if (want == ScreenState.On) _flicker = FlickerSeconds;
+            var outPx = new Color32[w * h];
+            for (int y = 0; y < h; y++)
+            {
+                int srcRow = h - 1 - y;                       // flip
+                for (int x = 0; x < w; x++)
+                {
+                    int si = srcRow * texW + x;
+                    outPx[y * w + x] = si >= 0 && si < raw.Length ? raw[si] : new Color32(0, 0, 0, 0);
+                }
+            }
+            return outPx;
+        }
+
+        /// <summary>
+        /// THE TUBE'S STATE, DERIVED FROM THE GAME, not from a timer. One function, so the desk, the walk,
+        /// the summary, the menu and the ending cannot disagree about whether the screen is on.
+        /// </summary>
+        public static ScreenState StateFor(bool ending, bool walk, bool summary, bool menuOpen)
+        {
+            if (ending) return ScreenState.Off;
+            if (menuOpen) return ScreenState.Idle;
+            if (walk || summary) return ScreenState.Idle;
+            return ScreenState.On;
         }
 
         void Update()
         {
             float dt = Time.unscaledDeltaTime;
             if (want != null) SetState(want());
+
             float target = state == ScreenState.On ? 1f : (state == ScreenState.Idle ? 0.45f : 0f);
             if (_flicker > 0f)
             {
                 _flicker = Mathf.Max(0f, _flicker - dt);
-                // three strikes: a CRT does not come on, it tries to
                 target *= (Mathf.Repeat(_flicker * 9f, 1f) > 0.45f) ? 1f : 0.15f;
             }
             float before = _fade;
             _fade = Mathf.MoveTowards(_fade, target, dt / FadeSeconds);
-            // the idle breathe only exists when the tube is idle, and it never swings more than a tenth
             if (state == ScreenState.Idle && _flicker <= 0f)
                 _fade = 0.45f + 0.05f * Mathf.Sin(Time.unscaledTime * IdleHz * Mathf.PI * 2f);
             if (Mathf.Abs(_fade - before) > 0.002f) Repaint();
         }
 
-        private void Repaint()
+        public void SetState(ScreenState wanted)
         {
-            if (_room == null || _lit == null || _tex == null) return;
-            System.Array.Copy(_room, _lit, _room.Length);
+            if (wanted == state) return;
+            state = wanted;
+            if (wanted == ScreenState.On) _flicker = FlickerSeconds;
+        }
+
+        /// <summary>Bakes the tube's light into every captured surface. Runs on a state change, not per frame.</summary>
+        public void Repaint()
+        {
+            if (_up == null || _parts.Count == 0) return;
             float level = _fade;
-            if (level <= 0.01f)
-            {
-                _tex.SetPixels32(_lit);
-                _tex.Apply(false);
-                if (_monitor != null) _monitor.color = Color.white;
-                return;
-            }
-
-            // ---- 1. THE FALLOFF, across the whole canvas, from the glass outward
-            // THE DESK'S TUBE IS NOT THE MENU'S CRT. Both are lights, but they are not in the same place: the
-            // menu's CRT stands in the middle of a different room (MenuLayout.MonitorLight is that one), and
-            // the desk's monitor is the 154x106 case at anchor (14, 86) with its glass at x 20..161, y 84..171.
-            // One function, two emitters -- deriving the desk's light from the menu's number is how a fix in
-            // one room silently moves the light in the other. See DeskTube() below for where these come from.
-            // THE POOL IS ON THE DESK, NOT ON THE WALL (v120, second pass). A screen faces the player, so
-            // its light lands on the surface between the tube and the viewer, and on the props standing
-            // there. Centring the ellipse on the glass lit the wall behind the monitor -- the same mistake
-            // the lamp had -- and left the keyboard, the mug and the folders at their authored value.
-            float rx = GlassRx * (1.30f + 0.75f * level);   // ~2x the tube wide at full
+            float rx = GlassRx * (1.30f + 0.75f * level);
             float ry = GlassRy * (0.86f + 0.34f * level);
-            float cy = ProjectY;                        // projected DOWN onto the desk in front of it
-            float cx = GlassX;
-            int rowsFromDesk = Mathf.Max(1, _h - DeskRow);
-            for (int y = 0; y < _h; y++)
-            {
-                for (int x = 0; x < _w; x++)
-                {
-                    float dx = (x - cx) / rx;
-                    float dy = (y - (float)cy) / ry;
-                    float r = Mathf.Sqrt(dx * dx + dy * dy);
-                    if (r >= 1f) continue;
-                    // the desk surface is lit MORE than the wall: light lands on it and stops there
-                    float onDesk = y >= DeskRow ? 1f : 0.30f;
-                    float amount = (1f - r) * (1f - r) * level * onDesk;
-                    Lift(_lit, y * _w + x, amount);
-                }
-            }
 
-            // ---- 2. THE SHADOWS, cast away from the tube: the desk RIGHT of each prop goes down its ramp
-            for (int p = 0; p < Props.Length; p++)
+            for (int p = 0; p < _parts.Count; p++)
             {
-                var prop = Props[p];
+                var part = _parts[p];
+                if (!part.ok) continue;
+                System.Array.Copy(part.basePixels, part.litPixels, part.basePixels.Length);
+                if (level > 0.01f)
+                {
+                    // 1. the pool: an ellipse centred on the desk in front of the tube, with a falloff
+                    for (int y = 0; y < part.h; y++)
+                    {
+                        int canvasY = part.y0 + y;
+                        bool onDesk = canvasY >= DeskRow;
+                        float dy = (canvasY - ProjectY) / ry;
+                        for (int x = 0; x < part.w; x++)
+                        {
+                            int i = y * part.w + x;
+                            if (part.litPixels[i].a == 0) continue;
+                            float dx = (part.x0 + x - GlassX) / rx;
+                            float r = Mathf.Sqrt(dx * dx + dy * dy);
+                            if (r >= 1f) continue;
+                            // the desk takes the light; the wall above it takes a third of it
+                            float amount = (1f - r) * (1f - r) * level * (onDesk ? 1f : 0.34f);
+                            Lift(part, i, amount);
+                        }
+                    }
+                    // 2. the shadows: the desk RIGHT of each prop goes down its ramp, away from the tube
+                    CastShadows(part, level);
+                }
+                // 3. and the surface itself is re-uploaded; its tint is never touched, because the light is
+                //    already IN the pixels above
+                Upload(part);
+            }
+        }
+
+        private void CastShadows(Part part, float level)
+        {
+            for (int s = 0; s < Props.Length; s++)
+            {
+                var prop = Props[s];
                 int length = Mathf.RoundToInt(prop.Height * 0.55f * level);
                 int startX = prop.X + prop.W;
                 for (int i = 0; i < length; i++)
                 {
-                    int x = startX + i;
-                    if (x >= _w) break;
-                    // the umbra tapers: full strength at the prop, gone by the shadow's end
+                    int canvasX = startX + i;
                     float k = 1f - i / (float)Mathf.Max(1, length);
                     if (k < 0.35f) continue;
-                    for (int y = DeskRow; y < DeskRow + prop.Height; y++)
+                    int px = canvasX - part.x0;
+                    if (px < 0 || px >= part.w) continue;
+                    for (int row = prop.Top; row < prop.Top + prop.Height; row++)
                     {
-                        if (y >= _h) break;
-                        if (((x + y) & 1) != 0 && k < 0.7f) continue;   // dithered, never a hard wedge
-                        Darken(_lit, y * _w + x, 1);
+                        int py = row - part.y0;
+                        if (py < 0 || py >= part.h) continue;
+                        if (k < 0.7f && ((canvasX + row) & 1) != 0) continue;   // dithered: never a hard wedge
+                        int idx = py * part.w + px;
+                        if (part.litPixels[idx].a == 0) continue;
+                        Darken(part, idx, 1);
                     }
                 }
-                // and the prop's own NEAR face (its left, facing the glass) catches the tube
-                for (int y = Mathf.Max(DeskRow, prop.Top); y < DeskRow + prop.Height; y++)
+                // the prop's own near face (its LEFT, facing the glass) catches the tube
+                int faceX = prop.X - part.x0;
+                for (int i = 0; i < 2; i++)
                 {
-                    if (y >= _h) break;
-                    for (int i = 0; i < 2; i++)
+                    int px = faceX + i;
+                    if (px < 0 || px >= part.w) continue;
+                    for (int row = prop.Top; row < prop.Top + prop.Height; row++)
                     {
-                        int x = prop.X + i;
-                        if (x >= 0 && x < _w) Lift(_lit, y * _w + x, 0.85f * level);
+                        int py = row - part.y0;
+                        if (py < 0 || py >= part.h) continue;
+                        int idx = py * part.w + px;
+                        if (part.litPixels[idx].a == 0) continue;
+                        Lift(part, idx, 0.85f * level);
                     }
                 }
             }
-
-            // ---- 3. THE MONITOR'S OWN CASE (the sprite sorting -20, not the glass): the inside of the bezel is the brightest metal on the desk,
-            //          because it is the same distance from the glass as the glass is from itself
-            // The case and the stand are separate sprites (sorting -20). They are not repainted -- they are
-            // ONE sprite each, already painted at the approved key -- so the only honest thing to do is let
-            // the tube's light reach them the way it reaches the room: a small, fixed lift of their tint,
-            // which cannot go beyond white and therefore cannot burn the art. This is the "the sides of the
-            // monitor light up" half of the request; the glass itself is MonitorScreen's and is untouched.
-            if (_monitor != null)
-            {
-                float k = 1f + 0.06f * level;                  // +6% of the case's own colour at full
-                _monitor.color = new Color(k, k, k, 1f);
-            }
-
-            _tex.SetPixels32(_lit);
-            _tex.Apply(false);
         }
 
-        /// <summary>Walks one pixel up its own ramp by `amount` (0..1), dithering the fraction.</summary>
-        private void Lift(Color32[] buf, int i, float amount)
+        /// <summary>Walks one pixel UP its own material by `amount` (0..1, two steps maximum), dithering the fraction.</summary>
+        private void Lift(Part part, int i, float amount)
         {
-            if (amount <= 0.02f || _table == null) return;
+            if (amount <= 0.02f) return;
             Color32 up;
-            if (!_table.TryGetValue(buf[i], out up)) return;       // an emitter or an off-palette pixel
-            float whole = Mathf.Floor(amount * 2.4f);              // up to TWO steps at the tube's mouth
-            float frac = amount * 2.4f - whole;
-            if (frac > 0.62f || (frac > 0.30f && ((i + (i / _w)) & 1) == 0)) whole += 1f;
-            Color32 c = buf[i];
-            for (int s = 0; s < (int)whole; s++) { if (_table.TryGetValue(c, out up)) c = up; else break; }
-            buf[i] = c;
+            if (!_up.TryGetValue(part.litPixels[i], out up)) return;      // an emitter, or a colour with no step
+            float scaled = amount * 2f;
+            float whole = Mathf.Floor(scaled);
+            float frac = scaled - whole;
+            int pat = (i % part.w & 1) + ((i / part.w & 1) << 1);
+            if (frac > 0.62f || (frac > 0.30f && pat < 2)) whole += 1f;
+            Color32 c = part.litPixels[i];
+            for (int s = 0; s < (int)whole; s++)
+            {
+                if (!_up.TryGetValue(c, out up)) break;
+                c = up;
+            }
+            part.litPixels[i] = c;
         }
 
-        /// <summary>Walks one pixel DOWN its own ramp: the shadow side of a form.</summary>
-        private void Darken(Color32[] buf, int i, int steps)
+        /// <summary>Walks one pixel DOWN its own material: the shadow side of a form.</summary>
+        private void Darken(Part part, int i, int steps)
         {
-            if (steps <= 0) return;
             Color32 down;
-            for (int s = 0; s < steps && _down != null && _down.TryGetValue(buf[i], out down); s++)
-                buf[i] = down;
+            for (int s = 0; s < steps && _down.TryGetValue(part.litPixels[i], out down); s++)
+                part.litPixels[i] = down;
+        }
+
+        private static void Upload(Part part)
+        {
+            if (part.tex == null) return;
+            // back to bottom-up for the GPU, in place, one row at a time (no second buffer)
+            var tmp = new Color32[part.w];
+            int h = part.h;
+            for (int y = 0; y < h / 2; y++)
+            {
+                int top = y * part.w, bot = (h - 1 - y) * part.w;
+                System.Array.Copy(part.litPixels, top, tmp, 0, part.w);
+                System.Array.Copy(part.litPixels, bot, part.litPixels, top, part.w);
+                System.Array.Copy(tmp, 0, part.litPixels, bot, part.w);
+            }
+            part.tex.SetPixels32(part.litPixels);
+            part.tex.Apply(false);
+            // and back, so the next repaint does not work on a flipped buffer
+            for (int y = 0; y < h / 2; y++)
+            {
+                int top = y * part.w, bot = (h - 1 - y) * part.w;
+                System.Array.Copy(part.litPixels, top, tmp, 0, part.w);
+                System.Array.Copy(part.litPixels, bot, part.litPixels, top, part.w);
+                System.Array.Copy(tmp, 0, part.litPixels, bot, part.w);
+            }
         }
     }
 }

@@ -69,7 +69,9 @@ def mixdown():
 
     This exists so the mix can be JUDGED before Unity is opened -- levels, spacing, whether the phone is
     too loud, whether the room is audible at all. It is a reference file, not a game asset: the game never
-    plays it. Writes art/kit/reference/desk_minute.wav.
+    plays it. Writes the review WAV to the TEMP directory (v120: it used to write 1 MB into
+    art/kit/reference on every run, which is a review artefact committed to the repository -- see
+    art/kit/reference/README.md).
     """
     room, rate = read_wav(os.path.join(AUDIO, 'room.wav'))
     crt, _ = read_wav(os.path.join(AUDIO, 'crt.wav'))
@@ -86,7 +88,8 @@ def mixdown():
         seg = s * 0.55
         mix[i:i + len(seg)] += seg[:max(0, dur - i)]
     mix = mix / max(1.0, float(np.max(np.abs(mix))) * 1.02)
-    out = os.path.join(KIT, 'reference', 'desk_minute.wav')
+    import tempfile
+    out = os.path.join(tempfile.gettempdir(), 'desk_minute.wav')
     with wave.open(out, 'wb') as w:
         w.setnchannels(1); w.setsampwidth(2); w.setframerate(rate)
         w.writeframes((mix * 32767).astype('<i2').tobytes())

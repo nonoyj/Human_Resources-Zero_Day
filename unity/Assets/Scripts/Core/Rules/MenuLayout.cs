@@ -282,22 +282,28 @@ namespace HRZeroDay.Core.Rules
         /// </summary>
         public static LightSource LampLight()
         {
-            // the shade's mouth: the sprite's shade spans y+20..y+96, its mouth is the bottom of that
-            int mouthY = LampY + 96;
-            // Falloff 1.15 (tighter than before) so the pool has an EDGE and reads as a cone of light rather
-            // than a fog; Ry 132 downward-biased by the offset below.
-            return new LightSource(LampX + 26, mouthY + 14, 104, 132, 1.15, 1);
+            // WHERE THE BULB IS, exactly. The shade spans the sprite's rows 20..96 (LampY is 62, so 82..158)
+            // and its MOUTH is its bottom row: LampY + 96 = 158.
+            //
+            // THE FIRST v120 ATTEMPT PUT THE POOL BELOW THE FLOOR. It anchored the cone at `mouth + 14` = 172
+            // and the bounce at `LampY + 118` = 180 -- but the desk surface starts at row 150, so both centres
+            // were in the FLOOR BAND (150..270), under the desk's front face. A player clicking the lamp saw
+            // the wall behind it warm and the wood in front of it stay dead, which is the same complaint as
+            // before in the other direction: the light was still not where the light goes. The numbers are
+            // derived from DeskY now and cannot drift back below it.
+            return new LightSource(LampX + 26, LampY + 96, 104, 62, 1.15, 1);
         }
 
         /// <summary>
-        /// THE BOUNCE (v120). Light that lands on the desk does not stop at the desk: it comes back up off the
-        /// paper and the varnish. One dim source lying ON the surface, a step weaker than the lamp, so the
-        /// things standing in the pool are lit from BELOW-BEHIND instead of floating dark inside a bright oval.
-        /// It is not a second lamp -- it is the same lamp, seen twice.
+        /// THE BOUNCE (v120, second attempt). Light that lands on the desk comes back off it, and at this size
+        /// the visible result is that the paper and the mug standing in the pool are lit from below-behind
+        /// instead of sitting dark inside a bright oval. It lies ON the surface -- a wide, shallow ellipse
+        /// centred inside the desk band -- and it is a step weaker than the cone, because it is the same lamp
+        /// seen twice, not a second lamp.
         /// </summary>
         public static LightSource LampBounceLight()
         {
-            return new LightSource(LampX + 26, LampY + 118, 74, 54, 2.10, 1);
+            return new LightSource(LampX + 20, DeskY + 34, 118, 26, 2.10, 1);
         }
 
         /// <summary>True when this light IS the lamp's -- so the front door can switch it off.</summary>

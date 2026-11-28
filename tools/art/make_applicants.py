@@ -866,6 +866,18 @@ def make_portrait(state: Applicant) -> Image.Image:
     return state.draw().crop((48, 30, 144, 126))
 
 
+def _one_palette():
+    """The merged palette (tools/art/art_palette.py), imported lazily so a missing Pillow cannot break it."""
+    try:
+        import art_palette
+        return {tuple(rgb) for rgb in art_palette.PALETTE.values()}
+    except Exception:                                   # noqa: BLE001
+        return set()
+
+
+ONE_PALETTE_SET = _one_palette()
+
+
 def check() -> int:
     """Palette + alpha rules, read with the stdlib decoder -- runs without Pillow."""
     root = os.path.normpath(OUT)
@@ -887,7 +899,12 @@ def check() -> int:
             for px in pixels:
                 if px[3] == 0:
                     continue
-                if px[:3] not in PALETTE_SET or 0 < px[3] < 255:
+                # THE PALETTE IS THE MERGED ONE NOW (v120). This check used the kit's 24 colours, which is
+                # what the generator writes -- but the applicant sheets are then passed through
+                # art_palette.py --apply, which moves the room's structural navy onto the front door's ramp
+                # steps. Validating against the kit alone made that pass fail its own gate. Both sets are
+                # legal pixels: the kit's, and the merged palette's.
+                if px[:3] not in PALETTE_SET and px[:3] not in ONE_PALETTE_SET or 0 < px[3] < 255:
                     problems.append((f, px))
                     break
     print(f"checked {count} applicant sprites")

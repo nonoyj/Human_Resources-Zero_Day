@@ -49,6 +49,13 @@ try {
     & python tools/art/art_palette.py --check
     if ($LASTEXITCODE -ne 0) { D 'the two palettes do not merge honestly' } else { OK 'one palette, 13 ramps, all aliases within tolerance' }
 
+    S 'one palette: the desk kit -> the front door materials (v120)'
+    # Two palettes is how the desk and the menu stopped looking like the same game. art_palette.py merges
+    # them and REFUSES the merge if any alias moves a colour further than it should: the number is a gate,
+    # not a note in a doc. It must print PASS before any bundle.
+    & python tools/art/art_palette.py --check
+    if ($LASTEXITCODE -ne 0) { D 'the two palettes do not merge honestly' } else { OK 'one palette, 13 ramps, all aliases within tolerance' }
+
     S 'palette gates'
     & python tools/art/make_art_kit.py --check
     if ($LASTEXITCODE -ne 0) { D 'kit palette check failed' } else { OK 'kit palette clean' }

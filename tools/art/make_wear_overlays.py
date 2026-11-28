@@ -42,6 +42,20 @@ W, H = 480, 270
 
 PALETTE_SET = set(PALETTE.values())
 
+
+def _one_palette():
+    """The merged palette (v120). The overlays are painted with the kit's colours and then pass through
+    art_palette.py --apply, which moves the structural navy onto the front door's ramp steps; both sets are
+    legal pixels, and validating against the kit alone made the alias pass fail this gate."""
+    try:
+        import art_palette
+        return {tuple(rgb) for rgb in art_palette.PALETTE.values()}
+    except Exception:                                   # noqa: BLE001
+        return set()
+
+
+ONE_PALETTE_SET = _one_palette()
+
 # damage inks: a crack is a dark void line with a lit edge; a scuff is one flat panel tone
 CRACK = ('void', 'line')
 SCUFF_INK = ('panel', 'panel2', 'line')
@@ -168,7 +182,7 @@ def check():
         for px in pixels:
             if px[3] == 0:
                 continue
-            if px[:3] not in PALETTE_SET or 0 < px[3] < 255:
+            if (px[:3] not in PALETTE_SET and px[:3] not in ONE_PALETTE_SET) or 0 < px[3] < 255:
                 bad.append((f, px))
                 break
     print(f"checked {count} wear overlays")

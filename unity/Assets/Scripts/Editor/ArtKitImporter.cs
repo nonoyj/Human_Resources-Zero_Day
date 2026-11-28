@@ -80,6 +80,21 @@ namespace HRZeroDay.EditorTools
                 readable += MakeReadable("Assets/Resources/Art/Kit/menu/" + roomSprites[i]);
             readable += MakeReadable("Assets/Resources/Art/Kit/fonts/monitor_font_5x7");
 
+            // THE DESK'S ROOM, TOO (v120). ScreenLight is the desk's monitor as a light: it captures the
+            // room, projects the tube's pool onto the desk and shadows the desk behind the props. That needs
+            // GetPixels32 on the background, so the importer has to ask for Read/Write -- the .meta files say
+            // so, but a machine that imported the art before v120 has the old ones and only the IMPORTER can
+            // change them in place without a re-import of the whole kit. Keep this list in step with
+            // tools/art/write_unity_metas.py READABLE; a gate fails if they drift.
+            readable += MakeReadable("Assets/Resources/Art/Kit/backgrounds/office_L0");
+            readable += MakeReadable("Assets/Resources/Art/Kit/backgrounds/office_L1");
+            readable += MakeReadable("Assets/Resources/Art/Kit/backgrounds/office_L2");
+            readable += MakeReadable("Assets/Art/Kit/backgrounds/office_L0");
+            readable += MakeReadable("Assets/Art/Kit/backgrounds/office_L1");
+            readable += MakeReadable("Assets/Art/Kit/backgrounds/office_L2");
+            readable += MakeReadable("Assets/Resources/Art/Kit/desk/desk_foreground");
+            readable += MakeReadable("Assets/Art/Kit/desk/desk_foreground");
+
             // The glyph atlas is a plain Texture2D that the runtime reads pixel-by-pixel
             // (Texture2D.GetPixels32). Unity imports textures with Read/Write DISABLED by default, which
             // throws "texture data is either not readable" the moment the CRT initialises. It is also not

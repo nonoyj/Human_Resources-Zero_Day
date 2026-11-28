@@ -28,6 +28,8 @@ namespace HRZeroDay.Tests
             yield return Check("two_taps_on_touch_only", TwoTapsOnTouchOnly);
             yield return Check("palette_ladder_is_authored", PaletteLadderIsAuthored);
             yield return Check("security_is_a_shape_before_a_number", SecurityIsAShapeBeforeANumber);
+            yield return Check("the_tube_lights_every_static_surface", TheTubeLightsEveryStaticSurface);
+            yield return Check("the_tube_lights_the_desk_not_the_floor", TheTubeLightsTheDeskNotTheFloor);
         }
 
         private static string Check(string name, Func<string> body)
@@ -123,6 +125,49 @@ namespace HRZeroDay.Tests
                  "the confirm window is " + MenuLayout.TouchConfirmSeconds + " s -- too short to press twice, " +
                  "or so long that a stale row fires");
             return "PASS  a thumb confirms twice, a mouse once";
+        }
+
+        /// <summary>
+        /// THE BUG THE PLAYER CAUGHT TWICE (v120, second pass). The tube was bound to ONE renderer --
+        /// `L_background` -- which is the picture MenuView replaces with its own composition, and which does
+        /// not contain the desk's props at all. So the light was baked into a menu backdrop and the desk in
+        /// front of the monitor stayed dark. The desk has seven static surfaces and every one of them must be
+        /// captured; the applicant is excluded BY NAME because it animates and must stay a sprite.
+        /// </summary>
+        private static string TheTubeLightsEveryStaticSurface()
+        {
+            var layout = File.ReadAllText(Path.Combine("unity", "Assets", "Resources", "desk_layout.json"));
+            True(layout.Contains("\"applicant\""), "the layout has no applicant layer, so this test is meaningless");
+            var src = File.ReadAllText(Path.Combine("unity", "Assets", "Scripts", "Game", "Desk", "ScreenLight.cs"));
+            True(src.Contains("layer.id == \"applicant\""), "ScreenLight does not exclude the animated applicant");
+            True(src.Contains("root.Find(\"L_\" + layer.id)"), "ScreenLight does not walk the layout's layers");
+            True(!src.Contains("Bind(SpriteRenderer background, SpriteRenderer monitor)"),
+                 "ScreenLight still takes a single background renderer -- that is the bug");
+            // and the desk builder must hand it the layout, not one sprite
+            var builder = File.ReadAllText(Path.Combine("unity", "Assets", "Scripts", "Game", "Desk",
+                                                         "DeskSceneBuilder.cs"));
+            True(builder.Contains("tube.Bind(root, layout)"), "the builder does not bind the tube to the layout");
+            return "PASS  the tube lights every static layer of the desk and leaves the applicant alone";
+        }
+
+        /// <summary>
+        /// THE OTHER HALF OF THE SAME BUG: the pool was anchored at row 172 on a canvas whose desk surface
+        /// starts at row 206 in the game's own layout -- above the surface, so the brightest part of the light
+        /// landed on the wall/monitor and the wood in front of it stayed dark. The centre must be BELOW the
+        /// surface line and inside the canvas.
+        /// </summary>
+        private static string TheTubeLightsTheDeskNotTheFloor()
+        {
+            True(Game.ScreenLight.ProjectY > Game.ScreenLight.DeskRow,
+                 "the tube's pool is centred above the desk surface (row " + Game.ScreenLight.ProjectY +
+                 " vs " + Game.ScreenLight.DeskRow + ") -- it lights the wall, not the desk");
+            True(Game.ScreenLight.ProjectY < Game.ScreenLight.CanvasH,
+                 "the tube's pool is off the bottom of the canvas");
+            True(Game.ScreenLight.ProjectY - Game.ScreenLight.DeskRow < 60,
+                 "the pool is centred half a screen below the surface -- it is lighting the floor");
+            True(Game.ScreenLight.GlassY < Game.ScreenLight.DeskRow,
+                 "the glass is below the desk surface, so the monitor is standing in the floor");
+            return "PASS  the pool is on the desk, in front of the tube, and inside the canvas";
         }
 
         /// <summary>

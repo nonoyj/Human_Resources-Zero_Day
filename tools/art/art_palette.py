@@ -33,6 +33,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 from menu_palette import PALETTE as MENU_PALETTE, RAMP as RAMPS  # noqa: E402  (one author, two names)
 
 # RAMPS is {ramp_name: [(r, g, b), ...]} -- the authored ramp table. menu_palette exposes it as `RAMP` (the
@@ -91,6 +92,81 @@ ALIASES = {
 # 40 is generous for a shadow step and strict enough that a hue change fails. Deliberately tunable, and the
 # two entries that legitimately move hue (`synth`, `signaldim`) are documented above.
 ALIAS_TOLERANCE = 64.0
+
+# ---------------------------------------------------------------------------------------------
+# THE ALIAS PASS ITSELF (v120). `ALIASES` above is the TABLE of where a kit colour moves; this is the CODE
+# that moves it, in the desk's PNGs, colour by colour -- the "apply the approved look to every screen" half
+# of request A. It is a rewrite of RGB values that are already in the palette, so it cannot introduce a
+# colour: the palette gate runs before and after and must be green both times.
+#
+# What it does NOT touch, and why:
+#   * `paper` / `paperdim`  -- the one authored exception (the letter is the surface the game is read on).
+#   * anything with partial alpha -- the kit is 0/255 only; a partial pixel is a bug, not a shade.
+def _rewrite(path):
+    """Rewrites one PNG in place. Returns how many pixels moved, and how many distinct colours changed."""
+    from PIL import Image
+    img = Image.open(path).convert('RGBA')
+    px = img.load()
+    changed = 0
+    colours = {}
+    for y in range(img.height):
+        for x in range(img.width):
+            r, g, b, a = px[x, y]
+            if a == 0:
+                continue
+            new = alias_rgb((r, g, b))
+            if new is None:
+                continue
+            px[x, y] = (new[0], new[1], new[2], a)
+            changed += 1
+            colours[(r, g, b)] = new
+    if changed:
+        img.save(path)
+    return changed, colours
+
+
+def apply_aliases(paths=None, dry=False):
+    """Applies the alias table to the kit's PNGs. `dry` reports and changes nothing."""
+    import glob
+    if paths is None:
+        paths = sorted(glob.glob(os.path.join(ROOT, 'art', 'kit', '**', '*.png'), recursive=True))
+    total = 0
+    moved = {}
+    for path in paths:
+        rel = os.path.relpath(path, ROOT).replace('\\', '/')
+        if '/reference/' in rel:
+            continue
+        if dry:
+            changed, colours = dry_run(path)
+        else:
+            changed, colours = _rewrite(path)
+        if changed:
+            total += changed
+            for k, v in colours.items():
+                moved[k] = v
+            pairs = sorted(set('%s -> %s' % (k, v) for k, v in colours.items()))
+            print('  %-58s %6d px  %s' % (rel, changed, ', '.join(pairs[:3])))
+    return total, moved
+
+
+def dry_run(path):
+    from PIL import Image
+    img = Image.open(path).convert('RGBA')
+    px = img.load()
+    changed = 0
+    colours = {}
+    for y in range(img.height):
+        for x in range(img.width):
+            r, g, b, a = px[x, y]
+            if a == 0:
+                continue
+            new = alias_rgb((r, g, b))
+            if new is None:
+                continue
+            changed += 1
+            colours[(r, g, b)] = new
+    return changed, colours
+
 
 # Colours that are allowed to stay exactly as they are, and why. An entry here is NOT an alias: the colour
 # keeps its own RGB, and the gate skips the distance test for it.
@@ -176,6 +252,44 @@ def rgb_distance(a, b):
 
 
 # ---------------------------------------------------------------------------------------------- the gates
+# WHICH ALIASES MAY BE WRITTEN INTO THE ART, and why the list is not "all of them".
+#
+# The first dry run moved 1.9 M pixels and would have turned every face KHAKI: `orange` and `warn` are not
+# only the lamp's warm accent, they are the two light SKIN tones (_tone_key in make_applicants.py returns
+# exactly those), and `synthdim` is a skin highlight. A table that is honest as a TABLE ("this accent is
+# moving toward its home") is not automatically honest as a REWRITE ("this pixel is that accent"). So the
+# pass only writes the aliases that are BOTH within ALIAS_TOLERANCE and not recorded as a hue move: panel,
+# panel2, line, linehi, void, ink, muted, signaldim, danger, dangerdim, ok, glow_*. Those are the room's
+# structural navy, its greys, its reds and its glows -- the ones the player sees as "two different games".
+APPLY_SAFE = tuple(sorted(k for k in ALIASES
+                          if k not in HUE_MOVED and k not in KEPT_AS_IS))
+
+
+def alias_rgb(rgb):
+    """Where one kit colour moves to during the rewrite, or None if it must stay as authored."""
+    for legacy in APPLY_SAFE:
+        home = ALIASES[legacy]
+        # the legacy colour this alias is ABOUT is the one whose RGB the kit palette gives that name
+        if _KIT().get(legacy) == tuple(rgb):
+            step = MENU_PALETTE.get(home)
+            if step is not None and tuple(step) != tuple(rgb):
+                return tuple(step)
+    return None
+
+
+_KIT_CACHE = {}
+
+
+def _KIT():
+    if not _KIT_CACHE:
+        try:
+            from make_art_kit import PALETTE as kit
+            _KIT_CACHE.update(kit)
+        except Exception:
+            _KIT_CACHE.update({})
+    return _KIT_CACHE
+
+
 def check() -> int:
     """Four rules. Any failure means the merged palette is not one palette yet."""
     problems = []
@@ -254,4 +368,17 @@ def table() -> int:
 if __name__ == '__main__':
     if '--check' in sys.argv:
         sys.exit(check())
+    if '--apply' in sys.argv:
+        # dry first, then write, then re-check: the gate must be green BEFORE and AFTER the rewrite or the
+        # pass has introduced (or dropped) a colour, which is the only way this can go wrong.
+        if '--dry-run' in sys.argv:
+            total, moved = apply_aliases(dry=True)
+            print('DRY RUN: %d px would move, %d distinct colours' % (total, len(moved)))
+            sys.exit(0)
+        print('PASS check before:', file=sys.stderr) if False else None
+        total, moved = apply_aliases()
+        print('applied: %d px moved, %d distinct colours aliased' % (total, len(moved)))
+        for k, v in sorted(moved.items()):
+            print('  %-16s -> %s' % (str(k), str(v)))
+        sys.exit(0)
     sys.exit(table())

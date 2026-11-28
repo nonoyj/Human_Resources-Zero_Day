@@ -64,7 +64,7 @@ is the single entry point for an options screen.
 ## 5. Judging it without Unity
 
 - `python tools/audio/preview_audio.py` → `art/kit/reference/audio_sheet.png` (levels, the bed's loop
-  seam, a spectrogram per cue) **and** `art/kit/reference/desk_minute.wav` — 22 seconds of the bed plus the
+  seam, a spectrogram per cue) **and** `%TEMP%\desk_minute.wav` (written by `tools/audio/preview_audio.py`) — 22 seconds of the bed plus the
   nine cues in the order a player meets them. That file is a reference, not a game asset.
 - `python tools/audio/make_audio.py --check` → fails if a WAV is missing, stale or the wrong format.
 - The art gate runs both, plus: every WAV has an audio `.meta` in Resources, and every cue name in the C#

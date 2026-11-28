@@ -20,6 +20,7 @@
 //   The palette list is also the whitelist: a pixel that is not in it has no step, so an off-palette pixel
 //   (there are none in a correct build; the palette gate enforces it) is simply never touched by light.
 using System.Collections.Generic;
+using HRZeroDay.Core.Rules;
 using UnityEngine;
 
 namespace HRZeroDay.Game
@@ -30,7 +31,17 @@ namespace HRZeroDay.Game
         private static Dictionary<Color32, Color32> _down;
         private static Dictionary<string, Color32> _byKey;
 
-        /// <summary>colour -> one step brighter in the same material. Null when the palette is unreadable.</summary>
+        /// <summary>
+        /// colour -> one step brighter in the same material.
+        ///
+        /// IT IS A CHAIN, NOT A PAIR (v120, second pass). The first version read `material_N -> material_N+1`
+        /// straight out of the published palette, which is right -- but MenuView's light does not walk the
+        /// palette, it walks `MenuLayout.Ramps`, a table of ONE-STEP PAIRS (wood_1->wood_2, wood_2->wood_3,
+        /// ...). Following the pairs and joining them gives every material a whole ladder, which is what the
+        /// menu's picture is actually made of: a warm wood that can climb four steps toward the lamp instead of
+        /// stopping at the second one. Without the chain the desk's light could reach `wood_2` and no further,
+        /// so lighting it looked like nothing happened -- the "the desk does not look like the menu" report.
+        /// </summary>
         public static Dictionary<Color32, Color32> Up { get { Ensure(); return _up; } }
 
         /// <summary>colour -> one step darker in the same material: the shadow side of a form.</summary>
@@ -57,8 +68,21 @@ namespace HRZeroDay.Game
                                  "nothing. Run HR//0D > Import Art Kit.");
                 return;
             }
-            // the ladder: `name_N` -> `name_N+1`, which is exactly what art_palette.py's RAMP holds. A name
-            // that does not parse (brass, stamp, paper) simply has no step in that direction.
+            // THE MENU'S OWN TABLE FIRST. MenuLayout.Ramps is the authored list of one-step pairs the front
+            // door's light walks, so using it means the desk and the menu climb the SAME ladder -- which is
+            // the whole point of the round. Each pair is added, and then followed to build the chain, so a
+            // material with four authored steps gets four steps here too.
+            for (int i = 0; i < MenuLayout.Ramps.GetLength(0); i++)
+            {
+                Color32 from, to;
+                if (!_byKey.TryGetValue(MenuLayout.Ramps[i, 0], out from)) continue;
+                if (!_byKey.TryGetValue(MenuLayout.Ramps[i, 1], out to)) continue;
+                if (!_up.ContainsKey(from)) _up[from] = to;
+                if (!_down.ContainsKey(to)) _down[to] = from;
+            }
+
+            // then anything the table does not name, by the palette's own `material_N` naming, so a material
+            // added to the palette before it is added to the menu still lights correctly.
             foreach (var pair in _byKey)
             {
                 int cut = pair.Key.LastIndexOf('_');
@@ -67,8 +91,8 @@ namespace HRZeroDay.Game
                 if (!int.TryParse(pair.Key.Substring(cut + 1), out n)) continue;
                 Color32 brighter;
                 if (!_byKey.TryGetValue(pair.Key.Substring(0, cut) + "_" + (n + 1), out brighter)) continue;
-                _up[pair.Value] = brighter;
-                _down[brighter] = pair.Value;
+                if (!_up.ContainsKey(pair.Value)) _up[pair.Value] = brighter;
+                if (!_down.ContainsKey(brighter)) _down[brighter] = pair.Value;
             }
         }
 

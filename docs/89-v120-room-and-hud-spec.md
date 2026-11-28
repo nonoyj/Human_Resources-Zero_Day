@@ -239,3 +239,34 @@ look can be reviewed without opening Unity.
   is the state, `Desk_Bootstrap.MenuClick(x, y, touch)` is the wiring;
 * the lamp's hover now walks **the whole fixture** and **its pool** up their ramps, and fades back when the
   pointer leaves, instead of painting three rows of amber under the shade.
+
+---
+
+## 9. What the player's first session found (v125 -> v125.1), and what it cost
+
+Four failures, reported with a log rather than a complaint. Each one is a class of bug, so each one gets a
+rule, and every rule is now checked by something that runs.
+
+| # | The report | What it actually was | The fix | The gate |
+|---|---|---|---|---|
+| 1 | `Test-ArtPipeline.ps1` will not parse: "The Try statement is missing its Catch or Finally block" | **My own edit.** I added a block with an unclosed `if` under the `try`. The file was fine in `211594f`; the fix is to revert and re-apply seven lines, not to restructure it. | the gate ran again the same day | the file is reverted to the committed version plus one insertion, and `git diff` is 7 lines |
+| 2 | `[HR//0D] ScreenLight: the background is not readable` | the room, the desk and the monitor were imported with `isReadable: 0`, so `GetPixels32` threw and the tube did nothing at all | `write_unity_metas.py` READABLE + `ArtKitImporter` both now ask for Read/Write on `backgrounds/office_L0..L2` and `desk/desk_foreground` | `publish_to_unity.py --verify` fails if a readable asset stops being readable |
+| 3 | "the monitor reads as if it is switched off" still, after my fix | **the tube was lighting the wrong sprite.** It was handed `L_background`, which is the picture `MenuView` REPLACES with its own composition at the front door -- and which never contained the desk's props. The desk in front of the glass stayed dark because nothing had ever touched it. | `ScreenLight` now captures EVERY static layer of the layout (room, monitor, stand, papers, desk), converts bottom-up -> top-down once, lights each in place, and leaves the animated applicant alone | `LightingTests.the_tube_lights_every_static_surface` asserts the code walks the layout and no longer takes a single renderer |
+| 4 | "clicking the lamp only lights the objects behind it, not the desk and the paper" | the pool's centre was row **172** on a canvas whose desk surface starts at **206 in the game's layout** (the twin uses 150 for the menu's desk) -- i.e. the brightest part of the cone was *under the desk's front face*, and the bounce sat at row 180, in the floor. | the cone leaves the shade's mouth (row 158) and the bounce lies ON the surface (`DeskY+34`); the pool is derived from the desk band | `LightingTests.the_tube_lights_the_desk_not_the_floor` asserts `ProjectY > DeskRow` and `ProjectY - DeskRow < 60` |
+
+And one thing the player asked for twice that the table alone could not deliver:
+
+* **"clicking new game/continue still shows the old art and it does not look like the new menu"** -- because
+  the alias table was a *description* of where the kit's colours should go, and nothing had applied it. It
+  is applied now: `python tools/art/art_palette.py --apply` rewrites the desk's PNGs colour by colour (13
+  distinct colours, ~1.8 M pixels), and the kit's navy/steel/red now sit on the front door's own ramp steps.
+  What it refuses to touch is as important as what it moves: `orange`, `warn` and `synthdim` are **skin
+  tones** as well as accents, so moving them turned every face khaki in the dry run -- they stay, and the
+  skin ramp is unchanged. The desk also had to be able to climb more than one step for the light to show, so
+  `PaletteLadder` now follows `MenuLayout.Ramps` and joins the pairs into a whole chain (`wood_1 -> ... ->
+  wood_4`), which is exactly the ladder the menu's own light walks.
+
+**Workspace size (also asked for).** `art/kit/reference` was 44 files / 2.8 MB of review sheets, twelve of
+them the player's own screenshots from closed rounds, all of it duplicated into `unity/Assets/Art/Kit/`.
+It is 27 files / 0.5 MB now, with a README that says what is kept and why; the review WAV is written to
+`%TEMP%` instead of into the repo; and the bundle builder replaces `vNN` instead of accumulating them.

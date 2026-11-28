@@ -25,6 +25,12 @@ is a person and who is a synthetic. 480×270, Unity 6, painterly pixel art. Wind
 
 ## Current state
 
+**v125.1 is the build to play.** v125 was tested on the machine and reported four real failures, all fixed
+here: the art gate did not PARSE (a `try` I left unclosed in `Test-ArtPipeline.ps1`), the tube could not read
+the room (Read/Write was off on the backgrounds), the tube's light was baked into the wrong renderer, and the
+lamp's pool was centred on the FLOOR. The palette's alias table is now APPLIED to the art, not just written
+down. See `docs/89-v120-room-and-hud-spec.md` §9.
+
 **The v120 look is in**: one palette (the desk's kit colours are aliases onto the front door's ramps), a
 wide window with an empty centre opening that the applicant stands inside, a lamp that lights the desk
 instead of the wall, and a tube that is genuinely ON — it lights the desk, the props and their shadows.
