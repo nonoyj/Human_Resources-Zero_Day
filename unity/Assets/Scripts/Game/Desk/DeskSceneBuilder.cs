@@ -37,6 +37,19 @@ namespace HRZeroDay.Game
                 var existing = parent.Find(RootName);
                 if (existing != null) Object.DestroyImmediate(existing.gameObject);
             }
+            else
+            {
+                // NO PARENT MEANS "IN THE OPEN SCENE", so the open scene's desk is this desk's predecessor.
+                // v129 removed a stale root only when a parent was given; the player's v130 screenshot had
+                // THREE applicants side by side because GameBoot built a desk next to the one HR//0D >
+                // Build Desk Scene had already saved. A builder that can run twice must clean up first.
+                for (int i = 0; i < 8; i++)
+                {
+                    var stale = GameObject.Find(RootName);
+                    if (stale == null) break;
+                    Object.DestroyImmediate(stale);
+                }
+            }
 
             var root = new GameObject(RootName).transform;
             root.SetParent(parent, false);
@@ -118,21 +131,28 @@ namespace HRZeroDay.Game
             var tube = ScreenLight.Attach(root);
             if (tube != null) tube.Bind(root, layout);
 
-            // ---- THE SECOND PRACTICAL (v130). The player asked for more light in the game's room and for the
-            // lamp to be testable. The fixture is a layer now (desk/lamp_M.png); this finds it and gives the
-            // driver something to switch. The clock's hands are the same idea for time instead of light.
+            // ---- THE SECOND PRACTICAL (v130, hardened in v130.1 after BUG-031)
+            // The player's screenshot: "[HR//0D] could not start the game: There is no 'SpriteRenderer'
+            // attached to the "Lamp" game object". The controller used to add a SpriteRenderer to ITSELF and
+            // then copy the lamp layer's sprite onto it -- so the fixture was drawn twice, at two sorting
+            // orders, and every run depended on that second renderer existing. It does not need to:
+            // L_lamp IS the fixture. The controller is handed that layer and switches its colour.
             var lamp = LampView.Attach(root);
-            var lampLayer = created.ContainsKey("lamp") ? created["lamp"] : null;
-            if (lampLayer != null)
+            GameObject lampLayer = null;
+            created.TryGetValue("lamp", out lampLayer);
+            if (lamp != null)
             {
-                var lr = lampLayer.GetComponent<SpriteRenderer>();
-                if (lr != null)
+                if (lampLayer != null)
                 {
-                    lamp.GetComponent<SpriteRenderer>().sprite = lr.sprite;
-                    lamp.GetComponent<SpriteRenderer>().sortingOrder = lr.sortingOrder + 1;
-                    lr.enabled = false;                 // the view draws the lamp, lit or not, once
+                    // the layer keeps its own sorting order -- it is already above the wood and under the lip
+                    lamp.Bind(lampLayer.GetComponent<SpriteRenderer>());
                 }
-                lampLayer.transform.position = lampLayer.transform.position;
+                else
+                {
+                    // no lamp layer in the layout: the light still exists, and saying so beats a crash
+                    Debug.LogWarning("[HR//0D] the layout has no 'lamp' layer, so the room's lamp has no " +
+                                     "fixture to switch. The light is still in LightRig.ForDesk.");
+                }
             }
             var clock = RoomClockView.Attach(root);
             var lightDriver = root.gameObject.GetComponent<DeskLightDriver>();

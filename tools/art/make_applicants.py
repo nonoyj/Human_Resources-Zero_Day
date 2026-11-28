@@ -952,16 +952,38 @@ def check() -> int:
     return 0
 
 
+# ===================================================================================== RETIRED (v130.2)
+# BUG-032: this file and make_applicant_M.py both wrote art/kit/applicants/app_<key>_192x216.png. In v130 I
+# ran this one to add skin variety and it silently REPLACED every approved v127 applicant with the older
+# drawing -- fists on a drawn desk edge, cartoon orange. Both painters passed the palette gate, so no test
+# could see it; the player saw it in one screenshot ("the applicant's art seems to have reverted back to the
+# older version").
+#
+# A file that can be written by two generators has no owner. This one is retired: it keeps --check (so the
+# historical sprites it painted can still be validated) and refuses to paint. The variant table in
+# make_applicant_M.py is now the only list of who exists.
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--check', action='store_true')
+    ap.add_argument('--i-know-this-is-retired', action='store_true', help=argparse.SUPPRESS)
     args = ap.parse_args()
+    if not args.check and not args.i_know_this_is_retired:
+        print('RETIRED: make_applicants.py no longer writes applicant sprites.')
+        print('  It wrote the same filenames as make_applicant_M.py, and in v130 it overwrote the approved')
+        print('  v127 artwork without failing a single gate (BUG-032).')
+        print('')
+        print('  Paint the cast with:   python tools/art/make_applicant_M.py')
+        print('  Validate what is on disk:   python tools/art/make_applicants.py --check')
+        return 2
     if args.check:
         return check()
     if not HAVE_PIL:
         print("Pillow is required to REGENERATE sprites, but not to check them.")
         print("  pip install pillow")
         print("Or verify what is committed:  python tools/art/make_applicants.py --check")
+        return 2
+    if not args.i_know_this_is_retired:
+        print('RETIRED: refusing to write. See the note above main().')
         return 2
     root = os.path.normpath(OUT)
     made = []

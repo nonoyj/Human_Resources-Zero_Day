@@ -14,7 +14,7 @@
     "targetFrameRate": 60
   },
   "counts": {
-    "applicants": 15,
+    "applicants": 28,
     "portraits": 14,
     "ui": 18,
     "icons": 18,
@@ -35,7 +35,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "1b658868f39d4c31",
+      "sha256_16": "70fa4ce52fd164fb",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -92,7 +92,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "9f9363dc33417b5c",
+      "sha256_16": "e013a193a66f1256",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -149,7 +149,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "efd5d627e7b2515a",
+      "sha256_16": "02a0eae6460cb8a5",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -206,7 +206,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "fb486632b70f9add",
+      "sha256_16": "4bc7ad4c531ecae4",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -263,7 +263,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "8c17d54e3c953f81",
+      "sha256_16": "79b658788b8f550b",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -320,7 +320,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "acf3971898af38b5",
+      "sha256_16": "038865a9689a81c7",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -377,7 +377,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "1289297ea7a86733",
+      "sha256_16": "06b5cbb47e8e8215",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -434,7 +434,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "deb6393a388347ee",
+      "sha256_16": "82b273fd5bd92116",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -491,7 +491,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "9c73304af075bdb7",
+      "sha256_16": "8ab750d9b696e513",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -548,7 +548,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "3ed03e23c70ccd1d",
+      "sha256_16": "b095fcfe281f53e9",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -605,7 +605,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "511b42c1f5009cca",
+      "sha256_16": "a3915e622028ac91",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -662,7 +662,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "b7f26b6a93c8e843",
+      "sha256_16": "a3c1a0cbb59c1621",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -719,7 +719,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "2d49816592048777",
+      "sha256_16": "1812dfa20a11d802",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -776,7 +776,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "739278f2da691210",
+      "sha256_16": "225a8d9cf56b87a7",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -833,7 +833,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "applicant",
-      "sha256_16": "4a1e7401cdad90dc",
+      "sha256_16": "ab729dabe2a4d224",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -856,6 +856,396 @@
       ]
     },
     {
+      "source": "art/kit/applicants/bust_human_bait_a_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/bust_human_bait_a_192x216.png",
+      "width": 192,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "applicant",
+      "sha256_16": "a3d09372ea81ffc3",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "bust_human_bait_a_192x216",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/bust_human_bait_b_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/bust_human_bait_b_192x216.png",
+      "width": 192,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "applicant",
+      "sha256_16": "0f666a4e0364807d",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "bust_human_bait_b_192x216",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/bust_human_nervous_a_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/bust_human_nervous_a_192x216.png",
+      "width": 192,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "applicant",
+      "sha256_16": "68594dbe88e8651a",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "bust_human_nervous_a_192x216",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/bust_human_nervous_b_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/bust_human_nervous_b_192x216.png",
+      "width": 192,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "applicant",
+      "sha256_16": "4819e46a7e1ba5e0",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "bust_human_nervous_b_192x216",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/bust_human_solid_b_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/bust_human_solid_b_192x216.png",
+      "width": 192,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "applicant",
+      "sha256_16": "deaca6cf75aab40d",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "bust_human_solid_b_192x216",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/bust_human_solid_c_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/bust_human_solid_c_192x216.png",
+      "width": 192,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "applicant",
+      "sha256_16": "b069c412bfbd6bee",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "bust_human_solid_c_192x216",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/bust_synthetic_cloned_a_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/bust_synthetic_cloned_a_192x216.png",
+      "width": 192,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "applicant",
+      "sha256_16": "058c9d4ed8e708dd",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "bust_synthetic_cloned_a_192x216",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/bust_synthetic_cloned_b_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/bust_synthetic_cloned_b_192x216.png",
+      "width": 192,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "applicant",
+      "sha256_16": "45c3876dc42933af",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "bust_synthetic_cloned_b_192x216",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/bust_synthetic_collusion_a_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/bust_synthetic_collusion_a_192x216.png",
+      "width": 192,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "applicant",
+      "sha256_16": "16af230a1459e74d",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "bust_synthetic_collusion_a_192x216",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/bust_synthetic_collusion_b_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/bust_synthetic_collusion_b_192x216.png",
+      "width": 192,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "applicant",
+      "sha256_16": "4989f4e258f03fe5",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "bust_synthetic_collusion_b_192x216",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/bust_synthetic_polished_a_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/bust_synthetic_polished_a_192x216.png",
+      "width": 192,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "applicant",
+      "sha256_16": "51dbbfd736498c01",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "bust_synthetic_polished_a_192x216",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/bust_synthetic_polished_b_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/bust_synthetic_polished_b_192x216.png",
+      "width": 192,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "applicant",
+      "sha256_16": "eb5d6caf87ded68a",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "bust_synthetic_polished_b_192x216",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/bust_synthetic_polished_c_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/bust_synthetic_polished_c_192x216.png",
+      "width": 192,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "applicant",
+      "sha256_16": "d573b7e86aa2f2a1",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "bust_synthetic_polished_c_192x216",
+          "rect": [
+            0,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
       "source": "art/kit/portraits/portrait_human_bait_a_96x96.png",
       "assetPath": "Assets/Art/Kit/portraits/portrait_human_bait_a_96x96.png",
       "width": 96,
@@ -863,7 +1253,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "78eab95f94bd9d6b",
+      "sha256_16": "4c9945fb46e58653",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -882,7 +1272,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "a8faad4880b5b781",
+      "sha256_16": "af019f03d96a80f9",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -901,7 +1291,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "ee7294b68f643cbb",
+      "sha256_16": "76a5a8c9a0892351",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -920,7 +1310,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "675831177f33d772",
+      "sha256_16": "a72044b9d1957ab3",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -939,7 +1329,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "aba497c7b0a81068",
+      "sha256_16": "6a6bcad4ece431ab",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -958,7 +1348,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "525e809d5d051cb7",
+      "sha256_16": "9c602372b0d4349b",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -977,7 +1367,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "a4d2b00b30f974a0",
+      "sha256_16": "ecd32265d229d5ec",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -996,7 +1386,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "63870651d461260d",
+      "sha256_16": "80416f39f3ea2bb4",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1015,7 +1405,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "4ec06937e3d4f695",
+      "sha256_16": "77af297c06ed48f5",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1034,7 +1424,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "aa9c1181c0f76cea",
+      "sha256_16": "2087c9945bbcd7b0",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1053,7 +1443,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "325f59607c81f441",
+      "sha256_16": "1b4c6a2d431a7d9f",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1072,7 +1462,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "bea70f94f324dcef",
+      "sha256_16": "5898eadf52728568",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1091,7 +1481,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "b8425b2cc3443233",
+      "sha256_16": "1b11e460a9e2fa63",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1110,7 +1500,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "a62edf6b7e606b54",
+      "sha256_16": "6c89e7a7f81de732",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",

@@ -98,6 +98,14 @@ RAMPS = {
     # shadows go red-violet, highlights go yellow.
     'skin':  [(16, .58, .115), (22, .60, .200), (28, .55, .290), (34, .44, .420)],
     # the one cold note on a face: the rim the window puts down his temple and shoulder
+    # SKIN, SECOND SET (v130.2). The player asked for "varieties of the applicant" and got fourteen people
+    # sharing one complexion: the four TONES the generator offered all resolved into the same `skin` ramp, so
+    # the cast was one family with different hair. A deeper complexion on a low-key frame CANNOT be faked by
+    # darkening -- the shadow side of `skin_0` is already 0.115, and two more steps down is the floor. So deep
+    # skin needs its own FAMILY with more room: same warm hue territory, a longer run, and a mid tone that
+    # sits where the light can still reach it (0.30, not 0.45). Authored as a second ramp rather than a
+    # second code path, because a separate ramp is what lets the light pass step it correctly.
+    'skin2': [(12, .68, .078), (18, .66, .140), (26, .60, .205), (34, .52, .275)],
     'skinrim': [(206, .40, .230), (196, .34, .300), (188, .26, .440)],
     # HAIR (v130). The applicant generator has drawn hair from `void`/`ink`/`panel2` -- the room's darkest
     # UI colours -- since v9, so every head in the game wore a black helmet and the four hair colours the

@@ -98,3 +98,56 @@ add the entry here.
 6. **Did the change land where I think?** (`grep -n`, then run the file)
 7. **Is it ASCII?** (the Windows parse gate)
 8. **Would a contact sheet show it?** (if yes, make the sheet)
+
+---
+
+## H. v130.1 -- the four the player found in one screenshot (the newest, so read these first)
+
+### H1. TWO GENERATORS, ONE FILENAME (BUG-032)
+- **What the player saw:** "Applicant's art seems to have reverted back to the older version."
+- **What happened:** `tools/art/make_applicants.py` (old, waist-up with fists on a drawn desk) and
+  `tools/art/make_applicant_M.py` (the v127 approved bust) both wrote
+  `art/kit/applicants/app_<key>_192x216.png`. In v130 I ran the OLD one to add skin variety to the palette,
+  and it overwrote every approved applicant. Every gate stayed green: both painters are palette-clean and
+  both produce a valid 4-cell strip.
+- **RULE: a file that can be written by two generators has no owner.** When a second generator appears for
+  the same output, one of them is retired in the same commit (`make_applicants.py` now refuses to paint and
+  prints the survivor's name), and the survivor owns the WHOLE table of what exists.
+- **RULE: when the player says "it reverted", believe the words and `git log -p` the binary.** In this repo
+  `git log --oneline -- <sprite>` names the commit that changed it; the size and the bbox name the culprit.
+
+### H2. A VARIANT TABLE IS NOT VARIETY (BUG-033)
+- **What the player saw:** fourteen "variants" that were one person in fourteen hats.
+- **What happened:** the identity table keyed tone to a PLACE on one ramp, and four of the five tones
+  collapsed into the same steps -- so every family shared a complexion. Skin variety needs more than one
+  ramp (`skin` and `skin2`), and every identity axis (hair colour, style, glasses, beard, tone) has to be
+  varied ACROSS the fourteen, not stored per variant and forgotten.
+- **RULE: look at the contact sheet, not at the count.** `make_applicant_M.py --contact-sheet` renders all
+  fourteen side by side; a count passing is not a cast passing (orders/09 F1).
+
+### H3. FOUR IDENTICAL FRAMES IS A BROKEN MECHANIC (the blink)
+- **What happened:** v127 wrote one drawing into all four cells, so the idle did nothing -- and `no_blink`
+  (a synthetic that never blinks) stopped being observable at all.
+- **RULE: an animation is the only place some mechanics live.** If the four frames are byte-identical the
+  test can see it, and there is a gate for it now (`variety_frames_are_not_copies`). Breathing, a blink and
+  a fidget are three DIFFERENT drawings, not one picture with a one-pixel nudge.
+
+### H4. A VIEW MAY NOT DEREFERENCE A COMPONENT IT DID NOT CREATE (BUG-031)
+- **What the player saw:** `could not start the game: There is no 'SpriteRenderer' attached to the "Lamp"
+  game object` -- a black desk instead of the game.
+- **What happened:** `LampView.Awake()` did `GetComponent<SpriteRenderer>()`, and the lamp controller was
+  added to a GameObject that had no renderer (the fixture was a separate layer). `AddComponent<>` throws only
+  for a missing SCRIPT; a missing component is a null, and a null in `Awake` is an exception inside `Start`
+  -- which is why the whole desk never built.
+- **RULE: a controller is handed what it needs. If it cannot have it, it says so once and does nothing.**
+  Use `TryGetComponent`, never a bare `GetComponent` in `Awake`, and `Bind(renderer)` for anything that is
+  created by someone else.
+
+### H5. A BUILDER THAT CAN RUN TWICE MUST CLEAN UP FIRST (the three applicants)
+- **What the player saw:** three identical applicants side by side in the Game view.
+- **What happened:** `Build` only removed a stale `DeskRoot` when it was given a parent. `GameBoot` passes
+  `null`, so each Play added a desk next to the previous one -- and the previous one came from the scene
+  `HR//0D > Build Desk Scene` had saved.
+- **RULE: "build" means "the world contains exactly one of these when I am done".** Find and destroy the
+  old root first, in the builder itself, so the editor menu and Play mode cannot disagree.
+

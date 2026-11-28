@@ -5,6 +5,7 @@
 // "the shadow gets stronger on the side against the monitor" is only true if a NUMBER goes up.
 using System;
 using System.Collections.Generic;
+using HRZeroDay.Core.Data;
 using HRZeroDay.Core.Rules;
 
 namespace HRZeroDay.Tests
@@ -54,6 +55,7 @@ namespace HRZeroDay.Tests
             yield return Check("clock_words_match_the_hour", ClockWordsMatchTheHour);
             yield return Check("variety_every_variant_ships", VarietyEveryVariantShips);
             yield return Check("variety_is_stable_and_spread", VarietyIsStableAndSpread);
+            yield return Check("variety_frames_are_not_copies", VarietyFramesAreNotCopies);
         }
 
         private static string Check(string name, Action body)
@@ -342,6 +344,44 @@ namespace HRZeroDay.Tests
         /// Every key Appearances can return must be a PNG the manifest lists. A key with no file is a blank
         /// applicant, which the player would read as a rendering bug -- or worse, as a tell.
         /// </summary>
+        /// <summary>
+        /// BUG-033 (v130.1). The strip's four cells were the SAME PICTURE four times -- v127 wrote the bust
+        /// into all four, so the idle did nothing and the one mechanic that lives in the animation (`no_blink`,
+        /// a synthetic that never blinks) silently stopped existing. A gate cannot see "this looks alive", but
+        /// it can see that frame 0 and frame 3 are not the same bytes.
+        /// </summary>
+        private static void VarietyFramesAreNotCopies()
+        {
+            var root = RepoRoot();
+            int checkedStrips = 0;
+            foreach (var key in Appearances.AllKeys())
+            {
+                var a = System.IO.Path.Combine(root, "art", "kit", "applicants", "app_" + key + "_192x216.png");
+                if (!System.IO.File.Exists(a)) throw new Exception(key + ": no strip on disk");
+                var bytes = System.IO.File.ReadAllBytes(a);
+                checkedStrips++;
+                if (bytes.Length < 4000)
+                    throw new Exception(key + ": the strip is suspiciously small (" + bytes.Length + " bytes)");
+            }
+            True(checkedStrips >= 14, "expected at least fourteen variants, found " + checkedStrips);
+
+            // the four frames of the LAYOUT's own applicant must differ, checked on the frame PNGs the game
+            // actually loads rather than on the sheet they were cut from
+            var framesDir = System.IO.Path.Combine(root, "unity", "Assets", "Resources", "Art", "Kit",
+                                                   "applicants", "frames");
+            if (!System.IO.Directory.Exists(framesDir)) return;
+            var neutral = System.IO.Path.Combine(framesDir, "app_human_solid_a_192x216__human_solid_a_neutral.png");
+            var blink = System.IO.Path.Combine(framesDir, "app_human_solid_a_192x216__human_solid_a_blink.png");
+            if (System.IO.File.Exists(neutral) && System.IO.File.Exists(blink))
+            {
+                var n = System.IO.File.ReadAllBytes(neutral);
+                var b = System.IO.File.ReadAllBytes(blink);
+                bool same = n.Length == b.Length;
+                for (int i = 0; same && i < n.Length; i++) if (n[i] != b[i]) same = false;
+                True(!same, "frame 0 and frame 3 are identical: the blink is not drawn, so the idle is a still");
+            }
+        }
+
         private static void VarietyEveryVariantShips()
         {
             var root = RepoRoot();

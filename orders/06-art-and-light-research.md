@@ -51,7 +51,7 @@ the contact point. Measured twin: `tools/comp/preview_lightrig.py`. Gates: `Ligh
 - **A prop belongs in the surface's layer** so it inherits the contact shadow, the shared light and the shared
   perspective. (BUG-019, learned the hard way.)
 
-**In this repo:** `desk_slab_sprite()` in `tools/art/make_desk_room.py` paints wood → props → contact shadow →
+**In this repo:** `desk_slab_sprite()` in `tools/art/make_desk_room.py` paints wood -> props -> contact shadow ->
 light pool, in that order. `LightRig.ContactBand = 5` rows is the flat-shadow rule as a constant, and
 `LightRigTests.shadows_strengthen_toward_the_lit_side` measures it.
 
@@ -65,14 +65,14 @@ light pool, in that order. `LightRig.ContactBand = 5` rows is the flat-shadow ru
 **In this repo:** `LightRig.ForDesk(tubeOn, ...)` / `ForMenu(tubeOn, lampOn, ...)`; the tube carries a **core
 pool plus a wide, weak spill lobe** (`WithSpill`) because a real light has a near field and a far field -- one
 ellipse cannot both floodlight the mouse and reach the coffee. Measured (v130, `preview_lightrig.py`):
-wood under the tube **0.22 → 2.52** steps; wall above it **0.00 → 0.32**; the coffee's monitor-side flank
-**0.13 → 0.62** against its far flank **0.06 → 0.38**; keyboard **0.20 → 2.35**.
+wood under the tube **0.22 -> 2.52** steps; wall above it **0.00 -> 0.32**; the coffee's monitor-side flank
+**0.13 -> 0.62** against its far flank **0.06 -> 0.38**; keyboard **0.20 -> 2.35**.
 
 ## 5. MOBILE: THE FINGER IS NOT A MOUSE
 
 | Rule | Number | Source |
 |---|---|---|
-| Minimum tap target | **44pt iOS / 48dp Android** (≈48 px at 480x270 is *not* enough -- see below) | [5][6] |
+| Minimum tap target | **44pt iOS / 48dp Android** (~48 px at 480x270 is *not* enough -- see below) | [5][6] |
 | Spacing between targets | **8dp minimum** | [5][6] |
 | Primary actions | **bottom third / thumb arc**, not top corners | [5] |
 | States that must be distinguishable | enabled, disabled, **hover (pointer only)**, focused, pressed | [6] |
@@ -81,7 +81,7 @@ wood under the tube **0.22 → 2.52** steps; wall above it **0.00 → 0.32**; th
 | Contrast | **4.5:1** for body text, 3:1 for large text | [6] |
 
 **The canvas conversion, done once, here:** the game is 480x270 and the phone is 16:9-ish, so **1 canvas px is
-3-4 device px** on a phone. A 48dp target (≈144-192 device px) is therefore **36-48 canvas px**. That is why
+3-4 device px** on a phone. A 48dp target (~144-192 device px) is therefore **36-48 canvas px**. That is why
 `HudRules`' plates are 12-24 px tall on the canvas: they are drawn small and hit-tested **padded**, which is the
 "visual smaller than hit area" pattern in [5]. `HotspotHitTest` already pads; `HudTests` asserts
 `hit_test_safe_area_and_overlap`.
@@ -123,7 +123,7 @@ dead).
 - A clock on the wall is **furniture**, not a readout -- it belongs in the room's light and its perspective.
 - It must be **derived from the same clock the game runs on**, or it is a second truth and it will lie.
 
-**In this repo (v130):** `Core/Rules/RoomClock.cs` (08:40 → 00:00, clamped, monotonic, hands snapped to whole
+**In this repo (v130):** `Core/Rules/RoomClock.cs` (08:40 -> 00:00, clamped, monotonic, hands snapped to whole
 pixels), `Game/Desk/RoomClockView.cs` (rotates the hands on the face the room painted), gate
 `LightRigTests.clock_*`. `Resident Evil`-style diegetic readouts are the reason: the HUD says "how long have I
 got", the wall says "how late is it".

@@ -16,6 +16,16 @@
 //     frame -- both are the same integer step operation the tube uses, so a lamp and a tube cannot look like
 //     two different games.
 //
+// BUG-031 (the player's screenshot, v130.1): "[HR//0D] could not start the game: There is no
+//     'SpriteRenderer' attached to the "Lamp" game object, but a script is trying to access it."
+//     Why it happened, exactly: THIS component does not need a SpriteRenderer -- it drives the layer that
+//     DeskSceneBuilder created for the lamp (L_lamp). But Awake() grabbed one anyway, and when the lamp
+//     layer failed to exist the GameObject "Lamp" had no renderer to grab. AddComponent<MonoBehaviour>
+//     throws only for a MISSING SCRIPT; a missing SpriteRenderer is a null, and a null dereferenced in
+//     Awake is a caught exception in GameBoot -- which is why the desk never appeared at all.
+//     The rule this file now follows (orders/09 A1): a view NEVER dereferences a component it did not
+//     create. It is handed the renderer, or it does nothing and says so once.
+//
 // WHY A MONO BEHAVIOUR AND NOT A LIGHT2D
 //     Same reason as ScreenLight: a Light2D blends, and this palette does not. See LightRig.cs's header.
 using HRZeroDay.Core.Rules;
@@ -32,7 +42,8 @@ namespace HRZeroDay.Game
         /// <summary>0..1, ramped. The rig multiplies its lamp source by this.</summary>
         public float level = 1f;
 
-        private SpriteRenderer _sr;
+        private SpriteRenderer _sr;      // may be null: the lamp LAYER is the renderer, not this object
+        private bool _warned;
         private Color32 _on = new Color32(255, 255, 255, 255);
         private Color32 _off = new Color32(150, 150, 150, 255);
 
@@ -49,8 +60,19 @@ namespace HRZeroDay.Game
 
         private void Awake()
         {
-            _sr = GetComponent<SpriteRenderer>();
+            // TryGetComponent, not GetComponent: this object is a CONTROLLER that stands next to the lamp
+            // layer, and the layer may not exist yet (or at all). Null is a legal state here.
+            if (!TryGetComponent(out _sr)) _sr = null;
         }
+
+        /// <summary>The lamp layer's renderer, handed in by DeskSceneBuilder once the layer exists.</summary>
+        public void Bind(SpriteRenderer renderer)
+        {
+            _sr = renderer;
+            if (_sr != null) _sr.color = level > 0.5f ? _on : _off;
+        }
+
+        public bool HasRenderer { get { return _sr != null; } }
 
         /// <summary>Called every frame by DeskLightDriver. Cheap: only touches the renderer on a change.</summary>
         public void SetOn(bool on)
@@ -63,12 +85,18 @@ namespace HRZeroDay.Game
                 // an OFF object is drawn one step down its own ramp, never made translucent: alpha stays 255
                 _sr.color = level > 0.5f ? _on : _off;
             }
+            else if (!_warned)
+            {
+                _warned = true;
+                Debug.LogWarning("[HR//0D] the lamp is switching, but no renderer is bound to it -- the " +
+                                 "light will change and the fixture will not. Run HR//0D > Build Desk Scene.");
+            }
         }
 
         /// <summary>The rig this lamp's state belongs to. The rest of the room's sources come from LightRig.</summary>
         public LightRig Rig(bool tubeOn, float roomLevel)
         {
-            return LightRig.ForDesk(tubeOn, roomLevel);
+            return LightRig.ForDesk(tubeOn, IsOn, roomLevel);
         }
     }
 }

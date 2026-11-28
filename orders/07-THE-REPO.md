@@ -40,7 +40,7 @@ trace in the building that you meet again after hours. Five days, one verdict.
 | The 5-day arc, 3 endings, save/resume | `Core/Data/ShiftController.cs`, `SaveSystem` | built, tested |
 | Security rating + 4 alerts | `Core/Rules/SecurityRating.cs` | built, tested |
 | The after-hours walk (one trace per synthetic hired) | `Core/Rules/Sweep.cs`, `SweepScript.cs` | built, tested |
-| Day → dusk → night | `Core/Rules/Daylight.cs`, `RoomLighting.cs` | built; **three paintings still to make** |
+| Day -> dusk -> night | `Core/Rules/Daylight.cs`, `RoomLighting.cs` | built; **three paintings still to make** |
 | **Several lights + cast shadows** | `Core/Rules/LightRig.cs` | **new in v130**, tested |
 | **The wall clock** | `Core/Rules/RoomClock.cs` + `RoomClockView.cs` | **new in v130**, tested |
 | **Applicant variety (15 variants)** | `Core/Data/Appearances.cs` | **new in v130**, tested |
@@ -74,12 +74,12 @@ Kept verbatim in `orders/04-IMPORTANT-MEMORY.md`, summarised here so this file i
 |---|---|
 | Landscape 480x270, PPU 16 | locked, ADR-005 |
 | No player face customisation | locked, `docs/00` 3.4 |
-| No Google Docs handoffs, no LFS, no portrait, no server for v1, no real-time shadows | locked, `docs/16` §6 |
+| No Google Docs handoffs, no LFS, no portrait, no server for v1, no real-time shadows | locked, `docs/16` #6 |
 | Monitor RIGHT, applicant LEFT, window behind the applicant | locked, ADR-007 amended at v127 |
 | The game room = the menu's room | locked at v129 |
 | The menu's dead hardware is menu-only | v129 |
 | Coffee swapped with the keyboard/mouse | v129 |
-| The glass shows the applicant's own ID photo | confirmed v129, specified `docs/17` §8 |
+| The glass shows the applicant's own ID photo | confirmed v129, specified `docs/17` #8 |
 | **More than one light, on both screens** | v130 |
 | **A lamp in the game's room** | v130 |
 | **A wall clock showing the shift's time** | v130 |

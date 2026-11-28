@@ -31,6 +31,10 @@ namespace HRZeroDay.Game.Interaction
                     var camGo = new GameObject("Main Camera");
                     cam = camGo.AddComponent<Camera>();
                 }
+                // ONE DESK, ALWAYS. The player's v130 screenshot showed THREE applicants side by side: a
+                // stale DeskRoot (a saved scene, or a Play session that did not reload the domain) was still
+                // standing next to the new one. The cleanup lives in DeskSceneBuilder.Build, so the editor
+                // menu and Play mode cannot disagree about it -- see the note there.
                 DeskRuntimeScene.ConfigureCamera(cam, layout.canvas);
                 DeskRuntimeScene.BuildGameplay(layout, null);
                 Debug.Log("[HR//0D] desk built: " +
@@ -39,8 +43,13 @@ namespace HRZeroDay.Game.Interaction
             catch (Exception ex)
             {
                 // An actionable error beats a black Game view. The art pipeline is the usual cause.
+                // v130.1: the old text here said "Run HR//0D > Setup Project" -- which has never once been
+                // the fix, and cost the player 40 minutes at a time (orders/09 G3). What an actionable error
+                // actually needs is: what failed, where, and what to send me.
                 Debug.LogError("[HR//0D] could not start the game: " + ex.Message +
-                               "\nRun HR//0D > Setup Project (one click), then press Play again.");
+                               "\n  at " + (ex.StackTrace ?? string.Empty).Split('\n')[0] +
+                               "\n\nSend me gate-v130.log. If this says a sprite or a frame is missing, run " +
+                               "HR//0D > Fix Applicant Frames, then HR//0D > Open Game (play).");
             }
 #endif
         }

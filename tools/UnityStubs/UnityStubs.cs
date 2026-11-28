@@ -54,6 +54,10 @@ namespace UnityEngine
     {
         public Transform transform; public GameObject gameObject;
         public T GetComponent<T>() where T : Component { return null; }
+        // Unity 2019.2+ API. Stubbed because a view that needs "is this component here?" must be able to ask
+        // without an exception path; the first version of LampView used GetComponent and a null deref in
+        // Awake brought the whole desk down (BUG-031).
+        public bool TryGetComponent<T>(out T component) where T : Component { component = null; return false; }
     }
     public class Behaviour : Component { public bool enabled; }
     public enum FindObjectsSortMode { None, InstanceID }
@@ -92,6 +96,9 @@ namespace UnityEngine
     }
     public class GameObject : Object
     {
+        // UnityEngine.GameObject.Find(string) -- real API, and the only way to find a stale root when the
+        // builder is handed no parent (the v130 "three applicants" bug).
+        public static GameObject Find(string name) { return null; }
         public T GetComponent<T>() where T : Component { return null; }
         public bool activeInHierarchy;
         public Transform transform = new Transform();
