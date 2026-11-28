@@ -202,6 +202,8 @@ Then run the two gates above **before** a bundle. A build error outranks every a
 ```powershell
 # the ONE palette: desk kit colours are aliases onto the menu's ramp steps.
 python tools\art\art_palette.py --check          # -> PASS: one palette -- 74 colours ...
+python tools\art\art_palette.py --apply --dry-run  # what the alias pass WOULD move (no writes)
+python tools\art\art_palette.py --apply            # rewrites the desk PNGs; then re-run --check
 
 # the room painting (the WIDE window lives here; make_art_kit.py does NOT draw the room any more)
 python tools\art\promote_composition_L.py        # -> off-palette px: 0
