@@ -366,6 +366,10 @@ namespace HRZeroDay.Game.Interaction
                 {
                     Presenter.Hide();
                     if (Hud != null) Hud.RefreshNow();
+                    // the desk's own readers/animations must not tick behind the door either
+                    var actors = GetComponentsInChildren<ApplicantView>(true);
+                    for (int i = 0; i < actors.Length; i++)
+                        if (actors[i] != null) actors[i].enabled = false;
                     return true;            // the intro waits: two full-screen cards must never stack
                 }
                 return false;
@@ -384,6 +388,10 @@ namespace HRZeroDay.Game.Interaction
         /// </summary>
         private void AfterMenuClosed()
         {
+            // ...and the desk's actors come back on when the door closes (v118, BUG-071's other half)
+            var actors = GetComponentsInChildren<ApplicantView>(true);
+            for (int i = 0; i < actors.Length; i++)
+                if (actors[i] != null) actors[i].enabled = true;
             TryStartIntro();
             if (Hud != null) Hud.RefreshNow();
             PersistSave();
@@ -599,6 +607,13 @@ namespace HRZeroDay.Game.Interaction
 
         private void Update()
         {
+            // THE FRONT DOOR STOPS THE CLOCK (v118, BUG-071). The player's report was literal: "the game is
+            // playing while the menu is displaying". It was: Session.Tick ran every frame whether or not a
+            // menu was up, so the shift clock, the observation timer and the applicant's patience all ran
+            // behind the door -- and a player who read the settings screen for a minute lost a minute of
+            // their shift before they had even pressed START. A menu is a pause with furniture in it.
+            if (ShowingMenu || ShowingIntro) return;
+
             if (Session != null && !_showingDebrief && !_showingDaySummary && !ShowEnding)
             {
                 Session.Tick(Time.unscaledDeltaTime);

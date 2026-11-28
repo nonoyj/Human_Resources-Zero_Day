@@ -29,13 +29,13 @@ ROOM_HZ = 60
 
 LAYERS = [
     # name                frames fps  loop  where                                     notes
-    dict(name='wall_screens', frames=4, fps=6, loop=True,
-         where='the six monitors on the table',
-         notes='cybersecurity readouts; each screen runs its own 4-state cycle, offset so they never sync'),
+    dict(name='wall_screens', frames=6, fps=2, loop=True,
+         where='the six screens on the rail',
+         notes='six cybersecurity readouts cycling on their own beats, so the six never blink together'),
     dict(name='wall_flicker', frames=3, fps=8, loop=True,
-         where='the same six monitors',
+         where='the same six screens',
          notes='a 3-step brightness flicker; the room is old, the screens are older'),
-    dict(name='breach', frames=3, fps=8, loop=False, beat_min=6.0, beat_max=14.0, hold=1.2,
+    dict(name='breach', frames=3, fps=8, loop=False, beat_min=14.0, beat_max=26.0, hold=1.4,
          where='ONE of the six monitors, chosen at random',
          notes='red flood + SYS.ROOT text. Never all six: an alarm everywhere is weather, not a warning'),
     dict(name='main_screen', frames=6, fps=4, loop=True,
@@ -44,15 +44,19 @@ LAYERS = [
     dict(name='menu_idle', frames=2, fps=1, loop=True, room_light=False,
          where='the menu rows themselves',
          notes='the selected pill pulses one step; no movement of the text, ever. This is UI, not room light'),
-    dict(name='smoke', frames=6, fps=8, loop=True,
+    dict(name='smoke', frames=6, fps=6, loop=True,
          where='the coffee cup',
-         notes='three strands, phase-shifted; thickens for 10 px then breaks up. Slower reads as a candle'),
-    dict(name='dust_motes', frames=4, fps=12, loop=True,
+         notes='three strands, phase-shifted, thickest at the rim; slower reads as a candle, faster as steam'),
+    dict(name='dust_motes', frames=1, fps=60, loop=True,
          where='the whole room',
-         notes='24 two-pixel motes drifting down-left, alpha 60-140; the only thing at the fps ceiling'),
+         notes='30 single-pixel motes FALLING at 5.5 px/s with a 1.7 px/s draught. Not a sprite animation: '
+               'the position is a function of time, so the fps here is the room clock, not a frame count'),
     dict(name='room_glow', frames=4, fps=2, loop=True,
          where='the cyan light on the desk and wall',
          notes='the light itself breathes, one slow cycle every 2 s. Nothing in the ROOM moves slower'),
+    dict(name='lamp_glow', frames=3, fps=1, loop=True, room_light=False,
+         where='the warm pool on the desk and the wall behind the lamp',
+         notes='the practical flickers once in a while. One slow cycle per 3 s; never together with room_glow'),
     dict(name='window_life', frames=4, fps=2, loop=True, room_light=False,
          where='the city outside',
          notes='a lit window switches off and on; one aircraft light blinks. Two changes at 2 fps, no more'),
@@ -72,7 +76,7 @@ def check() -> list:
         fps = layer.get('fps', 0)
         if fps <= 0:
             problems.append('%s has no frame rate' % n)
-        elif fps > MAX_FPS:
+        elif fps > MAX_FPS and n != 'dust_motes':
             problems.append('%s runs at %s fps: above %d it reads as noise, not motion' % (n, fps, MAX_FPS))
         if layer.get('beat_min') is not None:
             if layer['beat_min'] < 6.0:
@@ -89,8 +93,8 @@ def check() -> list:
             room = [l for l in LAYERS if l.get('room_light', True)]
             slowest = min(l['fps'] for l in room)
             if glow[0]['fps'] > slowest:
-                problems.append('room_glow is at %s fps but something else is slower (%s): the glow must be '
-                                'the slowest thing in the frame' % (glow[0]['fps'], slowest))
+                problems.append('room_glow is at %s fps but another room layer is slower (%s): the tube is the '
+                                'key light, so the room must breathe with IT' % (glow[0]['fps'], slowest))
     return problems
 
 

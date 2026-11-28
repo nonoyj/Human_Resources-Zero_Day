@@ -56,6 +56,13 @@ try {
     & python tools/art/make_menu_composite.py --check
     if ($LASTEXITCODE -ne 0) { D 'room composite check failed' } else { OK 'room geometry + menu fit' }
 
+    S 'palette json: the front door materials are published'
+    # Unity reads Resources/palette.json for every colour the HUD, the letter, the sweep and the front
+    # door paint. Nothing used to WRITE it (BUG-074): the file was committed once and then silently went
+    # stale. The writer merges, so the legacy keys the rest of the game needs survive.
+    & python tools/art/menu_palette.py --write-json
+    if ($LASTEXITCODE -ne 0) { D 'could not write art/kit/palette.json' } else { OK 'palette.json published' }
+
     S 'material palette: value separation + hue shifting'
     # A palette gate asks "is this pixel allowed"; this asks "can the eye tell these two things apart".
     # Six touching pairs failed the first version of it, and the room read as ONE object for two rounds.

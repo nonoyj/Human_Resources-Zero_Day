@@ -27,6 +27,8 @@ namespace HRZeroDay.Tests
             yield return CheckTheConceptRowsExistAndFitTheGlass();
             yield return CheckTheRoomHasEveryPieceFromTheBrief();
             yield return CheckEveryLineFitsTheTube();
+            yield return CheckTheMaterialsAreRampsNotColours();
+            yield return CheckTheMenuStopsTheClock();
         }
 
         private static void True(bool condition, string message)
@@ -306,22 +308,32 @@ namespace HRZeroDay.Tests
                  MenuLayout.ServerX + MenuLayout.ServerW <= MenuLayout.W,
                  "the back wall does not fit the frame");
 
-            // the brief's order: table, then window, then the server in the corner. Left to right.
-            True(MenuLayout.StackX + MenuLayout.StackW <= MenuLayout.WindowX,
-                 "the table runs into the window");
-            True(MenuLayout.WindowX + MenuLayout.WindowW <= MenuLayout.ServerX,
-                 "the window runs into the server");
+            // THE v118 ORDER, LEFT TO RIGHT: the cold window, the monitor, the wall screens, the lamp, the
+            // server. The player's reference still is what set this, and it is the composition the whole
+            // frame is built around -- a screen you can read, a cold source on one side, a warm one on the
+            // other, and the dark between them.
+            True(MenuLayout.WindowX + MenuLayout.WindowW <= MenuLayout.CrtX,
+                 "the window runs into the monitor");
+            True(MenuLayout.CrtX + MenuLayout.CrtW <= MenuLayout.StackX,
+                 "the monitor covers the wall screens");
+            // the lamp stands ON the desk in FRONT of the wall screens -- it is drawn after them, and it
+            // is the warm practical the whole frame is balanced against. It must be right of the monitor
+            // and left of the server, or the two temperatures stop being on opposite sides.
+            True(MenuLayout.LampX > MenuLayout.CrtX + MenuLayout.CrtW,
+                 "the lamp is not right of the monitor");
+            True(MenuLayout.LampX + MenuLayout.LampW <= MenuLayout.ServerX + 8,
+                 "the lamp runs into the server");
+            True(MenuLayout.LampY + MenuLayout.LampH >= MenuLayout.DeskTopY,
+                 "the lamp does not stand on the desk");
 
-            // the monitor must not bury the window: this is the v115 defect, pinned
-            True(MenuLayout.CrtX + MenuLayout.CrtW <= MenuLayout.WindowX,
-                 "the monitor covers the window");
-
-            // the desk meets the wall where the floor starts, and the monitor stands on the desk
-            True(MenuLayout.DeskSurfaceY >= MenuLayout.FloorY - 2 && MenuLayout.DeskSurfaceY <= MenuLayout.FloorY + 6,
+            // the desk meets the wall where the floor starts, and the monitor stands on it
+            True(MenuLayout.DeskTopY >= MenuLayout.FloorY - 4 && MenuLayout.DeskTopY <= MenuLayout.FloorY + 6,
                  "the desk does not meet the wall at the floor line");
-            True(MenuLayout.CrtY + MenuLayout.CrtH >= MenuLayout.DeskSurfaceY - 4 &&
-                 MenuLayout.CrtY + MenuLayout.CrtH <= MenuLayout.DeskSurfaceY + 30,
+            True(MenuLayout.CrtY + MenuLayout.CrtH >= MenuLayout.DeskTopY - 4 &&
+                 MenuLayout.CrtY + MenuLayout.CrtH <= MenuLayout.DeskTopY + 30,
                  "the monitor does not sit on the desk");
+            True(MenuLayout.CrtY + MenuLayout.CrtH <= MenuLayout.DeskEdgeY,
+                 "the monitor hangs over the front edge of the desk");
 
             // the glass is inside the case, and the menu fits inside the glass
             True(MenuLayout.GlassX > MenuLayout.CrtX && MenuLayout.GlassY > MenuLayout.CrtY,
@@ -332,16 +344,22 @@ namespace HRZeroDay.Tests
             True(MenuLayout.FooterTop + MenuLayout.GlyphH <= MenuLayout.GlassY + MenuLayout.GlassH,
                  "the footer runs out of the glass");
 
-            // the light: one dominant source, and the fade has to reach the desk
+            // THE LIGHT: two sources of OPPOSITE temperature, and one step each. "Cinematic dark" is not
+            // "cyan everywhere" -- the warm practical is what proves the cold one is cold (docs/17).
             var lights = MenuLayout.Lights();
-            True(lights.Length == 3, "the room is lit by " + lights.Length + " sources, the brief asks for three");
-            True(lights[2].Strength >= lights[0].Strength && lights[2].Strength >= lights[1].Strength,
-                 "the monitor is not the dominant light");
-            True(MenuLayout.FadeReach > 0 && MenuLayout.CrtY + MenuLayout.CrtH + MenuLayout.FadeReach >
-                 MenuLayout.DeskSurfaceY,
-                 "the cyan fade never reaches the desk");
-            True(MenuLayout.MaxLift == 1, "ambient light may add one ramp step and no more");
-            return "PASS  the room has every piece from the brief, in the brief's order";
+            True(lights.Length == 3, "the room is lit by " + lights.Length + " sources, the film look needs three");
+            foreach (var l in lights)
+                True(l.Strength >= 1 && l.Strength <= MenuLayout.MaxLift,
+                     "a light adds " + l.Strength + " steps; ambient light may add one and no more");
+            var lamp = MenuLayout.LampLight();
+            var monitor = MenuLayout.MonitorLight();
+            True(lamp.X > MenuLayout.W && monitor.X < MenuLayout.W,
+                 "the warm practical and the cold key are not on opposite sides of the eye line");
+            True(MenuLayout.FadeDrop > MenuLayout.FadeReach,
+                 "the tube's light must reach further DOWN the desk than sideways");
+            True(MenuLayout.CrtY + MenuLayout.CrtH + MenuLayout.FadeDrop > MenuLayout.DeskEdgeY,
+                 "the cold fade never reaches the front of the desk");
+            return "PASS  the room has every piece in the reference's order, lit by a cold key and a warm practical";
         }
 
         /// <summary>
@@ -355,17 +373,23 @@ namespace HRZeroDay.Tests
             True(MenuLayout.TextW < MenuLayout.GlassW && MenuLayout.TextH < MenuLayout.GlassH,
                  "the picture area is not inside the glass");
 
-            int adv = MenuLayout.GlyphW + MenuLayout.LetterGap;
-            string title = MenuScreenText.Title;
-            int titleW = title.Length * adv * MenuLayout.TitleScale - MenuLayout.LetterGap * MenuLayout.TitleScale;
+            // the title is measured with the SAME function the view draws it with: tracking and bleed are
+            // part of the width, and v117's mock shipped a title that overflowed because they were not.
+            int titleW = MenuLayout.LineWidth(MenuScreenText.Title, MenuLayout.TitleScale);
             True(titleW <= MenuLayout.TextW,
                  "the title is " + titleW + " px and the tube holds " + MenuLayout.TextW);
+            True(MenuLayout.TitleGap < MenuLayout.LetterGap,
+                 "the title is not tracked tighter than the body text (the player asked for closer letters)");
+            True(MenuLayout.LineWidth("II", MenuLayout.TitleScale) >
+                 MenuLayout.LineWidth("I", MenuLayout.TitleScale) + MenuLayout.GlyphW,
+                 "the title glyphs are not bled: it is not thicker than the body text");
 
-            int subW = MenuScreenText.Subtitle.Length * adv * MenuLayout.TitleScale
-                       - MenuLayout.LetterGap * MenuLayout.TitleScale;
+            int subW = MenuLayout.LineWidth(MenuScreenText.Subtitle, MenuLayout.TitleScale);
             True(subW <= MenuLayout.TextW, "ZERO DAY is " + subW + " px and the tube holds " + MenuLayout.TextW);
+            True(MenuLayout.SubtitleTop - (MenuLayout.TitleTop + MenuLayout.TitleScale * MenuLayout.GlyphH) <= 6,
+                 "ZERO DAY is not closer to the title (the player asked for it directly under)");
 
-            int tagW = MenuScreenText.Tagline.Length * adv - MenuLayout.LetterGap;
+            int tagW = MenuScreenText.Tagline.Length * (MenuLayout.GlyphW + MenuLayout.LetterGap) - MenuLayout.LetterGap;
             True(tagW <= MenuLayout.TextW, "the tagline is " + tagW + " px and the tube holds " + MenuLayout.TextW);
 
             // vertical: title, subtitle, tagline, five pills, footer -- all inside the picture area
@@ -384,11 +408,74 @@ namespace HRZeroDay.Tests
                  MenuLayout.PillX + MenuLayout.PillW <= MenuLayout.TextX + MenuLayout.TextW,
                  "the rows run out of the tube sideways");
 
-            // the dust must be deterministic, or the frame crawls between runs
+            // the breach is rationed: an alarm that fires every few seconds stops being an alarm
+            True(MenuLayout.BreachMin >= 10.0,
+                 "the breach fires every " + MenuLayout.BreachMin + "s: that is decoration, not a warning");
+            True(MenuLayout.BreachHold < MenuLayout.BreachMin,
+                 "the breach lasts longer than the gap between breaches");
+            // the dust is deterministic AND it moves: a fall speed of zero is v116's static vignette
             True(MenuLayout.DustHash(11, 7) == MenuLayout.DustHash(11, 7), "the dust hash is not stable");
             True(MenuLayout.DustHash(11, 7) != MenuLayout.DustHash(12, 7), "the dust hash is not spread");
-            True(MenuLayout.DustMax > MenuLayout.DustMin, "the dust is heaviest in the middle of the frame");
-            return "PASS  every line, row and footer sits inside the tube, not on its curve";
+            True(MenuLayout.DustFallSpeed > 0, "the dust does not fall (the player asked for falling grain)");
+            True(MenuLayout.DustCount > 0 && MenuLayout.DustCount <= 60,
+                 "the dust is " + MenuLayout.DustCount + " motes: the player asked for LESS dust, not more");
+            return "PASS  every line, row and footer sits inside the tube, and the breach is rationed";
+        }
+
+        /// <summary>
+        /// THE V118 MATERIAL RULE. The player's complaint was that nothing read as its own object, and the
+        /// cause was that every surface was one colour brightened by a light. A material now has a RAMP, and
+        /// the light can only move it along that ramp. This test pins the table's shape: two steps per
+        /// material, no duplicate source key (a key with two "next" steps is ambiguous and the second is
+        /// silently ignored), and no ramp that runs backwards into a darker step.
+        /// </summary>
+        private static string CheckTheMaterialsAreRampsNotColours()
+        {
+            var seen = new Dictionary<string, string>();
+            for (int i = 0; i < MenuLayout.Ramps.GetLength(0); i++)
+            {
+                string from = MenuLayout.Ramps[i, 0];
+                string to = MenuLayout.Ramps[i, 1];
+                True(!string.IsNullOrEmpty(from) && !string.IsNullOrEmpty(to),
+                     "ramp " + i + " has an empty step");
+                True(from != to, "ramp " + i + " maps " + from + " to itself");
+                string previous;
+                True(!seen.TryGetValue(from, out previous),
+                     from + " has two next steps (" + (previous ?? "?") + " and " + to +
+                     "): the light pass would silently take the first");
+                seen[from] = to;
+                // a step must belong to exactly one material family, or "one object, one colour" is a myth
+                True(from.Substring(0, from.IndexOf('_')) == to.Substring(0, to.IndexOf('_')),
+                     "ramp " + from + " -> " + to + " crosses materials");
+            }
+            True(seen.ContainsKey("wood_1") && seen["wood_1"] == "wood_2",
+                 "the desk is not a ramp");
+            True(seen.ContainsKey("wall_0") && seen["wall_0"] == "wall_1",
+                 "the wall is not a ramp");
+            return "PASS  every material is a ramp of its own steps, and no key has two next steps";
+        }
+
+        /// <summary>
+        /// THE CLOCK STOPS BEHIND THE DOOR (BUG-071). The player's report was "the game is playing while the
+        /// menu is displaying". DeskBootstrap.Update is the only place the shift is ticked, so the rule is
+        /// asserted at its source rather than at the symptoms: while ShowingMenu or ShowingIntro is true,
+        /// nothing may advance.
+        /// </summary>
+        private static string CheckTheMenuStopsTheClock()
+        {
+            // the tests run from the repo root (see ManifestBridgeTests), so this is a plain relative read
+            string text = System.IO.File.ReadAllText(
+                "unity/Assets/Scripts/Game/Interaction/DeskBootstrap.cs");
+            int update = text.IndexOf("private void Update()", StringComparison.Ordinal);
+            True(update >= 0, "DeskBootstrap has no Update: the shift clock has no owner");
+            int tick = text.IndexOf("Session.Tick(", update, StringComparison.Ordinal);
+            True(tick > update, "Session.Tick is not in Update");
+            string between = text.Substring(update, tick - update);
+            True(between.Contains("ShowingMenu"),
+                 "Update ticks the shift while the front door is up: BUG-071 has come back");
+            True(between.Contains("ShowingIntro"),
+                 "Update ticks the shift while the intro card is up");
+            return "PASS  the shift clock stops while the menu or the intro is on screen";
         }
 
         /// <summary>Volume: ten honest steps, clamped, and a bar made of atlas characters.</summary>

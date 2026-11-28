@@ -1435,3 +1435,45 @@ to run, and the next bundle would have been packed from a tree that only *looked
 **What the player must do:** nothing beyond installing v117. The repair commit is inside the bundle's history,
 so the apply lands a clean tree. If `Where-Am-I` still reports a dirty tree after v117, the files listed are
 then genuine local edits, and the apply now says so in those words.
+
+## BUG-071 -- the game kept playing behind the front door (2026-11-28)
+
+**Reported:** "the game is playing while the menu is displaying".
+
+**Cause.** `DeskBootstrap.Update()` called `Session.Tick(Time.unscaledDeltaTime)` on every frame, whether
+or not the menu or the intro card was on screen. The shift clock, the observation timer and the applicant's
+patience all advanced behind the door, so a player who read the settings screen for a minute lost a minute of
+their shift before pressing START.
+
+**Fix.** `Update()` returns early while `ShowingMenu || ShowingIntro`. The applicant actors are disabled on
+open and re-enabled on close, so nothing behind the door animates either. Pinned by
+`MenuTests.CheckTheMenuStopsTheClock()`, which reads `DeskBootstrap.cs` and asserts both guards are present
+between the `Update()` header and the first `Session.Tick(` — the bug cannot come back without failing the
+suite.
+
+## BUG-072 -- the front door painted no text at all (2026-11-28)
+
+**Reported:** "there is no text in the menu items".
+
+**Cause.** `MenuView.Paint()` ended with `FlipToTextureOrder(buf, W, H)` and then called
+`MonitorScreenRaster.RenderRows(buf, W, H, rows, …)`. `RenderRows` converts canvas y-up coordinates into a
+top-down buffer — i.e. it inverts y again, relative to a buffer that had already been flipped. Every glyph
+landed above the clip box and was discarded. The rows, the title and the footer were all being drawn off the
+top of the glass.
+
+**Fix.** The view now paints its own text into the buffer and the flip is the LAST operation before
+`SetPixels32`. The ordering rule is stated at the top of `Paint()`: *room → live screens → dust → text →
+flip → upload*, and nothing may call a raster helper after the flip.
+
+## BUG-074 -- palette.json had no writer, so the HUD could be tinted with a stale palette (2026-11-28)
+
+**Found while fixing BUG-072.** `MonitorScreenView.Palette` loads `Resources/palette.json` for every colour
+the game paints, and the file was committed once and never regenerated. Adding the v118 material ramps
+without fixing that would have left the front door reading keys that did not exist (falling back to white)
+while the rest of the game read a palette from three rounds ago.
+
+**Fix.** `tools/art/menu_palette.py --write-json` writes the file by MERGING: the front door's `material_step`
+keys are added, and every legacy key (`void`, `panel`, `text`, `signal`, `danger`, `paper`, `ink`, …) that the
+HUD, the letter and the sweep read is preserved. A writer that replaced the file would blank the HUD and fail
+the art gate simultaneously. `Test-ArtPipeline.ps1` now runs the writer before the palette gate, so a stale
+`palette.json` fails the build instead of quietly tinting the game wrong.

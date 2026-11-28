@@ -385,3 +385,28 @@ window a little wider"*.
 **Consequences.** `make_menu_composite.py --check` still gates geometry, but the geometry gate only covers the
 *back wall*; props on the desk (coffee, keyboard, mouse, forms) are checked by eye, and one of them shipped
 completely hidden behind the enlarged monitor now. That check moves into the composite gate next round.
+
+## ADR-021 -- the front door is lit like a film still, and materials own their ramps (v118)
+
+**Status:** accepted, 2026-11-28.
+
+**Context.** v116's room passed every colour gate and still read as one blue object: each material was a
+single colour, and a single "light ramp" brightened whatever the lights touched. The player's verdict was
+"too clean, too bright, lost the cinematic dark" and they supplied one reference still as the target.
+
+**Decision.**
+1. **Materials own 3-5 step ramps**, authored in HSV (`tools/art/menu_palette.py`), with hue rotation,
+   mid-ramp saturation and value separation enforced by a gate. Light selects a STEP; it never paints a
+   surface in its own colour.
+2. **The frame is low-key, and that is a number**: at least 66% of material steps under 0.30 value, nothing
+   non-emissive above 0.62. This is the reference still's exposure, not a taste.
+3. **Two temperatures, always**: a cold key (the tube) and a warm practical (the lamp). A one-temperature
+   frame is a colour filter.
+4. **16-bit discipline over 32-bit**: few, hard steps, dithered seams, no per-pixel noise, no smoothing.
+5. **A menu stops the clock.** While the front door is up, nothing in the shift advances.
+6. **Art is still drawn from code**, and the twin renderer reads the same numbers as `MenuLayout.cs`.
+
+**Consequences.** Every art change now has to survive the palette gate, the room's structure gate and the
+composite's geometry gate before it can ship, and a change to the tracking of the title is measured by the
+same function the game draws with. The palette is a single published JSON, generated, with the legacy keys
+preserved.

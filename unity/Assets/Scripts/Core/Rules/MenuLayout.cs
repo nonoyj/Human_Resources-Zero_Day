@@ -1,23 +1,31 @@
 // HR//0D -- MenuLayout: the front door's room, frame and light. Pure data, no UnityEngine.
 // Assembly: HRZeroDay.Core  (pure C#, no UnityEngine)
 //
-// THE ROOM (player brief 2026-11-28, ADR-019; art in art/kit/menu/, drawn by tools/art/make_menu_room.py)
+// THE ROOM (v118, ADR-021) -- the player's reference still, translated into a 480x270 frame:
 //
-//        furthest wall: window (city, moon)          table of 6 white screens + 2 under it
-//        right corner:  database server
-//        left, in front: an old CRT with the title and the menu inside its glass
-//        desk under it: coffee with smoke, keyboard, mouse, pile of application forms
-//        floor: tiles with black grout
+//     cold key, high left            the monitor, larger and nearer        warm practical, right
+//     +--------------------+   +------------------------------+   +----------------+
+//     |  window  88x122    |   |   the tube the menu lives in  |   | lamp    server  |
+//     |  at (8, 10)        |   |   260x186 at (104, 10)        |   | (396,92) (452,80)
+//     +--------------------+   +------------------------------+   +----------------+
+//          six small screens on a rail at (372, 96), silhouettes against the wall
+//     ------------- desk 480x120 at (0, 150): cold pool under the tube, warm pool under the lamp -------
 //
-//   Coordinates are canvas px, 480x270, y DOWN from the top-left -- the same numbers the twin renderer
-//   (tools/art/make_menu_composite.py) draws, so the preview cannot drift from the game.
+//   Every number here is canvas px, 480x270, y DOWN from the top-left -- the same numbers the twin
+//   renderer (tools/art/make_menu_composite.py) and the sprite generator draw, so the preview cannot
+//   drift from the game.
 //
-// THE LIGHT (docs/16-light-study.md, and the research behind it)
-//   1. ONE dominant source: the CRT. Everything else is subordinate.
-//   2. falloff is BANDS with dithered seams -- never a global checker (that was the v113 mistake).
-//   3. bright cores stay solid; dither lives on boundaries.
-//   4. shadows lift toward blue-teal instead of crushing to black, so the room stays legible.
-//   5. warmth is rationed: the coffee's steam and one amber LED are the only warm pixels in the frame.
+// THE LIGHT (docs/16-light-study.md §10, docs/20-v118-cinematic.md)
+//   Six rules, and each one is a line of code somewhere:
+//     1. TWO sources with opposite temperature: a COLD key (the tube) and a WARM practical (the lamp).
+//        A frame lit by one temperature is a monochrome frame, however pretty the colour is.
+//     2. The materials own their from-to ramps (menu_palette.py). Light chooses a STEP; it never
+//        repaints a surface in the light's own colour.
+//     3. Ambient light adds ONE step (MaxLift). Emitters -- the screens, the funnel, LEDs -- are skipped.
+//     4. Falloff is dithered along the distance, not banded: at 480x270 a hard band edge draws a ring.
+//     5. Shadows are LIFTED, not crushed: the darkest surface is `void`, never pure black, and the
+//        vignette only touches the outer corners.
+//     6. Emissive things BREATHE, and nothing else moves except the dust and the smoke.
 using System;
 using System.Collections.Generic;
 
@@ -27,50 +35,62 @@ namespace HRZeroDay.Core.Rules
     {
         public const int W = 480, H = 270;
 
-        // ---- the room's own furniture, in draw order (back to front)
-        public const int WindowX = 360, WindowY = 30;     // menu/window.png         96x108, hung on the wall
-        public const int StackX = 262, StackY = 100;      // menu/monitor_stack.png 96x104, on the floor
-        public const int ServerX = 458, ServerY = 84;     // menu/server.png         22x112, on the floor
+        // ---- the room's furniture, in draw order (back to front)
+        public const int WindowX = 8, WindowY = 10;        // menu/window.png        88x122
+        public const int StackX = 372, StackY = 96;        // menu/monitor_stack.png 76x66, on a wall rail
+        public const int LampX = 424, LampY = 62;          // menu/lamp.png          56x124 -- the warm key
+        public const int ServerX = 452, ServerY = 80;      // menu/server.png        26x112, three-quarter view
 
-        // ---- the CRT the menu lives in: menu/crt.png 240x186, glass 208x136
-        public const int CrtX = 6, CrtY = 16;             // a DOMINANT monitor: 252x186, feet on the desk
-        public const int GlassX = CrtX + 24;
-        public const int GlassY = CrtY + 16;              // always relative to the case
-        public const int GlassW = 224, GlassH = 148;
+        // ---- the monitor the menu lives in: menu/crt.png 260x186, glass 228x152 at (26,12)
+        public const int CrtX = 104, CrtY = 10;
+        public const int GlassX = CrtX + 26;
+        public const int GlassY = CrtY + 12;
+        public const int GlassW = 228, GlassH = 152;
 
         /// <summary>
-        /// A CRT's tube is a TRAPEZOID: every corner of a real tube is cut, and the picture inside it is
-        /// smaller than the tube. v115 measured text against the flat glass rect and the title sat on the
-        /// curve, which the player saw as "the text is offscreen". Text is measured against THIS inset.
+        /// A CRT's tube is a rounded box: every corner is cut and the picture is smaller than the tube.
+        /// Text is measured against THIS inset, not against the flat glass rect (v116 shipped a tagline
+        /// that sat on the curve).
         /// </summary>
-        public const int TubeInset = 4;   // 210 was too tight: the tagline is 215 px and hung on the curve
+        public const int TubeInset = 4;
 
-        // ---- the desk band and what sits on it
-        public const int DeskY = 180;                     // menu/desk.png 480x64 (18 px of steam headroom)
-        public const int DeskSurfaceY = 198;              // DeskY + the sprite's 18 px of steam headroom
+        // ---- the desk: a 120 px slab whose top surface starts 26 px into the sprite
+        public const int DeskY = 150;                      // menu/desk.png 480x120
+        public const int DeskTopY = DeskY + 26;            // the slab's far edge
+        public const int DeskSurfaceY = DeskY + 26;        // its top surface, where the props stand
+        public const int DeskEdgeY = DeskY + 26 + 38;      // its front edge
 
         // ---- sprite sizes, mirrored from tools/art/make_menu_room.py. The tests read these.
-        public const int CrtW = 252, CrtH = 186;
-        public const int WindowW = 96, WindowH = 108;
-        public const int StackW = 96, StackH = 104;
-        public const int ServerW = 22, ServerH = 112;
+        public const int CrtW = 260, CrtH = 186;
+        public const int WindowW = 88, WindowH = 160;
+        public const int StackW = 76, StackH = 66;
+        public const int ServerW = 26, ServerH = 112;
+        public const int LampW = 56, LampH = 132;
         public const int FloorY = 196;
 
-        // ---- type inside the glass: 2x title, 1x rows. 206 px of the 202 px tube inset: the title is the
-        // widest thing the screen can hold, and every other line is measured against the same inset.
+        // ---- type inside the glass: 2x title with TIGHT tracking, 2x ZERO DAY close under it, 1x rows
         public const int TitleScale = 2;
-        public const int TitleTop = GlassY + 10;
-        public const int SubtitleTop = GlassY + 28;
-        public const int TaglineTop = GlassY + 46;
+        /// <summary>
+        /// THE PLAYER'S TYPE CHANGE (v118): "the full title thicker and letters closer together".
+        /// The atlas is a 5x7 bitmap; the only way to make it THICKER is to bleed each glyph 1 px to the
+        /// right, and the only way to tighten it is a 1 px cell gap instead of 2. Both together give a
+        /// 2x title that is 15 glyphs wide in 162 px instead of 178 -- and it weighs more, which is what
+        /// "thicker" means at this size.
+        /// </summary>
+        public const int TitleBleed = 1;
+        public const int TitleGap = 1;             // cell gap for the title only (rows keep LetterGap)
+        public const int TitleTop = GlassY + 9;
+        public const int SubtitleTop = GlassY + 26;    // "closer to the title": 3 px under the 2x cap
+        public const int TaglineTop = GlassY + 52;
+        public const int RuleTop = GlassY + 66;
 
-        // ---- the option rows
-        public const int PillX = GlassX + 52;
-        public const int PillW = 120;
-        public const int PillH = 12;
-        public const int PillStep = 14;
-        // the pill block is anchored to the FOOTER, not the glass top: rows 4 x 14 + 12 must clear it
-        public static int PillTop { get { return FooterTop - (4 * PillStep + PillH) - 4; } }
-        public static int FooterTop { get { return GlassY + GlassH - 14; } }
+        // ---- the option rows: 5 rows, 1 px of air, anchored under the rule
+        public const int PillX = GlassX + 40;
+        public const int PillW = 148;
+        public const int PillH = 13;
+        public const int PillStep = 13;
+        public const int PillTop = GlassY + 72;
+        public static int FooterTop { get { return GlassY + GlassH - 12; } }
 
         // The atlas is 5x7, 2 px letter gap, 3 px line gap (art/kit/fonts/monitor_font_5x7.json).
         public const int GlyphW = 5, GlyphH = 7, LetterGap = 2, LineGap = 3;
@@ -84,66 +104,103 @@ namespace HRZeroDay.Core.Rules
         public static int TextCols { get { return TextW / (GlyphW + LetterGap); } }
         public static int TextRows { get { return (TextH + LineGap) / (GlyphH + LineGap); } }
 
+        /// <summary>
+        /// The width of a line drawn at `scale` with the title's tracking and bleed. The view and the
+        /// tests measure with THIS function, so a change to the tracking cannot leave the gate behind.
+        /// </summary>
+        public static int LineWidth(string text, int scale)
+        {
+            if (string.IsNullOrEmpty(text)) return 0;
+            int cell = (GlyphW + TitleGap) * scale;
+            return text.Length * cell - TitleGap * scale + TitleBleed;
+        }
+
         // ------------------------------------------------------------------ light
         //
-        // HOW THE ROOM IS LIT (docs/16-light-study.md)
+        // HOW THE ROOM IS LIT (docs/16-light-study.md §10)
         //
-        // A pixel-art light is not a coloured fog over the frame. It raises the VALUE of the surfaces it
-        // falls on, in a small number of hard steps, and the step boundaries are the only place dithering
-        // belongs. So every palette colour is given a position on a ramp, and a light adds steps to that
-        // position. The first version of this file replaced pixels with a light colour instead, which is
-        // why the room came out as cyan blobs sitting on top of the art.
-        //
-        // The ramp runs: void -> panel -> panel2 -> line -> linehi -> (muted). Nothing past `linehi` is lit
-        // by ambience: text, white screens and LEDs are already emitting and must not be washed out.
+        // Each material has a ramp of 3-5 steps in menu_palette.py. A light raises a surface ONE step
+        // along its own ramp; it never replaces the surface with the light's colour. That is the whole
+        // difference between a lit room and a colour filter, and it is why v116 (which swapped pixels
+        // for `glow_teal`) looked like an aquarium.
+
+        /// <summary>Material ramps, in order. A light only ever moves a surface from one entry to the next.</summary>
+        public static readonly string[,] Ramps =
+        {
+            { "wall_0", "wall_1" },
+            { "wall_1", "wall_2" },
+            { "floor_0", "floor_1" },
+            { "floor_1", "floor_2" },
+            { "wood_0", "wood_1" },
+            { "wood_1", "wood_2" },
+            { "wood_2", "wood_3" },
+            { "wood_3", "wood_4" },
+            { "steel_0", "steel_1" },
+            { "steel_1", "steel_2" },
+            { "key_0", "key_1" },
+            { "key_1", "key_2" },
+            { "mouse_0", "mouse_1" },
+            { "mouse_1", "mouse_2" },
+            { "paper_0", "paper_1" },
+            { "paper_1", "paper_2" },
+            { "cup_0", "cup_1" },
+            { "cup_1", "cup_2" }
+        };
 
         /// <summary>
-        /// Position of each surface colour on the light ramp. Anything absent is not liftable. Note the top
-        /// of the ramp is `line`, a cool grey-blue -- NOT a cyan. A lit wall is a brighter wall; only the
-        /// 30 px around the glass takes actual cyan (see CyanNear), which is what stops the room turning
-        /// turquoise. v115's first pass made every lit surface signaldim and the room looked like a fish tank.
+        /// One step, no more. A room lit by two lamps is not twice as bright as a room lit by one, and in
+        /// pixel art a second step is the difference between "lit" and "washed out".
         /// </summary>
-        public static readonly string[] Ramp = { "void", "panel", "panel2", "line" };
-
-        /// <summary>Inside this distance from the glass, a lit surface takes the cyan ramp instead.</summary>
-        public const int CyanNear = 14;
+        public const int MaxLift = 1;
 
         /// <summary>
-        /// How far the monitor's cyan fade reaches, in px. It reaches DOWN much further than it does
-        /// sideways, because a screen lights the desk it stands on and only spills a little round its own
-        /// edges. An equal reach on every side drew a visible dome over the wall.
+        /// How far the tube's cold light reaches. It reaches DOWN much further than sideways, because a
+        /// screen lights the desk it stands on and only spills a little past its own edges. An equal
+        /// reach on every side drew a visible dome over the wall (v115).
         /// </summary>
-        public const int FadeReach = 58;          // sideways
-        public const int FadeDrop = 74;           // down, onto the desk and the floor
+        public const int FadeReach = 62;      // sideways
+        public const int FadeDrop = 96;       // down, onto the desk and its front face
+
+        /// <summary>Cold light: the tube's own, measured from the case. Strength 1 step, tight falloff.</summary>
+        public static LightSource MonitorLight()
+        {
+            return new LightSource(GlassX + GlassW / 2, GlassY + GlassH / 2, 232, 196, 1.70, 1);
+        }
+
+        /// <summary>Cold fill: the window, high and left. It lifts the back wall and never the desk.</summary>
+        public static LightSource WindowLight()
+        {
+            return new LightSource(WindowX + 44, WindowY + 60, 116, 128, 1.95, 1);
+        }
 
         /// <summary>
-        /// A 4x4 Bayer matrix. The fade is ordered-dithered against this, NOT against (x&3)+((y&3)&lt;&lt;2):
-        /// a linear index is itself a diagonal ramp, so the dither clumps into diagonal streaks and the
-        /// light looks brushed on. Bayer spreads every threshold evenly.
+        /// WARM light: the lamp. Its pool is small and hard, it lands on the desk's right end and the
+        /// wall behind it, and it is the only warm light in the frame (rule 1).
         /// </summary>
+        public static LightSource LampLight()
+        {
+            return new LightSource(LampX + 28, LampY + 70, 108, 122, 1.45, 1);
+        }
+
+        public static LightSource[] Lights()
+        {
+            return new[] { WindowLight(), LampLight(), MonitorLight() };
+        }
+
         /// <summary>
-        /// How heavy the dust is. 0..4: 0 is a clean room, 4 is a tv that has not been wiped since 1994.
-        /// The grain is CLUMPED, not per-pixel noise: at 480x270 a single-pixel speckle reads as static on
-        /// a bad cable, while two-pixel clumps read as dust on glass.
+        /// Dust: a thin film of motes that FALL. The player asked for exactly this -- v116's dust was a
+        /// static vignette, which reads as dirt on the lens, not as air in a room.
+        ///
+        /// Counts are small on purpose: 30 motes over 480x270 is air; 300 is a snowstorm.
         /// </summary>
-        public const int DustDensity = 2;
+        public const int DustCount = 30;
+        public const double DustFallSpeed = 5.5;      // px per second, downward
+        public const double DustDriftSpeed = 1.7;     // px per second, leftward (the room's draught)
+        public const int DustBrightest = 2;           // the mote's brightest step (a 1-2 px dot)
 
         /// <summary>
-        /// Where the dust sits: on every dark surface, thin in the middle of the frame and heavier toward
-        /// the corners. The placement is a per-block hash, NOT a radius threshold -- a radius threshold puts
-        /// the dust in a ring, and a ring of dust on a 480x270 frame reads as a border, not as age.
-        /// </summary>
-        public const double DustStart = 0.35;      // corner weight where the dust begins to thicken
-        public const double DustEnd = 1.15;        // ...and where it is densest
-
-        /// <summary>Fraction of 2x2 blocks that carry dust, in the middle of the frame and at the corners.</summary>
-        public const double DustMin = 0.004;
-        public const double DustMax = 0.030;
-
-        /// <summary>
-        /// A small integer hash for the dust. (x*73856093 ^ y*19349663) &amp; 15 -- the obvious choice -- is
-        /// periodic in x and y at 16 px, and a periodic dust pattern reads as a screen-door mesh over the
-        /// whole room. This is a Wang mix, so neighbouring blocks are uncorrelated.
+        /// A Wang-mix hash for a mote's properties. (x*73856093 ^ y*19349663) &amp; 15 is periodic at 16 px
+        /// and draws a screen-door mesh; this one is uncorrelated between neighbours.
         /// </summary>
         public static uint DustHash(int x, int y)
         {
@@ -161,14 +218,6 @@ namespace HRZeroDay.Core.Rules
             15,  7, 13,  5
         };
 
-        /// <summary>
-        /// The most steps ANY combination of lights may add to a surface. One. A room lit by two lamps is
-        /// not twice as bright as a room lit by one -- and in pixel art a second step is the difference
-        /// between 'lit' and 'washed out'. The first two passes of v115 lifted by 2-3 and turned the frame
-        /// into a gradient; this single clamp is what makes the light read as light.
-        /// </summary>
-        public const int MaxLift = 1;
-
         public struct LightSource
         {
             public int X, Y;         // centre, canvas px
@@ -178,50 +227,41 @@ namespace HRZeroDay.Core.Rules
 
             public LightSource(int x, int y, int rx, int ry, double falloff, int strength)
             {
-                X = x;
-                Y = y;
-                Rx = rx;
-                Ry = ry;
-                Falloff = falloff;
-                Strength = strength;
+                X = x; Y = y; Rx = rx; Ry = ry; Falloff = falloff; Strength = strength;
             }
         }
 
-        /// <summary>The CRT. The key light: broad, cyan, and the reason the desk is the brightest place.</summary>
-        public static LightSource MonitorLight()
-        {
-            return new LightSource(GlassX + GlassW / 2, GlassY + GlassH / 2, 244, 188, 1.55, 2);
-        }
-
-        /// <summary>The window. Cold and high: it lifts the back wall, never the desk.</summary>
-        public static LightSource WindowLight()
-        {
-            return new LightSource(WindowX + 41, WindowY + 54, 92, 106, 1.90, 1);
-        }
-
-        /// <summary>The table of white screens. Many small sources: shallow reach, strong near the faces.</summary>
-        public static LightSource StackLight()
-        {
-            return new LightSource(StackX + 50, StackY + 26, 96, 88, 2.10, 1);
-        }
-
-        public static LightSource[] Lights()
-        {
-            return new[] { StackLight(), WindowLight(), MonitorLight() };
-        }
-
+        // ------------------------------------------------------------------ the six wall screens
         /// <summary>
-        /// The tint a lit surface takes. Cyan light on a warm surface reads as a cool wash, so the lift is
-        /// expressed as a swap into the CYAN RAMP (glow_teal -> signaldim -> line) rather than the neutral
-        /// one. Neutral surfaces (wall, floor, desk) use the neutral ramp, which is what keeps the room grey
-        /// instead of turquoise.
+        /// The rail of screens behind the monitor. Each screen runs its own cycle, offset so the six never
+        /// blink together; one of them is the BREACH screen, which floods red at random and is the only
+        /// place the AI's colour appears in the room.
         /// </summary>
-        public static readonly string[,] CyanRamp =
+        public static readonly int[] StackScreenX = { 375, 400, 425 };
+        public static readonly int[] StackScreenY = { 98, 120 };
+        public const int StackScreenW = 22, StackScreenH = 18;
+
+        /// <summary>The cybersecurity readouts the screens cycle through. Two lines, 5x7, upper case.</summary>
+        public static readonly string[][] StackReadouts =
         {
-            { "void", "glow_teal" }, { "panel", "glow_teal" }, { "panel2", "signaldim" }, { "line", "signal" }
+            new[] { "NODE 07/12", "LIVE 98.2%" },
+            new[] { "AUTH 0X4F2", "HANDSHAKE" },
+            new[] { "ICE BREACH", "TRACE FAILED" },
+            new[] { "PORT 22", "MONITOR" },
+            new[] { "SYS.ROOT", "?? INTRUDER" },
+            new[] { "KEY ROTATE", "DONE" }
         };
 
-        // ------------------------------------------------------------------ rows        // ------------------------------------------------------------------ rows
+        /// <summary>
+        /// The breach beat: a random screen, every 14 to 26 seconds, for 1.4 s. Rationed on purpose --
+        /// an alarm that fires constantly stops being an alarm (docs/17 §4, motion_manifest.py).
+        /// </summary>
+        public const double BreachMin = 14.0, BreachMax = 26.0, BreachHold = 1.4;
+
+        /// <summary>How fast a screen's readout changes. Slow: these are machines, not a slot machine.</summary>
+        public const double StackCycle = 2.6;
+
+        // ------------------------------------------------------------------ rows
         public struct Pill
         {
             public int X, Y, W, H;
@@ -252,10 +292,7 @@ namespace HRZeroDay.Core.Rules
 
         public MenuRow(MenuAction action, string label, string ink, bool selected)
         {
-            Action = action;
-            Label = label;
-            Ink = ink;
-            Selected = selected;
+            Action = action; Label = label; Ink = ink; Selected = selected;
         }
     }
 
@@ -319,7 +356,7 @@ namespace HRZeroDay.Core.Rules
 
         private static MenuRow Row(MenuAction action, string label, bool selected)
         {
-            return new MenuRow(action, label, selected ? "signal" : "text", selected);
+            return new MenuRow(action, label, selected ? "cyan_2" : "paper_2", selected);
         }
     }
 }

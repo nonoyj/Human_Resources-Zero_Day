@@ -466,6 +466,15 @@ def check() -> int:
     problems = []
     count = 0
     root_dir = os.path.normpath(OUT)
+    # v118: the front door's material ramps are part of the kit's palette too. They live in
+    # menu_palette.py (authored in HSV, audited for value separation) and are merged here rather than
+    # duplicated, so `make_art_kit.py --check` validates the WHOLE kit against ONE table.
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from menu_palette import PALETTE as FRONT_DOOR
+        allowed_extra = set(FRONT_DOOR.values())
+    except Exception:
+        allowed_extra = set()
     for root, _dirs, files in os.walk(root_dir):
         # reference/ holds documentation images (contact sheet, swatch) that use UI label colours
         if 'reference' in os.path.relpath(root, root_dir).split(os.sep):
@@ -486,7 +495,7 @@ def check() -> int:
                     continue
                 # allow the translucent scanline tint on L2 backgrounds
                 is_alarm_tint = px[:3] == (0xff, 0x47, 0x57) and px[3] < 60
-                if px[:3] not in PALETTE_SET and not is_alarm_tint:
+                if px[:3] not in PALETTE_SET and px[:3] not in allowed_extra and not is_alarm_tint:
                     bad.add(px)
                 if 0 < px[3] < 255 and px[:3] != (0xff, 0x47, 0x57):
                     bad.add(px)
