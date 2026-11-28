@@ -297,3 +297,43 @@ All dashed rather than continuous, all palette steps, none of them inventing a c
 One test had to change with the art, and it was the right change: `the monitor cluster is clickable` now probes
 `StackX + 8` instead of a hard-coded 340, **and** asserts `StackX >= CrtX + CrtW` — i.e. the no-overlap rule the
 player reported is now a test, not a drawing habit.
+
+
+---
+
+# v119.2 — the last look pass: the table on the ground, and lines on the wall
+
+> "Table at the back looks like it's floating. Define the ground and the wall behind more, separate it with
+> lines."
+
+## 16. Why the table floated (and why the previous fix did not work)
+
+v119.1 gave the table feet that stopped at canvas y=149 and a small shadow. The player still read it as
+floating, and the arithmetic says why: **the table's feet end on the WALL band, not on the floor.** The wall's
+floor line is at y=150 and the desk (drawn after the table) covers the floor from y=150 down. So the only thing
+under the table's feet was 1 px of floor, then wall again — and *a shadow drawn on a wall is still a table
+standing on a wall*.
+
+What fixes it, in three parts, all of them in `monitor_stack.png`:
+
+1. **the sprite carries its own ground**: a floor band from the foot line to the bottom of the sprite, with the
+   same lit bevel (`floor_3`) the desk's floor uses, so both read as ONE plane receding behind the desk;
+2. **a wide ground shadow**: one pool across the table's whole footprint, darkest at the feet, dithered out to
+   the edges — a table darkens the floor *around* it, and that pool is the only thing at this scale that says
+   "touching" rather than "near";
+3. **the feet are redrawn on top of their own shadow** with a lit top edge (`wood_3`), so the table stands *in*
+   the pool instead of being swallowed by it. Foot pixels are `wood` — a different material from the floor — and
+   that contrast is what the eye actually uses.
+
+## 17. "Define the wall behind, separate it with lines"
+
+The back wall was one value with two faint joints, which at 480x270 reads as fog. It now has a **panel grid**:
+
+* vertical joints on a 96 px pitch: a hard `void` line with a `wall_1` bevel beside it (the bevel is the depth);
+* a horizontal joint at y=108, where a dado rail would sit;
+* the joints **fade with distance** (a quarter of their pixels drop back to `wall_0`), because a perfect grid
+  reads as a cage;
+* a black seam where the wall meets the floor (the skirting already had it) and the corner darkening kept.
+
+Because the wall and the floor are now both *drawn* rather than implied, the two planes separate on their own —
+which is what "separate it with lines" asks for, done with architecture instead of a drawn border.

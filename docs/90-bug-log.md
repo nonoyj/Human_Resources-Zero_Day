@@ -1566,3 +1566,20 @@ later drawing change.
 The floor's whole ramp spanned value 0.022-0.100 and the wall was already topped out, so nothing could be
 lit. `floor_4` (0.145) and `wall_3` (0.29) exist so that light has somewhere to land. A ramp with no lit step
 cannot show light, only tint.
+
+## BUG-079 -- the table stood on the wall, not on the floor (2026-11-30)
+
+**Reported:** "Table at the back looks like it's floating. Define the ground and the wall behind more,
+separate it with lines."
+
+**Cause.** v119.1 gave the table feet and a shadow, and it still floated -- because the feet ended at canvas
+y=149 and the wall's floor line is at y=150, with the desk (drawn after) covering the floor below. The only
+thing under the feet was 1 px of floor and then wall again. **A shadow on a wall is a table standing on a
+wall**, and no amount of shading fixes that; the table has to reach a surface.
+
+**Fix.** The sprite carries its own ground: a floor band with the same lit bevel the desk's floor uses, a wide
+dithered ground pool across the table's whole footprint, and the feet redrawn on top of that pool with a lit
+top edge in `wood` so they read as a different material from the floor they stand on.
+
+**Also this round:** the back wall gained a panel grid (96 px vertical joints with a lit bevel, a dado rail at
+y=108, both fading with distance) -- "define the wall and separate it with lines", done as architecture.

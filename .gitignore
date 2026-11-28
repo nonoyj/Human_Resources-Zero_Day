@@ -143,3 +143,8 @@ backend/tests/*.db
 backend/__pycache__/
 backend/.pytest_cache/
 
+
+# local build/toolchain output (v119.2): the workspace has a 128 MB / 10k-file budget and these are pure
+# caches. .dotnet and .cache held 1.4 GB between them.
+.cache/
+.dotnet/

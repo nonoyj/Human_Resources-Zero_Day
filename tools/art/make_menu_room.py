@@ -156,14 +156,23 @@ def shell():
     dither(img, 0, 0, W, 26, 'wall_0', 'void', 0.45)
     box(d, 0, 0, W, 4, 'void')
 
-    # ---- panel joints: two verticals, in the wall's own two values. A wall with no scale reads as fog.
-    for x in (166, 352):
-        vline(d, x, 0, FLOOR_Y, 'wall_0')
-        vline(d, x + 1, 0, FLOOR_Y, 'wall_1')
-        vline(d, x + 2, 0, FLOOR_Y, 'wall_0')
+    # ---- THE WALL, DEFINED (v119.2).
+    #
+    # The player asked to "define the ground and the wall behind more, separate it with lines". The wall was
+    # one value with two faint joints; at 480x270 that reads as fog rather than architecture. It now has a
+    # PANEL GRID -- vertical joints on a 96 px pitch, a horizontal joint at the height a dado rail would sit,
+    # and a black seam where the wall meets the floor -- drawn in the wall's own two values so the lines are
+    # structure and not decoration.
+    for x in (96, 192, 288, 384):
+        vline(d, x, 0, FLOOR_Y - 8, 'void')          # the joint itself: one hard black line
+        vline(d, x + 1, 0, FLOOR_Y - 8, 'wall_1')    # ...and the lit bevel beside it, which is the depth
+    for x in (96, 192, 288, 384):
+        for y in range(0, FLOOR_Y - 8, 9):
+            if ((x + y) & 3) == 0:
+                img.putpixel((x, y), rgba('wall_0'))  # let the joint FADE with distance: it is not a cage
+    hline(d, 0, W, 108, 'void')                      # the dado rail
+    hline(d, 0, W, 109, 'wall_1')
     # the corner where the wall turns: the right edge is one step darker than the wall it meets
-    for x in range(W - 34, W):
-        pass
     dither(img, W - 30, 0, W, FLOOR_Y, 'wall_0', 'void', 0.55)
 
     # ---- skirting: a ledge with a black underside. Without it the wall and the floor bleed together.
@@ -507,8 +516,41 @@ def monitor_stack():
         dither(img, lx + 1, table_y + 9, lx + 6, leg_bottom - 2, 'wood_1', 'wood_0', 0.4)
         box(d, lx - 2, leg_bottom - 3, lx + 9, leg_bottom, 'wood_0')   # a foot
         hline(d, lx - 2, lx + 9, leg_bottom - 3, 'wood_2')
-        # the contact shadow UNDER the foot: what actually stops it floating
-        dither(img, lx - 3, leg_bottom, lx + 10, mh, 'void', 'floor_1', 0.6)
+        # ---- THE CONTACT SHADOW, v119.2.
+        #
+        # The player's report was "the table at the back looks like it's floating", and he is right: the feet
+        # ended at y=149 and below them was bare WALL. A shadow drawn on a wall reads as a shadow drawn on a
+        # wall, which is the same thing as floating. Two things fix it, and both are needed:
+        #
+        #   a) the sprite carries the FLOOR it stands on: a band of floor tile from the foot line to the
+        #      bottom of the sprite, so the desk (drawn after) continues the same floor plane and the eye
+        #      reads one ground going back behind the desk;
+        #   b) a squashed, dithered contact shadow that pools AROUND each foot and is darkest where the foot
+        #      meets the floor -- an ellipse, not a vertical smear.
+        box(d, 0, leg_bottom, mw, mh, 'floor_1')
+        hline(d, 0, mw, leg_bottom, 'floor_0')
+        hline(d, 0, mw, leg_bottom + 1, 'floor_3')       # the floor's lit bevel, same as the desk's floor
+        # THE GROUND SHADOW. One wide pool across the whole footprint, not two thin smears: a table standing
+        # on a floor darkens the floor AROUND it, and that pool is the only thing at this scale that says
+        # "touching" rather than "near". The pool is drawn on the wall band BELOW the feet, which is exactly
+        # the strip the desk's back edge does not cover, so it stays visible in the composite.
+        for yy in range(leg_bottom - 6, mh):
+            dy2 = (yy - (leg_bottom - 6)) / float(max(1, mh - (leg_bottom - 6)))
+            for xx in range(0, mw):
+                # the pool is widest along the table's span, with the legs adding their own anchor
+                edge = min(xx, mw - 1 - xx) / (mw * 0.5)
+                near_leg = min(abs(xx - 12), abs(xx - 57)) / 14.0
+                t = max(0.0, 1.0 - edge * 0.9) * (0.55 + 0.45 * max(0.0, 1.0 - near_leg))
+                if BAYER4[yy & 3][xx & 3] / 16.0 < t * (0.45 + dy2 * 0.8):
+                    img.putpixel((xx, yy), rgba('void'))
+        # ...and then the FOOT is redrawn ON TOP of its own shadow, so the table stands IN the pool and is
+        # not swallowed by it. A foot that disappears into its shadow reads as a leg cut off.
+        for fx in (lx - 2, lx + 7):
+            box(d, fx - 2, leg_bottom - 3, fx + 9, leg_bottom + 1, 'wood_1')
+            hline(d, fx - 2, fx + 9, leg_bottom - 3, 'wood_3')    # the lit top of the foot
+            hline(d, fx - 2, fx + 9, leg_bottom, 'wood_0')
+            vline(d, fx + 9, leg_bottom - 3, leg_bottom, 'void')
+
     # the cross-brace, high up behind the cases: what makes it a table and not two sticks
     box(d, 12, table_y + 15, 60, table_y + 18, 'wood_0')
     hline(d, 12, 60, table_y + 15, 'wood_1')
