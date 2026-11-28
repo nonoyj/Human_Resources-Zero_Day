@@ -23,12 +23,13 @@ function Die  ($m) { Write-Host "  [FAIL] $m" -ForegroundColor Red; exit 1 }
 # ---------------------------------------------------------------- 0. the bundle is the one I built
 Step "checking the bundle"
 if (-not (Test-Path -LiteralPath $zip)) { Die "bundle not found: $zip  (put the v129 zip in Downloads, or edit `$zip)" }
-# The zip contains this very file, so it cannot contain its own final hash -- that is why this is a WARN
-# and not a stop. The hash the delivery quoted is the one to eyeball; anything else means a partial copy.
-$want = '8C97AA299E501F4B75566B25F12E3E4E9D50ECE99EA74460AEA118AB420C22E5'
-$got  = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
-if ($got -ne $want) { Write-Host "  [warn] sha256 $($got.Substring(0,16))... -- the delivery quoted $($want.Substring(0,16))..., re-download if the zip looks truncated" -ForegroundColor Yellow }
-else { Ok "sha256 matches ($($got.Substring(0,16))...)" }
+# The zip carries THIS file, so it cannot carry its own final hash -- that is why there is no hardcoded
+# checksum here. What it checks instead is the thing a bad download actually looks like: a short file.
+# The delivery quoted a sha256; this prints the one it found, so you can compare without trusting me.
+$size = (Get-Item -LiteralPath $zip).Length
+if ($size -lt 15MB) { Die "the zip is only $([int]($size/1MB)) MB -- a full v129 bundle is ~17 MB, re-download it" }
+$got = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
+Ok "size $([math]::Round($size/1MB,1)) MB, sha256 $($got.Substring(0,16))... (the delivery quoted 53D744007718E279)"
 
 # ---------------------------------------------------------------- 1. extract beside the repo
 Step "extracting to $stage"
