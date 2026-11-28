@@ -111,22 +111,217 @@ namespace HRZeroDay.Game.Interaction
         private bool BuildRoom()
         {
             _room = new Color32[W * H];
-            bool any = false;
-            // THE CONCEPT'S FRAME (v114): a dark office, the bank of wall screens with cyan data on it,
-            // the night city, a server cabinet at the far right, the desk band, the clearance card, and the
-            // big monitor in front with the menu inside it. Order is depth: wall -> server -> monitor -> desk.
-            any |= Blit("backgrounds/office_L0", 0, 0, true);
-            any |= Blit("desk/wall_monitors", MenuLayout.WallX, MenuLayout.WallY, false);
-            any |= Blit("desk/wall_labels", MenuLayout.LabelX, MenuLayout.LabelY, false);
-            any |= Blit("desk/server_rack", MenuLayout.ServerX, MenuLayout.ServerY, false);
-            any |= Blit("desk/menu_monitor", MenuLayout.MonitorX, MenuLayout.MonitorY, false);
-            Halo();
-            any |= Blit("desk/desk_foreground", 0, MenuLayout.DeskY, false);
-            Widget();
-            if (!any) Debug.LogWarning("[HR//0D] menu room: no kit sprites found under Resources/" + KitRoot);
+            // THE ROOM, BACK TO FRONT (v115, ADR-019). Every piece is from art/kit/menu/, drawn by
+            // tools/art/make_menu_room.py from the player's brief. A missing sprite is skipped and logged:
+            // a menu with no server is still a menu, and the desk must never fail to open.
+            Blit("menu/shell", 0, 0, true);
+            Blit("menu/window", MenuLayout.WindowX, MenuLayout.WindowY, false);
+            Blit("menu/monitor_stack", MenuLayout.StackX, MenuLayout.StackY, false);
+            Blit("menu/server", MenuLayout.ServerX, MenuLayout.ServerY, false);
+            Blit("menu/crt", MenuLayout.CrtX, MenuLayout.CrtY, false);
+            Blit("menu/desk", 0, MenuLayout.DeskY, false);
+            GlassMaterial();
+            Light();
             return true;
         }
 
+        /// <summary>
+        /// The tube itself: an off-black phosphor with a scanline every three rows, brightest in the top
+        /// third, and one emissive line just inside the bezel on the top and left. Painted before the light
+        /// pass (which skips the monitor entirely) and before the menu text.
+        /// </summary>
+        private void GlassMaterial()
+        {
+            var palette = MonitorScreenView.PaletteCached;
+            if (palette == null) return;
+            Color32 paper, wash, dim, edge;
+            if (!palette.TryGetValue("void", out paper)) return;
+            if (!palette.TryGetValue("glow_teal", out wash)) return;
+            if (!palette.TryGetValue("panel", out dim)) return;
+            if (!palette.TryGetValue("signaldim", out edge)) return;
+
+            int x0 = MenuLayout.GlassX, y0 = MenuLayout.GlassY;
+            int x1 = x0 + MenuLayout.GlassW, y1 = y0 + MenuLayout.GlassH;
+            for (int y = y0; y < y1; y++)
+            {
+                bool bright = y < y0 + MenuLayout.GlassH / 3;
+                for (int x = x0; x < x1; x++)
+                {
+                    int i = y * W + x;
+                    _room[i] = paper;
+                    if ((y - y0) % 3 == 2) _room[i] = bright ? wash : dim;
+                }
+            }
+            // the tube's own edge: a single emissive line on the top and left, never on all four sides
+            for (int x = x0; x < x1; x++) _room[y0 * W + x] = edge;
+            for (int y = y0; y < y1; y++) _room[y * W + x0] = edge;
+        }
+
+        /// <summary>
+        /// Paints the ambience. Each light raises the VALUE of the surfaces it reaches, in ramp steps
+        /// (MenuLayout.Ramp), and the step boundary is the only place a dither appears. A light never
+        /// replaces a colour with its own -- that is what turned the first attempt into cyan blobs.
+        /// </summary>
+        private void Light()
+        {
+            var palette = MonitorScreenView.PaletteCached;
+            if (palette == null) return;
+
+            // reverse lookup: a room pixel's colour -> its ramp index. One pass, then it is arithmetic.
+            var rampIndex = new Dictionary<Color32, int>();
+            for (int i = 0; i < MenuLayout.Ramp.Length; i++)
+            {
+                Color32 c;
+                if (palette.TryGetValue(MenuLayout.Ramp[i], out c)) rampIndex[c] = i;
+            }
+            var ramp = new Color32[MenuLayout.Ramp.Length];
+            for (int i = 0; i < ramp.Length; i++)
+                ramp[i] = palette.TryGetValue(MenuLayout.Ramp[i], out ramp[i]) ? ramp[i] : ramp[i];
+
+            // glow_teal is a DARK teal: that is the colour of light after it has left the screen and is
+            // bouncing off plastic. signaldim is a lit LED and must never be used for ambience.
+            Color32 teal, tealDim;
+            palette.TryGetValue("glow_teal", out teal);
+            palette.TryGetValue("signaldim", out tealDim);
+
+            var lights = MenuLayout.Lights();
+            for (int y = 0; y < H; y++)
+            {
+                for (int x = 0; x < W; x++)
+                {
+                    int idx = y * W + x;
+                    if (_room[idx].a == 0) continue;
+
+                    // THE GLASS IS A SOURCE, NOT A SURFACE. Every pass below skips the monitor's own case
+                    // and tube: lighting the screen you are reading made the menu speckle and, worse, let
+                    // the cyan fade paint over the title. The screen lights the room; nothing lights it.
+                    if (x >= MenuLayout.CrtX && x < MenuLayout.CrtX + 240 &&
+                        y >= MenuLayout.CrtY && y < MenuLayout.CrtY + 172) continue;
+
+                    int step;
+                    if (!rampIndex.TryGetValue(_room[idx], out step)) continue;   // emitting colours: leave alone
+
+                    double lift = 0;
+                    for (int li = 0; li < lights.Length; li++)
+                    {
+                        var L = lights[li];
+                        double dx = (x - L.X) / (double)L.Rx;
+                        double dy = (y - L.Y) / (double)L.Ry;
+                        double r = Math.Sqrt(dx * dx + dy * dy);
+                        if (r >= 1.0) continue;
+                        double fall = Math.Pow(1.0 - r, L.Falloff);
+                        lift += fall * L.Strength;
+                    }
+
+                    int add = (int)Math.Floor(lift);
+                    // the fractional part becomes the dither: a 2x2 ordered pattern splits the seam
+                    double frac = lift - add;
+                    int pat = ((x & 1) + ((y & 1) << 1));
+                    if (frac > 0.65) add += 1;
+                    else if (frac > 0.35 && pat < 2) add += 1;
+
+                    if (add <= 0) continue;
+                    if (add > MenuLayout.MaxLift) add = MenuLayout.MaxLift;
+                    int target = Math.Min(step + add, MenuLayout.Ramp.Length - 1);
+
+                    // CYAN ONLY NEAR THE SCREEN. Everywhere else a lit surface is a brighter neutral, which
+                    // is what makes the room read as a lit office rather than a blue-lit aquarium.
+                    int dxGlass = 0;
+                    if (x < MenuLayout.GlassX) dxGlass = MenuLayout.GlassX - x;
+                    else if (x >= MenuLayout.GlassX + MenuLayout.GlassW)
+                        dxGlass = x - (MenuLayout.GlassX + MenuLayout.GlassW);
+                    int dyGlass = 0;
+                    if (y < MenuLayout.GlassY) dyGlass = MenuLayout.GlassY - y;
+                    else if (y >= MenuLayout.GlassY + MenuLayout.GlassH)
+                        dyGlass = y - (MenuLayout.GlassY + MenuLayout.GlassH);
+                    bool near = dxGlass + dyGlass < MenuLayout.CyanNear;
+                    _room[idx] = near ? (Color32)teal : ramp[target];
+
+                    // THE CYAN FADE. The brief's one explicit art direction: light coming OUT of the
+                    // monitor. Measured as distance from the CASE, not from an ellipse around it, so the
+                    // wall beside it and the desk directly under it are the first things it touches.
+                    // It only ever lands on a DARK surface: a bright surface lifted into teal just becomes a
+                    // turquoise panel, which is exactly what the first passes looked like.
+                    if (step <= 1)
+                    {
+                        int fx = 0, fy = 0;
+                        if (x < MenuLayout.CrtX) fx = MenuLayout.CrtX - x;
+                        else if (x >= MenuLayout.CrtX + 240) fx = x - (MenuLayout.CrtX + 239);
+                        if (y < MenuLayout.CrtY) fy = MenuLayout.CrtY - y;
+                        else if (y >= MenuLayout.CrtY + 172) fy = y - (MenuLayout.CrtY + 171);
+                        int fd = fx > fy ? fx : fy;
+                        if (fd < MenuLayout.FadeReach)
+                        {
+                            double fall = 1.0 - fd / (double)MenuLayout.FadeReach;
+                            int thr = (int)(Math.Pow(fall, 1.15) * 15.0);
+                            int pat4 = (x & 3) + ((y & 3) << 2);
+                            if (pat4 < thr) _room[idx] = teal;
+                        }
+                    }
+                }
+            }
+
+            // the CRT's own spill: the 6 px immediately around the case take the brightest cyan step, so the
+            // screen reads as the source of the light rather than as a lit object
+            Halo(teal, tealDim);
+            Vignette();
+        }
+
+        private void Halo(Color32 teal, Color32 tealDim)
+        {
+            for (int ring = 1; ring <= 2; ring++)
+            {
+                int x0 = MenuLayout.CrtX - ring, y0 = MenuLayout.CrtY - ring;
+                int x1 = MenuLayout.CrtX + 240 + ring, y1 = MenuLayout.CrtY + 172 + ring;
+                for (int x = x0; x <= x1; x++)
+                {
+                    PaintHalo(x, y0, ring, teal, tealDim);
+                    PaintHalo(x, y1, ring, teal, tealDim);
+                }
+                for (int y = y0; y <= y1; y++)
+                {
+                    PaintHalo(x0, y, ring, teal, tealDim);
+                    PaintHalo(x1, y, ring, teal, tealDim);
+                }
+            }
+        }
+
+        private void PaintHalo(int x, int y, int ring, Color32 teal, Color32 tealDim)
+        {
+            if (x < 0 || y < 0 || x >= W || y >= H) return;
+            int i = y * W + x;
+            if (_room[i].a == 0) return;
+            // a DARK teal, and ring 2 is dithered at one-in-four: the bounce off a plastic case is subtle.
+            // Painting this in the bright signal colour produced two neon bars over the whole frame.
+            if (ring == 2 && ((x + y) & 3) != 0) return;
+            _room[i] = teal;
+        }
+
+        /// <summary>Ambient: the four corners fall one step. Drawn last, so it never fights a light.</summary>
+        private void Vignette()
+        {
+            Color32 dark;
+            var palette = MonitorScreenView.PaletteCached;
+            if (palette == null || !palette.TryGetValue("void", out dark)) return;
+            int rx = W / 2, ry = H / 2;
+            for (int y = 0; y < H; y++)
+            {
+                for (int x = 0; x < W; x++)
+                {
+                    int i = y * W + x;
+                    if (_room[i].a == 0) continue;
+                    if (x >= MenuLayout.CrtX && x < MenuLayout.CrtX + 240 &&
+                        y >= MenuLayout.CrtY && y < MenuLayout.CrtY + 172) continue;   // the glass is a source
+                    double dx = (x - rx) / (double)rx;
+                    double dy = (y - ry) / (double)ry;
+                    double r = Math.Sqrt(dx * dx + dy * dy);
+                    if (r > 1.25) { _room[i] = dark; continue; }
+                    if (r >= 1.0 && ((x + y) & 1) == 0) _room[i] = dark;
+                }
+            }
+        }
+
+        /// <summary>Copies one kit sprite into the room buffer at canvas (x0, y0). Alpha 0 is skipped.</summary>
         private bool Blit(string resource, int x0, int y0, bool mustFill)
         {
             var tex = Resources.Load<Texture2D>(KitRoot + resource);
@@ -153,64 +348,7 @@ namespace HRZeroDay.Game.Interaction
                     _room[dy * W + dx] = c;
                 }
             }
-            return mustFill || true;
-        }
-
-        /// <summary>The cyan the screen and the window throw. Flat steps, two rings, one pool on the desk.</summary>
-        private void Halo()
-        {
-            var teal = Ink("glow_teal", new Color32(12, 61, 56, 255));
-            var dim = Ink("signaldim", new Color32(15, 168, 138, 255));
-            int x0 = MenuLayout.MonitorX, y0 = MenuLayout.MonitorY;
-            int x1 = x0 + 300, y1 = y0 + 220;      // the case, not the glass: light spills outside the bezel
-            for (int i = 1; i <= 2; i++)
-            {
-                var ink = i == 1 ? dim : teal;
-                for (int x = x0 - i; x <= x1 - 1 + i; x++)
-                {
-                    Put(x, y0 - i, ink);
-                    Put(x, y1 - 1 + i, ink);
-                }
-                for (int y = y0 - i; y <= y1 - 1 + i; y++)
-                {
-                    Put(x0 - i, y, ink);
-                    Put(x1 - 1 + i, y, ink);
-                }
-            }
-            for (int i = 0; i < 2; i++)
-            {
-                int y = y1 + 2 + i * 3;
-                int half = 130 - i * 34;
-                for (int x = (x0 + x1) / 2 - half; x < (x0 + x1) / 2 + half; x++) Put(x, y, i == 0 ? teal : dim);
-            }
-        }
-
-        /// <summary>
-        /// The clearance card the concept puts in the top-right corner: a dark panel, a silhouette, the ID and
-        /// the clearance tier, and three small bars. Painted, not a sprite, because it is five rectangles and
-        /// a row of type -- and it is the one place the front door shows you who you are before you start.
-        /// </summary>
-        private void Widget()
-        {
-            var panel = Ink("panel", new Color32(19, 25, 38, 255));
-            var edge = Ink("line", new Color32(43, 58, 77, 255));
-            var hi = Ink("linehi", new Color32(63, 85, 112, 255));
-            int x = MenuLayout.WidgetX, y = MenuLayout.WidgetY, w = 62, h = 30;
-            for (int yy = y; yy < y + h; yy++)
-                for (int xx = x; xx < x + w; xx++)
-                {
-                    bool border = yy == y || yy == y + h - 1 || xx == x || xx == x + w - 1;
-                    Put(xx, yy, border ? edge : panel);
-                }
-            // head + shoulders, four px wide: a silhouette, not a portrait
-            int cx = x + 11;
-            for (int yy = y + 6; yy < y + 12; yy++) Put(cx + (yy % 2), yy, hi);
-            for (int yy = y + 13; yy < y + 22; yy++) Put(cx - 2 + (yy - 13) / 3, yy, hi);
-            for (int yy = y + 13; yy < y + 22; yy++) Put(cx + 3 - (yy - 13) / 3, yy, hi);
-            // three tier bars
-            for (int i = 0; i < 3; i++)
-                for (int xx = x + 8 + i * 14; xx < x + 18 + i * 14; xx++)
-                    Put(xx, y + h - 6, Ink(i == 0 ? "orange" : "linehi", hi));
+            return true;
         }
 
         private void Put(int x, int y, Color32 ink)
@@ -387,7 +525,6 @@ namespace HRZeroDay.Game.Interaction
 
             var buf = new Color32[W * H];
             Array.Copy(_room, buf, buf.Length);
-            Dim(buf);
 
             var rows = new List<MonitorScreenRaster.RasterRow>();
             var pills = new List<MenuLayout.Pill>();
@@ -465,34 +602,6 @@ namespace HRZeroDay.Game.Interaction
                     return MenuScreenText.Consent(_consentGranted, _consentDecided, _index);
                 default:
                     return MenuScreenText.Root(_hasSave, _runInProgress, _index);
-            }
-        }
-
-        /// <summary>
-        /// The room at night: each surface drops one palette step (MenuLayout.Darken); light-emitting
-        /// colours are left alone, so the window, the stars and the server LEDs still glow. Done by colour
-        /// lookup, not by index, because the room buffer holds whatever the kit sprites drew.
-        /// </summary>
-        private void Dim(Color32[] buf)
-        {
-            var palette = MonitorScreenView.PaletteCached;
-            if (palette == null) return;
-            var step = new Dictionary<Color32, Color32>();
-            for (int i = 0; i < MenuLayout.Darken.GetLength(0); i++)
-            {
-                string from = MenuLayout.Darken[i, 0], to = MenuLayout.Darken[i, 1];
-                Color32 a, b;
-                if (palette.TryGetValue(from, out a) && palette.TryGetValue(to, out b)) step[a] = b;
-            }
-            for (int y = 0; y < H; y++)
-            {
-                for (int x = 0; x < W; x++)
-                {
-                    if (InGlass(x, y)) continue;
-                    int i = y * W + x;
-                    Color32 dark;
-                    if (buf[i].a != 0 && step.TryGetValue(buf[i], out dark)) buf[i] = dark;
-                }
             }
         }
 

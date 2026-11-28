@@ -35,6 +35,9 @@ RULES = {
     'stamps':     dict(ppu=16, svc='Single', kind='stamp'),
     'desk':       dict(ppu=16, svc='Single', kind='desk'),
     'backgrounds': dict(ppu=16, svc='Single', kind='background'),
+    # the FRONT DOOR room (v115): the six pieces MenuView.BuildRoom() blits. Point-filtered, no
+    # compression, no mipmaps -- one sprite pixel must be one screen pixel or the pixel art dies.
+    'menu':       dict(ppu=16, svc='Single', kind='menu'),
     # wear overlays: full-screen, drawn ON TOP of the room at the same pixels-per-unit as the
     # background, so the two align exactly when both are spawned at 0,0.
     'fx':         dict(ppu=16, svc='Single', kind='fx'),

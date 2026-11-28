@@ -25,6 +25,7 @@ namespace HRZeroDay.Tests
             yield return CheckEveryRowCanBeReachedAndEveryVolumeCanGoBothWays();
             yield return CheckTheConsentRowIsTheDecision();
             yield return CheckTheConceptRowsExistAndFitTheGlass();
+            yield return CheckTheRoomHasEveryPieceFromTheBrief();
         }
 
         private static void True(bool condition, string message)
@@ -283,6 +284,63 @@ namespace HRZeroDay.Tests
             True(MenuLayout.Row(4, "a", "b").Y + MenuLayout.Row(4, "a", "b").H <= MenuLayout.FooterTop,
                  "the last pill runs into the footer");
             return "PASS  the concept's five rows exist and every pill sits inside the monitor glass";
+        }
+
+        /// <summary>
+        /// The player's room (v115, ADR-019): an old monitor on the desk with the menu inside it, a table of
+        /// white screens behind it, a window with a city and a moon beside the table, a server in the corner,
+        /// and a tiled floor with black outlines. This asserts the LAYOUT half -- that every piece is on the
+        /// frame, that nothing is hidden behind the monitor, and that the desk actually meets the wall. The
+        /// sprites themselves are gated by tools/art/make_menu_composite.py --check.
+        /// </summary>
+        private static string CheckTheRoomHasEveryPieceFromTheBrief()
+        {
+            // everything on the canvas
+            True(MenuLayout.CrtX >= 0 && MenuLayout.CrtY >= 0 &&
+                 MenuLayout.CrtX + MenuLayout.CrtW <= MenuLayout.W &&
+                 MenuLayout.CrtY + MenuLayout.CrtH <= MenuLayout.H,
+                 "the monitor is off the frame");
+            True(MenuLayout.StackX + MenuLayout.StackW <= MenuLayout.W &&
+                 MenuLayout.WindowX + MenuLayout.WindowW <= MenuLayout.W &&
+                 MenuLayout.ServerX + MenuLayout.ServerW <= MenuLayout.W,
+                 "the back wall does not fit the frame");
+
+            // the brief's order: table, then window, then the server in the corner. Left to right.
+            True(MenuLayout.StackX + MenuLayout.StackW <= MenuLayout.WindowX,
+                 "the table runs into the window");
+            True(MenuLayout.WindowX + MenuLayout.WindowW <= MenuLayout.ServerX,
+                 "the window runs into the server");
+
+            // the monitor must not bury the window: this is the v115 defect, pinned
+            True(MenuLayout.CrtX + MenuLayout.CrtW <= MenuLayout.WindowX,
+                 "the monitor covers the window");
+
+            // the desk meets the wall where the floor starts, and the monitor stands on the desk
+            True(MenuLayout.DeskSurfaceY >= MenuLayout.FloorY - 2 && MenuLayout.DeskSurfaceY <= MenuLayout.FloorY + 6,
+                 "the desk does not meet the wall at the floor line");
+            True(MenuLayout.CrtY + MenuLayout.CrtH >= MenuLayout.DeskSurfaceY - 4 &&
+                 MenuLayout.CrtY + MenuLayout.CrtH <= MenuLayout.DeskSurfaceY + 30,
+                 "the monitor does not sit on the desk");
+
+            // the glass is inside the case, and the menu fits inside the glass
+            True(MenuLayout.GlassX > MenuLayout.CrtX && MenuLayout.GlassY > MenuLayout.CrtY,
+                 "the glass is not inside the case");
+            True(MenuLayout.GlassX + MenuLayout.GlassW < MenuLayout.CrtX + MenuLayout.CrtW &&
+                 MenuLayout.GlassY + MenuLayout.GlassH < MenuLayout.CrtY + MenuLayout.CrtH,
+                 "the glass runs out of the case");
+            True(MenuLayout.FooterTop + MenuLayout.GlyphH <= MenuLayout.GlassY + MenuLayout.GlassH,
+                 "the footer runs out of the glass");
+
+            // the light: one dominant source, and the fade has to reach the desk
+            var lights = MenuLayout.Lights();
+            True(lights.Length == 3, "the room is lit by " + lights.Length + " sources, the brief asks for three");
+            True(lights[2].Strength >= lights[0].Strength && lights[2].Strength >= lights[1].Strength,
+                 "the monitor is not the dominant light");
+            True(MenuLayout.FadeReach > 0 && MenuLayout.CrtY + MenuLayout.CrtH + MenuLayout.FadeReach >
+                 MenuLayout.DeskSurfaceY,
+                 "the cyan fade never reaches the desk");
+            True(MenuLayout.MaxLift == 1, "ambient light may add one ramp step and no more");
+            return "PASS  the room has every piece from the brief, in the brief's order";
         }
 
         /// <summary>Volume: ten honest steps, clamped, and a bar made of atlas characters.</summary>

@@ -285,7 +285,7 @@ def main() -> int:
         keep = {os.path.normpath(os.path.join(DEST_ROOT, a[len('Assets/'):]))
                 for a in full}
         keep_rt = {os.path.normpath(runtime_path(a)) for a in full}
-        for folder in ('applicants', 'portraits', 'ui', 'icons', 'stamps', 'desk', 'backgrounds', 'sweep'):
+        for folder in ('applicants', 'portraits', 'ui', 'icons', 'stamps', 'desk', 'backgrounds', 'menu', 'sweep'):
             d = os.path.join(DEST_ROOT, 'Art', 'Kit', folder)
             if not os.path.isdir(d):
                 continue

@@ -21,6 +21,7 @@
     "stamps": 2,
     "desk": 13,
     "backgrounds": 3,
+    "menu": 6,
     "fx": 3,
     "fonts": 1,
     "sweep": 5
@@ -2225,6 +2226,120 @@
       }
     },
     {
+      "source": "art/kit/menu/crt.png",
+      "assetPath": "Assets/Art/Kit/menu/crt.png",
+      "width": 240,
+      "height": 172,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "menu",
+      "sha256_16": "d9e6afe43aeb6475",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/menu/desk.png",
+      "assetPath": "Assets/Art/Kit/menu/desk.png",
+      "width": 480,
+      "height": 64,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "menu",
+      "sha256_16": "1122c34d1a27063f",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/menu/monitor_stack.png",
+      "assetPath": "Assets/Art/Kit/menu/monitor_stack.png",
+      "width": 100,
+      "height": 100,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "menu",
+      "sha256_16": "0bd27eb821fe413d",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/menu/server.png",
+      "assetPath": "Assets/Art/Kit/menu/server.png",
+      "width": 26,
+      "height": 112,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "menu",
+      "sha256_16": "39353b5ef9fef1b5",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/menu/shell.png",
+      "assetPath": "Assets/Art/Kit/menu/shell.png",
+      "width": 480,
+      "height": 270,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "menu",
+      "sha256_16": "a681fa3bd7915aac",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/menu/window.png",
+      "assetPath": "Assets/Art/Kit/menu/window.png",
+      "width": 82,
+      "height": 108,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "menu",
+      "sha256_16": "5b49c1d9d258b65e",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
       "source": "art/kit/fx/screen_halo.png",
       "assetPath": "Assets/Art/Kit/fx/screen_halo.png",
       "width": 370,
@@ -2407,6 +2522,8 @@
     "art/kit/reference/menu_2x.png",
     "art/kit/reference/menu_composite_1x.png",
     "art/kit/reference/menu_composite_3x.png",
+    "art/kit/reference/menu_v115_1x.png",
+    "art/kit/reference/menu_v115_3x.png",
     "art/kit/reference/palette_swatch.png",
     "art/kit/reference/screen_preview.png",
     "art/kit/reference/screen_preview_long.png",

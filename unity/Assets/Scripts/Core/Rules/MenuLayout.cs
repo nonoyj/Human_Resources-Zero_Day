@@ -1,81 +1,168 @@
-// HR//0D -- MenuLayout: where everything on the front door goes. Pure data, no UnityEngine.
+// HR//0D -- MenuLayout: the front door's room, frame and light. Pure data, no UnityEngine.
 // Assembly: HRZeroDay.Core  (pure C#, no UnityEngine)
 //
-// THE FRAME (concept, player 2026-11-28; ADR-017/018)
-//   The front door is the ROOM, not a card over it: a 480x270 composition of
+// THE ROOM (player brief 2026-11-28, ADR-019; art in art/kit/menu/, drawn by tools/art/make_menu_room.py)
 //
-//       background (night city)     y  0 .. 205
-//       desk band (coffee, files)   y 206 .. 269
-//       big monitor   x 14..273,  y 30..199      glass x 26..261, y 42..185  (236x144)
-//       server rack   x 436..469, y 109..200
+//        furthest wall: window (city, moon)          table of 6 white screens + 2 under it
+//        right corner:  database server
+//        left, in front: an old CRT with the title and the menu inside its glass
+//        desk under it: coffee with smoke, keyboard, mouse, pile of application forms
+//        floor: tiles with black grout
 //
-//   Everything in this file is stated in that frame, in canvas px, y DOWN from the top-left -- the same
-//   coordinates tools/art/make_menu_composite.py renders, so the twin and the game cannot drift. The
-//   glass rect here is checked against desk_layout.json's menuFrame.glass by tests/CoreTests.
+//   Coordinates are canvas px, 480x270, y DOWN from the top-left -- the same numbers the twin renderer
+//   (tools/art/make_menu_composite.py) draws, so the preview cannot drift from the game.
 //
-// WHY THE TITLE IS BIG AND THE ROWS ARE SMALL
-//   A 5x7 glyph is 5 px wide, so "HUMAN RESOURCES" at 1x is 103 px: a caption. The concept's title is a
-//   third of the screen wide, which is 3x -- so the title row is drawn by repeating each glyph pixel into
-//   a 3x3 cell (MenuGlyph.InkAt takes a scale, and the raster is asked for a 15x21 cell). Same atlas,
-//   same palette, no new font: it is the same trick the concept's lettering implies.
+// THE LIGHT (docs/16-light-study.md, and the research behind it)
+//   1. ONE dominant source: the CRT. Everything else is subordinate.
+//   2. falloff is BANDS with dithered seams -- never a global checker (that was the v113 mistake).
+//   3. bright cores stay solid; dither lives on boundaries.
+//   4. shadows lift toward blue-teal instead of crushing to black, so the room stays legible.
+//   5. warmth is rationed: the coffee's steam and one amber LED are the only warm pixels in the frame.
 using System;
 using System.Collections.Generic;
 
 namespace HRZeroDay.Core.Rules
 {
-    /// <summary>The whole front door frame, in canvas px, y down. One place, so nothing is guessed twice.</summary>
     public static class MenuLayout
     {
-        public const int W = 480;
-        public const int H = 270;
+        public const int W = 480, H = 270;
 
-        // ---- the monitor the menu lives in: desk/menu_monitor.png, 300x220, glass 272x170
-        public const int MonitorX = 4, MonitorY = 10;
-        public const int GlassX = 18, GlassY = 24, GlassW = 312, GlassH = 172;
+        // ---- the room's own furniture, in draw order (back to front)
+        public const int WindowX = 368, WindowY = 34;     // menu/window.png         82x108, hung on the wall
+        public const int StackX = 260, StackY = 102;      // menu/monitor_stack.png 100x100, on the floor
+        public const int ServerX = 454, ServerY = 90;     // menu/server.png         26x112, on the floor
 
-        // ---- the rest of the concept's frame
-        public const int WallX = 326, WallY = 40;         // desk/wall_monitors.png, 150x104
-        public const int LabelX = 350, LabelY = 150;      // desk/wall_labels.png, 150x30 (right of the bezel)
-        public const int ServerX = 430, ServerY = 92;    // desk/server_rack.png, 48x160
-        public const int DeskY = 206;                     // desk/desk_foreground.png, 480x64
-        public const int WidgetX = 412, WidgetY = 6;      // the clearance/ID card, top right
+        // ---- the CRT the menu lives in: menu/crt.png 240x186, glass 208x136
+        public const int CrtX = 14, CrtY = 30;            // stands ON the desk: CrtY + CrtH == DeskSurfaceY
+        public const int GlassX = 28;
+        public const int GlassY = CrtY + 14;              // always relative to the case
+        public const int GlassW = 212, GlassH = 126;
 
-        // ---- type: 3x title, 1x rows. The concept's title is a third of the screen wide.
-        public const int TitleScale = 3;
-        public const int TitleTop = GlassY + 6, SubtitleTop = GlassY + 30, TaglineTop = GlassY + 56;
+        // ---- the desk band and what sits on it
+        public const int DeskY = 184;                     // menu/desk.png 480x64 (18 px of steam headroom)
+        public const int DeskSurfaceY = 202;              // DeskY + the sprite's 18 px of steam headroom
 
-        // ---- the option pills: filled, rounded, stacked under the title
-        public const int PillX = 108, PillW = 156, PillH = 15, PillStep = 17;
-        public static int PillTop { get { return GlassY + 70; } }
-        public static int FooterTop { get { return GlassY + GlassH - 14; } }
+        // ---- sprite sizes, mirrored from tools/art/make_menu_room.py. The tests read these.
+        public const int CrtW = 240, CrtH = 172;
+        public const int WindowW = 82, WindowH = 108;
+        public const int StackW = 100, StackH = 100;
+        public const int ServerW = 26, ServerH = 112;
+        public const int FloorY = 196;
 
-        // The atlas is 5x7 with a 2 px letter gap and a 3 px line gap (art/kit/fonts/monitor_font_5x7.json).
-        // Stated here rather than referenced, because this assembly has no UnityEngine; the Unity-side
-        // compile check asserts these against MonitorScreen's own numbers.
+        // ---- type inside the glass: 3x title, 1x rows
+        public const int TitleScale = 2;   // 206 px of the 228 px glass: a title, not a caption
+        public const int TitleTop = GlassY + 8;
+        public const int SubtitleTop = GlassY + 24;
+        public const int TaglineTop = GlassY + 40;
+
+        // ---- the option rows
+        public const int PillX = GlassX + 52;
+        public const int PillW = 122;
+        public const int PillH = 11;
+        public const int PillStep = 13;
+        public static int PillTop { get { return GlassY + 52; } }
+        public static int FooterTop { get { return GlassY + GlassH - 9; } }
+
+        // The atlas is 5x7, 2 px letter gap, 3 px line gap (art/kit/fonts/monitor_font_5x7.json).
         public const int GlyphW = 5, GlyphH = 7, LetterGap = 2, LineGap = 3;
 
-        public static int TextCols { get { return (GlassW - 16) / (GlyphW + LetterGap); } }
+        public static int TextCols { get { return (GlassW - 12) / (GlyphW + LetterGap); } }
         public static int TextRows { get { return (GlassH + LineGap) / (GlyphH + LineGap); } }
 
+        // ------------------------------------------------------------------ light
+        //
+        // HOW THE ROOM IS LIT (docs/16-light-study.md)
+        //
+        // A pixel-art light is not a coloured fog over the frame. It raises the VALUE of the surfaces it
+        // falls on, in a small number of hard steps, and the step boundaries are the only place dithering
+        // belongs. So every palette colour is given a position on a ramp, and a light adds steps to that
+        // position. The first version of this file replaced pixels with a light colour instead, which is
+        // why the room came out as cyan blobs sitting on top of the art.
+        //
+        // The ramp runs: void -> panel -> panel2 -> line -> linehi -> (muted). Nothing past `linehi` is lit
+        // by ambience: text, white screens and LEDs are already emitting and must not be washed out.
+
         /// <summary>
-        /// The room at night: every surface drops one palette step, while anything that emits light stays
-        /// lit. A checker dim was tried in v113 and read as noise at 1x; a step map is smooth, stays inside
-        /// the palette, and keeps the window, the wall screens and the server LEDs glowing.
+        /// Position of each surface colour on the light ramp. Anything absent is not liftable. Note the top
+        /// of the ramp is `line`, a cool grey-blue -- NOT a cyan. A lit wall is a brighter wall; only the
+        /// 30 px around the glass takes actual cyan (see CyanNear), which is what stops the room turning
+        /// turquoise. v115's first pass made every lit surface signaldim and the room looked like a fish tank.
         /// </summary>
-        public static readonly string[,] Darken =
+        public static readonly string[] Ramp = { "void", "panel", "panel2", "line" };
+
+        /// <summary>Inside this distance from the glass, a lit surface takes the cyan ramp instead.</summary>
+        public const int CyanNear = 14;
+
+        /// <summary>How far the monitor's cyan fade reaches out from its case, in px. 84 px is about a
+        /// third of the frame width: enough to light the desk under the screen, not enough to reach the
+        /// window across the room.</summary>
+        public const int FadeReach = 84;
+
+        /// <summary>
+        /// The most steps ANY combination of lights may add to a surface. One. A room lit by two lamps is
+        /// not twice as bright as a room lit by one -- and in pixel art a second step is the difference
+        /// between 'lit' and 'washed out'. The first two passes of v115 lifted by 2-3 and turned the frame
+        /// into a gradient; this single clamp is what makes the light read as light.
+        /// </summary>
+        public const int MaxLift = 1;
+
+        public struct LightSource
         {
-            { "panel2", "panel" }, { "panel", "void" }, { "line", "panel" }, { "linehi", "line" },
-            { "muted", "line" }, { "textdim", "muted" }, { "text", "textdim" }, { "white", "textdim" },
-            { "paper", "paperdim" }, { "paperdim", "ink" }, { "ink", "void" },
-            { "signal", "signaldim" }, { "ok", "signaldim" }, { "synth", "synthdim" }
+            public int X, Y;         // centre, canvas px
+            public int Rx, Ry;       // radius of the outermost reach
+            public double Falloff;   // 1.0 linear, >1 tighter, <1 broader
+            public int Strength;     // ramp steps added at the core (1..MaxLift)
+
+            public LightSource(int x, int y, int rx, int ry, double falloff, int strength)
+            {
+                X = x;
+                Y = y;
+                Rx = rx;
+                Ry = ry;
+                Falloff = falloff;
+                Strength = strength;
+            }
+        }
+
+        /// <summary>The CRT. The key light: broad, cyan, and the reason the desk is the brightest place.</summary>
+        public static LightSource MonitorLight()
+        {
+            return new LightSource(GlassX + GlassW / 2, GlassY + GlassH / 2, 232, 176, 1.55, 2);
+        }
+
+        /// <summary>The window. Cold and high: it lifts the back wall, never the desk.</summary>
+        public static LightSource WindowLight()
+        {
+            return new LightSource(WindowX + 41, WindowY + 54, 92, 106, 1.90, 1);
+        }
+
+        /// <summary>The table of white screens. Many small sources: shallow reach, strong near the faces.</summary>
+        public static LightSource StackLight()
+        {
+            return new LightSource(StackX + 50, StackY + 26, 96, 88, 2.10, 1);
+        }
+
+        public static LightSource[] Lights()
+        {
+            return new[] { StackLight(), WindowLight(), MonitorLight() };
+        }
+
+        /// <summary>
+        /// The tint a lit surface takes. Cyan light on a warm surface reads as a cool wash, so the lift is
+        /// expressed as a swap into the CYAN RAMP (glow_teal -> signaldim -> line) rather than the neutral
+        /// one. Neutral surfaces (wall, floor, desk) use the neutral ramp, which is what keeps the room grey
+        /// instead of turquoise.
+        /// </summary>
+        public static readonly string[,] CyanRamp =
+        {
+            { "void", "glow_teal" }, { "panel", "glow_teal" }, { "panel2", "signaldim" }, { "line", "signal" }
         };
 
-        /// <summary>A pill: the concept's filled row behind the selected option.</summary>
+        // ------------------------------------------------------------------ rows        // ------------------------------------------------------------------ rows
         public struct Pill
         {
             public int X, Y, W, H;
-            public string Fill;
-            public string TextInk;
+            public string Fill, TextInk;
         }
 
         public static Pill Row(int index, string fill, string ink)
@@ -109,52 +196,45 @@ namespace HRZeroDay.Core.Rules
         }
     }
 
-    /// <summary>
-    /// The front door's type, laid out for the glass. The labels are the ones the concept uses, because the
-    /// screen the player asked for is the screen they should get.
-    /// </summary>
+    /// <summary>The front door's words: the concept's rows, and nothing that is not a row.</summary>
     public static class MenuScreenText
     {
         public const string Title = "HUMAN RESOURCES";
         public const string Subtitle = "ZERO DAY";
         public const string Tagline = "NOT EVERY APPLICANT IS A PERSON";
 
-        /// <summary>Root rows, in concept order. CONTINUE only when there is something to continue.</summary>
         public static List<MenuRow> Root(bool hasSave, bool runInProgress, int index)
         {
             var rows = new List<MenuRow>();
-            string first = hasSave ? (runInProgress ? "CONTINUE RUN" : "CONTINUE") : "START";
-            rows.Add(Row(MenuAction.Continue, first, index == rows.Count));
-            rows.Add(Row(MenuAction.NewRun, "NEW SHIFT", index == rows.Count));
-            rows.Add(Row(MenuAction.OpenManual, "FIELD MANUAL", index == rows.Count));
-            rows.Add(Row(MenuAction.OpenSettings, "SETTINGS", index == rows.Count));
-            rows.Add(Row(MenuAction.OpenCredits, "CREDITS", index == rows.Count));
+            rows.Add(Row(MenuAction.Continue,
+                hasSave ? (runInProgress ? "CONTINUE RUN" : "CONTINUE") : "START", index == 0));
+            rows.Add(Row(MenuAction.NewRun, "NEW SHIFT", index == 1));
+            rows.Add(Row(MenuAction.OpenManual, "FIELD MANUAL", index == 2));
+            rows.Add(Row(MenuAction.OpenSettings, "SETTINGS", index == 3));
+            rows.Add(Row(MenuAction.OpenCredits, "CREDITS", index == 4));
             return rows;
         }
 
         public static List<MenuRow> Settings(bool muted, float room, float sfx, int index)
         {
             var rows = new List<MenuRow>();
-            rows.Add(Row(MenuAction.None, Volume("ROOM", room), index == rows.Count));
-            rows.Add(Row(MenuAction.None, Volume("SOUND", sfx), index == rows.Count));
-            rows.Add(Row(MenuAction.None, muted ? "SOUND: OFF" : "SOUND: ON", index == rows.Count));
-            rows.Add(Row(MenuAction.Back, "BACK", index == rows.Count));
+            rows.Add(Row(MenuAction.None, Volume("ROOM", room), index == 0));
+            rows.Add(Row(MenuAction.None, Volume("SOUND", sfx), index == 1));
+            rows.Add(Row(MenuAction.None, muted ? "SOUND: OFF" : "SOUND: ON", index == 2));
+            rows.Add(Row(MenuAction.OpenConsent, "DATA & CONSENT", index == 3));
+            rows.Add(Row(MenuAction.Back, "BACK", index == 4));
             return rows;
         }
 
         public static List<MenuRow> Consent(bool granted, bool decided, int index)
         {
             var rows = new List<MenuRow>();
-            rows.Add(Row(MenuAction.None, granted ? "[X] SHARE DATA" : "[ ] SHARE DATA", index == rows.Count));
-            rows.Add(Row(MenuAction.Back, "BACK", index == rows.Count));
+            rows.Add(Row(MenuAction.None, granted ? "[X] SHARE DATA" : "[ ] SHARE DATA", index == 0));
+            rows.Add(Row(MenuAction.Back, "BACK", index == 1));
             return rows;
         }
 
-        /// <summary>
-        /// The manual is the controls page, and the controls are the desk's own: these are the keys the
-        /// hint bar already uses, written down where a player can find them. Info rows are not selectable
-        /// (Enabled false), so the cursor lands on BACK and nothing here can be triggered by mistake.
-        /// </summary>
+        /// <summary>The controls page: the desk's own keys, written down where a player can find them.</summary>
         public static List<MenuItem> ManualRows()
         {
             return new List<MenuItem>
@@ -169,12 +249,9 @@ namespace HRZeroDay.Core.Rules
             };
         }
 
-        /// <summary>"ROOM ####--- 80%" in one row: the concept has no room for a separate bar column.</summary>
         public static string Volume(string what, float level)
         {
-            string bar = MenuRules.Bar(level);
-            // eight cells keeps the whole row inside the pill at 1x
-            return what + " " + bar.Substring(2) + " " + MenuRules.Percent(level);
+            return what + " " + MenuRules.Bar(level).Substring(2) + " " + MenuRules.Percent(level);
         }
 
         private static MenuRow Row(MenuAction action, string label, bool selected)
