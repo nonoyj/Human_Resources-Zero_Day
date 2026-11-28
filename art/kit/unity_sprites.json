@@ -19,7 +19,7 @@
     "ui": 18,
     "icons": 18,
     "stamps": 2,
-    "desk": 10,
+    "desk": 13,
     "backgrounds": 3,
     "fx": 3,
     "fonts": 1,
@@ -1997,6 +1997,25 @@
       }
     },
     {
+      "source": "art/kit/desk/menu_monitor.png",
+      "assetPath": "Assets/Art/Kit/desk/menu_monitor.png",
+      "width": 340,
+      "height": 224,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "a132a56a7835b312",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
       "source": "art/kit/desk/monitor_bezel.png",
       "assetPath": "Assets/Art/Kit/desk/monitor_bezel.png",
       "width": 264,
@@ -2075,12 +2094,12 @@
     {
       "source": "art/kit/desk/server_rack.png",
       "assetPath": "Assets/Art/Kit/desk/server_rack.png",
-      "width": 34,
-      "height": 92,
+      "width": 48,
+      "height": 160,
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "desk",
-      "sha256_16": "3eca2fbf4adb8364",
+      "sha256_16": "46f1174fb7086bef",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2100,6 +2119,44 @@
       "spriteMode": "Single",
       "kind": "desk",
       "sha256_16": "a96612d922779892",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/desk/wall_labels.png",
+      "assetPath": "Assets/Art/Kit/desk/wall_labels.png",
+      "width": 150,
+      "height": 30,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "3da59172978e59fa",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/desk/wall_monitors.png",
+      "assetPath": "Assets/Art/Kit/desk/wall_monitors.png",
+      "width": 150,
+      "height": 104,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "3da3b37031379464",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2170,12 +2227,12 @@
     {
       "source": "art/kit/fx/screen_halo.png",
       "assetPath": "Assets/Art/Kit/fx/screen_halo.png",
-      "width": 176,
-      "height": 116,
+      "width": 370,
+      "height": 254,
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "fx",
-      "sha256_16": "aea70eb9c7c12d51",
+      "sha256_16": "d1e3d0204211017b",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",

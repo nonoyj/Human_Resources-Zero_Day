@@ -277,8 +277,11 @@ namespace HRZeroDay.Tests
                 int w = rows[i].Label.Length * (MenuLayout.GlyphW + MenuLayout.LetterGap) - MenuLayout.LetterGap;
                 True(w <= pill.W, "\"" + rows[i].Label + "\" is " + w + " px, the pill is " + pill.W);
             }
-            True(MenuLayout.TaglineTop + MenuLayout.TitleScale * MenuLayout.GlyphH <= MenuLayout.Row(0, "a", "b").Y,
+            // the tagline is drawn at 1x (v114: the concept's tagline is small), so 7 px, not 2x 14 px
+            True(MenuLayout.TaglineTop + MenuLayout.GlyphH <= MenuLayout.Row(0, "a", "b").Y,
                  "the tagline runs into the first pill");
+            True(MenuLayout.Row(4, "a", "b").Y + MenuLayout.Row(4, "a", "b").H <= MenuLayout.FooterTop,
+                 "the last pill runs into the footer");
             return "PASS  the concept's five rows exist and every pill sits inside the monitor glass";
         }
 

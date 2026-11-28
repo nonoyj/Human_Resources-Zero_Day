@@ -116,6 +116,12 @@ namespace HRZeroDay.Game.Interaction
             bool walking = _game.ShowingSweep;
             // The intro is a full-screen card with its own prompt; the desk HUD must not print through it.
             bool intro = _game.ShowingIntro;
+            // BUG-066 (v114): the front door is a full-screen ROOM, and the desk HUD was printing through
+            // it -- "HUMAN RESOURCES // ZERO DAY / DAY 25 / TRUST 65" over the menu, which is exactly what
+            // the player saw on the first play of v113. Every full-screen screen must be listed here, or
+            // the desk writes on top of it.
+            bool atMenu = _game.ShowingMenu;
+            intro = intro || atMenu;
 
             // Letter mode: LetterView already shows the letter itself, so the HUD shows ONLY the
             // flags, in dark ink, in the blank middle of the page (below the body, above the

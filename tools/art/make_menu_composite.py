@@ -1,261 +1,212 @@
 #!/usr/bin/env python3
 """
-make_menu_composite.py -- the front door, composed from the menuFrame in desk_layout.json.
+make_menu_composite.py -- render the front door exactly as MenuView composes it.
 
-This is the same frame the game will build: one 480x270 canvas made of
+v114 rebuild: the player pointed out that v113 followed their PROSE and not the CONCEPT IMAGE. The concept
+is a specific frame, so this file and MenuLayout.cs now carry that frame's numbers, and this script draws
+them so the preview and the game cannot drift:
 
-    background (room, night city)      the wall, window, moon, boards, clock, cabinet, plant
-    server     (2x, right of the window)
-    monitor    (2x) + stand (2x)       the bezel the menu lives inside
-    desk       (480x64)                coffee, keyboard, applicant folders, clipboard, notepad
-    halo       (fx/screen_halo)        the cyan light the screen throws, if the room asks for it
+    background (night office)     the desk scene's own backdrop, darkened one palette step
+    wall_monitors  x300 y46       the bank of three wall screens with cyan data on it
+    server_rack   x424 y100       the tall cabinet at the far right
+    menu_monitor   x16 y14        the big monitor: 300x220, glass 272x170, 3x title
+    screen_halo                   cyan ring around the case + pool on the desk
+    desk_foreground      y206     coffee, keyboard, applicant folders, clipboard, notepad
+    clearance card x410 y6        the ID panel, top right
 
-...with the menu painted into the monitor glass at 2x, so the text is twice the size of gameplay's
-record view and fits the concept's proportions.
-
-The geometry is read, never guessed: tools/art/make_menu_composite.py --write-frame rewrites
-desk_layout.json's menuFrame block from the constants below, and --check fails if the menu cannot fit
-the glass. Two uses:
-    python tools/art/make_menu_composite.py                 # render art/kit/reference/menu_room_2x.png
-    python tools/art/make_menu_composite.py --check          # geometry gate
+    python tools/art/make_menu_composite.py            # writes art/kit/reference/menu_composite_3x.png
+    python tools/art/make_menu_composite.py --check    # geometry gate
 """
-import json
 import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'comp'))
+sys.path.insert(0, os.path.join(ROOT, 'tools', 'art'))
 
 from PIL import Image, ImageDraw  # noqa: E402
+from preview_intro import load_font, draw_text, GLYPH_W as GW, GLYPH_H as GH, LETTER_GAP as LG  # noqa: E402
+from make_art_kit import PALETTE  # noqa: E402
 
-LAYOUT = os.path.join(ROOT, 'unity', 'Assets', 'Content', 'desk_layout.json')
-
-# the composition, in canvas px, y DOWN (frame convention). Derived from the concept image.
-MON_X, MON_Y, MON_SCALE = 14, 30, 1
-SRV_X, SRV_Y, SRV_SCALE = 436, 109, 1
-# inside monitor_big.png, y DOWN from its top-left (glass is authored there, so no y-up flip is needed)
-GLASS_OFF = (12, 12, 236, 144)
-DESK_BAND_H = 64
 W, H = 480, 270
 
+# ---- mirrored from MenuLayout.cs -- one source of truth, two renderers ------------------------------
+MON_X, MON_Y, MON_W, MON_H = 4, 10, 340, 224
+GLASS_X, GLASS_Y, GLASS_W, GLASS_H = 18, 24, 312, 172
+WALL_X, WALL_Y = 326, 40
+LABEL_X, LABEL_Y = 350, 150
+SRV_X, SRV_Y = 430, 92
+DESK_Y = 206
+WIDGET_X, WIDGET_Y = 412, 6
+TITLE_SCALE = 3
+TITLE_TOP, SUB_TOP, TAG_TOP = GLASS_Y + 6, GLASS_Y + 30, GLASS_Y + 56
+PILL_X, PILL_W, PILL_H, PILL_STEP = 108, 156, 15, 17
+PILL_TOP = GLASS_Y + 70
 
-def frame():
-    gw, gh = GLASS_OFF[2] * MON_SCALE, GLASS_OFF[3] * MON_SCALE
-    left = MON_X + GLASS_OFF[0] * MON_SCALE
-    top = MON_Y + GLASS_OFF[1] * MON_SCALE
-    return dict(w=W, h=H,
-                monitor=dict(x=MON_X, y=MON_Y, scale=MON_SCALE),
-                server=dict(x=SRV_X, y=SRV_Y, scale=SRV_SCALE),
-                screenOffset=dict(x=GLASS_OFF[0], y=GLASS_OFF[1], w=GLASS_OFF[2], h=GLASS_OFF[3]),
-                monitorSprite='art/kit/desk/monitor_big.png',
-                deskBandH=DESK_BAND_H,
-                glass=dict(x=left, y=top, w=gw, h=gh))
+DARKEN = {'panel2': 'panel', 'panel': 'void', 'line': 'panel', 'linehi': 'line', 'muted': 'line',
+          'textdim': 'muted', 'text': 'textdim', 'white': 'textdim', 'paper': 'paperdim',
+          'paperdim': 'ink', 'ink': 'void', 'signal': 'signaldim', 'ok': 'signaldim', 'synth': 'synthdim'}
 
 
 def kit(rel):
-    return Image.open(os.path.join(ROOT, 'art', 'kit', rel)).convert('RGBA')
+    return Image.open(os.path.join(ROOT, 'art', 'kit', rel + '.png')).convert('RGBA')
 
 
-def scaled(rel, scale):
-    im = kit(rel)
-    return im.resize((im.width * scale, im.height * scale), Image.NEAREST)
-
-
-def compose(with_halo=True):
-    img = kit('backgrounds/office_L0.png').copy()
-    srv = scaled('desk/server_rack.png', SRV_SCALE)
-    img.alpha_composite(srv, (SRV_X, SRV_Y))
+def compose(dim_room=True):
+    img = kit('backgrounds/office_L0').copy()
+    img.alpha_composite(kit('desk/wall_monitors'), (WALL_X, WALL_Y))
+    img.alpha_composite(kit('desk/wall_labels'), (LABEL_X, LABEL_Y))
+    img.alpha_composite(kit('desk/server_rack'), (SRV_X, SRV_Y))
+    img.alpha_composite(kit('desk/menu_monitor'), (MON_X, MON_Y))
+    halo(img)
+    img.alpha_composite(kit('desk/desk_foreground'), (0, DESK_Y))
+    widget(img)
+    if dim_room:
+        dim(img)
     return img
 
 
-def compose_monitor(img):
-    mon = scaled('desk/monitor_big.png', MON_SCALE)
-    img.alpha_composite(mon, (MON_X, MON_Y))
-    return img
-
-
-def compose_desk(img):
-    desk = kit('desk/desk_foreground.png')
-    img.alpha_composite(desk, (0, H - desk.height))
-    return img
-
-
-def halo_at(img):
-    """
-    The cyan light the screen throws ONTO THE ROOM: a two-step ring outside the BEZEL (not the glass --
-    a ring inside the glass would be a border on the text) and a pool on the desk in front of it. Flat
-    palette steps only, so it cannot band.
-    """
+def halo(img):
     d = ImageDraw.Draw(img)
-    m = frame()['monitor']
-    bw, bh = 260 * m['scale'], 170 * m['scale']
-    teal, dim = (12, 61, 56, 255), (15, 168, 138, 255)
+    teal, dim_c = PALETTE['glow_teal'], PALETTE['signaldim']
+    x0, y0, x1, y1 = MON_X, MON_Y, MON_X + MON_W, MON_Y + MON_H
     for i in range(1, 3):
-        d.rectangle([m['x'] - i, m['y'] - i, m['x'] + bw - 1 + i, m['y'] + bh - 1 + i],
-                    outline=dim if i == 1 else teal)
-    for i, tone in enumerate((teal, dim)):
-        y = m['y'] + bh + 3 + i * 3
-        half = bw // 2 + 26 - i * 20
-        d.line([m['x'] + bw // 2 - half, y, m['x'] + bw // 2 + half, y], fill=tone)
+        col = teal if i == 1 else dim_c
+        for x in range(x0 - i, x1 + i):
+            for y in (y0 - i, y1 - 1 + i):
+                if 0 <= x < W and 0 <= y < H:
+                    img.putpixel((x, y), col)
+        for y in range(y0 - i, y1 + i):
+            for x in (x0 - i, x1 - 1 + i):
+                if 0 <= x < W and 0 <= y < H:
+                    img.putpixel((x, y), col)
+    for i, col in enumerate((teal, dim_c)):
+        y = y1 + 3 + i * 4
+        half = 150 - i * 40
+        d.line([MON_X + MON_W // 2 - half, y, MON_X + MON_W // 2 + half, y], fill=col)
 
 
-MENU_TITLE = "HUMAN RESOURCES"
-MENU_SUB = "ZERO DAY"
-MENU_TAG = "NOT EVERY APPLICANT IS A PERSON"
-
-# ---- mirrored from MenuLayout.cs / MenuScreenText.cs (ADR-018). The twin draws what the view draws.
-TITLE_TOP = 42 + 10
-TITLE_SCALE = 2
-SUBTITLE_TOP = TITLE_TOP + 9 * TITLE_SCALE
-TAGLINE_TOP = SUBTITLE_TOP + 9 * TITLE_SCALE + 4
-PILL_TOP = 42 + 65
-PILL_X = 26 + 56
-PILL_W = 236 - 112
-PILL_H = 10
-PILL_STEP = PILL_H + 3
-
-
-def root_labels(has_save, in_progress):
-    first = ('CONTINUE RUN' if in_progress else 'CONTINUE') if has_save else 'START'
-    return [first, 'NEW SHIFT', 'FIELD MANUAL', 'SETTINGS', 'CREDITS']
-
-
-DARKEN = [('panel2', 'panel'), ('panel', 'void'), ('line', 'panel'), ('linehi', 'line'), ('muted', 'line'), ('textdim', 'muted'), ('text', 'textdim'), ('white', 'textdim'), ('paper', 'paperdim'), ('paperdim', 'ink'), ('ink', 'void'), ('signal', 'signaldim'), ('ok', 'signaldim'), ('synth', 'synthdim')]
+def widget(img):
+    d = ImageDraw.Draw(img)
+    w, h = 62, 30
+    d.rectangle([WIDGET_X, WIDGET_Y, WIDGET_X + w - 1, WIDGET_Y + h - 1], fill=PALETTE['panel'],
+                outline=PALETTE['line'])
+    d.rectangle([WIDGET_X + 9, WIDGET_Y + 6, WIDGET_X + 13, WIDGET_Y + 11], fill=PALETTE['linehi'])
+    d.rectangle([WIDGET_X + 7, WIDGET_Y + 13, WIDGET_X + 15, WIDGET_Y + 21], fill=PALETTE['linehi'])
+    for i in range(3):
+        d.line([WIDGET_X + 8 + i * 14, WIDGET_Y + h - 6, WIDGET_X + 18 + i * 14, WIDGET_Y + h - 6],
+               fill=PALETTE['orange'] if i == 0 else PALETTE['linehi'])
 
 
 def dim(img):
-    """
-    The room at night. Every surface drops ONE palette step; anything that emits light (signal, warn,
-    orange, the glow keys) stays lit. That is why the window and the LEDs still read while the walls fall
-    back -- and it is a smooth darkening, not a checker, because a checker reads as noise at 1x.
-    """
-    from make_art_kit import PALETTE
+    """Surfaces drop one palette step; light-emitting colours stay. No checker: it reads as noise at 1x."""
     key_of = {v: k for k, v in PALETTE.items()}
     px = img.load()
-    g = frame()['glass']
     for y in range(H):
         for x in range(W):
-            if g['x'] <= x < g['x'] + g['w'] and g['y'] <= y < g['y'] + g['h']:
+            if GLASS_X <= x < GLASS_X + GLASS_W and GLASS_Y <= y < GLASS_Y + GLASS_H:
                 continue
             c = px[x, y]
             if c[3] == 0:
                 continue
             k = key_of.get(c[:3])
-            if k is None:
-                continue
-            target = dict(DARKEN).get(k)
+            target = DARKEN.get(k) if k else None
             if target:
                 px[x, y] = PALETTE[target]
-def paint_menu(img, labels):
-    """
-    Title at 3x (each atlas pixel repeated 3x3), red subtitle at 3x, amber tagline, then the option rows
-    as pills: the selected one filled with signal and its label in void, the rest on panel2.
-    """
-    from preview_intro import load_font, draw_text, GLYPH_W as GW, GLYPH_H as GH, LETTER_GAP as LG, LINE_GAP
+
+
+def labels(has_save=True, in_progress=True):
+    first = ('CONTINUE RUN' if in_progress else 'CONTINUE') if has_save else 'START'
+    return [first, 'NEW SHIFT', 'FIELD MANUAL', 'SETTINGS', 'CREDITS']
+
+
+def paint_menu(img, rows):
     pal, atlas, rects = load_font()
-    g = frame()['glass']
-    cx = g['x'] + g['w'] // 2
+    gx, gy, gw, gh = GLASS_X, GLASS_Y, GLASS_W, GLASS_H
+    cx = gx + gw // 2
+
+    def glyph_ink(ch, x0, y0):
+        o = rects.get(ch)
+        if o is None:
+            return
+        for yy in range(GH):
+            for xx in range(GW):
+                if atlas.getpixel((o[0] + xx, o[1] + yy))[3] > 0:
+                    yield x0 + xx, y0 + yy
 
     def big(text, top, key, scale):
-        cell_w = (GW + LG) * scale
-        width = len(text) * cell_w - LG * scale
-        x = cx - width // 2
+        cell = (GW + LG) * scale
+        width = len(text) * cell - LG * scale
+        x0 = cx - width // 2
         for i, ch in enumerate(text):
             if ch == ' ':
                 continue
-            for gy in range(GH):
-                for gx in range(GW):
-                    if not _ink(rects, atlas, ch, gx, gy):
-                        continue
-                    for sy in range(scale):
-                        for sx in range(scale):
-                            px = x + i * cell_w + gx * scale + sx
-                            py = top + gy * scale + sy
-                            if g['x'] <= px < g['x'] + g['w'] and g['y'] <= py < g['y'] + g['h']:
-                                img.putpixel((px, py), pal[key])
+            for px_, py_ in glyph_ink(ch, x0 + i * cell, top):
+                for sy in range(scale):
+                    for sx in range(scale):
+                        x, y = px_ + sx, py_ + sy
+                        if gx <= x < gx + gw and gy <= y < gy + gh:
+                            img.putpixel((x, y), pal[key])
 
     def small(text, top, key, left):
         draw_text(img, rects, atlas, pal, left, top, text, key)
 
     big('HUMAN RESOURCES', TITLE_TOP, 'text', TITLE_SCALE)
-    big('ZERO DAY', SUBTITLE_TOP, 'danger', TITLE_SCALE)
+    big('ZERO DAY', SUB_TOP, 'danger', TITLE_SCALE)
     tag = 'NOT EVERY APPLICANT IS A PERSON'
-    small(tag, TAGLINE_TOP, 'warn', cx - (len(tag) * (GW + LG) - LG) // 2)
+    small(tag, TAG_TOP, 'warn', cx - (len(tag) * (GW + LG) - LG) // 2)
 
     d = ImageDraw.Draw(img)
-    for i, label in enumerate(labels):
+    for i, label in enumerate(rows):
         top = PILL_TOP + i * PILL_STEP
         sel = i == 0
-        fill = pal['signal'] if sel else pal['panel2']
-        d.rectangle([PILL_X, top, PILL_X + PILL_W - 1, top + PILL_H - 1], fill=fill)
-        ink = 'void' if sel else 'text'
-        small(label, top + (PILL_H - GH) // 2, ink, PILL_X + (PILL_W - (len(label) * (GW + LG) - LG)) // 2)
+        d.rectangle([PILL_X, top, PILL_X + PILL_W - 1, top + PILL_H - 1],
+                    fill=pal['signal'] if sel else pal['void'],
+                    outline=None if sel else pal['linehi'])
+        small(label, top + (PILL_H - GH) // 2, 'void' if sel else 'text',
+              PILL_X + (PILL_W - (len(label) * (GW + LG) - LG)) // 2)
 
     foot = '[SPACE] CHOOSE   [S] SOUND'
-    small(foot, g['y'] + g['h'] - 14, 'textdim', cx - (len(foot) * (GW + LG) - LG) // 2)
+    small(foot, gy + gh - 14, 'textdim', cx - (len(foot) * (GW + LG) - LG) // 2)
 
 
-def _ink(rects, atlas, ch, gx, gy):
-    o = rects.get(ch)
-    if o is None:
-        return False
-    return atlas.getpixel((o[0] + gx, o[1] + gy))[3] > 0
-
-
-def glass_capacity():
-    g = frame()['glass']
-    # 2x glyphs: 10 px wide, 14 tall, 4 px letter gap, 6 px line gap
-    cols = (g['w'] - 18) // 7      # 1x cell: 5 px glyph + 2 px gap
-    rows = (g['h'] + 3) // 10      # 1x rows: 7 px glyph + 3 px gap
-    return cols, rows
-
-
+def check():
+    problems = []
+    cols = (GLASS_W - 16) // (GW + LG)
+    rows = (GLASS_H + 3) // 10
+    if TITLE_TOP + TITLE_SCALE * GH > SUB_TOP:
+        problems.append('the title runs into ZERO DAY')
+    if PILL_TOP + 4 * PILL_STEP + PILL_H > GLASS_Y + GLASS_H - 16:
+        problems.append('the pills run into the footer')
+    if PILL_X < GLASS_X or PILL_X + PILL_W > GLASS_X + GLASS_W:
+        problems.append('a pill is outside the glass')
+    for label in labels():
+        if len(label) * (GW + LG) - LG > PILL_W:
+            problems.append('"%s" does not fit a %d px pill' % (label, PILL_W))
+    title_w = len('HUMAN RESOURCES') * (GW + LG) * TITLE_SCALE - LG * TITLE_SCALE
+    if title_w > GLASS_W - 2:       # GameView centres it; 1 px of air each side is honest
+        problems.append('the 3x title is %d px, the glass is %d' % (title_w, GLASS_W))
+    print('glass %dx%d = %d cols x %d rows at 1x' % (GLASS_W, GLASS_H, cols, rows))
+    return problems
 
 
 def main():
-    global SCREEN
-
-    if '--write-frame' in sys.argv:
-        data = json.load(open(LAYOUT, encoding='utf-8'))
-        data['menuFrame'] = frame()
-        json.dump(data, open(LAYOUT, 'w', encoding='utf-8'), indent=2)
-        open(LAYOUT, 'a', encoding='utf-8').write('\n')
-        print('wrote menuFrame into desk_layout.json:', frame()['glass'])
-
-    cols, rows = glass_capacity()
-    problems = []
-    g = frame()['glass']
-    if TITLE_TOP + TITLE_SCALE * 7 > g['y'] + g['h']:
-        problems.append('the title runs past the glass bottom')
-    for i, label in enumerate(root_labels(True, True)):
-        w = len(label) * 7 - 2
-        if w > PILL_W:
-            problems.append('"%s" is %d px wide, the pill is %d' % (label, w, PILL_W))
-    if PILL_TOP + 4 * PILL_STEP + PILL_H > g['y'] + g['h'] - 17:
-        problems.append('the option pills run into the footer')
+    problems = check()
     if problems:
         for p in problems:
             print('  ' + p)
-        print('FAIL: a menu line does not fit the monitor glass')
+        print('FAIL: the concept frame does not fit')
         return 1
     if '--check' in sys.argv:
-        ok = cols >= 28 and rows >= 13
-        print('%s: the glass holds %d cols x %d rows at 2x' % ('PASS' if ok else 'FAIL', cols, rows))
-        return 0 if ok else 1
+        print('PASS: title, tagline, pills and footer all fit the monitor glass')
+        return 0
 
     img = compose()
-    img = compose_monitor(img)
-    halo_at(img)
-    img = compose_desk(img)
-    dim(img)
-    paint_menu(img, root_labels(has_save=True, in_progress=True))
-
-    out = os.path.join(ROOT, 'art', 'kit', 'reference', 'menu_composite_1x.png')
-    img.save(out)
-    img.resize((W * 3, H * 3), Image.NEAREST).save(
-        os.path.join(ROOT, 'art', 'kit', 'reference', 'menu_composite_3x.png'))
-    print('wrote %s (glass %d,%d %dx%d; %d cols x %d rows at 2x)'
-          % (os.path.relpath(out, ROOT), *[frame()['glass'][k] for k in ('x', 'y', 'w', 'h')], cols, rows))
+    paint_menu(img, labels())
+    base = os.path.join(ROOT, 'art', 'kit', 'reference')
+    img.save(os.path.join(base, 'menu_composite_1x.png'))
+    img.resize((W * 3, H * 3), Image.NEAREST).save(os.path.join(base, 'menu_composite_3x.png'))
+    print('wrote art/kit/reference/menu_composite_{1x,3x}.png')
     return 0
 
 

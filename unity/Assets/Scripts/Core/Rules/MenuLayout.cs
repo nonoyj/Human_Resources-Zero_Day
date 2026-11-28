@@ -29,20 +29,38 @@ namespace HRZeroDay.Core.Rules
         public const int W = 480;
         public const int H = 270;
 
-        // the big monitor (desk/monitor_big.png, 260x170) and its glass
-        public const int MonitorX = 14, MonitorY = 30;
-        public const int GlassX = 26, GlassY = 42, GlassW = 236, GlassH = 144;
+        // ---- the monitor the menu lives in: desk/menu_monitor.png, 300x220, glass 272x170
+        public const int MonitorX = 4, MonitorY = 10;
+        public const int GlassX = 18, GlassY = 24, GlassW = 312, GlassH = 172;
 
-        // the server (desk/server_rack.png, 34x92) standing on the desk line
-        public const int ServerX = 436, ServerY = 109;
+        // ---- the rest of the concept's frame
+        public const int WallX = 326, WallY = 40;         // desk/wall_monitors.png, 150x104
+        public const int LabelX = 350, LabelY = 150;      // desk/wall_labels.png, 150x30 (right of the bezel)
+        public const int ServerX = 430, ServerY = 92;    // desk/server_rack.png, 48x160
+        public const int DeskY = 206;                     // desk/desk_foreground.png, 480x64
+        public const int WidgetX = 412, WidgetY = 6;      // the clearance/ID card, top right
 
-        // the desk band (desk/desk_foreground.png, 480x64)
-        public const int DeskY = 206;
+        // ---- type: 3x title, 1x rows. The concept's title is a third of the screen wide.
+        public const int TitleScale = 3;
+        public const int TitleTop = GlassY + 6, SubtitleTop = GlassY + 30, TaglineTop = GlassY + 56;
+
+        // ---- the option pills: filled, rounded, stacked under the title
+        public const int PillX = 108, PillW = 156, PillH = 15, PillStep = 17;
+        public static int PillTop { get { return GlassY + 70; } }
+        public static int FooterTop { get { return GlassY + GlassH - 14; } }
+
+        // The atlas is 5x7 with a 2 px letter gap and a 3 px line gap (art/kit/fonts/monitor_font_5x7.json).
+        // Stated here rather than referenced, because this assembly has no UnityEngine; the Unity-side
+        // compile check asserts these against MonitorScreen's own numbers.
+        public const int GlyphW = 5, GlyphH = 7, LetterGap = 2, LineGap = 3;
+
+        public static int TextCols { get { return (GlassW - 16) / (GlyphW + LetterGap); } }
+        public static int TextRows { get { return (GlassH + LineGap) / (GlyphH + LineGap); } }
 
         /// <summary>
         /// The room at night: every surface drops one palette step, while anything that emits light stays
-        /// lit. A checker dim was tried first and read as noise at 1x; a step map is smooth, stays inside
-        /// the palette, and keeps the window and the LEDs glowing -- which is the whole point of the frame.
+        /// lit. A checker dim was tried in v113 and read as noise at 1x; a step map is smooth, stays inside
+        /// the palette, and keeps the window, the wall screens and the server LEDs glowing.
         /// </summary>
         public static readonly string[,] Darken =
         {
@@ -52,52 +70,26 @@ namespace HRZeroDay.Core.Rules
             { "signal", "signaldim" }, { "ok", "signaldim" }, { "synth", "synthdim" }
         };
 
-        // The atlas is 5x7 with a 2 px letter gap and a 3 px line gap (art/kit/fonts/monitor_font_5x7.json).
-        // Stated here rather than referenced, because this assembly has no UnityEngine and no sprite code;
-        // the Unity-side compile check asserts these four numbers against MonitorScreen's own.
-        public const int GlyphW = 5, GlyphH = 7, LetterGap = 2, LineGap = 3;
-
-        /// <summary>Character capacity of the glass at 1x, for the small rows.</summary>
-        public static int TextCols { get { return (GlassW - 12) / (GlyphW + LetterGap); } }
-        public static int TextRows { get { return (GlassH + LineGap) / (GlyphH + LineGap); } }
-
-        /// <summary>
-        /// Where the title sits, and at what multiple. 2x, not 3x: a 3x title plus five option pills is
-        /// 150 px of type in a 144 px glass, and the concept's bezel is simply taller than the one this room
-        /// has. 2x still reads as a title (206 px of the 236 px glass) and leaves room for every row.
-        /// </summary>
-        public static int TitleTop { get { return GlassY + 10; } }
-        public const int TitleScale = 2;
-        public static int SubtitleTop { get { return TitleTop + 9 * TitleScale; } }
-        public static int TaglineTop { get { return SubtitleTop + 9 * TitleScale + 4; } }
-
-        /// <summary>A pill: the concept's rounded row behind the selected option.</summary>
+        /// <summary>A pill: the concept's filled row behind the selected option.</summary>
         public struct Pill
         {
             public int X, Y, W, H;
-            public string Fill;       // palette key of the pill body
-            public string TextInk;    // palette key of the label on it
+            public string Fill;
+            public string TextInk;
         }
 
-        /// <summary>The row geometry of a pill at index i. Same maths for every screen.</summary>
         public static Pill Row(int index, string fill, string ink)
         {
-            int h = 10;                       // 1x glyph + 3 px of air, so five rows fit under the title
-            int top = OptionsTop + index * (h + 3);
             return new Pill
             {
-                X = OptionsX,
-                Y = top,
-                W = OptionsW,
-                H = h,
+                X = PillX,
+                Y = PillTop + index * PillStep,
+                W = PillW,
+                H = PillH,
                 Fill = fill,
                 TextInk = ink
             };
         }
-
-        public static int OptionsTop { get { return GlassY + 65; } }
-        public static int OptionsX { get { return GlassX + 56; } }
-        public static int OptionsW { get { return GlassW - 112; } }
     }
 
     /// <summary>One row of the front door: a label, its ink, and what it is.</summary>
@@ -156,6 +148,25 @@ namespace HRZeroDay.Core.Rules
             rows.Add(Row(MenuAction.None, granted ? "[X] SHARE DATA" : "[ ] SHARE DATA", index == rows.Count));
             rows.Add(Row(MenuAction.Back, "BACK", index == rows.Count));
             return rows;
+        }
+
+        /// <summary>
+        /// The manual is the controls page, and the controls are the desk's own: these are the keys the
+        /// hint bar already uses, written down where a player can find them. Info rows are not selectable
+        /// (Enabled false), so the cursor lands on BACK and nothing here can be triggered by mistake.
+        /// </summary>
+        public static List<MenuItem> ManualRows()
+        {
+            return new List<MenuItem>
+            {
+                new MenuItem(MenuAction.None, "CLICK A PERSON  INSPECT", false),
+                new MenuItem(MenuAction.None, "L  OPEN THE LETTER", false),
+                new MenuItem(MenuAction.None, "A  APPROVE", false),
+                new MenuItem(MenuAction.None, "S  REJECT", false),
+                new MenuItem(MenuAction.None, "SPACE  NEXT APPLICANT", false),
+                new MenuItem(MenuAction.None, "H  HELP    ESC  MENU", false),
+                new MenuItem(MenuAction.Back, "BACK", true)
+            };
         }
 
         /// <summary>"ROOM ####--- 80%" in one row: the concept has no room for a separate bar column.</summary>

@@ -112,11 +112,17 @@ namespace HRZeroDay.Game.Interaction
         {
             _room = new Color32[W * H];
             bool any = false;
+            // THE CONCEPT'S FRAME (v114): a dark office, the bank of wall screens with cyan data on it,
+            // the night city, a server cabinet at the far right, the desk band, the clearance card, and the
+            // big monitor in front with the menu inside it. Order is depth: wall -> server -> monitor -> desk.
             any |= Blit("backgrounds/office_L0", 0, 0, true);
+            any |= Blit("desk/wall_monitors", MenuLayout.WallX, MenuLayout.WallY, false);
+            any |= Blit("desk/wall_labels", MenuLayout.LabelX, MenuLayout.LabelY, false);
             any |= Blit("desk/server_rack", MenuLayout.ServerX, MenuLayout.ServerY, false);
-            any |= Blit("desk/monitor_big", MenuLayout.MonitorX, MenuLayout.MonitorY, false);
+            any |= Blit("desk/menu_monitor", MenuLayout.MonitorX, MenuLayout.MonitorY, false);
             Halo();
             any |= Blit("desk/desk_foreground", 0, MenuLayout.DeskY, false);
+            Widget();
             if (!any) Debug.LogWarning("[HR//0D] menu room: no kit sprites found under Resources/" + KitRoot);
             return true;
         }
@@ -156,7 +162,7 @@ namespace HRZeroDay.Game.Interaction
             var teal = Ink("glow_teal", new Color32(12, 61, 56, 255));
             var dim = Ink("signaldim", new Color32(15, 168, 138, 255));
             int x0 = MenuLayout.MonitorX, y0 = MenuLayout.MonitorY;
-            int x1 = x0 + 260, y1 = y0 + 170;
+            int x1 = x0 + 300, y1 = y0 + 220;      // the case, not the glass: light spills outside the bezel
             for (int i = 1; i <= 2; i++)
             {
                 var ink = i == 1 ? dim : teal;
@@ -177,6 +183,34 @@ namespace HRZeroDay.Game.Interaction
                 int half = 130 - i * 34;
                 for (int x = (x0 + x1) / 2 - half; x < (x0 + x1) / 2 + half; x++) Put(x, y, i == 0 ? teal : dim);
             }
+        }
+
+        /// <summary>
+        /// The clearance card the concept puts in the top-right corner: a dark panel, a silhouette, the ID and
+        /// the clearance tier, and three small bars. Painted, not a sprite, because it is five rectangles and
+        /// a row of type -- and it is the one place the front door shows you who you are before you start.
+        /// </summary>
+        private void Widget()
+        {
+            var panel = Ink("panel", new Color32(19, 25, 38, 255));
+            var edge = Ink("line", new Color32(43, 58, 77, 255));
+            var hi = Ink("linehi", new Color32(63, 85, 112, 255));
+            int x = MenuLayout.WidgetX, y = MenuLayout.WidgetY, w = 62, h = 30;
+            for (int yy = y; yy < y + h; yy++)
+                for (int xx = x; xx < x + w; xx++)
+                {
+                    bool border = yy == y || yy == y + h - 1 || xx == x || xx == x + w - 1;
+                    Put(xx, yy, border ? edge : panel);
+                }
+            // head + shoulders, four px wide: a silhouette, not a portrait
+            int cx = x + 11;
+            for (int yy = y + 6; yy < y + 12; yy++) Put(cx + (yy % 2), yy, hi);
+            for (int yy = y + 13; yy < y + 22; yy++) Put(cx - 2 + (yy - 13) / 3, yy, hi);
+            for (int yy = y + 13; yy < y + 22; yy++) Put(cx + 3 - (yy - 13) / 3, yy, hi);
+            // three tier bars
+            for (int i = 0; i < 3; i++)
+                for (int xx = x + 8 + i * 14; xx < x + 18 + i * 14; xx++)
+                    Put(xx, y + h - 6, Ink(i == 0 ? "orange" : "linehi", hi));
         }
 
         private void Put(int x, int y, Color32 ink)
@@ -286,7 +320,7 @@ namespace HRZeroDay.Game.Interaction
                 case MenuAction.OpenManual:
                     // the manual is the controls page: same glass, one row back, no second window
                     _screen = MenuScreen.Manual;
-                    _items = new List<MenuItem> { new MenuItem(MenuAction.Back, "BACK", true) };
+                    _items = MenuScreenText.ManualRows();
                     _index = 0;
                     Paint();
                     return false;
@@ -359,26 +393,26 @@ namespace HRZeroDay.Game.Interaction
             var pills = new List<MenuLayout.Pill>();
 
             // ---- the title block: the concept's proportions, 2x for the title and its red second line
-            var big = new ScaledGlyphs(_glyphs, MenuLayout.TitleScale);
-            Centre(buf, big, Title(), MenuLayout.TitleTop, "text");
+            Centre(buf, _glyphs, Title(), MenuLayout.TitleTop, "text", MenuLayout.TitleScale);
             string sub = Subtitle();
-            if (!string.IsNullOrEmpty(sub)) Centre(buf, big, sub, MenuLayout.SubtitleTop, "danger");
+            if (!string.IsNullOrEmpty(sub))
+                Centre(buf, _glyphs, sub, MenuLayout.SubtitleTop, "danger", MenuLayout.TitleScale);
             string tag = Tagline();
-            if (!string.IsNullOrEmpty(tag)) Centre(buf, big, tag, MenuLayout.TaglineTop, "warn");
+            if (!string.IsNullOrEmpty(tag)) Centre(buf, _glyphs, tag, MenuLayout.TaglineTop, "warn", 1);
 
             // ---- the option rows
             var menuRows = BuildRows();
             for (int i = 0; i < menuRows.Count; i++)
             {
-                var pill = MenuLayout.Row(i, menuRows[i].Selected ? "signal" : "panel2",
+                var pill = MenuLayout.Row(i, menuRows[i].Selected ? "signal" : "void",
                                           menuRows[i].Selected ? "void" : "text");
                 pills.Add(pill);
-                CentreIn(buf, new ScaledGlyphs(_glyphs, 1), menuRows[i].Label, pill, menuRows[i].Selected ? "void" : "text");
+                CentreIn(buf, _glyphs, menuRows[i].Label, pill, menuRows[i].Selected ? "void" : "text");
             }
 
             // ---- the small print, at the bottom of the glass
             string foot = Footer();
-            Centre(buf, new ScaledGlyphs(_glyphs, 1), foot, MenuLayout.GlassY + MenuLayout.GlassH - 14, "textdim");
+            Centre(buf, _glyphs, foot, MenuLayout.FooterTop, "textdim", 1);
 
             PaintPills(buf, pills);
             MonitorScreenRaster.RenderRows(buf, W, H, rows, _glyphs,
@@ -418,6 +452,11 @@ namespace HRZeroDay.Game.Interaction
             switch (_screen)
             {
                 case MenuScreen.Manual:
+                    var man = new List<MenuRow>();
+                    for (int i = 0; i < _items.Count; i++)
+                        man.Add(new MenuRow(_items[i].Action, _items[i].Label,
+                                            _index == i ? "signal" : "text", _index == i));
+                    return man;
                 case MenuScreen.Credits:
                     return new List<MenuRow> { new MenuRow(MenuAction.Back, "BACK", "signal", true) };
                 case MenuScreen.Settings:
@@ -466,33 +505,64 @@ namespace HRZeroDay.Game.Interaction
         /// <summary>A pill: filled body, 1 px edge in the same ink, drawn before the label lands on it.</summary>
         private void PaintPills(Color32[] buf, List<MenuLayout.Pill> pills)
         {
+            var edge = Ink("linehi", new Color32(63, 85, 112, 255));
             foreach (var p in pills)
             {
                 var fill = Ink(p.Fill, new Color32(29, 39, 53, 255));
+                bool selected = p.Fill == "signal";
                 for (int y = p.Y; y < p.Y + p.H; y++)
                 {
                     if (y < MenuLayout.GlassY || y >= MenuLayout.GlassY + MenuLayout.GlassH) continue;
                     for (int x = p.X; x < p.X + p.W; x++)
                     {
                         if (x < MenuLayout.GlassX || x >= MenuLayout.GlassX + MenuLayout.GlassW) continue;
-                        buf[y * W + x] = fill;
+                        bool border = y == p.Y || y == p.Y + p.H - 1 || x == p.X || x == p.X + p.W - 1;
+                        buf[y * W + x] = border && !selected ? edge : fill;
                     }
                 }
             }
         }
 
-        /// <summary>Draws `text` centred in the glass at `top`, with a scaled glyph source.</summary>
-        private void Centre(Color32[] buf, ScaledGlyphs glyphs, string text, int top, string ink)
+        /// <summary>
+        /// Draws `text` centred in the glass at `top`, at an integer scale.
+        ///
+        /// BUG-067 (v114): this used to call MonitorScreenRaster.RenderRows with a scaled glyph source. That
+        /// renderer steps the pen by the ATLAS cell (5 + 2 px) regardless of the source, so a 3x title drew
+        /// three glyphs' worth of pixels into one cell and the title came out as rubble. Scaling has to be
+        /// done by the caller that knows the cell size, which is this one.
+        /// </summary>
+        private void Centre(Color32[] buf, IGlyphSource glyphs, string text, int top, string ink, int scale)
         {
-            int width = glyphs.WidthOf(text);
+            int cell = MenuLayout.GlyphW + MenuLayout.LetterGap;
+            int width = text.Length * cell * scale - MenuLayout.LetterGap * scale;
             int left = MenuLayout.GlassX + (MenuLayout.GlassW - width) / 2;
-            var rows = new List<MonitorScreenRaster.RasterRow>
+            DrawScaled(buf, glyphs, text, left, top, ink, scale);
+        }
+
+        /// <summary>One string, one scale, one pen step. The only text painter the front door uses.</summary>
+        private void DrawScaled(Color32[] buf, IGlyphSource glyphs, string text, int left, int top,
+                                string ink, int scale)
+        {
+            var colour = Ink(ink, new Color32(230, 241, 255, 255));
+            int cellW = MenuLayout.GlyphW + MenuLayout.LetterGap;
+            for (int ci = 0; ci < text.Length; ci++)
             {
-                Row(text, left, top, ink)
-            };
-            MonitorScreenRaster.RenderRows(buf, W, H, rows, glyphs,
-                MonitorScreenRaster.RasterClip.Box(MenuLayout.GlassX, MenuLayout.GlassY,
-                                                   MenuLayout.GlassW, MenuLayout.GlassH));
+                char ch = text[ci];
+                int penX = left + ci * cellW * scale;
+                for (int gy = 0; gy < MenuLayout.GlyphH * scale; gy++)
+                {
+                    int ty = top + gy;
+                    if (ty < 0 || ty >= H) continue;
+                    for (int gx = 0; gx < MenuLayout.GlyphW * scale; gx++)
+                    {
+                        int tx = penX + gx;
+                        if (tx < 0 || tx >= W) continue;
+                        if (!InGlass(tx, ty)) continue;
+                        if (!glyphs.InkAt(ch, gx / scale, gy / scale)) continue;
+                        buf[ty * W + tx] = colour;
+                    }
+                }
+            }
         }
 
         private void CentreIn(Color32[] buf, IGlyphSource glyphs, string text, MenuLayout.Pill pill, string ink)
@@ -500,10 +570,7 @@ namespace HRZeroDay.Game.Interaction
             int width = text.Length * (MenuLayout.GlyphW + MenuLayout.LetterGap) - MenuLayout.LetterGap;
             int left = pill.X + (pill.W - width) / 2;
             int top = pill.Y + (pill.H - MenuLayout.GlyphH) / 2;
-            var rows = new List<MonitorScreenRaster.RasterRow> { Row(text, left, top, ink) };
-            MonitorScreenRaster.RenderRows(buf, W, H, rows, glyphs,
-                MonitorScreenRaster.RasterClip.Box(MenuLayout.GlassX, MenuLayout.GlassY,
-                                                   MenuLayout.GlassW, MenuLayout.GlassH));
+            DrawScaled(buf, glyphs, text, left, top, ink, 1);
         }
 
         private static MonitorScreenRaster.RasterRow Row(string text, int x, int top, string ink)
