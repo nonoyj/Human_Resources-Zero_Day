@@ -1751,3 +1751,93 @@ The desk's room is painted in the menu's materials by `tools/art/make_desk_room.
 `desk/monitor_M.png`, `desk/monitor_stand_M.png`, `desk/foreground_M.png`. See
 `docs/images/v126/room-before-after.png`. **Written, gated, not yet wired** — the layout still points at
 `office_L0`/`desk_foreground`, and no applicant stands in the new room yet.
+
+---
+
+## v127 — the room, the person, and the light (2026-11-28)
+
+Composition N, from the player's own words: **"it would look cramped for the applicant if we put the window
+there and the applicant on the side, so we transfer the monitor on the right side then the applicants on the
+left."** Monitor right, applicant left, window behind the applicant. Evidence in `docs/images/v127/`.
+
+### BUG-012 — the applicant's hair read as a pale band lying on his forehead
+- **Found:** 2026-11-28 by the build, in the render (not in the code) · **Severity:** P1 (the face is the game)
+- **Symptom:** three drafts in a row, the bust came out with a light band across the top of the forehead and a
+  helmet-shaped cap; the player's standing note "the applicant must not look the same" was still true.
+- **Root cause:** the hair's base was `amber_1` with an "`amber_2` lit side", and **`amber_2` (76,55,34) is the
+  same *value* as `skin_2` (74,52,33)** — the fringe and the face are the same weight on screen, so the hair
+  disappeared into the head and only its specular and its shadow outline survived. Two smaller causes stacked
+  on top: the hairline was drawn on a straight diagonal (a cap), and there were no sideburns (a beanie).
+- **Fix:** `tools/art/make_applicant_M.py::paint_hair` — base `wood_0`, lit side `amber_1`, far side `ink`, the
+  only `amber_2` pixel is the crown's specular; a shallow widow's-peak arc for the hairline; five rows of
+  sideburn. **Hair is darker than skin** is the rule.
+- **Regression test:** `make_applicant_M.py` palette gate (`0 off-palette pixels`) + the render in
+  `docs/images/v127/applicant_bust_2x.png`.
+- **Prevention rule:** a material that shares a *value* with the thing it sits on is invisible. Compare the
+  palette numbers of any two adjacent materials before drawing the seam between them.
+
+### BUG-013 — the face had a dotted vertical line down the middle of it
+- **Found:** 2026-11-28 · **Severity:** P1
+- **Symptom:** a column of dots ran from the brow to the chin, and in one draft it passed exactly through
+  both eye centres. The eyes themselves read as closed: a 4 px black bar with a lit pixel underneath.
+- **Root cause:** the head was shaded with the **room's ordered dither** — the same `BAYER4` pattern that makes
+  a wall read as plaster. On a 74 px face that is a dotted line, not a plane change; and the shadow seam at
+  `CX + hw*0.42` landed on the eye line. The eye was drawn as a solid ink bar two rows tall — which *is* a
+  closed eyelid — with the "lit upper lid" row placed BELOW it.
+- **Fix:** three flat planes with hard edges and ONE 4 px dither band, on the lit edge only, at `±0.58`; the eye
+  is sclera / iris / sclera on two rows with a heavy upper lid, a lower lid in shadow and one cold catchlight.
+  The brow is two short bars, not a full-width band (the band was a headband).
+- **Regression test:** the render; the palette gate.
+- **Prevention rule:** the room's dither belongs on surfaces big enough to average. On a face it is noise.
+
+### BUG-014 — the tube's light was a no-op, and both copies of the rule were wrong together
+- **Found:** 2026-11-28, by measurement · **Severity:** P1 (this is the lamp/tube report, three rounds old)
+- **Symptom:** the player: "it lights the back, not the desk." Turning the tube on changed the desk by
+  **+1.0/255** — invisible.
+- **Root cause:** three causes, each of which alone was enough.
+  1. `ScreenLight.GlassX = 90` and `DeskRow = 206` were the **pre-move, left-hand** numbers. With the monitor
+     on the right since composition N, the ellipse fell on the empty left half of the desk and died on the wall.
+  2. `tools/comp/preview_screenlight.py` imported `make_art_kit.PALETTE` — 24 legacy keys that share almost no
+     colour with the menu's room — so its ramp table built **0 pairs** and it reported a flat `+0.0` everywhere.
+     The preview that should have caught #1 was wrong in the same direction.
+  3. The tube's pool was **baked into the slab sprite** as `wood_3`/`wood_4`, so the runtime pass had nowhere to
+     climb: the surface was already at the top of its ramp before the light was applied.
+- **Fix:** glass `364,115,91,47`, `DeskRow 170`, `ProjectY 205`; the preview reads `palette.json`; the bake is
+  deleted and the slab ships with occlusion only (its far edge's contact shadow). Prop shadows and the lit face
+  flip to the LEFT and to the object's right-hand edge, because the emitter is on the right now.
+- **Measured after:** desk under the tube **+16.0/255**, desk far left −0.7, wall **+0.0**. `docs/images/v127/tube_measured.png`.
+- **Regression test:** `LightingTests.TubePoolLandsOnTheDesk` (rewritten: it demanded the emitter be left of
+  centre, i.e. it enforced the *old* composition) + the measured dump.
+- **Prevention rule:** **a light is a coordinate before it is a colour.** Measure the delta between off and on
+  and quote the number; and never bake into a sprite what a live pass is going to paint.
+
+### BUG-015 — the junk under the desk was invisible, and the lip was under the floor
+- **Found:** 2026-11-28 · **Severity:** P2 (the player asked for this mess twice)
+- **Symptom:** the band under the desk showed one dark slab and an `ERR 0x5D` screen; everything else the junk
+  sprite draws was covered. Also, the desk's lip appeared *below* the bottom of the frame.
+- **Root cause:** the junk was drawn 38 px tall at the top of a 62 px canvas, so its towers sat at canvas rows
+  232..270 — behind the 14 px lip, which sorts above it. And the lip's y-up anchor had been computed from a
+  stale `foreground_M` height, which put it at rows 250..263, under the floor.
+- **Fix:** `props_junk` redrawn at **28 rows**, bottom-up, three clusters and two gaps ("don't completely fill
+  it"); the slab ends at `DESK_LIP 228` and the lip is its own 14 px strip at y-up anchor 28; the floor under
+  the desk climbed from `floor_1`→void to a lit `floor_1`/`floor_2`, because steel-on-black is one silhouette.
+- **Regression test:** the twin render `--verify` and `docs/images/v127/desk_composition_N.png`.
+- **Prevention rule:** **a sprite is only visible in the band that is not covered.** Work out the free rows
+  first, then author to them.
+
+### BUG-016 — the wall had a ruled shadow wedge across it
+- **Found:** 2026-11-28 · **Severity:** P2
+- **Root cause:** the wall's ambient field was `t = (x + (y - HORIZON)*0.35) / W` — a *diagonal* function of x and
+  y. In the composed frame that is a hard line from the top of the frame to the desk.
+- **Fix:** a vertical gradient with a 90 px dither band, plus a corner fall-off; the drawn seam line (which read
+  as a pipe) is gone.
+- **Prevention rule:** a back wall is lit by distance from its window. One axis, then noise.
+
+### Gates for v127 (all executed, all green)
+
+`CoreTests` **ALL TESTS PASSED** · `CompileCheck` **0 errors** · `Test-ArtPipeline.ps1` **ART PIPELINE OK** ·
+`publish_to_unity.py --verify` **111 sprites, sha256 verified** · `verify_fresh_clone.py` **PASS**.
+
+**Found on the way:** `Test-ArtPipeline.ps1` ran a bare `dotnet build` in a folder with two project files, so it
+reported "Game/Editor scripts do not compile" (MSB1011) — a gate that failed for a reason that was not a compile
+error. It names `CompileCheck.csproj` now.
