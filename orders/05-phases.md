@@ -61,6 +61,7 @@ inherited it. The player has now ruled that the game room must be the menu's roo
 | **Flag panel 1.2a, stamp animation, emails screen, 12 day-events** | `docs/86` | staggered through P2/P6 | — |
 | **The floor chevrons** | cosmetic, BUG-021 | next art round | the `spacing = max(16, TILE_W - ri)` dither |
 | **The 1 ERROR in the player's Unity status bar** | unknown | **now** | the player must paste it; nothing in the repo can guess it |
+| **The floor chevrons** (pale diagonal lines on the floor dither) | cosmetic | next art round | `spacing = max(16, TILE_W - ri)` in `floor_band` |
 
 ## Cut, deliberately — do not re-open
 
