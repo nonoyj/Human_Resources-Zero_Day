@@ -99,6 +99,19 @@ namespace HRZeroDay.Core.Rules
         public const int FadeReach = 84;
 
         /// <summary>
+        /// A 4x4 Bayer matrix. The fade is ordered-dithered against this, NOT against (x&3)+((y&3)&lt;&lt;2):
+        /// a linear index is itself a diagonal ramp, so the dither clumps into diagonal streaks and the
+        /// light looks brushed on. Bayer spreads every threshold evenly.
+        /// </summary>
+        public static readonly int[] Bayer4 =
+        {
+             0,  8,  2, 10,
+            12,  4, 14,  6,
+             3, 11,  1,  9,
+            15,  7, 13,  5
+        };
+
+        /// <summary>
         /// The most steps ANY combination of lights may add to a surface. One. A room lit by two lamps is
         /// not twice as bright as a room lit by one -- and in pixel art a second step is the difference
         /// between 'lit' and 'washed out'. The first two passes of v115 lifted by 2-3 and turned the frame

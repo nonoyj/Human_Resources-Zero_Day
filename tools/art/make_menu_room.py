@@ -68,11 +68,22 @@ def px(d, x, y, key):
 
 
 def hline(d, x0, x1, y, key):
-    d.line([x0, y, x1, y], fill=rgba(key))
+    """
+    A horizontal one-pixel line, half-open: [x0, x1). Pillow's d.line() is inclusive on both ends, so a
+    caller that says `hline(d, 0, W - 1, y)` gets exactly W pixels -- and, more importantly, a line that
+    stamps the SAME pixel as the line beside it is one pixel wider than it was asked to be. Those extra
+    pixels were the teal streaks running across the desk and the wall in the v115 renders.
+    """
+    if x1 <= x0:
+        return
+    d.line([x0, y, x1 - 1, y], fill=rgba(key))
 
 
 def vline(d, x, y0, y1, key):
-    d.line([x, y0, x, y1], fill=rgba(key))
+    """Vertical one-pixel line, half-open: [y0, y1). Same rule as hline()."""
+    if y1 <= y0:
+        return
+    d.line([x, y0, x, y1 - 1], fill=rgba(key))
 
 
 def dither_band(d, x0, y0, x1, y1, a, b, density=2):

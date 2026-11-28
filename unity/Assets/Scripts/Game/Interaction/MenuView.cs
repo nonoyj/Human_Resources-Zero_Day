@@ -253,8 +253,8 @@ namespace HRZeroDay.Game.Interaction
                         if (fd < MenuLayout.FadeReach)
                         {
                             double fall = 1.0 - fd / (double)MenuLayout.FadeReach;
-                            int thr = (int)(Math.Pow(fall, 1.15) * 15.0);
-                            int pat4 = (x & 3) + ((y & 3) << 2);
+                            int thr = (int)(Math.Pow(fall, 1.6) * 16.0) - 2;
+                            int pat4 = MenuLayout.Bayer4[((y & 3) << 2) | (x & 3)];
                             if (pat4 < thr) _room[idx] = teal;
                         }
                     }

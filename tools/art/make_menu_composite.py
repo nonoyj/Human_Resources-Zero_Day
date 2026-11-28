@@ -48,6 +48,7 @@ FOOTER_TOP = GLASS_Y + GLASS_H - 9
 RAMP = ['void', 'panel', 'panel2', 'line']
 CYAN_NEAR = 14
 FADE_REACH = 84
+BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
 LIGHTS = [
     (STACK_X + 50, STACK_Y + 26, 96, 88, 2.10, 1),
     (WIN_X + 41, WIN_Y + 54, 92, 106, 1.90, 1),
@@ -123,8 +124,8 @@ def light(img):
                 fy = max(CRT_Y - y, y - (CRT_Y + 171), 0)
                 fd = max(fx, fy)
                 if fd < FADE_REACH:
-                    thr = int(((1.0 - fd / FADE_REACH) ** 1.15) * 15.0)
-                    pat4 = (x & 3) + ((y & 3) << 2)
+                    thr = int(((1.0 - fd / FADE_REACH) ** 1.6) * 16.0) - 2
+                    pat4 = BAYER4[((y & 3) << 2) | (x & 3)]
                     if pat4 < thr:
                         px[x, y] = teal
 
