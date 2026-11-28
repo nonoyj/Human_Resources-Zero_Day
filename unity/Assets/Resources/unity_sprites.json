@@ -19,9 +19,9 @@
     "ui": 18,
     "icons": 18,
     "stamps": 2,
-    "desk": 8,
+    "desk": 10,
     "backgrounds": 3,
-    "fx": 2,
+    "fx": 3,
     "fonts": 1,
     "sweep": 5
   },
@@ -2016,6 +2016,25 @@
       }
     },
     {
+      "source": "art/kit/desk/monitor_big.png",
+      "assetPath": "Assets/Art/Kit/desk/monitor_big.png",
+      "width": 260,
+      "height": 170,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "6723092e374a412e",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
       "source": "art/kit/desk/monitor_small.png",
       "assetPath": "Assets/Art/Kit/desk/monitor_small.png",
       "width": 154,
@@ -2043,6 +2062,25 @@
       "spriteMode": "Single",
       "kind": "desk",
       "sha256_16": "6846d079e1374b11",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/desk/server_rack.png",
+      "assetPath": "Assets/Art/Kit/desk/server_rack.png",
+      "width": 34,
+      "height": 92,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "3eca2fbf4adb8364",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2119,6 +2157,25 @@
       "spriteMode": "Single",
       "kind": "background",
       "sha256_16": "1224f2e8299940bb",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/fx/screen_halo.png",
+      "assetPath": "Assets/Art/Kit/fx/screen_halo.png",
+      "width": 176,
+      "height": 116,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "fx",
+      "sha256_16": "aea70eb9c7c12d51",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2291,6 +2348,12 @@
     "art/kit/reference/letter_preview.png",
     "art/kit/reference/letter_scam.png",
     "art/kit/reference/menu_2x.png",
+    "art/kit/reference/menu_composite_consent_1x.png",
+    "art/kit/reference/menu_composite_consent_3x.png",
+    "art/kit/reference/menu_composite_root_1x.png",
+    "art/kit/reference/menu_composite_root_3x.png",
+    "art/kit/reference/menu_composite_settings_1x.png",
+    "art/kit/reference/menu_composite_settings_3x.png",
     "art/kit/reference/palette_swatch.png",
     "art/kit/reference/screen_preview.png",
     "art/kit/reference/screen_preview_long.png",

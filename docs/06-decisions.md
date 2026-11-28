@@ -285,3 +285,37 @@ The player installed v110 and played the door. Three findings, two of them real 
 Also fixed: the consent notice was 48 characters wide (over the card) and the layout ran its last line
 onto the border. The notice is re-wrapped at 46, and `tools/comp/preview_menu.py --check` now fails the
 build if any card's text can outgrow the card -- the geometry is a gate, not an eyeball.
+
+## ADR-017 -- The front door is the room, not a card (2026-11-28, v112)
+
+**Context.** The player supplied the menu concept they are asking for: the menu type inside a large
+monitor, the night city behind it, a server on the right, coffee and applicant folders on the desk, and a
+cyan glow from the screen and the window. v110/v111 shipped a 480x270 text card floating over the room --
+legible, but nothing to do with the room the game is set in. The player's words: *"the menu items are on
+the pixel computer, then a coffee underneath with applicant files on the table, then monitors in the
+background with an aesthetic view of the city in the night with a server on the side."*
+
+**Decision.**
+1. **The front door composes its own frame** from kit sprites (background, `monitor_big`, `server_rack`,
+   `desk_foreground`) at the coordinates in `desk_layout.json.menuFrame`, and paints its text into that
+   monitor's glass. Gameplay keeps `monitor_small` and **the desk layer list is unchanged** -- adding a
+   second monitor to it would have drawn two on the same desk, since the desk scene is built for every
+   shift.
+2. **A second, larger monitor exists as its own sprite**: `desk/monitor_big.png`, 260x170 with 236x144 of
+   glass = **31 characters on 14 lines**. The desk monitor holds 17 x 8, which cannot carry a title, five
+   rows and a hint. Same drawing language (1 px frame, vent strip, power LED), so it does not read as a
+   different game.
+3. **The server is drawn**, `desk/server_rack.png` 34x92: eight vented bays, three live LEDs, one amber
+   bay pulled out. Kit art through the same palette gate and manifest as everything else.
+4. **The cyan glow is flat palette steps**, never a blended alpha: a two-step ring outside the bezel plus
+   a scan-row pool on the desk. Same rule as the corruption states -- light falls off in steps.
+5. **No background animation in v112.** The menu is still, because a room that moves behind a menu that
+   does not is worse than a still room. Flicker and city movement are a later pass (P5 art), and the
+   concept's motion is recorded in `docs/87` rather than half-built.
+6. **The two sub-screens use the same glass**, with cut-down text: the full 10-line consent notice lives
+   on the big card (it does not fit 14 rows with a decision under it), while the glass carries the short
+   honest version -- records / never / off by default / the decision.
+
+**Consequences.** `tools/art/make_menu_composite.py --check` fails the build if any menu line cannot fit
+the glass, so the composition is a gate and not an eyeball. MenuView renders into a 236x144 texture placed
+at the glass rect; the game keeps one code path for painting (MonitorScreenRaster + the 5x7 atlas).
