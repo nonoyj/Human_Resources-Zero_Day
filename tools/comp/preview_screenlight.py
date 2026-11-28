@@ -40,12 +40,15 @@ from twin_desk import render, load        # noqa: E402  (sys.path is fixed by tw
 
 # THE SAME NUMBERS AS ScreenLight.cs. They were the pre-move left-hand set (206 / 91,140,116,98) and that is
 # why this preview never showed the bug the player was reporting: both copies of the rule were wrong together.
-DESK_ROW = 170
-GLASS_X, GLASS_Y, GLASS_RX, GLASS_RY = 364, 115, 91, 47
-PROJECT_Y = 205
+DESK_ROW = 186
+# monitor_M (200x143) at canvas x266, top row 43: glass 20,9,175,116 in sprite terms, so its centre
+# is x 266+20+87 = 373, y 43+9+58 = 110, half-size 88x58.
+GLASS_X, GLASS_Y, GLASS_RX, GLASS_RY = 373, 110, 88, 58
+PROJECT_Y = 206
 
 # the props that stand on the desk: (left, width, top, height). Same list as ScreenLight.Props.
-PROPS = [(176, 96, 208, 20), (300, 18, 206, 24), (214, 44, 196, 30), (352, 30, 194, 38), (408, 38, 190, 46)]
+# canvas rects of the four props, from make_desk_room.desk_slab_sprite
+PROPS = [(26, 60, 192, 26), (196, 92, 192, 20), (292, 14, 189, 16), (330, 18, 192, 34)]
 
 
 def ramps():

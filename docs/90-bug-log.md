@@ -1841,3 +1841,65 @@ left."** Monitor right, applicant left, window behind the applicant. Evidence in
 **Found on the way:** `Test-ArtPipeline.ps1` ran a bare `dotnet build` in a folder with two project files, so it
 reported "Game/Editor scripts do not compile" (MSB1011) — a gate that failed for a reason that was not a compile
 error. It names `CompileCheck.csproj` now.
+
+---
+
+## v128 — "looks like the menu" means IS the menu (2026-11-28)
+
+The player rejected v127 with four corrections. Every one of them had the same root: **v127 drew a second
+copy of objects that already existed in the menu.** A second window, a second monitor, second versions of the
+props, and props placed by hand against a desk whose perspective was drawn separately.
+
+### BUG-017 — the desk's window was not the menu's window
+- **Found:** 2026-11-28 · **Severity:** P1
+- **Symptom:** *"the windows does not look like to be the one in the menu."*
+- **Root cause:** `make_desk_room.window()` hand-painted a 176x236 window: its own sky gradient, hashed stars,
+  invented skyline. Two drawings of one object are two objects.
+- **Fix:** `make_menu_room.window(w, h)` is parametric; `make_desk_room.window()` returns
+  `M.window(176, 236)` and nothing else. Every literal that depended on the pane size (moon radius, skyline
+  heights, tower-light spacing, wet-glass inset) became a proportion, and at (88, 160) the menu's window is
+  **byte-identical** to the approved one (verified: 0 differing pixels).
+- **Prevention rule:** if a thing exists in the menu, call the menu's code. Redrawing it in the menu's palette
+  is not the same thing, and the player can always tell.
+
+### BUG-018 — the monitor was behind the desk, and was not the menu's monitor
+- **Found:** 2026-11-28 · **Severity:** P1
+- **Symptom:** *"our monitor is literally behind the table."*
+- **Root cause:** two faults. The tube was a from-scratch 192x108 black bezel, not the menu's CRT; and its base
+  sat at canvas row 184 while the desk's surface line was 186, so its own feet were *under* the wood.
+- **Fix:** `make_menu_room.crt(w, h)` is parametric (byte-identical at 260x186) and the desk's monitor is
+  `M.crt(200, 143)` at anchor row 185 — plinth on the surface, body above it. The separate arm layer is
+  retired, since the menu's CRT carries its own plinth; two stands under one monitor was the other half of the
+  "behind the table" look.
+- **Prevention rule:** an object standing on a surface has its base ON the surface line and its body ABOVE it.
+  Check the base row against the surface row, numerically, before rendering.
+
+### BUG-019 — the props sat on the edge of the desk instead of on the desk
+- **Found:** 2026-11-28 · **Severity:** P1 (the player's most precise note)
+- **Symptom:** *"the objects are on the edge of the table and does not look like they are ON the table based on
+  their angles."*
+- **Root cause:** three compounding faults.
+  1. The props were **separate layers**, each drawn flat, so they had no contact shadow, no shared light and no
+     shared perspective — literally stickers over a photograph of wood.
+  2. Their anchors put every base along the **near** lip, which is the closest edge of the wood.
+  3. They were the wrong drawings — v127's own cup and keyboard, not the menu's.
+- **Fix:** the desk is ONE layer built in the menu's own order — wood, then `M.forms/keyboard/mouse/cup` at the
+  menu's 6 px inset from the far edge, then a contact shadow under each object, then the tube's cold pool and
+  the window's spill painted over wood *and* props. The prop layer is deleted from the layout.
+- **Prevention rule:** **a prop standing on a surface belongs in the surface's layer.** Separate layers buy
+  sorting, and they cost the contact shadow, the shared light and the perspective — which is what "does not look
+  like it is ON the table" is actually describing.
+
+### BUG-020 — the report format was missing
+- **Found:** 2026-11-28 · **Severity:** P2 (it made the build unreviewable)
+- **Symptom:** *"You did not do the What you did, What I did, What's to expect, What's next pattern."*
+- **Fix:** `STANDING-ORDERS.md` at the repo root, referenced from `AGENTS.md`. It carries the mandatory report
+  format, the reuse-the-generator rule, the prop-perspective rule, the no-guessing rule and the gate list.
+- **Prevention rule:** a delivery without all four headings is an incomplete delivery.
+
+### Measured after the rebuild
+
+- tube off → on, **desk under the tube +15.5/255 · desk far left −1.7 · wall above the monitor +0.6 ·
+  wall far right +0.1** (`docs/images/v128/tube_measured.png`). The light lands on the desk and not on the wall.
+- Gates: `CoreTests` **ALL TESTS PASSED** · `CompileCheck` **0 errors** · `Test-ArtPipeline.ps1`
+  **ART PIPELINE OK** · `publish --verify` **112 sprites** · `verify_fresh_clone.py` **PASS**.
