@@ -319,3 +319,40 @@ background with an aesthetic view of the city in the night with a server on the 
 **Consequences.** `tools/art/make_menu_composite.py --check` fails the build if any menu line cannot fit
 the glass, so the composition is a gate and not an eyeball. MenuView renders into a 236x144 texture placed
 at the glass rect; the game keeps one code path for painting (MonitorScreenRaster + the 5x7 atlas).
+
+## ADR-019 — The front door is a specific room the player described (2026-11-28, v115)
+
+**Context.** ADR-017 put the door in a room but composed it from gameplay sprites, and v114 replaced that
+with a concept frame built from wall labels and an ID-card widget. The player rejected both and reset the
+look with a description of the room itself: an old monitor on the left with the title on its screen and the
+menu under it; on the desk a coffee with smoke, a keyboard, a mouse and a pile of application forms; a cyan
+fade coming *out of the monitor*; behind it, in the furthest part of the room, a table of six white
+screens (three under, three above) and two more glowing under the table; beside the table a window with a
+city silhouette, lit windows, night sky and moon; to the right of the window, in the corner, a database
+server; tiled floor with black outlines. Dark and eerie, cyan, pixel, in the register of *That's Not My
+Neighbor*.
+
+**Decision.**
+1. **The menu is drawn inside the monitor**, on its glass, in the 5×7 atlas. No overlay ever prints on the
+   room: a second layer over the door is a defect (v113).
+2. **The room is six generated sprites**, not a hand-drawn scene: `menu/shell`, `menu/window`,
+   `menu/monitor_stack`, `menu/server`, `menu/crt`, `menu/desk`. They are palette-gated like the rest of the
+   kit and composed back-to-front by `MenuView.BuildRoom()`.
+3. **Lighting is a value ramp, not paint** (BUG-068). A light adds at most one step to a surface's own
+   position on `MenuLayout.Ramp`; it never substitutes a colour, and all sources accumulate before the step
+   is taken. Cyan is rationed to the glass edge, two halo rings, and an 84 px fade that only lands on dark
+   surfaces. `docs/16-light-study.md` is the reasoning.
+4. **The glass is a light source and is never lit.** Every pass skips the monitor's rect; the tube is painted
+   by `GlassMaterial()` before the light pass and the menu is painted after it.
+5. **The composition is gate-checked, not eyeballed.** `make_menu_composite.py --check` fails on any sprite
+   off the frame, any overlap between the back-wall pieces, or any menu line that does not fit the glass;
+   `CheckTheRoomHasEveryPieceFromTheBrief` asserts the furniture relationships (monitor on the desk, table
+   and server on the floor, window clear of the monitor, table → window → server left to right).
+6. **The room is still.** No flicker, no city movement, no steam animation yet: a room that moves behind a
+   menu that does not is worse than a still room. Motion is recorded for the P5 art pass.
+
+**Consequences.** The v114 concept elements (wall monitor bank, ID card widget, wall labels) are gone by
+order and must not come back. The title is 2× (206 px) because a 3× title is 309 px and no glass that fits
+a 480×270 room holds it; the brief's "old monitor" is answered with a chunky case, not a small one. The
+`menu/` folder is in the sprite manifest and the publish prune list, so the sprites reach Unity through the
+same pipeline as everything else.

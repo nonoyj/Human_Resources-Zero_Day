@@ -1337,3 +1337,42 @@ outgrew a 202-pixel card.
 that cannot hold its own text fails a gate instead of a play session.
 
 **Not a bug:** ESC skipping the intro. The intro is once per profile; see ADR-016a(3).
+
+## BUG-068 -- v115: the room's light replaced surfaces instead of lifting them (2026-11-28)
+
+**Reported:** by me, viewing the first composite render of the v115 room before it reached the player.
+
+**a. The light was paint, not light.** `MenuView.Light()` walked the three sources and, for each pixel,
+picked the brightest palette band among them and `break`-ed out of the loop. A 250x210 source therefore
+stamped one flat cyan disc across the CRT, the desk and half the floor, and the other two sources never
+contributed at all. The frame read as three teal circles lying on top of the art.
+**Fix:** lighting is a **value ramp** (`MenuLayout.Ramp`). A light adds at most one step to the surface's
+own position on the ramp; it never substitutes a colour, and all three sources accumulate before the step is
+taken. `MenuLayout.MaxLift == 1` is asserted by a test.
+
+**b. Cyan everywhere.** With the substitution gone, the first ramp pass lifted every lit surface into
+`signaldim`, and the room turned turquoise. A lit wall is a *brighter* wall.
+**Fix:** the ramp tops out at `line`, a cool grey-blue. Actual cyan is rationed to three places: the 14 px
+beside the glass, the two halo rings around the case, and the fade (`FadeReach`, 84 px from the case) which
+only lands on `void`/`panel`/`panel2`.
+
+**c. The menu was being lit.** The glass is the brightest thing in the frame, and the light pass was
+painting over it -- the title came out speckled and the fade crossed the text. A screen is a light *source*;
+nothing lights it.
+**Fix:** `Light()`, `Vignette()` and the composite twin all skip the monitor's rect. `GlassMaterial()`
+paints the tube (phosphor black, scanline every third row, one emissive line inside the bezel) before the
+light pass runs.
+
+**d. The room had no spatial sense.** The monitor hovered 20 px above the desk, and the table of screens and
+the server cabinet floated in mid-air; the window was tucked behind the monitor stack.
+**Fix:** `CrtY + CrtH == DeskSurfaceY`, `StackY + StackH == FloorY`, `ServerY + ServerH == FloorY`,
+`WindowX` clear of the monitor. `CheckTheRoomHasEveryPieceFromTheBrief` asserts all of it, and
+`make_menu_composite.py --check` gained a geometry gate that fails on any overlap or off-frame sprite --
+that gate is what caught the window behind the monitor.
+
+**e. The twin renderer drifted from the C#.** Two string patches had silently missed their anchors, so
+`make_menu_composite.py` was still composing at v114 coordinates and drawing a 6-ring bright halo while the
+C# drew a 2-ring dark one. Every render I approved was not the frame Unity would build.
+**Fix:** the composite's constants now sit under a comment that says they must equal `MenuLayout.cs`, and the
+geometry gate fails when they do not. Patching by string is banned for these two files (see
+`docs/14-art-to-unity-pipeline.md`).
