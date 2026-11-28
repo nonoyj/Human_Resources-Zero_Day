@@ -167,3 +167,32 @@ add the entry here.
   there is, because every other conclusion you draw from it is wrong too.**
 - **RULE: versioned file names.** `HR-ZeroDay-bundle-v130.2.zip`, never a reused `v130`. Two rounds in a row
   were spent on a stale zip that Windows happily kept under the same name.
+
+### H7. A SCRIPT MUST SAY HOW IT ENDED (BUG-035)
+- The player's v130.2 apply worked: `HEAD 7229d9b`, 252 commits, `working tree clean -- files match HEAD
+  exactly`. Then the block printed `[FAIL] Apply-Bundle returned 1`.
+- **Cause:** `Apply-Bundle.ps1` never set an exit code on the success path, so `$LASTEXITCODE` was whatever
+  the last `git` call happened to leave. The caller read that as failure.
+- **RULE: every script exits with a value it chose.** `0` applied / `2` applied-but-the-tree-does-not-match-
+  HEAD / `1` did not apply. A caller must be able to branch on it, and the number must agree with the
+  `[ok]`/`[warn]` lines printed two inches above it. **A message that contradicts its own output is worse
+  than no message** -- it teaches the player to distrust both.
+
+### H8. A GATE THAT NEEDS A TOOL MUST SKIP, NOT FAIL (BUG-036)
+- `Test-Scripts.ps1` shelled out to `pwsh` (PowerShell 7). The player's machine has only the PowerShell 5.1
+  that ships with Windows, so a healthy repo produced `FAIL  Where-Am-I does not survive every repository
+  state` -- a red line that says "your scripts are broken" when the truth is "you do not have a second
+  PowerShell installed".
+- **RULE: locate the tool, fall back to an equivalent, and only then skip -- loudly, in one sentence.** A
+  gate that cannot run must never look like a gate that ran and failed. Sixteen PASS lines followed by one
+  fake FAIL is the most expensive kind of red.
+
+### H9. TWO COPIES OF A SCRIPT IS ONE COPY THAT IS STALE
+- The repo-root `Apply-Bundle.ps1` (the launcher that ships to Downloads) had drifted from
+  `scripts/Apply-Bundle.ps1`: 30,010 bytes vs 35,586. `Test-Scripts.ps1` had been catching it -- and saying
+  nothing else was wrong -- for several rounds, and I had read it as noise. The player's apply had to print
+  `this copy of the installer was out of date -- it updated itself and re-ran`.
+- **RULE: a generated copy is checked by the gate that ships it.** `tools/check_powershell_syntax.py` now
+  fails when the two files differ, so the drift is caught on my side before a bundle exists, not on his side
+  in the middle of an install.
+
