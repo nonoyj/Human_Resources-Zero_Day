@@ -58,7 +58,7 @@ try { $inZip = $zipCheck.Entries | ForEach-Object { $_.FullName } } finally { $z
 if ($inZip -notcontains 'HR-ZeroDay/orders/RUN-v130.5.ps1') {
     Die ("this zip is not the v130.5 bundle -- it has no HR-ZeroDay/orders/RUN-v130.5.ps1.`n" +
          "  The file in Downloads is an older one with the same name. Delete it, download the new bundle, " +
-         "and check that its size is ~18 MB (17,500,000 bytes or more).")
+         "and check that its size is ~17.9 MB (17,500,000 bytes or more).")
 }
 Ok "this is the v130.5 bundle ($($inZip.Count) entries, handover script present)"
 
