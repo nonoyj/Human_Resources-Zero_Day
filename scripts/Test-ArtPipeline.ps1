@@ -48,6 +48,24 @@ try {
     & python tools/art/make_applicants.py --check
     if ($LASTEXITCODE -ne 0) { D 'applicant palette check failed' } else { OK 'applicant palette clean' }
 
+    S 'front door room: sprites + composite'
+    # The room is generated, not hand-drawn: six palette-only sprites plus the composite that mirrors
+    # MenuView.BuildRoom()/Light(). Both must pass or the menu the player sees is not the menu we tested.
+    & python tools/art/make_menu_room.py --check
+    if ($LASTEXITCODE -ne 0) { D 'room sprite palette check failed' } else { OK 'room sprites palette clean' }
+    & python tools/art/make_menu_composite.py --check
+    if ($LASTEXITCODE -ne 0) { D 'room composite check failed' } else { OK 'room geometry + menu fit' }
+
+    S 'material palette: value separation + hue shifting'
+    # A palette gate asks "is this pixel allowed"; this asks "can the eye tell these two things apart".
+    # Six touching pairs failed the first version of it, and the room read as ONE object for two rounds.
+    & python tools/art/menu_palette.py --check
+    if ($LASTEXITCODE -ne 0) { D 'palette audit failed (value collision or grey ramp)' } else { OK 'palette ramps + value separation' }
+
+    S 'motion manifest: frame rates are sane'
+    & python tools/art/motion_manifest.py --check
+    if ($LASTEXITCODE -ne 0) { D 'motion manifest failed' } else { OK 'animation layers within budget' }
+
     S 'wear overlays (corruption drift)'
     & python tools/art/make_wear_overlays.py --check
     if ($LASTEXITCODE -ne 0) { D 'wear overlay check failed' } else { OK 'wear overlays palette clean' }
