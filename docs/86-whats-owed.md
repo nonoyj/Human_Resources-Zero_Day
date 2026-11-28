@@ -53,6 +53,11 @@ These are the ones I would not want to lose, ordered by how much they matter.
 13. **Backend's 7 owed items** (storage, rate limits, ops console, purge, deploy, soak, OpenAPI) — theirs,
     queued in `backend/README.md`.
 
+> **2026-11-27, later the same evening:** the team sent a second list (HUD additions, questions/verification,
+> evidence counter, NPCs and elevators in the walk, a narrated day summary). That list is triaged, priced in
+> rounds and ordered in **`docs/87-team-updates-plan.md`**, which is now the active plan. This page remains
+> the full backlog of what is owed.
+
 ## 3. The three decisions only you can make
 
 1. **Does the menu exist, and what is in it?** My proposal: *Continue / New run / Settings (audio: the two
