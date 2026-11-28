@@ -22,6 +22,8 @@ namespace HRZeroDay.Tests
             yield return CheckTheNoticeIsHonestAndPainting();
             yield return CheckTheVolumeControlsBehave();
             yield return CheckTheCursorLandsOnAnOffGridVolume();
+            yield return CheckEveryRowCanBeReachedAndEveryVolumeCanGoBothWays();
+            yield return CheckTheConsentRowIsTheDecision();
         }
 
         private static void True(bool condition, string message)
@@ -176,6 +178,68 @@ namespace HRZeroDay.Tests
             True(Math.Abs(MenuRules.StepVolume(1.0f, -1) - 0.9f) < 0.0001f, "100% down should reach 90%");
             True(MenuRules.StepVolume(0.5f, 0) == 0.5f, "a zero step moved the slider");
             return "PASS  an off-grid volume lands on the next honest step in both directions";
+        }
+
+        /// <summary>
+        /// BUG-065a/b (v111). What the player actually hit in v110:
+        ///   - the volume could only go UP, so turning a sound down was one-way;
+        ///   - UP/DOWN could not reach BACK, because the menu row count and the cursor wrapped wrong.
+        /// This walks every screen from index 0 with "down" and asserts BACK is reachable on the way round.
+        /// </summary>
+        private static string CheckEveryRowCanBeReachedAndEveryVolumeCanGoBothWays()
+        {
+            var screens = new Dictionary<string, List<MenuItem>>
+            {
+                { "root", MenuRules.Root(true, true) },
+                { "settings", MenuRules.Settings(false) },
+                { "consent", MenuRules.Consent(false, false) }
+            };
+            foreach (var kv in screens)
+            {
+                var items = kv.Value;
+                True(items.Count >= 2, kv.Key + " has fewer than two rows");
+                int at = 0;
+                var seen = new HashSet<int> { 0 };
+                for (int i = 0; i < items.Count; i++)
+                {
+                    at = MenuRules.MoveSkipping(items, at, 1);
+                    seen.Add(at);
+                }
+                True(seen.Count == items.Count,
+                     kv.Key + ": down from the top reaches " + seen.Count + " of " + items.Count + " rows");
+                bool hasBack = false;
+                foreach (var it in items) if (it.Action == MenuAction.Back) hasBack = true;
+                True(hasBack || kv.Key == "root", kv.Key + " has no BACK row -- the player would be stuck");
+            }
+
+            // a volume must come back down, from anywhere, all the way to zero and back up
+            float v = 1f;
+            for (int i = 0; i < 12; i++) v = MenuRules.StepVolume(v, -1);
+            True(v == 0f, "holding down did not reach silence: " + v);
+            for (int i = 0; i < 12; i++) v = MenuRules.StepVolume(v, 1);
+            True(Math.Abs(v - 1f) < 0.0001f, "holding up did not reach full: " + v);
+            return "PASS  every row is reachable and both volumes go down as well as up";
+        }
+
+        /// <summary>
+        /// BUG-065c (v111). The consent screen used to paint a checkbox as decoration and put the real
+        /// decision on a second row, so SPACE on the thing that looked like the checkbox did nothing. The
+        /// rule now: row 0 IS the decision, its label carries the state, and BACK is the only other row.
+        /// </summary>
+        private static string CheckTheConsentRowIsTheDecision()
+        {
+            var no = MenuRules.Consent(false, false);
+            True(no.Count == 2, "the consent screen should be the decision + BACK, got " + no.Count + " rows");
+            True(no[0].Label.StartsWith("[ ]"), "an unanswered consent row should read [ ]: " + no[0].Label);
+            True(no[1].Action == MenuAction.Back, "the second consent row is not BACK");
+
+            var yes = MenuRules.Consent(true, true);
+            True(yes[0].Label.StartsWith("[X]"), "an allowed consent row should read [X]: " + yes[0].Label);
+            True(MenuRules.ConsentState(false, false) == "NOT ASKED YET", "undecided state is wrong");
+            True(MenuRules.ConsentState(true, true) == "ON - YOU SAID YES", "granted state is wrong");
+            True(MenuRules.ConsentState(false, true) == "OFF - YOU SAID NO", "declined state is wrong");
+            True(no[0].Label != yes[0].Label, "the row does not visibly change when it is answered");
+            return "PASS  the row that looks like the checkbox is the row that answers";
         }
 
         /// <summary>Volume: ten honest steps, clamped, and a bar made of atlas characters.</summary>

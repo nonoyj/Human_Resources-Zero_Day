@@ -38,10 +38,20 @@ namespace HRZeroDay.Game.Interaction
             {
                 if (kb != null)
                 {
-                    if (kb.escapeKey.wasPressedThisFrame) game.MenuBack();
-                    else if (kb.upArrowKey.wasPressedThisFrame || kb.wKey.wasPressedThisFrame) game.MenuMove(-1);
-                    else if (kb.downArrowKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame) game.MenuMove(1);
-                    else if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame) game.MenuChoose();
+                    // ONE key, one action. v110 could fire twice on a frame where two bindings were true
+                    // (arrow and WASD both pressed, say), which is how a toggle appears not to work at all.
+                    if (kb.escapeKey.wasPressedThisFrame) { game.MenuBack(); return; }
+                    if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame)
+                    { game.MenuChoose(); return; }
+                    if (kb.upArrowKey.wasPressedThisFrame || kb.wKey.wasPressedThisFrame)
+                    { game.MenuMove(-1); return; }
+                    if (kb.downArrowKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame)
+                    { game.MenuMove(1); return; }
+                    // LEFT/RIGHT step the selected row -- the way back down a volume (v111)
+                    if (kb.leftArrowKey.wasPressedThisFrame || kb.aKey.wasPressedThisFrame)
+                    { game.MenuStep(-1); return; }
+                    if (kb.rightArrowKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame)
+                    { game.MenuStep(1); return; }
                 }
                 var mm = Mouse.current;
                 bool tappedMenu = (mm != null && mm.leftButton.wasPressedThisFrame) ||

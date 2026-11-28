@@ -76,7 +76,14 @@ namespace HRZeroDay.Core.Rules
             return items;
         }
 
-        /// <summary>The settings screen: two volumes, a mute, and a way back.</summary>
+        /// <summary>
+        /// The settings screen: two volumes, a mute, and a way back.
+        ///
+        /// BACK IS LAST AND EVERY VOLUME MOVES BOTH WAYS (v111). In v110 the only key wired to a row was
+        /// "increase", so a player who turned a volume down had no way to turn it back up -- a control that
+        /// only goes one way is not a control. LEFT/RIGHT (and A/D) now step the selected row down/up, and
+        /// SPACE moves it up so a mouse or a single key still works.
+        /// </summary>
         public static List<MenuItem> Settings(bool muted)
         {
             return new List<MenuItem>
@@ -89,18 +96,32 @@ namespace HRZeroDay.Core.Rules
         }
 
         /// <summary>
-        /// The consent screen. TWO rows and no third: "allow" or "do not allow". There is deliberately no
-        /// "ask me later", because a deferral is indistinguishable from a no in the data and the player would
-        /// be told one thing while the game did another.
+        /// The consent screen: ONE decision row and a way back. "Allow" or "do not allow" -- there is
+        /// deliberately no "ask me later", because a deferral is indistinguishable from a no in the data and
+        /// the player would be told one thing while the game did another.
+        ///
+        /// BUG-065 (v111): v110 painted a fake checkbox on a line that was NOT a row, and put the real
+        /// decision on a second row called CHOOSE. Pressing SPACE on the thing that looked like a checkbox did
+        /// nothing. The row the player sees must be the row that does the thing.
         /// </summary>
         public static List<MenuItem> Consent(bool granted, bool decided)
         {
             return new List<MenuItem>
             {
-                new MenuItem(MenuAction.None, granted ? "ALLOW: YES" : "ALLOW: NO", true),
-                new MenuItem(MenuAction.None, decided ? "CHANGE IT" : "CHOOSE", true),
+                new MenuItem(MenuAction.None, granted ? "[X] SHARE DATA" : "[ ] SHARE DATA", true),
                 new MenuItem(MenuAction.Back, "BACK", true)
             };
+        }
+
+        /// <summary>
+        /// The word for the state of the decision, printed under the row so the player never has to remember
+        /// which way they left it. "NOT ASKED YET" is deliberately not "OFF": one is a question still open,
+        /// the other is an answer.
+        /// </summary>
+        public static string ConsentState(bool granted, bool decided)
+        {
+            if (!decided) return "NOT ASKED YET";
+            return granted ? "ON - YOU SAID YES" : "OFF - YOU SAID NO";
         }
 
         /// <summary>Up/down with wrap-around. A menu that stops at the ends feels broken on a keyboard.</summary>
@@ -187,14 +208,14 @@ namespace HRZeroDay.Core.Rules
             return new string[]
             {
                 "THIS GAME CAN RECORD HOW YOU PLAY.",
-                "WHAT: THE DECISIONS YOU MAKE, HOW LONG YOU TAKE,",
-                "AND THE SEED OF THE RUN. NOTHING ELSE.",
-                "WHAT IT NEVER RECORDS: YOUR NAME, ANYTHING YOU",
+                "WHAT: THE DECISIONS YOU MAKE, HOW LONG",
+                "YOU TAKE, AND THE SEED OF THE RUN. IT",
+                "NEVER RECORDS YOUR NAME, ANYTHING YOU",
                 "TYPE, OR ANYTHING ELSE ON THIS DEVICE.",
-                "WHY: SO THE PEOPLE WHO MADE THIS CAN TELL",
-                "WHETHER IT TEACHES WHAT IT MEANS TO.",
+                "WHY: SO THE PEOPLE WHO MADE THIS CAN",
+                "TELL WHETHER IT TEACHES WHAT IT MEANS.",
                 "IT IS OFF UNTIL YOU SAY YES, AND YOU CAN",
-                "CHANGE YOUR MIND AT ANY TIME IN THIS MENU.",
+                "CHANGE YOUR MIND IN THIS MENU AT ANY TIME.",
                 "SAYING NO DOES NOT CHANGE THE GAME. AT ALL."
             };
         }

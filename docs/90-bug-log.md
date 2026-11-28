@@ -1315,3 +1315,25 @@ its argument. The de-duplication key is now the *sample identity* (`SampleKey` =
 Key (one clip, two pitches) suppress each other, and unrelated cues never do.
 
 **Class of bug:** *a number with no test is a rumour* -- and a rule whose inputs it ignores is not a rule.
+
+## BUG-065 -- v110: three findings from the first play of the front door
+
+**Reported:** 2026-11-28, by the player, after installing v110.
+
+**a. A volume could only go up.** `MenuView` wired one key per volume row, and that key was "increase";
+`StepVolume` accepted a delta but nothing in the router could produce a negative one. Turning a sound down
+was permanent.
+**Fix:** LEFT/RIGHT and A/D call `MenuStep(±1)`; SPACE on a volume row is "up". `CheckEveryRowCanBeReachedAndEveryVolumeCanGoBothWays`
+walks from full to silence and back.
+
+**b. The consent checkbox was not the consent row.** The `[ ] SHARE ANONYMOUS DATA` line was painted as
+decoration under the notice; the real toggle was a second row called CHOOSE, so SPACE on the checkbox did
+nothing.
+**Fix:** row 0 IS the decision (`[ ] SHARE DATA` / `[X] SHARE DATA`) and toggles on one key. `CheckTheConsentRowIsTheDecision`.
+
+**c. The card's last line sat on the border.** Ten notice lines at 48 characters plus five rows under them
+outgrew a 202-pixel card.
+**Fix:** notice re-wrapped at 46 characters; `preview_menu.py --check` gains a geometry assertion so a card
+that cannot hold its own text fails a gate instead of a play session.
+
+**Not a bug:** ESC skipping the intro. The intro is once per profile; see ADR-016a(3).

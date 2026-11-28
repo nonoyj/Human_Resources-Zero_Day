@@ -21,6 +21,7 @@ to remember which of these you are on.
 |---|---|---|---|
 | 1 | **Install a bundle** | `cd $env:USERPROFILE\Downloads` then `.\Apply-Bundle.ps1 -BundlePath .\HR-ZeroDay-bundle-vNN.zip` | `Downloads` |
 | 2 | **Push** (and set upstream) | `cd $env:USERPROFILE\HR-ZeroDay` then `.\scripts\Push.ps1` | repo root |
+| 2b | **Push for a bundle installed from Downloads** (the repo was rebuilt, so nothing to push from the old copy) | `cd $env:USERPROFILE\Downloads\HR-ZeroDay` then `.\scripts\Push.ps1` | the extracted copy |
 | 3 | **Open the game** | `.\scripts\Open-Game.ps1` | repo root |
 | 4 | **Build a bundle** | `pwsh -File scripts\Build-Bundle.ps1 -Version NN` | repo root |
 | 5 | **All gates** | `.\scripts\Test-ArtPipeline.ps1` ; `.\scripts\Test-Scripts.ps1` ; `dotnet run --project tools\CoreTests` | repo root |

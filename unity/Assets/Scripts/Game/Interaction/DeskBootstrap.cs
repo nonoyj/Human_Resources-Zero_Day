@@ -411,6 +411,14 @@ namespace HRZeroDay.Game.Interaction
             return true;
         }
 
+        /// <summary>LEFT/RIGHT (and A/D) while the menu is up: step the selected row down/up.</summary>
+        public bool MenuStep(int delta)
+        {
+            if (!ShowingMenu) return false;
+            if (Menu.Step(delta)) Cue(Sfx.Key);
+            return true;
+        }
+
         /// <summary>SPACE/ENTER while the menu is up. Returns true when the press was consumed.</summary>
         public bool MenuChoose()
         {

@@ -35,7 +35,10 @@ namespace UnityEngine.InputSystem
         public ButtonControl enterKey = new ButtonControl();
         // arrow keys: real Unity.InputSystem names (upArrowKey / downArrowKey), used by the front door (v110)
         public ButtonControl wKey = new ButtonControl();
+        public ButtonControl dKey = new ButtonControl();
         public ButtonControl upArrowKey = new ButtonControl();
+        public ButtonControl leftArrowKey = new ButtonControl();
+        public ButtonControl rightArrowKey = new ButtonControl();
         public ButtonControl downArrowKey = new ButtonControl();
         public ButtonControl digit1Key = new ButtonControl();
         public ButtonControl digit2Key = new ButtonControl();

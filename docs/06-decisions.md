@@ -265,3 +265,23 @@ game also had no way back to a menu once the desk was up.
 **Consequences.** Returning to the menu is `ESC` at the root screen; the run is not lost because the desk
 never stopped running. New Run restarts the first minute. Android gets the same screen later (after Phase 2),
 which is why nothing here is keyboard-only in shape: the router treats a tap as CHOOSE.
+
+### ADR-016a -- Corrections after the first play of v110 (2026-11-28, v111)
+
+The player installed v110 and played the door. Three findings, two of them real bugs:
+
+1. **The consent checkbox was decoration.** v110 painted the checkbox under the notice and put the actual
+   decision on a second row called CHOOSE, so pressing SPACE on the thing that looked like a checkbox did
+   nothing. The row the player sees must be the row that does the thing: the consent screen is now
+   `[ ] SHARE DATA` (row 0, toggles and saves on SPACE) and `BACK`. BUG-065c.
+2. **The volume only went up.** One key was wired to each volume and it was "increase", so a player who
+   turned a sound down had no way back. LEFT/RIGHT (and A/D) now step the selected row down and up; SPACE
+   steps it up so a single key still works. BUG-065a.
+3. **ESC skipping the intro is correct, and the last reply promised otherwise.** The intro is once per
+   profile (`profile.introSeen`), written the moment it finishes. A fresh run is `R` (ending) or NEW RUN
+   from the door, and both clear the profile, so both show the intro. Doing that on CONTINUE would put a
+   five-beat story in front of a player who is mid-shift. **Promise corrected, behaviour kept.**
+
+Also fixed: the consent notice was 48 characters wide (over the card) and the layout ran its last line
+onto the border. The notice is re-wrapped at 46, and `tools/comp/preview_menu.py --check` now fails the
+build if any card's text can outgrow the card -- the geometry is a gate, not an eyeball.

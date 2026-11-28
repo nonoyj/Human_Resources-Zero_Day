@@ -149,6 +149,24 @@ namespace HRZeroDay.Game.Interaction
             Paint();
         }
 
+        /// <summary>
+        /// LEFT/RIGHT (and A/D). On a settings row this is the whole point: v110 only ever moved a volume up,
+        /// so turning one down was one-way. Returns true when the press changed something.
+        /// </summary>
+        public bool Step(int delta)
+        {
+            if (!_open || _screen != MenuScreen.Settings) return false;
+            if (_index == 0) { _roomVolume = MenuRules.StepVolume(_roomVolume, delta); }
+            else if (_index == 1) { _sfxVolume = MenuRules.StepVolume(_sfxVolume, delta); }
+            else if (_index == 2) { if (delta != 0) _muted = !_muted; }
+            else return false;
+
+            if (_game != null) _game.ApplyAudioSettings(_roomVolume, _sfxVolume, _muted);
+            _items = MenuRules.Settings(_muted);
+            Paint();
+            return true;
+        }
+
         /// <summary>SPACE/ENTER. Returns true when the row did something the bootstrap must handle.</summary>
         public bool Choose()
         {
@@ -215,18 +233,12 @@ namespace HRZeroDay.Game.Interaction
         {
             if (_screen == MenuScreen.Settings)
             {
-                if (_index == 0) _roomVolume = MenuRules.StepVolume(_roomVolume, 1);
-                else if (_index == 1) _sfxVolume = MenuRules.StepVolume(_sfxVolume, 1);
-                else if (_index == 2) _muted = !_muted;
-                if (_game != null) _game.ApplyAudioSettings(_roomVolume, _sfxVolume, _muted);
-                _items = MenuRules.Settings(_muted);
-                Paint();
+                Step(1);                       // SPACE on a volume is "up"; LEFT/RIGHT is how you go down
                 return;
             }
-            if (_screen == MenuScreen.Consent && _index == 1)
+            if (_screen == MenuScreen.Consent && _index == 0)
             {
-                // CHOOSE / CHANGE IT: only the second row commits a decision, so a stray keypress on the
-                // status row cannot hand over data.
+                // BUG-065: the row that LOOKS like the decision is the decision. One key, one toggle, saved.
                 _consentDecided = true;
                 _consentGranted = !_consentGranted;
                 if (_game != null) _game.ApplyConsent(_consentGranted);
@@ -289,7 +301,7 @@ namespace HRZeroDay.Game.Interaction
                 }
                 Row(rows, ConsentRules.Summary(_consentDecided, _consentGranted),
                     CardY + CardH - PadY - 3 * LineStep, "textdim");
-                Row(rows, "[SPACE] CHANGE IT", CardY + CardH - PadY - 2 * LineStep, "textdim");
+                Row(rows, "[LEFT/RIGHT] CHANGES", CardY + CardH - PadY - 2 * LineStep, "textdim");
                 Row(rows, "[ESC] BACK", CardY + CardH - PadY - LineStep, "textdim");
             }
             else if (_screen == MenuScreen.Consent)
@@ -302,12 +314,16 @@ namespace HRZeroDay.Game.Interaction
                     Row(rows, notice[i], y, "textdim");
                     y += LineStep;
                 }
-                // the decision, at the bottom, where the player's eye already is
-                int baseY = CardY + CardH - PadY - 3 * LineStep;
-                Row(rows, "> " + (_consentGranted ? "[X] SHARE ANONYMOUS DATA" : "[ ] SHARE ANONYMOUS DATA"),
-                    baseY, "text");
-                Row(rows, "[SPACE] CHANGES IT", baseY + LineStep, "textdim");
-                Row(rows, "[ESC] BACK", baseY + 2 * LineStep, "textdim");
+                // THE DECISION IS A ROW, AND IT IS THE FIRST ROW (BUG-065). v110 painted the checkbox as
+                // decoration under the notice and put the real toggle on a second row -- so the thing that
+                // looked like a checkbox was not the thing that answered. Now the cursor sits on it.
+                int baseY = CardY + CardH - PadY - 4 * LineStep;
+                for (int i = 0; i < _items.Count; i++)
+                    Row(rows, (_index == i ? "> " : "  ") + _items[i].Label, baseY + i * LineStep,
+                        _index == i ? "text" : "textdim");
+                // the state and the key hint share a line: five rows under the notice would run into the border
+                Row(rows, "STATE: " + MenuRules.ConsentState(_consentGranted, _consentDecided),
+                    baseY + 2 * LineStep, "textdim");
             }
             else
             {

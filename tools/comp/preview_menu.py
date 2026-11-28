@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools', 'comp'))
 
 from PIL import Image, ImageDraw  # noqa: E402
 
-from preview_intro import load_font, draw_text, GLYPH_H, ROW_STEP  # noqa: E402  (one glyph renderer, shared)
+from preview_intro import (load_font, draw_text, GLYPH_H, GLYPH_W, LETTER_GAP, ROW_STEP)  # noqa: E402
 
 PAGE_W, PAGE_H = 480, 270
 CARD_X, CARD_Y, CARD_W, CARD_H = 60, 34, 360, 202
@@ -61,27 +61,41 @@ def pct(v):
 
 NOTICE = [
     "THIS GAME CAN RECORD HOW YOU PLAY.",
-    "WHAT: THE DECISIONS YOU MAKE, HOW LONG YOU TAKE,",
-    "AND THE SEED OF THE RUN. NOTHING ELSE.",
-    "WHAT IT NEVER RECORDS: YOUR NAME, ANYTHING YOU",
+    "WHAT: THE DECISIONS YOU MAKE, HOW LONG",
+    "YOU TAKE, AND THE SEED OF THE RUN. IT",
+    "NEVER RECORDS YOUR NAME, ANYTHING YOU",
     "TYPE, OR ANYTHING ELSE ON THIS DEVICE.",
-    "WHY: SO THE PEOPLE WHO MADE THIS CAN TELL",
-    "WHETHER IT TEACHES WHAT IT MEANS TO.",
+    "WHY: SO THE PEOPLE WHO MADE THIS CAN",
+    "TELL WHETHER IT TEACHES WHAT IT MEANS.",
     "IT IS OFF UNTIL YOU SAY YES, AND YOU CAN",
-    "CHANGE YOUR MIND AT ANY TIME IN THIS MENU.",
-    "SAYING NO DOES NOT CHANGE THE GAME. AT ALL.",
+    "CHANGE YOUR MIND IN THIS MENU AT ANY TIME.",
+    "SAYING NO DOES NOT CHANGE THE GAME. AT ALL."
 ]
 
 
 def check():
     problems = []
+    # THE CARD MUST HOLD ITS OWN TEXT. v111 shipped a consent card whose last line sat on the border,
+    # because five rows were stacked under a ten-line notice. This is the arithmetic that catches it.
+    bottom = CARD_Y + CARD_H - PAD_Y
+    widest = max(len(l) for l in NOTICE)
+    for name, rows_below_notice, notice_lines in (('consent', 3, len(NOTICE)), ('settings', 4, 1)):
+        first = CARD_Y + PAD_Y + (2 if name == 'consent' else 2) * ROW_STEP
+        last = (first + notice_lines * ROW_STEP if name == 'consent'
+                else CARD_Y + CARD_H - PAD_Y - 4 * ROW_STEP + (rows_below_notice - 1) * ROW_STEP)
+        if last + GLYPH_H > bottom:
+            problems.append('%s: the text runs past the card border (last baseline %d, border %d)'
+                            % (name, last, bottom))
+    if CARD_X + PAD_X + widest * (GLYPH_W + LETTER_GAP) > CARD_X + CARD_W - PAD_X:
+        problems.append('the consent notice is wider than the card: %d chars' % widest)
     screens = {
         'root (first run)': root_rows(False, False),
         'root (save)': root_rows(True, True),
         'settings': settings_rows(False),
-        'consent': ["[ ] SHARE ANONYMOUS DATA", "[SPACE] CHANGES IT", "BACK"],
+        'consent': ["[ ] SHARE DATA", "[X] SHARE DATA", "[SPACE] OR [LEFT/RIGHT]", "BACK",
+                    "ON - YOU SAID YES", "OFF - YOU SAID NO", "NOT ASKED YET"],
     }
-    screens['hints'] = ["[UP/DOWN] MOVE", "[SPACE] CHOOSE", "[SPACE] CHANGE IT", "[ESC] BACK"]
+    screens['hints'] = ["[UP/DOWN] MOVE", "[SPACE] CHOOSE", "[LEFT/RIGHT] CHANGE", "[ESC] BACK"]
     for screen, labels in screens.items():
         for label in labels:
             if len(label) > MAX_LABEL:
@@ -143,7 +157,7 @@ def render(pal, atlas, rects):
         row(img, ("> " if i == 2 else "  ") + label, top + (2 + i) * ROW_STEP,
             'text' if i == 2 else 'textdim')
     row(img, "DATA: NOT ASKED YET", CARD_Y + CARD_H - PAD_Y - 3 * ROW_STEP, 'textdim')
-    row(img, "[SPACE] CHANGE IT", CARD_Y + CARD_H - PAD_Y - 2 * ROW_STEP, 'textdim')
+    row(img, "[LEFT/RIGHT] CHANGES", CARD_Y + CARD_H - PAD_Y - 2 * ROW_STEP, 'textdim')
     row(img, "[ESC] BACK", CARD_Y + CARD_H - PAD_Y - ROW_STEP, 'textdim')
     shots.append(img)
 
@@ -155,8 +169,9 @@ def render(pal, atlas, rects):
         row(img, line, y, 'textdim')
         y += ROW_STEP
     base = CARD_Y + CARD_H - PAD_Y - 2 * ROW_STEP
-    row(img, "> [ ] SHARE ANONYMOUS DATA", base, 'text')
-    row(img, "[SPACE] CHANGES IT", base + ROW_STEP, 'textdim')
+    row(img, "> [ ] SHARE DATA", base, 'text')
+    row(img, "  BACK", base + ROW_STEP, 'textdim')
+    row(img, "STATE: NOT ASKED YET  [SPACE] CHANGES IT", base + 2 * ROW_STEP, 'textdim')
     shots.append(img)
 
     return shots
