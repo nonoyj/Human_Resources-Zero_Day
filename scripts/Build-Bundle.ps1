@@ -50,7 +50,7 @@ $zip     = Join-Path $OutDir "HR-ZeroDay-bundle-v$Version.zip"
 $skipDir = @('__pycache__', '.cache', '.pytest_cache', 'node_modules', '.local', '.nuget', '.dotnet',
              '.tooling', '.vs', '.idea', 'Library', 'Temp', 'Logs', 'obj', 'UserSettings',
              'Build', 'Builds', 'bin', 'hr0d-boot')
-$skipExt = @('.zip', '.bundle', '.pyc')
+$skipExt = @('.zip', '.bundle', '.pyc', '.log')   # .log: a gate log from a previous round is not source
 $badChar = [char[]](':','*','?','"','<','>','|')
 
 if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
@@ -225,6 +225,13 @@ $leak = $names | Where-Object { $_ -match '/(\.local|\.nuget|\.dotnet|\.tooling|
 if ($leak) { D "tooling cache leaked into the zip: $($leak | Select-Object -First 3)" }
 $bad = $names | Where-Object { $_.IndexOfAny($badChar) -ge 0 }
 if ($bad) { D "path Windows cannot write: $($bad | Select-Object -First 3)" }
+# The paste block in the zip is the one I am about to quote? Only if the file is byte-identical to what the
+# message says. Rather than hash-match prose, stamp the hash INTO the block when I write it -- that is done by
+# hand, but this check makes sure a PASTE file exists at all, which is where the last round went wrong.
+# The zip must carry the block the player actually pastes. It is quoted in the delivery message, so if the
+# file and the message ever disagree, this is the line that catches it.
+if ($names -notcontains "HR-ZeroDay/orders/PASTE-v$Version.ps1") { D "orders/PASTE-v$Version.ps1 missing from the zip" }
+OK "paste block present for v$Version"
 
 OK "$($names.Count) entries"
 OK "bootstrap at root and inside HR-ZeroDay"
