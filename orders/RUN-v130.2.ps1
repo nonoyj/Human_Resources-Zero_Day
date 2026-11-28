@@ -12,8 +12,13 @@
 #>
 $ErrorActionPreference = 'Stop'
 
-$zip  = Join-Path $env:USERPROFILE 'Downloads\HR-ZeroDay-bundle-v130.2.zip'
-$repo = Join-Path $env:USERPROFILE 'HR-ZeroDay'
+# Base = the real profile folder on any OS. $env:USERPROFILE is Windows-only and is NULL elsewhere, which
+# turns a working block into "Cannot bind argument to parameter 'Path' because it is null" at line 15 --
+# a failure that says nothing about the actual problem. Resolve it once, loudly.
+$base  = if ($env:USERPROFILE) { $env:USERPROFILE } elseif ($env:HOME) { $env:HOME } else { '' }
+if (-not $base) { Write-Host '  [FAIL] cannot locate your home folder ($env:USERPROFILE / $env:HOME are empty)' -ForegroundColor Red; exit 1 }
+$zip   = Join-Path (Join-Path $base 'Downloads') 'HR-ZeroDay-bundle-v130.2.zip'
+$repo  = Join-Path $base 'HR-ZeroDay'
 $stage = Join-Path ([IO.Path]::GetTempPath()) 'hrd-v130.2'
 
 function Step ($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
