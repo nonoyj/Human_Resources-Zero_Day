@@ -78,6 +78,9 @@ namespace HRZeroDay.Tests
             foreach (var s in doc.RootElement.GetProperty("sprites").EnumerateArray())
             {
                 if (s.GetProperty("kind").GetString() != "applicant") continue;
+                // The layout's applicant LAYER is a whole single-frame bust (bust_M_192x216.png); the four-cell
+                // strips are what the animator crops. Both are applicants, so skip the unsliced one here.
+                if (s.GetProperty("spriteMode").GetString() == "Single") continue;
                 var frames = s.GetProperty("sprites").EnumerateArray().ToList();
                 if (frames.Count != 4)
                     return "FAIL  applicant_slices  " + s.GetProperty("source").GetString() +
@@ -135,13 +138,16 @@ namespace HRZeroDay.Tests
             int monitorX = monitor.GetProperty("anchor")[0].GetInt32();
             int appX = applicant.GetProperty("anchor")[0].GetInt32();
 
-            if (monitorX >= width / 2) return "FAIL  desk_brief  monitor is not on the left half";
-            if (appX + 96 <= width / 2) return "FAIL  desk_brief  applicant is not on the right half";
+            // v127, composition N (the player's instruction): MONITOR ON THE RIGHT, APPLICANT ON THE LEFT,
+            // window behind the applicant. This assertion was the other way round and it was the gate that
+            // kept the composition from moving -- "monitor is not on the left half" is now the failure.
+            if (monitorX <= width / 2) return "FAIL  desk_brief  monitor is not on the right half";
+            if (appX + 96 >= width / 2) return "FAIL  desk_brief  applicant is not on the left half";
 
             var anim = applicant.GetProperty("animator");
             if (anim.GetProperty("frames").GetArrayLength() != 4) return "FAIL  desk_brief  applicant is not a 4-frame loop";
 
-            return "PASS  Desk_layout_matches_brief (monitor left, applicant right, 480x270 @ 16 PPU)";
+            return "PASS  Desk_layout_matches_brief (monitor right, applicant left, 480x270 @ 16 PPU)";
         }
 
         private static string PublishedArtIsCurrent()

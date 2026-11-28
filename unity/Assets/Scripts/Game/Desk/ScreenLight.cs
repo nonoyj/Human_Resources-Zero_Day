@@ -43,16 +43,24 @@ namespace HRZeroDay.Game
     {
         public const string RootName = "ScreenLight";
 
-        // ---- the desk's tube, measured off desk/monitor_small.png (154x106 at anchor 14,86, y up):
-        //      case x 14..168, glass x 20..161, rows 84..171 (top-down canvas rows).
-        public const int GlassX = 90;
-        public const int GlassY = 128;
-        public const int GlassRx = 70;
-        public const int GlassRy = 44;
-        /// <summary>The row the desk surface starts on, top-down canvas rows (desk_layout.json).</summary>
-        public const int DeskRow = 206;
+        // ---- the desk's tube, measured off desk/monitor_M.png (192x108 at anchor [268,84], y up):
+        //      glass x 268+5=273 .. 268+186=454, rows 170-101=69 .. 170-8=162 top-down, so the glass CENTRE
+        //      is x 364, y 115, 91 px x 47 px half-size.
+        //
+        //      THESE WERE THE OLD LEFT-HAND NUMBERS (90,128,70,44) and that is the whole "lamp lights the wall,
+        //      not the desk" report, measured rather than guessed: with the pool centred on x=90 the ellipse
+        //      fell on the EMPTY LEFT HALF of the desk and died on the wall, while the monitor's own side --
+        //      every prop, the clipboard, the coffee -- was never inside the radius. The measured dump in
+        //      tools/comp/preview_screenlight.py showed the desk moving +1.0/255 between tube off and tube on,
+        //      which is a no-op. A light is a coordinate before it is a colour.
+        public const int GlassX = 364;
+        public const int GlassY = 115;
+        public const int GlassRx = 91;
+        public const int GlassRy = 47;
+        /// <summary>The row the desk surface starts on, top-down canvas rows (desk_layout.json: slab top 170).</summary>
+        public const int DeskRow = 170;
         /// <summary>Where the pool's centre is: ON the desk in front of the tube, never on the wall.</summary>
-        public const int ProjectY = 236;
+        public const int ProjectY = 205;
         /// <summary>The canvas: the same 480x270 every other system uses.</summary>
         public const int CanvasW = 480, CanvasH = 270;
 
@@ -78,10 +86,13 @@ namespace HRZeroDay.Game
 
         private static readonly Prop[] Props =
         {
-            new Prop(300, 84, 216, 22),   // keyboard
-            new Prop(388, 14, 217, 18),   // mouse
-            new Prop(120, 48, 210, 26),   // the forms on the left of the desk
-            new Prop( 56, 30, 208, 24),   // the mug
+            // v127: read off desk_layout.json's own anchors, so a shadow starts where its object starts.
+            // canvas top-down row = 270 - anchorY - spriteH.
+            new Prop(176, 96, 208, 20),   // keyboard   [176,42] 96x20
+            new Prop(300, 18, 206, 24),   // mouse      [300,40] 18x24
+            new Prop(214, 44, 196, 30),   // papers     [214,44] 44x30
+            new Prop(352, 30, 194, 38),   // coffee     [352,38] 30x38
+            new Prop(408, 38, 190, 46),   // clipboard  [408,34] 38x46
         };
 
         // ---- one captured surface ---------------------------------------------------------------------
@@ -279,7 +290,11 @@ namespace HRZeroDay.Game
             {
                 var prop = Props[s];
                 int length = Mathf.RoundToInt(prop.Height * 0.55f * level);
-                int startX = prop.X + prop.W;
+                // THE MONITOR IS ON THE RIGHT NOW (composition N). Its shadows fall to the LEFT of each
+                // object. The old code always ran them right, which with the tube's new position put every
+                // shadow between the object and the light source -- physically impossible, and it read as
+                // grime on the wood rather than as shade.
+                int startX = prop.X - length;
                 for (int i = 0; i < length; i++)
                 {
                     int canvasX = startX + i;
@@ -297,8 +312,9 @@ namespace HRZeroDay.Game
                         Darken(part, idx, 1);
                     }
                 }
-                // the prop's own near face (its LEFT, facing the glass) catches the tube
-                int faceX = prop.X - part.x0;
+                // the prop's own near face -- the side that faces the glass -- catches the tube. The glass is
+                // to the RIGHT of the desk now, so the lit face is the right-hand edge, not the left one.
+                int faceX = prop.X + prop.W - 2 - part.x0;
                 for (int i = 0; i < 2; i++)
                 {
                     int px = faceX + i;

@@ -82,6 +82,37 @@ READABLE = (
     'Art/Kit/backgrounds/office_L1.png',
     'Art/Kit/backgrounds/office_L2.png',
     'Art/Kit/desk/desk_foreground.png',
+    # THE THREE THE WARNING WAS ABOUT (v127, the player's console). ScreenLight lights EVERY layer of the
+    # layout, and the log said so out loud on the player's machine:
+    #
+    #   [HR//0D] ScreenLight cannot read 'monitor', so the tube will not light it.
+    #   [HR//0D] ScreenLight cannot read 'monitor_stand', ...
+    #   [HR//0D] ScreenLight cannot read 'document', ...
+    #
+    # The desk's props were never on this list: only the room and the desk's front lip were. So the tube lit
+    # the ROOM and could not touch the monitor, its arm or the papers on it -- the desk under the glass stayed
+    # dark while the wall behind it brightened, which is exactly what the player described, three rounds
+    # running, as "it lights the back, not the desk". The rule this round: EVERY sprite the desk layout names
+    # is a sprite a light pass will want to read, so the list is checked against the layout by a test
+    # (ManifestBridgeTests.CheckEveryDeskLayerIsReadable) instead of being maintained by hope.
+    'Art/Kit/desk/monitor_small.png',
+    'Art/Kit/desk/monitor_M.png',
+    'Art/Kit/desk/monitor_stand.png',
+    'Art/Kit/desk/monitor_stand_M.png',
+    'Art/Kit/desk/document_small.png',
+    'Art/Kit/desk/foreground_M.png',
+    'Art/Kit/backgrounds/office_M0.png',
+    # the desk's props, painted this round (v127): the coffee, the keyboard, the mouse, the clipboard, the
+    # junk under the desk. All of them sit in the tube's pool, so all of them must be readable.
+    'Art/Kit/desk/props_coffee.png',
+    'Art/Kit/desk/props_keyboard.png',
+    'Art/Kit/desk/props_mouse.png',
+    'Art/Kit/desk/props_clipboard.png',
+    'Art/Kit/desk/props_junk.png',
+    'Art/Kit/desk/props_papers.png',
+    # the slab (v127): the wood surface is its own layer now, and it is the surface the tube's light lands
+    # ON -- the exact sprite the player's "it lights the back, not the desk" complaint was about.
+    'Art/Kit/desk/desk_slab_M.png',
 )
 
 

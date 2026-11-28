@@ -225,14 +225,15 @@ def verify(layout, by_path, manifest) -> int:
     if ay + app_h > ch:
         problems.append('applicant is taller than the canvas')
 
-    # brief checks: monitor on the left half, applicant on the right half
+    # brief checks (v127, composition N -- the player's instruction): MONITOR ON THE RIGHT HALF, APPLICANT
+    # ON THE LEFT. This read the other way round and would have failed the approved layout.
     monitor = next(L for L in layout['layers'] if L['id'] == 'monitor')
     monitor_centre = monitor['anchor'][0] + by_path[monitor['sprite']]['width'] / 2
     applicant_centre = ax + app_w / 2
-    if monitor_centre >= cw / 2:
-        problems.append('monitor is not on the left half')
-    if applicant_centre <= cw / 2:
-        problems.append('applicant is not on the right half')
+    if monitor_centre <= cw / 2:
+        problems.append('monitor is not on the right half')
+    if applicant_centre >= cw / 2:
+        problems.append('applicant is not on the left half')
 
     # manifest sanity: every sprite must be palette-import-ready
     for s in manifest['sprites']:

@@ -149,7 +149,9 @@ try {
         S 'Unity scripts type-check (stubs, no Unity install needed)'
         Push-Location (Join-Path $repo 'tools\UnityStubs')
         try {
-            & dotnet build -v q --nologo | Out-Host
+            # NAME THE PROJECT. Two csproj files live here (CompileCheck and RenderDump), so a bare
+            # `dotnet build` fails with MSB1011 and the gate reports a compile failure that is not one.
+            & dotnet build CompileCheck.csproj -v q --nologo | Out-Host
             if ($LASTEXITCODE -ne 0) { D 'Game/Editor scripts do not compile' } else { OK 'Game + Editor compile' }
         } finally { Pop-Location }
     }

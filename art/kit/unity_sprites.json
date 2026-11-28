@@ -14,12 +14,12 @@
     "targetFrameRate": 60
   },
   "counts": {
-    "applicants": 14,
+    "applicants": 15,
     "portraits": 14,
     "ui": 18,
     "icons": 18,
     "stamps": 2,
-    "desk": 16,
+    "desk": 23,
     "backgrounds": 4,
     "menu": 8,
     "fx": 3,
@@ -263,7 +263,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "4b8ba71416ed786b",
+      "sha256_16": "dcd54d1f8e160b96",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -818,6 +818,36 @@
           "name": "synthetic_polished_c_blink",
           "rect": [
             576,
+            0,
+            192,
+            216
+          ]
+        }
+      ]
+    },
+    {
+      "source": "art/kit/applicants/bust_M_192x216.png",
+      "assetPath": "Assets/Art/Kit/applicants/bust_M_192x216.png",
+      "width": 192,
+      "height": 216,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "applicant",
+      "sha256_16": "4a1e7401cdad90dc",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      },
+      "sprites": [
+        {
+          "name": "bust_M_192x216",
+          "rect": [
+            0,
             0,
             192,
             216
@@ -1941,6 +1971,25 @@
       }
     },
     {
+      "source": "art/kit/desk/desk_slab_M.png",
+      "assetPath": "Assets/Art/Kit/desk/desk_slab_M.png",
+      "width": 480,
+      "height": 58,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "29937e43a10694e0",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
       "source": "art/kit/desk/document_sheet.png",
       "assetPath": "Assets/Art/Kit/desk/document_sheet.png",
       "width": 192,
@@ -1982,11 +2031,11 @@
       "source": "art/kit/desk/foreground_M.png",
       "assetPath": "Assets/Art/Kit/desk/foreground_M.png",
       "width": 480,
-      "height": 19,
+      "height": 14,
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "desk",
-      "sha256_16": "f77a02410eaf68a6",
+      "sha256_16": "31ed52bf61c1c919",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2150,6 +2199,120 @@
       }
     },
     {
+      "source": "art/kit/desk/props_clipboard.png",
+      "assetPath": "Assets/Art/Kit/desk/props_clipboard.png",
+      "width": 38,
+      "height": 46,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "f8306cbbf218b0fd",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/desk/props_coffee.png",
+      "assetPath": "Assets/Art/Kit/desk/props_coffee.png",
+      "width": 30,
+      "height": 38,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "8504d2428ee355f8",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/desk/props_junk.png",
+      "assetPath": "Assets/Art/Kit/desk/props_junk.png",
+      "width": 480,
+      "height": 28,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "3a0d84b2014059fd",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/desk/props_keyboard.png",
+      "assetPath": "Assets/Art/Kit/desk/props_keyboard.png",
+      "width": 96,
+      "height": 20,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "7e6aec5c94eed7cf",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/desk/props_mouse.png",
+      "assetPath": "Assets/Art/Kit/desk/props_mouse.png",
+      "width": 18,
+      "height": 24,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "df0522e2aa6f5232",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/desk/props_papers.png",
+      "assetPath": "Assets/Art/Kit/desk/props_papers.png",
+      "width": 44,
+      "height": 30,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "0dc722f913ecc812",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
       "source": "art/kit/desk/server_rack.png",
       "assetPath": "Assets/Art/Kit/desk/server_rack.png",
       "width": 48,
@@ -2290,7 +2453,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "background",
-      "sha256_16": "75fa3ef3569d17de",
+      "sha256_16": "e316f0cfe91c387b",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",

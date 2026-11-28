@@ -76,8 +76,8 @@ namespace HRZeroDay.Game.Interaction
         {
             _renderer = GetComponent<SpriteRenderer>();
             if (_renderer == null) _renderer = gameObject.AddComponent<SpriteRenderer>();
-            _renderer.sortingOrder = 221;             // above the desk art and the letter, below nothing
             _renderer.color = Color.white;
+
             _palette = MonitorScreenView.PaletteCached;
             _glyphs = MonitorScreenView.Load("fonts/monitor_font_5x7", _palette);
             _buffer = new Color32[referenceWidth * referenceHeight];
@@ -86,14 +86,59 @@ namespace HRZeroDay.Game.Interaction
             _tex.wrapMode = TextureWrapMode.Clamp;
             _tex.name = "HudObjects";
             _renderer.sprite = Sprite.Create(_tex, new Rect(0, 0, referenceWidth, referenceHeight),
-                                             new Vector2(0f, 1f), pixelsPerUnit);
-            // the layer is the whole page, so it sits on the page's own origin, unscaled
-            transform.localPosition = Vector3.zero;
-            transform.localScale = PageTransform.NaturalScale;
+                                             PageTransform.TopLeftPivot, pixelsPerUnit);
+            _renderer.sortingOrder = HudOrder;
             _ready = _palette != null && _palette.Count > 0 && _glyphs != null;
             if (!_ready)
                 Debug.LogWarning("[HR//0D] the HUD objects cannot paint: palette or glyphs missing. " +
                                  "Run HR//0D > Import Art Kit.");
+        }
+
+        /// <summary>
+        /// THE HUD WAS INVISIBLE, AND THIS IS WHY (v127, the player's screenshot). Three bugs, each one
+        /// enough on its own, found by measuring the frame instead of reading the code:
+        ///
+        ///   1. SORTING ORDER. The plate was set to 221 "below nothing", with a comment saying so. The menu is
+        ///      240 -- and DeskBootstrap builds the front door at Start(), so the menu's card was drawn OVER
+        ///      the HUD for the whole game. Correct: just above the desk and the letter (10 / 60), just below
+        ///      the after-hours walk (140) and the menu (240), so every full-screen screen still wins.
+        ///   2. WHERE IT SITS. A top-left-pivot sprite placed at localPosition.zero puts its corner at the
+        ///      WORLD origin, which is the bottom-left of a desk root that sits at (0,0) -- so the whole HUD
+        ///      drew from the bottom-left corner upward, i.e. mostly off the left and bottom of the frame.
+        ///      It is now placed at the canvas transform's top-left, through the one conversion the rest of the
+        ///      game uses (PageTransform.TopLeftToWorld).
+        ///   3. WHEN IT BUILT. Awake ran once, before DeskBootstrap.Start had built the desk, so even after 1
+        ///      and 2 were right the layer would have been empty until the first state change. Build() is
+        ///      idempotent and called from Start, after everything it positions against exists.
+        ///
+        /// The rule, since this has now cost two rounds: a HUD that is not in the screenshot is not a HUD.
+        /// </summary>
+        public const int HudOrder = 70;
+
+        private bool _built;
+
+        /// <summary>Places the layer on the canvas's top-left. Safe to call more than once.</summary>
+        public void Place()
+        {
+            // The desk root is built in canvas units with the page's bottom-left at the world origin (the
+            // camera is centred on the page, so origin = page bottom-left). A top-left-pivot sprite therefore
+            // belongs at (0, H/ppu) -- not at (0,0), which is where it was, putting the whole layer below the
+            // bottom of the frame. Nothing here reads a parent: this component's parent chain is the desk,
+            // and its scale is already 1.
+            transform.localPosition = new Vector3(0f, referenceHeight / pixelsPerUnit, 0f);
+            transform.localScale = PageTransform.NaturalScale;
+        }
+
+        private void Start() { Build(); }
+
+        /// <summary>Builds the layer, once, after the desk exists. Idempotent.</summary>
+        public void Build()
+        {
+            if (_built) return;
+            _built = true;
+            Place();
+            _paintedSignature = null;      // force a paint on the next Update
+            Update();
         }
 
         // ------------------------------------------------------------------ state
@@ -151,6 +196,15 @@ namespace HRZeroDay.Game.Interaction
             if (sig == _paintedSignature) return;
             _paintedSignature = sig;
             Paint(m, list);
+
+            // A layer that never becomes visible is the bug this whole class is being fixed for, so the
+            // renderer is switched on HERE, after a paint that produced pixels -- not in Awake, where the
+            // texture is still blank and `painted == 0` would have disabled it for good.
+            if (_renderer != null)
+            {
+                _renderer.enabled = !_lastPaintEmpty;
+                _renderer.sortingOrder = HudOrder;      // re-asserted every paint: nothing else may own it
+            }
         }
 
         /// <summary>

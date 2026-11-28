@@ -16,39 +16,41 @@
   "layers": [
     {
       "id": "background",
-      "sprite": "art/kit/backgrounds/office_L0.png",
+      "sprite": "art/kit/backgrounds/office_M0.png",
       "anchor": [
         0,
         0
       ],
-      "sortingOrder": -30
+      "sortingOrder": -30,
+      "notes": "v127: painted in the menu's materials by tools/art/make_desk_room.py -- the window behind the applicant (x168..472, sill 152), an 8 px perspective floor, the wood slab with its depth dither and the tube's pool on it, and the shadowed floor under the desk where the junk sits."
     },
     {
       "id": "monitor",
-      "sprite": "art/kit/desk/monitor_small.png",
+      "sprite": "art/kit/desk/monitor_M.png",
       "anchor": [
-        14,
-        86
+        268,
+        84
       ],
       "sortingOrder": -20,
       "screen": {
-        "x": 6,
-        "y": 12,
-        "w": 142,
-        "h": 88,
+        "x": 5,
+        "y": 8,
+        "w": 182,
+        "h": 94,
         "glyphW": 5,
         "glyphH": 7,
         "letterGap": 2,
         "lineGap": 3,
-        "note": "glass rect in monitor-local px, y UP, measured from monitor_small's 6,6..w-7,h-13 drawing. MonitorScreen.GlassForSprite recomputes this; GameDataTests asserts they agree."
-      }
+        "note": "glass rect in monitor-local px, y UP, measured from monitor_M (192x108): the bezel is 4 px, the glass runs x5..186 / y8..101. MonitorScreen.GlassForSprite recomputes this; GameDataTests asserts they agree."
+      },
+      "notes": "v127: 192x108, monitor_M.png, right of centre so the applicant has the left"
     },
     {
       "id": "monitor_stand",
-      "sprite": "art/kit/desk/monitor_stand.png",
+      "sprite": "art/kit/desk/monitor_stand_M.png",
       "anchor": [
-        63,
-        60
+        300,
+        50
       ],
       "sortingOrder": -19,
       "notes": "56x34: mount plate at top meets the bezel bottom, base foot overlaps the desk by 4 px"
@@ -57,17 +59,17 @@
       "id": "document",
       "sprite": "art/kit/desk/document_small.png",
       "anchor": [
-        38,
-        100
+        318,
+        104
       ],
       "sortingOrder": -15
     },
     {
       "id": "applicant",
-      "sprite": "art/kit/applicants/app_human_solid_a_192x216.png",
+      "sprite": "art/kit/applicants/bust_M_192x216.png",
       "anchor": [
-        288,
-        29
+        32,
+        18
       ],
       "sortingOrder": 0,
       "frameSprite": "human_solid_a_neutral",
@@ -81,17 +83,88 @@
         ],
         "fps": 4,
         "loop": true
-      }
+      },
+      "notes": "v127: the LAYER sprite is the single-frame bust (bust_M_192x216.png); the animator crops the 4-cell strip at app_human_solid_a_192x216.png"
     },
     {
-      "id": "desk",
-      "sprite": "art/kit/desk/desk_foreground.png",
+      "id": "junk",
+      "sprite": "art/kit/desk/props_junk.png",
       "anchor": [
         0,
         0
       ],
+      "sortingOrder": 8,
+      "notes": "the dead hardware on the floor under the desk; rows 242..269, drawn bottom-up"
+    },
+    {
+      "id": "desk_slab",
+      "sprite": "art/kit/desk/desk_slab_M.png",
+      "anchor": [
+        0,
+        42
+      ],
+      "sortingOrder": 9,
+      "notes": "480x58 wood surface, canvas rows 170..227"
+    },
+    {
+      "id": "desk",
+      "sprite": "art/kit/desk/foreground_M.png",
+      "anchor": [
+        0,
+        28
+      ],
       "sortingOrder": 10,
-      "notes": "480x64: props on the desk surface (placed around the monitor arm at x 63..119) + the front lip at rows 251-269. Sorts +10 so props sit in front of the applicant -- correct depth. The transparent upper band draws nothing, so it clips nothing."
+      "notes": "480x14 front lip, canvas rows 228..241; sorts above the slab AND above the junk, which is what puts the dead hardware genuinely under the desk"
+    },
+    {
+      "id": "papers",
+      "sprite": "art/kit/desk/props_papers.png",
+      "anchor": [
+        214,
+        44
+      ],
+      "sortingOrder": 13,
+      "notes": "loose sheets, far left of the desk surface"
+    },
+    {
+      "id": "keyboard",
+      "sprite": "art/kit/desk/props_keyboard.png",
+      "anchor": [
+        176,
+        42
+      ],
+      "sortingOrder": 14,
+      "notes": "in front of the monitor, right of the applicant"
+    },
+    {
+      "id": "mouse",
+      "sprite": "art/kit/desk/props_mouse.png",
+      "anchor": [
+        300,
+        40
+      ],
+      "sortingOrder": 15,
+      "notes": "right of the keyboard"
+    },
+    {
+      "id": "coffee",
+      "sprite": "art/kit/desk/props_coffee.png",
+      "anchor": [
+        352,
+        38
+      ],
+      "sortingOrder": 16,
+      "notes": "left of the monitor, in the tube's pool"
+    },
+    {
+      "id": "clipboard",
+      "sprite": "art/kit/desk/props_clipboard.png",
+      "anchor": [
+        408,
+        34
+      ],
+      "sortingOrder": 17,
+      "notes": "under the monitor's right bezel, his hand"
     }
   ],
   "deskEdgeY": 18,

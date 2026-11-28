@@ -167,6 +167,10 @@ namespace HRZeroDay.Game.Interaction
             else Hud.Bind(this);
             if (HudObjects == null) HudObjects = GameHudObjects.Attach(this);
             else HudObjects.Bind(this);
+            // built HERE, not in Awake: it is placed against the desk root and the canvas, and it must paint
+            // with the session already up. (Awake ran before this method and produced an empty layer, which
+            // is one of the three reasons the HUD was invisible on the player's screen in v126.)
+            if (HudObjects != null) HudObjects.Build();
             if (string.IsNullOrEmpty(watchCopy)) watchCopy = "HOLD STILL. THE TELL IS SMALL.";
             if (string.IsNullOrEmpty(correctHeading)) correctHeading = "DECISION RECORDED";
             if (string.IsNullOrEmpty(wrongHeading)) wrongHeading = "DECISION RECORDED";

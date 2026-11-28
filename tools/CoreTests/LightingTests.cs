@@ -133,9 +133,15 @@ namespace HRZeroDay.Tests
         /// </summary>
         private static string TubePoolLandsOnTheDesk()
         {
-            True(Game.ScreenLight.GlassX < MenuLayout.W / 2,
-                 "the desk's emitter is not on the left, so its shadows would fall the wrong way");
-            True(Game.ScreenLight.GlassX + Game.ScreenLight.GlassRx < MenuLayout.W / 2,
+            // v127 / composition N: THE MONITOR IS ON THE RIGHT (the player's instruction). This assertion
+            // used to demand the emitter be left of centre, which is the OPPOSITE of the approved layout --
+            // it would have failed the correct composition. What actually matters is that the glass sits
+            // inside the monitor's case, so the case is what the test reads now.
+            int glassL = Game.ScreenLight.GlassX - Game.ScreenLight.GlassRx;
+            int glassR = Game.ScreenLight.GlassX + Game.ScreenLight.GlassRx;
+            True(Game.ScreenLight.GlassX > MenuLayout.W / 2,
+                 "the desk's emitter is not on the right, where the monitor stands");
+            True(glassL > MenuLayout.W / 2 - 96 && glassR < MenuLayout.W,
                  "the tube's glass is not inside the monitor's case");
             // the projection: the pool's centre must be BELOW the glass and on the desk band, not on the wall
             True(Game.ScreenLight.ProjectY > Game.ScreenLight.GlassY, "the pool is not projected downward");

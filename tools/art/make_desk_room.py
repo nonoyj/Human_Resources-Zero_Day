@@ -56,25 +56,39 @@ from menu_palette import PALETTE, RAMP  # noqa: E402
 W, H = 480, 270
 
 # ---- the desk's geometry, taken from desk_layout.json so this art cannot drift from the hotspots -------
-DESK_ROW = 206          # the desk's FAR edge: the props' plane starts here (layout FLOOR_ROW 198)
+DESK_ROW = 170          # the desk's FAR edge: the props' plane starts here
 FLOOR_ROW = 198         # where the wall meets the floor -- 8 px of floor show behind the desk
-DESK_LIP = 252          # the desk's near edge: the lip the player's hands are on (foreground layer)
-DESK_BOTTOM = 270
+DESK_LIP = 228          # the desk's near edge: the lip the player's hands are on
+# An OPEN desk (v127). Below the lip is not the desk's front panel -- it is the shadowed floor under the
+# desk, which the player can see because the desk is open underneath. That is the band they called "too big
+# and too empty", and it is now where the mess of dead PCs lives (art/kit/desk/props_junk.png).
 HORIZON = 150           # the eye line: everything converges here, in both rooms
 VPX = 268               # the same vanishing point as the menu's shell, so the two rooms agree
 WALL_X = 0
 
 # ---- the window, behind the applicant's shoulders (layout: x168..472, sill y152) -----------------------
-WIN_X0, WIN_X1 = 168, 472
+# THE WINDOW MOVED LEFT (v127). It used to run behind the applicant's shoulders at x168..472; with the
+# monitor now on the RIGHT and the applicant on the LEFT (the player's instruction -- "it would look cramped
+# for the applicant if we put the window there and the applicant on the side"), the window belongs behind
+# the applicant, i.e. on the left, and the monitor takes the right wall.
+WIN_X0, WIN_X1 = 26, 208
 WIN_Y0, WIN_Y1 = 8, 152
 WIN_SILL = 152
 
 # ---- the monitor, left of centre (layout: monitor anchor 14,86 as a 0.58x redraw) ----------------------
-MON_X0, MON_Y0, MON_X1, MON_Y1 = 18, 88, 210, 196
+# The monitor's CANVAS rect, matching desk_layout.json (anchor [268,84], 192x108) -- the first pass
+# still had the pre-move left-hand numbers here, which put the tube's light pool on the empty left half of
+# the desk and drew an olive oval where nothing was. The sprite is 192x108 either way; these numbers are
+# what the pools and the wall's rim are measured from, so they have to agree with the layout.
+MON_X0, MON_Y0, MON_X1, MON_Y1 = 268, 88, 460, 196
 
 
 def rgba(key):
     return M.rgba(key)
+
+
+def bayer_fn(x, y):
+    return M.BAYER4[y & 3][x & 3] / 16.0
 
 
 def out(rel):
@@ -95,52 +109,37 @@ def wall(img, d):
     a wall because of three things: the seam where two sheets of value meet, the occlusion where it meets
     the floor, and the fact that it gets darker the further it is from the window.
     """
+    # THE AMBIENT FIELD IS A FUNCTION OF X ONLY, and it has a soft edge. It used to be
+    # t = (x + (y - HORIZON) * 0.35) / W, which is a DIAGONAL -- in the composition that drew a hard line
+    # from the top of the frame down to the desk, a shadow wedge with a ruled edge, and it was the first
+    # thing the eye found in the room. A back wall is lit by distance from the window: one vertical gradient,
+    # dither-ramped, and nothing else.
     for y in range(0, DESK_ROW):
         for x in range(W):
-            # the ambient field: wall_1 at the window's side, wall_0 elsewhere, and the seam between them
-            # runs at the window's angle rather than flat, so the light has a direction
-            t = (x + (y - HORIZON) * 0.35) / float(W)
-            img.putpixel((x, y), rgba('wall_1') if t < 0.42 else rgba('wall_0'))
-
-    # the seam: a 5 px dither band where the wall's two values meet, following the light's angle. Without
-    # it the wall is two flat colours butted together, which is the "diagram of a room" this file exists to
-    # replace. (An earlier draft computed a seam x and then drew nothing with it.)
+            u = (x - 40) / float(W - 40)          # 0 at the window's edge, 1 at the far wall
+            if u < 0.18:
+                key = 'wall_1'
+            elif u < 0.46:
+                key = 'wall_1' if M.BAYER4[y & 3][x & 3] / 16.0 < (0.46 - u) / 0.28 else 'wall_0'
+            else:
+                key = 'wall_0'
+            img.putpixel((x, y), rgba(key))
+    # the corners fall off, so the frame's edges are not a flat plate of one value
     for y in range(0, DESK_ROW):
-        sx = int(0.42 * W - (y - HORIZON) * 0.35)
-        for k in range(-2, 3):
-            xx = sx + k
-            if 0 <= xx < W and M.BAYER4[y & 3][xx & 3] / 16.0 < 1.0 - abs(k) / 3.0:
-                # A VALUE SEAM, NOT AN OUTLINE. The first version put 'void' on the shadow side, which at
-                # the top of the frame drew a black diagonal notch next to the window -- a wall's two values
-                # meeting is a step of one ramp, never a line. (Found by cropping the render, not by reading
-                # the code: the pixels were right where the arithmetic said, and wrong for the room.)
-                img.putpixel((xx, y), rgba('wall_2') if k < 0 else rgba('wall_0'))
-
-    # ---- the cold key's band under the window: the sill's light spilling DOWN the wall, 40 px of it,
-    # dithered to nothing. This is the same trick the menu's shell uses under its window.
-    for y in range(WIN_SILL, min(DESK_ROW, WIN_SILL + 44)):
-        drop = (y - WIN_SILL) / 44.0
-        strength = 0.55 * (1.0 - drop)
-        for x in range(WIN_X0 - 10, min(W, WIN_X1 + 10)):
-            if M.BAYER4[y & 3][x & 3] / 16.0 < strength:
-                img.putpixel((x, y), rgba('wall_2'))
-
-    # ---- corner occlusion: the frame's two bottom corners go one step down, dithering in over 60 px
-    for y in range(HORIZON, DESK_ROW):
-        for x in range(0, 120):
-            if M.BAYER4[y & 3][x & 3] / 16.0 < (1.0 - x / 120.0) * 0.55:
-                img.putpixel((x, y), rgba('void'))
-        for x in range(W - 120, W):
-            if M.BAYER4[y & 3][x & 3] / 16.0 < ((x - (W - 120)) / 120.0) * 0.45:
+        for x in range(W - 60, W):
+            if M.BAYER4[y & 3][x & 3] / 16.0 < (x - (W - 60)) / 90.0:
                 img.putpixel((x, y), rgba('void'))
 
-    # ---- the skirting: the wall meets the floor in a 2 px shadow socket with one lit bevel pixel. Without
-    # this line the wall and the floor are two colours in the same plane and the room has no corner.
-    for x in range(W):
-        img.putpixel((x, FLOOR_ROW - 1), rgba('void'))
-        img.putpixel((x, FLOOR_ROW - 2), rgba('wall_2'))
-        img.putpixel((x, FLOOR_ROW), rgba('floor_0'))
-
+    # THE WALL'S SEAM IS VERTICAL AND SOFT. It used to run on the light's angle, which at this size drew a
+    # dotted diagonal across the plaster -- a scratch on the print, not a change of value. A wall's two values
+    # meet at the corner of the room, so the seam is a 14 px dither band down the frame's own vertical, and
+    # the window's light band (below) does the directional work.
+    # NO SEAM LINE. Two values already meet in a 90 px dither band above; a drawn line on top of that is a
+    # pipe, and it read as one. A room corner is a change of value, not a stroke.
+    for y in range(0, DESK_ROW):
+        for x in range(int(0.60 * W), int(0.68 * W)):
+            if M.BAYER4[y & 3][x & 3] / 16.0 < 0.10:
+                img.putpixel((x, y), rgba('wall_1'))   # a faint grazing highlight, nothing more
 
 # ===================================================================================== the floor
 def floor(img, d):
@@ -191,54 +190,59 @@ def floor(img, d):
 
 
 # ===================================================================================== the desk slab
-def desk_slab(img, d):
+def desk_slab_sprite():
     """
-    THE SURFACE. 64 px of warm wood from the desk's far edge (row 206) to its near edge (row 252), and the
-    biggest surface in the frame after the wall -- so it is where the room's material either works or does
-    not.
+    THE SURFACE, as its own layer (v127). It used to be painted into the room, which meant the mess under the
+    desk could not be drawn UNDER it: the slab was part of the background, so anything sorted above the
+    background -- the junk -- lay on top of the wood and read as clutter ON the desk.
 
-    The menu's desk is painted exactly this way and it is the thing the player pointed at when they said the
-    front door was the good-looking one: two steps of value across the depth, one dither seam, a darker band
-    at the back where the desk turns away from the window, and the specular rationed to the front edge. The
-    old in-game desk was a flat steel-blue band with a line on it.
+    Now the slab is a sprite that sorts between them: junk (8) < slab (9) < props (13..17). That is what the
+    standing rule "layer the art" means at this size, and it is why the desk no longer looks like it floats:
+    the junk is genuinely behind its front edge.
 
-    Its light comes from the two sources that exist in this room: the WINDOW behind and above it (so the far
-    edge is the lit edge and the near edge falls away), and the TUBE in front of it (so the pool under the
-    glass is the brightest thing on the wood).
+    Painted in the menu's wood: two steps across its depth, one dither seam, the darker band where it turns
+    away from the window, and the specular rationed to the front edge.
     """
-    for y in range(DESK_ROW, DESK_LIP):
-        for x in range(W):
-            img.putpixel((x, y), rgba('wood_1'))
+    h = DESK_LIP - DESK_ROW
+    img = Image.new('RGBA', (W, h), rgba('wood_2'))
+    d = ImageDraw.Draw(img)
 
-    # the far edge: the two rows where the desk turns up toward the wall catch the window, and the seam
-    # under them is the desk's own occlusion against the floor behind it
+    # the far edge catches the window's cold key: two rows up its ramp, with the desk's occlusion above it
     for x in range(W):
-        img.putpixel((x, DESK_ROW), rgba('wood_3'))
-        img.putpixel((x, DESK_ROW + 1), rgba('wood_2'))
-        img.putpixel((x, DESK_ROW - 1), rgba('void'))
+        img.putpixel((x, 0), rgba('wood_3'))
+        img.putpixel((x, 1), rgba('wood_2'))
 
-    # the depth seam: wood_1 -> wood_0 toward the camera, so the slab reads as a surface going somewhere
-    dither(img, 0, DESK_ROW + 14, W, DESK_ROW + 20, 'wood_1', 'wood_2', 0.35)
-    dither(img, 0, DESK_ROW + 30, W, DESK_ROW + 36, 'wood_1', 'wood_0', 0.32)
+    # the depth: WOOD GETS BRIGHTER TOWARDS THE CAMERA. The first pass darkened towards the camera and the
+    # desk read as a black bar across the frame -- the menu's desk is the brightest thing in its lower third
+    # and that is exactly what makes it read as a desk. wood_2 at the far edge, wood_3 at the lip.
+    dither(img, 0, 12, W, 20, 'wood_2', 'wood_3', 0.40)
+    dither(img, 0, 26, W, 34, 'wood_3', 'wood_2', 0.22)
 
-    # the tube's pool: the ellipse of cold light the glass throws on the wood in front of it. Three bands,
-    # like the menu's lamp pool -- a single dither over a whole ellipse reads as a screen door, which the
-    # menu learned when its lamp pool came out as a hatch.
-    cx, cy = (MON_X0 + MON_X1) // 2, DESK_ROW + 14
-    for y in range(DESK_ROW, DESK_LIP):
-        for x in range(W):
-            dx = (x - cx) / 170.0
-            dy = (y - cy) / 26.0
-            r = math.sqrt(dx * dx + dy * dy)
-            if r >= 1.0:
-                continue
-            t = M.BAYER4[y & 3][x & 3]
-            if r < 0.42:
-                img.putpixel((x, y), rgba('wood_2'))
-            elif r < 0.72 and t < 8:
-                img.putpixel((x, y), rgba('wood_2'))
-            elif r < 0.94 and t < 3:
-                img.putpixel((x, y), rgba('wood_2'))
+    # the lip: the frame's one warm specular, doubled, and its shadow socket under it
+    for x in range(W):
+        img.putpixel((x, h - 4), rgba('wood_4'))
+        img.putpixel((x, h - 3), rgba('wood_4'))
+        img.putpixel((x, h - 2), rgba('wood_1'))
+        img.putpixel((x, h - 1), rgba('void'))
+
+    # ---- OCCLUSION: a soft shadow pass right in front of the far edge, which is where the props stand.
+    # Without it every object on the desk is a sticker on a board -- the player's oldest note about this room.
+    for x in range(W):
+        for k in range(0, 9):
+            y = 2 + k
+            if M.BAYER4[y & 3][x & 3] / 16.0 < (1.0 - k / 9.0) * 0.55:
+                img.putpixel((x, y), rgba('wood_0'))
+
+    # THE TUBE'S POOL IS NOT PAINTED HERE, AND THAT IS THE FIX. It used to be: an ellipse of wood_3/wood_4
+    # baked onto the slab right where the monitor's light would fall. ScreenLight then ran over the same
+    # pixels at runtime and had nowhere to climb -- the surface was already at the top of its ramp -- so
+    # switching the tube on moved the desk by +1.0/255. That is the whole "lamp lights the wall, not the
+    # desk" report, and no amount of tuning the light would have fixed it: the effect was painted away
+    # before it was applied. Baked light belongs in the MENU's room (a still image). The desk is live.
+    # What the slab does carry is occlusion: the far edge's contact shadow, and a faint warm lift where the
+    # wood faces the camera.
+
+    return img
 
 
 # ===================================================================================== the window
@@ -439,12 +443,14 @@ def foreground():
     Warm wood, three steps, one dither seam, one specular line on the front edge, and a shadow socket under
     it. It is the desk's only warm surface in a cold room, which is what makes it read as the player's side.
     """
-    w, h = W, 19
+    w, h = W, 14                        # the front edge as its own strip: rows DESK_LIP..DESK_LIP+13.
+    # Below it, to the bottom of the frame, is the OPEN under-desk band where the dead hardware lives
+    # (props_junk.png), and that band is 28 rows -- enough to read, not enough to fill.
     img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     for y in range(h):
         for x in range(w):
-            img.putpixel((x, y), rgba('wood_1'))
+            img.putpixel((x, y), rgba('wood_3'))
     dith = (0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5)
     for y in range(3, 7):
         for x in range(w):
@@ -455,10 +461,10 @@ def foreground():
             if dith[((y & 3) << 2) | (x & 3)] < 5:
                 img.putpixel((x, y), rgba('wood_0'))
     for x in range(w):
-        img.putpixel((x, 0), rgba('wood_3'))      # the specular: the lip catching the room's cold key
-        img.putpixel((x, 1), rgba('wood_2'))
-        img.putpixel((x, h - 2), rgba('wood_0'))
-        img.putpixel((x, h - 1), rgba('void'))
+        img.putpixel((x, 0), rgba('wood_4'))      # the specular: the lip catching the room's cold key
+        img.putpixel((x, 1), rgba('wood_3'))
+        img.putpixel((x, h - 2), rgba('wood_2'))
+        img.putpixel((x, h - 1), rgba('wood_0'))  # and the lip's own shadow socket: the desk turns to face down
     return img
 
 
@@ -480,6 +486,31 @@ def light_pools(img):
             dx = (x - 60) / 150.0
             if M.BAYER4[y & 3][x & 3] / 16.0 < (1.0 - drop) * (1.0 - abs(dx)) * 0.5:
                 img.putpixel((x, y), rgba('floor_4'))
+
+    # the desk's front edge: the lip's specular, doubled, because this is the one surface in the room whose
+    # value is allowed to be the brightest thing on the wood
+    for x in range(W):
+        img.putpixel((x, DESK_LIP - 2), rgba('wood_3'))
+        img.putpixel((x, DESK_LIP - 1), rgba('wood_2'))
+    # ---- UNDER THE DESK (v127). The slab and the lip are their own layers now, so what the background owes
+    # the bottom of the frame is the floor the desk stands on: dark, one step, with the slab's contact shadow
+    # at the top. The mess of dead PCs is drawn on top of THIS, and the slab is drawn over the back of it.
+    # The floor under the desk is floor_2 -> floor_1 toward the bottom edge, not floor_1 -> void: the junk
+    # that sits on it is drawn in steel_0/steel_1, and on a near-black band those two values are the same
+    # silhouette. A lit room has a lit floor; the junk only reads if the floor it stands on does.
+    for y in range(DESK_ROW, H):
+        k = (y - DESK_ROW) / float(max(1, H - DESK_ROW))
+        for x in range(W):
+            if k < 0.34:
+                img.putpixel((x, y), rgba('floor_1'))
+            elif k < 0.72:
+                img.putpixel((x, y), rgba('floor_2' if M.BAYER4[y & 3][x & 3] > 6 else 'floor_1'))
+            else:
+                img.putpixel((x, y), rgba('floor_2'))
+    for y in range(DESK_ROW, min(H, DESK_ROW + 10)):
+        for x in range(W):
+            if M.BAYER4[y & 3][x & 3] / 16.0 < 0.45 * (1.0 - (y - DESK_ROW) / 10.0):
+                img.putpixel((x, y), rgba('floor_1'))
 
     # ---- the tube's pool: an ellipse lying ON the desk surface in front of the glass, plus the cold rim it
     # throws up the monitor's own shadow side
@@ -522,7 +553,6 @@ def room():
     d = ImageDraw.Draw(img)
     wall(img, d)
     floor(img, d)
-    desk_slab(img, d)
 
     win = window()
     img.alpha_composite(win, (WIN_X0, WIN_Y0))
@@ -534,6 +564,7 @@ def main():
         'backgrounds/office_M0.png': room(),
         'desk/monitor_M.png': monitor(),
         'desk/monitor_stand_M.png': monitor_stand(),
+        'desk/desk_slab_M.png': desk_slab_sprite(),
         'desk/foreground_M.png': foreground(),
     }
     bad = palette_gate(pieces)

@@ -45,7 +45,9 @@ namespace HRZeroDay.Tests
             using var doc = JsonDocument.Parse(File.ReadAllText(path));
             foreach (var s in doc.RootElement.GetProperty("sprites").EnumerateArray())
             {
-                if (s.GetProperty("source").GetString().EndsWith("monitor_small.png"))
+                // v127: the desk's tube is monitor_M (the menu's monitor, 192x108). The layout no longer
+                // draws monitor_small, so deriving the glass from it was checking a sprite nobody renders.
+                if (s.GetProperty("source").GetString().EndsWith("monitor_M.png"))
                     return (s.GetProperty("width").GetInt32(), s.GetProperty("height").GetInt32());
             }
             throw new InvalidOperationException("monitor_small.png missing from the manifest");

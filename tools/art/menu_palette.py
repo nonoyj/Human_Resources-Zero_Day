@@ -82,6 +82,23 @@ RAMPS = {
     'teal':  [(210, .64, .050), (200, .66, .100), (190, .62, .175), (180, .54, .290), (172, .44, .450)],
     # the one warm light in the room (the lamp): amber, and the brightest non-emissive material
     'amber': [(14, .60, .085), (22, .62, .180), (30, .56, .300), (38, .46, .430), (46, .32, .600)],
+    # SKIN (v127, the player's "the applicant still looks the same").
+    #
+    # THE PROBLEM WAS NOT THE FACE, IT WAS THE PALETTE. The applicant generator carried its own 20-colour
+    # list with SKIN = ('paper', 'warn', 'orange'), and 'orange' is (255, 138, 61) -- an 8-bit-saturated
+    # orange at 0.60 value. The approved room's brightest NON-emissive value is amber_4 at 0.60, and the
+    # palette's whole rule is that a low-key frame has nothing above the light sources. So the man across the
+    # desk was the brightest object in a room whose light comes from a window and a tube: he read as a
+    # cartoon pasted onto a photograph, which is exactly what the player keeps saying.
+    #
+    # A skin ramp cannot live in the room's ramps: skin is the one material with its own hue family, and at
+    # 480x270 there is room for THREE steps (shadow, mid, key) plus one lit. Values are capped at 0.42 --
+    # under cup_2 (0.465) and well under the white of a specular -- so a face can be lit without becoming
+    # the brightest thing in the frame. Hue walks 20 -> 26 -> 33 -> 40 the way skin does under a cold key:
+    # shadows go red-violet, highlights go yellow.
+    'skin':  [(16, .58, .115), (22, .60, .200), (28, .55, .290), (34, .44, .420)],
+    # the one cold note on a face: the rim the window puts down his temple and shoulder
+    'skinrim': [(206, .40, .230), (196, .34, .300), (188, .26, .440)],
     # the coffee cup: cream ceramic. value-separated from the desk at every step it can touch
     'cup':   [(34, .22, .255), (41, .18, .355), (50, .12, .465)],
     # paper: warm off-white, two steps darker than the cup and four degrees cooler

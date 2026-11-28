@@ -142,6 +142,14 @@ namespace HRZeroDay.Game
         /// </summary>
         public static GlassRect GlassForSprite(int spriteW, int spriteH)
         {
+            // v127: the monitor was REDRAWN (monitor_M, 192x108, the menu's tube) and its bezel is 4 px, not
+            // 6/12. The old constants were monitor_small's drawing at 0.58 scale; kept as the fallback for
+            // that sprite so a project still on the old art does not change shape under the player's feet.
+            if (spriteW == 192 && spriteH == 108)
+            {
+                // monitor_M: bezel 4 px all round, glass x5..186 (182 wide), y 8..101 (94 tall, y up)
+                return new GlassRect { x = 5, y = 8, w = 182, h = 94 };
+            }
             const int x0 = 6, yTop = 6, insetRight = 6, insetBottom = 12;
             int w = spriteW - x0 - insetRight;
             int h = spriteH - yTop - insetBottom;

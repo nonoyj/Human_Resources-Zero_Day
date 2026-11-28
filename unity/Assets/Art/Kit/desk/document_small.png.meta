@@ -9,7 +9,7 @@ TextureImporter:
     enableMipMap: 0
     sRGBTexture: 1
     linearTexture: 0
-  isReadable: 0
+  isReadable: 1
   streamingMipmaps: 0
   wrapMode: 1
   filterMode: 0

@@ -29,6 +29,7 @@ namespace HRZeroDay.Tests
             yield return CheckEveryLayoutLayerResolves();
             yield return CheckEveryResourcesLoadHasAFile();
             yield return CheckTheMenuRoomIsReadable();
+            yield return CheckEveryDeskLayerIsReadable();
         }
 
         /// <summary>
@@ -50,6 +51,64 @@ namespace HRZeroDay.Tests
                     return "FAIL  " + cls + " is not [Serializable] -- JsonUtility will silently empty it";
             }
             return "PASS  SpriteEntry, SpriteFrameRect and SpriteManifest are all [Serializable]";
+        }
+
+        /// <summary>
+        /// THE PLAYER'S CONSOLE (v127). On their machine ScreenLight said, three times:
+        ///
+        ///   cannot read 'monitor' / 'monitor_stand' / 'document', so the tube will not light it
+        ///
+        /// The tube lights every static layer of the desk, so every static layer must be Read/Write or the
+        /// light lands on the wall and nowhere else -- the "it lights the back, not the desk" report. This test
+        /// reads the LAYOUT, not a list: every sprite the desk names must have isReadable: 1 in BOTH copies of
+        /// its .meta, and must be on the importer's DeskLayers() list, or a fresh machine is broken again.
+        /// </summary>
+        private static string CheckEveryDeskLayerIsReadable()
+        {
+            var layoutPath = "unity/Assets/Resources/desk_layout.json";
+            if (!File.Exists(layoutPath)) return "FAIL  " + layoutPath + " is missing";
+            var json = File.ReadAllText(layoutPath);
+            // THE LAYERS ARRAY ONLY. The json also carries notes, the menu's frame recipe and the hotspot
+            // table, and each of those names sprites that are not desk layers (the applicant strip, an old
+            // monitor_big, a server rack) -- reading every "art/kit/" in the file asks the tube to light
+            // things it will never see. The layers are what DeskSceneBuilder builds, so they are the set.
+            int arr = json.IndexOf("\"layers\"", StringComparison.Ordinal);
+            if (arr < 0) return "FAIL  desk_layout.json has no layers array";
+            int arrEnd = json.IndexOf("\n  ]", arr, StringComparison.Ordinal);   // the layers array closes at 2-space indent
+            var layers = json.Substring(arr, arrEnd - arr);
+            var names = new List<string>();
+            int at = 0;
+            while ((at = layers.IndexOf("art/kit/", at, StringComparison.Ordinal)) >= 0)
+            {
+                int b = layers.IndexOf(".png", at, StringComparison.Ordinal);
+                if (b < 0) break;
+                var rel = layers.Substring(at + "art/kit/".Length, b - at - "art/kit/".Length);
+                if (!names.Contains(rel)) names.Add(rel);
+                at = b;
+            }
+            // the APPLICANT is animated, and ScreenLight deliberately never touches it (its pixels are
+            // swapped every frame, so a lit copy would be overwritten). It is the one layer exempt.
+            names.RemoveAll(n => n.StartsWith("applicants/", StringComparison.Ordinal));
+            if (names.Count < 4) return "FAIL  only " + names.Count + " desk layers found in the layout";
+
+            var problems = new List<string>();
+            var importer = File.ReadAllText("unity/Assets/Scripts/Editor/ArtKitImporter.cs");
+            foreach (var rel in names)
+            {
+                foreach (var root in new[] { "unity/Assets/Resources/Art/Kit/", "unity/Assets/Art/Kit/" })
+                {
+                    var meta = root + rel + ".png.meta";
+                    if (!File.Exists(meta)) { problems.Add(meta + " (missing)"); continue; }
+                    if (!File.ReadAllText(meta).Contains("isReadable: 1"))
+                        problems.Add(meta + " (isReadable: 0 -- the tube will skip it and warn)");
+                }
+                if (!importer.Contains("\"" + rel + "\""))
+                    problems.Add("ArtKitImporter.DeskLayers() does not list " + rel);
+            }
+            if (problems.Count > 0)
+                return "FAIL  the tube cannot light the desk it is standing on: " +
+                       string.Join("; ", problems.ToArray());
+            return "PASS  all " + names.Count + " desk layers the layout names are Read/Write in both copies";
         }
 
         /// <summary>

@@ -20,6 +20,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pngcheck import read_rgba  # noqa: E402
+from PIL import Image  # noqa: E402
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 KIT = os.path.join(ROOT, 'art', 'kit')
@@ -99,6 +100,34 @@ def sprite_entry(path: str, folder: str) -> dict:
     return entry
 
 
+def whole_entry(path: str, folder: str) -> dict:
+    """A single-frame sprite: no slicing, one rect, the same import settings as its folder."""
+    w, h = Image.open(path).size
+    rel = os.path.relpath(path, KIT).replace(os.sep, '/')
+    sha = hashlib.sha256(open(path, 'rb').read()).hexdigest()[:16]
+    name = os.path.splitext(os.path.basename(path))[0]
+    return {
+        'source': 'art/kit/' + rel,
+        'assetPath': 'Assets/Art/Kit/' + rel,
+        'width': w,
+        'height': h,
+        'ppu': 16,
+        'spriteMode': 'Single',
+        'kind': RULES[folder]['kind'],
+        'sha256_16': sha,
+        'import': {
+            'textureType': 'Sprite',
+            'filterMode': 'Point',
+            'compression': 'None',
+            'mipmaps': False,
+            'alphaIsTransparency': True,
+            'meshType': 'FullRect',
+            'wrapMode': 'Clamp',
+        },
+        'sprites': [{'name': name, 'rect': [0, 0, w, h]}],
+    }
+
+
 def collect() -> dict:
     sprites = []
     for folder, rule in RULES.items():
@@ -106,8 +135,15 @@ def collect() -> dict:
         if not os.path.isdir(d):
             continue
         for f in sorted(os.listdir(d)):
-            if f.lower().endswith('.png'):
-                sprites.append(sprite_entry(os.path.join(d, f), folder))
+            if not f.lower().endswith('.png'):
+                continue
+            # (the single-frame bust used to be skipped here, and CoreTests rightly failed: the manifest has
+            # to cover every sprite the layout draws. Both files live in this folder; the strip slices into
+            # four cells, the bust is one whole-frame sprite.)
+            pass
+            full = os.path.join(d, f)
+            sprites.append(whole_entry(full, folder) if f.startswith('bust_')
+                           else sprite_entry(full, folder))
 
     reference = []
     refdir = os.path.join(KIT, 'reference')

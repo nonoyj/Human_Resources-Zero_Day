@@ -95,6 +95,18 @@ namespace HRZeroDay.EditorTools
             readable += MakeReadable("Assets/Resources/Art/Kit/desk/desk_foreground");
             readable += MakeReadable("Assets/Art/Kit/desk/desk_foreground");
 
+            // EVERY SPRITE THE DESK LAYOUT NAMES (v127, from the player's console). The importer only knew
+            // the room and the desk's lip, so on the player's machine ScreenLight said, three times:
+            //   cannot read 'monitor' / 'monitor_stand' / 'document' -- so the tube will not light it
+            // and the desk under the glass stayed dark while the wall behind it brightened. The tube lights
+            // every static layer, so every static layer has to be readable. Keep this list in step with
+            // DeskLayers() below, which the gate reads from the layout itself.
+            foreach (var layer in DeskLayers())
+            {
+                readable += MakeReadable("Assets/Resources/Art/Kit/" + layer);
+                readable += MakeReadable("Assets/Art/Kit/" + layer);
+            }
+
             // The glyph atlas is a plain Texture2D that the runtime reads pixel-by-pixel
             // (Texture2D.GetPixels32). Unity imports textures with Read/Write DISABLED by default, which
             // throws "texture data is either not readable" the moment the CRT initialises. It is also not
@@ -124,6 +136,44 @@ namespace HRZeroDay.EditorTools
         /// MenuLayout (BuildRoom) and MenuLayout.GlowSprites -- if a ninth sprite is added to the room it has
         /// to be added here too, and MenuTests checks that the two lists agree.
         /// </summary>
+        /// <summary>
+        /// The desk's placeable sprites, as they appear under art/kit -- read from desk_layout.json when it
+        /// can be found, so this list cannot drift from what the scene actually draws. Fallback: the set that
+        /// ships today.
+        /// </summary>
+        public static string[] DeskLayers()
+        {
+            var fallback = new[]
+            {
+                "backgrounds/office_L0", "backgrounds/office_L1", "backgrounds/office_L2",
+                "desk/monitor_small", "desk/monitor_stand", "desk/document_small", "desk/desk_foreground",
+                "desk/monitor_M", "desk/monitor_stand_M", "desk/foreground_M", "backgrounds/office_M0",
+                "desk/props_coffee", "desk/props_keyboard", "desk/props_mouse", "desk/props_clipboard",
+                "desk/props_junk", "desk/props_papers", "desk/desk_slab_M",
+            };
+            try
+            {
+                var path = UnityEngine.Application.dataPath + "/Content/desk_layout.json";
+                if (!System.IO.File.Exists(path)) return fallback;
+                var text = System.IO.File.ReadAllText(path);
+                // the LAYERS array only: the rest of the json names things that are not desk layers
+                int arr = text.IndexOf("\"layers\"");
+                if (arr > 0) { int end = text.IndexOf(']', text.IndexOf('[', arr)); if (end > arr) text = text.Substring(arr, end - arr); }
+                var found = new System.Collections.Generic.List<string>();
+                foreach (var line in text.Split('\n'))
+                {
+                    int a = line.IndexOf("art/kit/");
+                    if (a < 0) continue;
+                    int b = line.IndexOf(".png", a);
+                    if (b < 0) continue;
+                    var rel = line.Substring(a + "art/kit/".Length, b - a - "art/kit/".Length);
+                    if (!found.Contains(rel)) found.Add(rel);
+                }
+                return found.Count > 0 ? found.ToArray() : fallback;
+            }
+            catch { return fallback; }
+        }
+
         public static string[] MenuRoomSprites()
         {
             return new[]

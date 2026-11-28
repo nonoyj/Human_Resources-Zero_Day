@@ -527,6 +527,7 @@ namespace UnityEngine
     // temp dir so the headless runner can exercise the save path if a test ever needs the real file.
     public static class Application
     {
+        public static string dataPath { get { return "unity/Assets"; } }
         public static string persistentDataPath = System.IO.Path.Combine(
             System.IO.Path.GetTempPath(), "hr0d-headless");
     }

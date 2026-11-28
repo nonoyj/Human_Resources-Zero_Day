@@ -28,15 +28,24 @@ from PIL import Image
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'art'))
 
-from make_art_kit import PALETTE          # noqa: E402
+import json                                # noqa: E402
+# THE PALETTE THE GAME ACTUALLY LIGHTS WITH. This preview imported make_art_kit.PALETTE -- 24 legacy
+# keys (void, panel, line, amber...) that share almost no colour with the menu's room -- so `up` came back
+# EMPTY and every "lit" pixel stayed exactly where it was. The preview then reported a flat +0.0 everywhere
+# and I spent a round looking for a bug in the light instead of in the table it was reading.
+# PaletteLadder.Ensure() reads Resources/palette.json, so this does too.
+_PAL = json.load(open(os.path.join(ROOT, 'art', 'kit', 'palette.json')))
+PALETTE = {e['key']: (e['value']['r'], e['value']['g'], e['value']['b']) for e in _PAL}
 from twin_desk import render, load        # noqa: E402  (sys.path is fixed by twin_desk itself)
 
-DESK_ROW = 206
-# MenuLayout.MonitorLight(): the glass centre and a 232x196 ellipse, strength 1.70, falloff 1
-GLASS_X, GLASS_Y, GLASS_RX, GLASS_RY = 91, 140, 116, 98
+# THE SAME NUMBERS AS ScreenLight.cs. They were the pre-move left-hand set (206 / 91,140,116,98) and that is
+# why this preview never showed the bug the player was reporting: both copies of the rule were wrong together.
+DESK_ROW = 170
+GLASS_X, GLASS_Y, GLASS_RX, GLASS_RY = 364, 115, 91, 47
+PROJECT_Y = 205
 
 # the props that stand on the desk: (left, width, top, height). Same list as ScreenLight.Props.
-PROPS = [(152, 90, 232, 26), (248, 12, 236, 10), (300, 26, 214, 44), (370, 24, 222, 34), (196, 14, 234, 12)]
+PROPS = [(176, 96, 208, 20), (300, 18, 206, 24), (214, 44, 196, 30), (352, 30, 194, 38), (408, 38, 190, 46)]
 
 
 def ramps():
@@ -74,7 +83,7 @@ def apply(img: Image.Image, level: float, dither=True) -> Image.Image:
     # keyboard, the mug and the folders at their authored value, which is why the first pass looked off.
     rx = GLASS_RX * (1.30 + 0.75 * level)
     ry = GLASS_RY * (0.86 + 0.34 * level)
-    cy = GLASS_Y + 104
+    cy = PROJECT_Y          # ON the desk (row 205), not 104 px below the glass centre
     lit = 0
     for y in range(h):
         for x in range(w):
@@ -97,11 +106,11 @@ def apply(img: Image.Image, level: float, dither=True) -> Image.Image:
             if c != px[x, y]:
                 px[x, y] = c
                 lit += 1
-    # shadows: to the RIGHT of each prop (the tube is on the left)
+    # shadows: to the LEFT of each prop (the tube is on the RIGHT since composition N)
     for (pxt, pw, ptop, ph) in PROPS:
         length = int(ph * 0.55 * level)
         for i in range(length):
-            x = pxt + pw + i
+            x = pxt - length + i
             if x >= w:
                 break
             k = 1.0 - i / max(1, length)
