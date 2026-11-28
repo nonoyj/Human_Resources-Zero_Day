@@ -196,3 +196,39 @@ add the entry here.
   fails when the two files differ, so the drift is caught on my side before a bundle exists, not on his side
   in the middle of an install.
 
+### H10. A PER-FRAME EXCEPTION IS A STATE YOU DID NOT ALLOW (BUG-038)
+- The player's console: `ArgumentOutOfRangeException` 486 times, all from
+  `ShiftController.get_Current`. `_days[Day][CurrentIndex]` -- and the frame after the last stamp,
+  `CurrentIndex == Count`.
+- **The bug is not the missing bounds check.** It is that the game spends real time in "nobody is in the
+  chair" -- debrief, day summary, ending, a menu over a dead run -- and the reader had no word for it.
+  Every CALLER already null-checked; only the reader disagreed with them.
+- **RULE: if the game can be in a state, the model must be able to say so.** `null` here is not a
+  defensive check, it is the word for a real state. And write the 14 tests that were reading `Current`
+  after `Submit` against the same rule -- a test that needs a stale reader to pass is not a test.
+
+### H11. CONTRAST IS MEASURED, NOT EYEBALLED (BUG-039, BUG-040)
+- Two reports in one round: a **magenta Continue pad** and **"texts are hardly visible"**. Both were colour
+  keys nobody had checked against the palette:
+  `cyan_3`/`cyan_4` did not exist (the ramp stopped at 2), and a stamp pad's label was `void` (luma 0.03)
+  on `cyan_1` (0.35) -- a 0.03 gap on the one surface the player looks at most.
+- **RULE: every string that names a colour is a lookup that can fail, so it is TESTED.** One test walks the
+  three fill tables and asserts the key exists; another asserts a >= 0.30 luma gap between a label and the
+  fill it sits on, for every (object, state) pair. `Disabled` is exempt on purpose: grey means dead.
+- **RULE: a shadow that only appears next to its own ink is not a shadow.** Over a dark room, a 5x7 glyph
+  needs a dark CELL under it, not an outline.
+
+### H12. "CENTRED" IS A COORDINATE (the wall clock)
+- The clock was at x 388 with a note saying it was "clear of the tube's top edge". The monitor is mounted
+  on that same wall and its body runs 268..454: the clock was behind it. Being clear of an edge in one
+  axis says nothing about being visible.
+- **RULE: a thing the player must read has a test that reads its position from BOTH files that own it**
+  (the painter's constants and the view's), asserts they agree, and asserts the space in front of it is
+  empty. `the_clock_is_not_under_the_monitor`.
+
+### H13. A KEY THE PLAYER ASKED FOR IS A FEATURE, NOT A DISCOVERY
+- The player asked "How to turn on the monitor." The brief from v130 said the monitor must light the desk
+  *when turned on*; the tube's state was entirely automatic, so the one switchable light had no switch.
+- **RULE: if the brief says the player turns something on, there is an input that turns it on, and it is in
+  the same place as the object** (a tap on the glass) as well as on a key.
+
