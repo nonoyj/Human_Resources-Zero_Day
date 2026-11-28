@@ -26,6 +26,7 @@ namespace HRZeroDay.Tests
             yield return CheckTheConsentRowIsTheDecision();
             yield return CheckTheConceptRowsExistAndFitTheGlass();
             yield return CheckTheRoomHasEveryPieceFromTheBrief();
+            yield return CheckEveryLineFitsTheTube();
         }
 
         private static void True(bool condition, string message)
@@ -341,6 +342,53 @@ namespace HRZeroDay.Tests
                  "the cyan fade never reaches the desk");
             True(MenuLayout.MaxLift == 1, "ambient light may add one ramp step and no more");
             return "PASS  the room has every piece from the brief, in the brief's order";
+        }
+
+        /// <summary>
+        /// "The text is offscreen" (v115 -> v116). A CRT's tube is a rounded box: its corners are cut and the
+        /// picture is smaller than the tube, so a line that fits the flat glass rect can still sit on the
+        /// curve. Every line the door paints is measured against the TUBE here, not the glass.
+        /// </summary>
+        private static string CheckEveryLineFitsTheTube()
+        {
+            True(MenuLayout.TubeInset > 0, "the tube has no corner inset, so text sits on the curve");
+            True(MenuLayout.TextW < MenuLayout.GlassW && MenuLayout.TextH < MenuLayout.GlassH,
+                 "the picture area is not inside the glass");
+
+            int adv = MenuLayout.GlyphW + MenuLayout.LetterGap;
+            string title = MenuScreenText.Title;
+            int titleW = title.Length * adv * MenuLayout.TitleScale - MenuLayout.LetterGap * MenuLayout.TitleScale;
+            True(titleW <= MenuLayout.TextW,
+                 "the title is " + titleW + " px and the tube holds " + MenuLayout.TextW);
+
+            int subW = MenuScreenText.Subtitle.Length * adv * MenuLayout.TitleScale
+                       - MenuLayout.LetterGap * MenuLayout.TitleScale;
+            True(subW <= MenuLayout.TextW, "ZERO DAY is " + subW + " px and the tube holds " + MenuLayout.TextW);
+
+            int tagW = MenuScreenText.Tagline.Length * adv - MenuLayout.LetterGap;
+            True(tagW <= MenuLayout.TextW, "the tagline is " + tagW + " px and the tube holds " + MenuLayout.TextW);
+
+            // vertical: title, subtitle, tagline, five pills, footer -- all inside the picture area
+            int titleBottom = MenuLayout.TitleTop + MenuLayout.TitleScale * MenuLayout.GlyphH;
+            True(titleBottom <= MenuLayout.SubtitleTop, "the title runs into ZERO DAY");
+            int subBottom = MenuLayout.SubtitleTop + MenuLayout.TitleScale * MenuLayout.GlyphH;
+            True(subBottom <= MenuLayout.TaglineTop, "ZERO DAY runs into the tagline");
+            True(MenuLayout.TaglineTop + MenuLayout.GlyphH <= MenuLayout.PillTop,
+                 "the tagline runs into the first row");
+            True(MenuLayout.PillTop >= MenuLayout.TextY, "the rows start above the tube");
+            int lastPill = MenuLayout.PillTop + 4 * MenuLayout.PillStep + MenuLayout.PillH;
+            True(lastPill <= MenuLayout.FooterTop, "the last row runs into the footer");
+            True(MenuLayout.FooterTop + MenuLayout.GlyphH <= MenuLayout.TextY + MenuLayout.TextH,
+                 "the footer runs out of the tube");
+            True(MenuLayout.PillX >= MenuLayout.TextX &&
+                 MenuLayout.PillX + MenuLayout.PillW <= MenuLayout.TextX + MenuLayout.TextW,
+                 "the rows run out of the tube sideways");
+
+            // the dust must be deterministic, or the frame crawls between runs
+            True(MenuLayout.DustHash(11, 7) == MenuLayout.DustHash(11, 7), "the dust hash is not stable");
+            True(MenuLayout.DustHash(11, 7) != MenuLayout.DustHash(12, 7), "the dust hash is not spread");
+            True(MenuLayout.DustMax > MenuLayout.DustMin, "the dust is heaviest in the middle of the frame");
+            return "PASS  every line, row and footer sits inside the tube, not on its curve";
         }
 
         /// <summary>Volume: ten honest steps, clamped, and a bar made of atlas characters.</summary>

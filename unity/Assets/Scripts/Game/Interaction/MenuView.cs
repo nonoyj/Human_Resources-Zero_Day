@@ -152,8 +152,11 @@ namespace HRZeroDay.Game.Interaction
                     if ((y - y0) % 3 == 2) _room[i] = bright ? wash : dim;
                 }
             }
-            // the tube's own edge: a single emissive line on the top and left, never on all four sides
-            for (int x = x0; x < x1; x++) _room[y0 * W + x] = edge;
+            // the tube's own edge: a faint line on the top and left, never on all four sides, and never the
+            // bright `signaldim` -- at full length in the bright teal it read as a neon frame, not a tube.
+            Color32 rim;
+            if (palette.TryGetValue("glow_teal", out rim))
+                for (int x = x0; x < x1; x++) _room[y0 * W + x] = rim;
             for (int y = y0; y < y1; y++) _room[y * W + x0] = edge;
         }
 
@@ -249,10 +252,13 @@ namespace HRZeroDay.Game.Interaction
                         else if (x >= MenuLayout.CrtX + 240) fx = x - (MenuLayout.CrtX + 239);
                         if (y < MenuLayout.CrtY) fy = MenuLayout.CrtY - y;
                         else if (y >= MenuLayout.CrtY + 172) fy = y - (MenuLayout.CrtY + 171);
-                        int fd = fx > fy ? fx : fy;
-                        if (fd < MenuLayout.FadeReach)
+                        // below the case the fade falls a long way; beside it, only a little
+                        int fd = fx;
+                        int reach = MenuLayout.FadeReach;
+                        if (y >= MenuLayout.CrtY + MenuLayout.CrtH) { fd = fy; reach = MenuLayout.FadeDrop; }
+                        if (fd < reach)
                         {
-                            double fall = 1.0 - fd / (double)MenuLayout.FadeReach;
+                            double fall = 1.0 - fd / (double)reach;
                             int thr = (int)(Math.Pow(fall, 1.6) * 16.0) - 2;
                             int pat4 = MenuLayout.Bayer4[((y & 3) << 2) | (x & 3)];
                             if (pat4 < thr) _room[idx] = teal;
@@ -265,6 +271,7 @@ namespace HRZeroDay.Game.Interaction
             // screen reads as the source of the light rather than as a lit object
             Halo(teal, tealDim);
             Vignette();
+            Dust();
         }
 
         private void Halo(Color32 teal, Color32 tealDim)
@@ -297,6 +304,73 @@ namespace HRZeroDay.Game.Interaction
             _room[i] = teal;
         }
 
+        /// <summary>
+        /// The dusty vignette: a thin film of dust on the glass in front of the room, plus a vignette that
+        /// darkens the corners by one ramp step.
+        ///
+        /// Rules (docs/16-light-study.md §9):
+        ///   - the dust is CLUMPED. 2x2 blocks on a Bayer 4x4 threshold, never single pixels: a one-pixel
+        ///     speckle at 480x270 reads as cable noise, a two-pixel clump reads as dust;
+        ///   - it only lands on DARK surfaces. Dust on a white screen is a scratch, and the screens are
+        ///     the light in this room;
+        ///   - it is heaviest in the corners, which is where dust actually settles on a CRT;
+        ///   - the grain is deterministic (a hash of x,y), so the frame does not flicker between runs.
+        /// </summary>
+        private void Dust()
+        {
+            var palette = MonitorScreenView.PaletteCached;
+            if (palette == null || MenuLayout.DustDensity <= 0) return;
+            Color32 dust;
+            if (!palette.TryGetValue("line", out dust)) return;
+
+            // only these three are dark enough to take dust; everything else emits
+            var dark = new Dictionary<Color32, bool>();
+            foreach (var key in new[] { "void", "panel", "panel2" })
+            {
+                Color32 c;
+                if (palette.TryGetValue(key, out c)) dark[c] = true;
+            }
+
+            double cx = W / 2.0, cy = H / 2.0;
+            double diag = Math.Sqrt(cx * cx + cy * cy);
+            for (int by = 0; by < H; by += 2)
+            {
+                for (int bx = 0; bx < W; bx += 2)
+                {
+                    double dx = (bx - cx) / diag;
+                    double dy = (by - cy) / diag;
+                    double r = Math.Sqrt(dx * dx + dy * dy) * 1.414;
+                    double fall = (r - MenuLayout.DustStart) / (MenuLayout.DustEnd - MenuLayout.DustStart);
+                    if (fall < 0) fall = 0;
+                    if (fall > 1) fall = 1;
+                    // a sparse hash decides WHERE, the corner weight only decides how OFTEN: about 2% of
+                    // blocks in the middle of the frame, about 8% at the corners.
+                    double chance = (MenuLayout.DustMin + (MenuLayout.DustMax - MenuLayout.DustMin) * fall)
+                                    * (MenuLayout.DustDensity / 2.0);
+                    double roll = (MenuLayout.DustHash(bx >> 1, by >> 1) & 0xFFFF) / 65536.0;
+                    if (roll >= chance) continue;
+
+                    // a clump is all-or-nothing: dust does not stipple across a boundary
+                    bool all = true;
+                    for (int oy = 0; oy < 2 && all; oy++)
+                    {
+                        for (int ox = 0; ox < 2 && all; ox++)
+                        {
+                            int x = bx + ox, y = by + oy;
+                            if (x >= W || y >= H) { all = false; break; }
+                            if (x >= MenuLayout.GlassX && x < MenuLayout.GlassX + MenuLayout.GlassW &&
+                                y >= MenuLayout.GlassY && y < MenuLayout.GlassY + MenuLayout.GlassH) { all = false; break; }
+                            if (_room[y * W + x].a == 0 || !dark.ContainsKey(_room[y * W + x])) all = false;
+                        }
+                    }
+                    if (!all) continue;
+                    for (int oy = 0; oy < 2; oy++)
+                        for (int ox = 0; ox < 2; ox++)
+                            _room[(by + oy) * W + bx + ox] = dust;
+                }
+            }
+        }
+
         /// <summary>Ambient: the four corners fall one step. Drawn last, so it never fights a light.</summary>
         private void Vignette()
         {
@@ -315,8 +389,10 @@ namespace HRZeroDay.Game.Interaction
                     double dx = (x - rx) / (double)rx;
                     double dy = (y - ry) / (double)ry;
                     double r = Math.Sqrt(dx * dx + dy * dy);
-                    if (r > 1.25) { _room[i] = dark; continue; }
-                    if (r >= 1.0 && ((x + y) & 1) == 0) _room[i] = dark;
+                    // the corners fall one step. No half-dither ring across the whole frame: at this size a
+                    // checker boundary draws a visible dome over the room.
+                    if (r > 1.18) { _room[i] = dark; continue; }
+                    if (r > 1.06 && MenuLayout.Bayer4[((y & 3) << 2) | (x & 3)] < 4) _room[i] = dark;
                 }
             }
         }
@@ -605,10 +681,14 @@ namespace HRZeroDay.Game.Interaction
             }
         }
 
+        /// <summary>
+        /// The tube's picture area, not the flat glass rect. A CRT's corners are cut, so a glyph that fits
+        /// the rect can still hang off the tube -- which is what the player saw as "the text is offscreen".
+        /// </summary>
         private static bool InGlass(int x, int y)
         {
-            return x >= MenuLayout.GlassX && x < MenuLayout.GlassX + MenuLayout.GlassW &&
-                   y >= MenuLayout.GlassY && y < MenuLayout.GlassY + MenuLayout.GlassH;
+            int x0 = MenuLayout.TextX, y0 = MenuLayout.TextY;
+            return x >= x0 && x < x0 + MenuLayout.TextW && y >= y0 && y < y0 + MenuLayout.TextH;
         }
 
         /// <summary>A pill: filled body, 1 px edge in the same ink, drawn before the label lands on it.</summary>
@@ -644,7 +724,9 @@ namespace HRZeroDay.Game.Interaction
         {
             int cell = MenuLayout.GlyphW + MenuLayout.LetterGap;
             int width = text.Length * cell * scale - MenuLayout.LetterGap * scale;
-            int left = MenuLayout.GlassX + (MenuLayout.GlassW - width) / 2;
+            // centred on the TUBE, not the case: a line wider than the tube is clipped at both ends rather
+            // than hanging off one side. The composite's check() fails the build before it can get here.
+            int left = MenuLayout.TextX + (MenuLayout.TextW - width) / 2;
             DrawScaled(buf, glyphs, text, left, top, ink, scale);
         }
 

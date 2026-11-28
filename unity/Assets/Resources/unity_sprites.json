@@ -2228,12 +2228,12 @@
     {
       "source": "art/kit/menu/crt.png",
       "assetPath": "Assets/Art/Kit/menu/crt.png",
-      "width": 240,
-      "height": 172,
+      "width": 252,
+      "height": 186,
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "menu",
-      "sha256_16": "721706be3fbaf3f4",
+      "sha256_16": "f0bbdaa0a7eb131b",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2252,7 +2252,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "menu",
-      "sha256_16": "f3a4aa5fd16d0fe3",
+      "sha256_16": "edfc503743df66fb",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2266,12 +2266,12 @@
     {
       "source": "art/kit/menu/monitor_stack.png",
       "assetPath": "Assets/Art/Kit/menu/monitor_stack.png",
-      "width": 100,
-      "height": 100,
+      "width": 96,
+      "height": 104,
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "menu",
-      "sha256_16": "113048e56e0f3c9e",
+      "sha256_16": "fa5da84f1d9ae46a",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2285,12 +2285,12 @@
     {
       "source": "art/kit/menu/server.png",
       "assetPath": "Assets/Art/Kit/menu/server.png",
-      "width": 26,
+      "width": 22,
       "height": 112,
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "menu",
-      "sha256_16": "959682d20eae1766",
+      "sha256_16": "2d43481a5afb874e",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2323,12 +2323,12 @@
     {
       "source": "art/kit/menu/window.png",
       "assetPath": "Assets/Art/Kit/menu/window.png",
-      "width": 82,
+      "width": 96,
       "height": 108,
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "menu",
-      "sha256_16": "4918442fc0475e76",
+      "sha256_16": "e2d7bfb675f326ec",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",

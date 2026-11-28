@@ -356,3 +356,32 @@ order and must not come back. The title is 2× (206 px) because a 3× title is 3
 a 480×270 room holds it; the brief's "old monitor" is answered with a chunky case, not a small one. The
 `menu/` folder is in the sprite manifest and the publish prune list, so the sprites reach Unity through the
 same pipeline as everything else.
+
+## ADR-020 — The monitor is an object, and the frame has a film of dust on it (2026-11-28, v116)
+
+**Context.** After installing v115 the player reported one defect and gave three directions: *"the text is
+offscreen"*, *"make the monitor more dominant and what I asked is an old/retro monitor look, the same with the
+background monitors"*, and *"a dusty vignette over the menu with grains; make it more game-like; make the
+window a little wider"*.
+
+**Decision.**
+1. **A CRT is drawn as the object, not as a "retro" filter**: deep case with feet, thick bottom bezel, cut
+   corners on case and tube, a shadow side, a rim darker than the middle, moulded seam, vents, badge, knobs,
+   LED, screws. The desk monitor grows to 252×186 with 224×148 of tube; the six back-wall screens are drawn
+   in the same language at a third of the size.
+2. **Type is measured against the TUBE (`TubeInset`), never the glass rect.** A CRT's picture is smaller
+   than its tube; a line that fits the rect can sit on the curve, which is what "offscreen" meant. Every
+   line, row and footer is inside `TextX/TextY/TextW/TextH`, and a test asserts it.
+3. **The dust is clumped, dark-only, hash-placed and deterministic.** 2×2 blocks; only on
+   `void`/`panel`/`panel2`; a Wang hash per block (never a radius threshold, never `(x*A ^ y*B) & 15` — both
+   are periodic and both were tried and rejected this round); 0.4% of blocks in the middle of the frame,
+   3% at the corners. It never touches a screen or the glass.
+4. **The cyan fade is directional**: 58 px sideways, 74 px down onto the desk. An equal reach on every side
+   drew a dome over the wall.
+5. **The window is 96 px wide and its city is two layers** (far = one value off the sky with no detail, near
+   = `void` with lit windows) — atmospheric perspective, which is what makes it read as a city behind glass
+   instead of wallpaper.
+
+**Consequences.** `make_menu_composite.py --check` still gates geometry, but the geometry gate only covers the
+*back wall*; props on the desk (coffee, keyboard, mouse, forms) are checked by eye, and one of them shipped
+completely hidden behind the enlarged monitor now. That check moves into the composite gate next round.

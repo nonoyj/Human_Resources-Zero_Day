@@ -48,13 +48,13 @@ TILE_W, TILE_H = 26, 18       # floor tiles, black grout
 SKIRT_H = 6
 
 # ---- the monitor the menu lives in ------------------------------------------------------------------
-CRT_W, CRT_H = 240, 172
-CRT_GLASS = (14, 14, 212, 126)   # x, y, w, h inside crt.png -- 30 chars x 12 lines at 1x
+CRT_W, CRT_H = 252, 186
+CRT_GLASS = (24, 16, 224, 148)   # x, y, w, h inside crt.png -- tube picture area
 
 # ---- window, table, server (positions inside their own sprites) ---------------------------------------
-WIN_W, WIN_H = 82, 108
-STACK_W, STACK_H = 100, 100
-SRV_W, SRV_H = 26, 112
+WIN_W, WIN_H = 96, 108
+STACK_W, STACK_H = 96, 104
+SRV_W, SRV_H = 22, 112
 DESK_H = 64
 DESK_TOP = 18          # the slab starts this far down: the rest is transparent headroom for the steam
 
@@ -99,6 +99,23 @@ def dither_band(d, x0, y0, x1, y1, a, b, density=2):
 
 def round_rect(d, box, fill=None, outline=None, r=3, width=1):
     d.rounded_rectangle(box, radius=r, fill=fill, outline=outline, width=width)
+
+
+def cut_corners(d, box, r, key):
+    """
+    Removes a quarter-disc of radius r from each corner of `box`. A CRT's tube and its plastic case are
+    both rounded off at the corners; drawing them as plain rectangles is the single biggest tell that a
+    "retro monitor" was drawn by someone who has never looked at one. See docs/16-light-study.md.
+    """
+    x0, y0, x1, y1 = box
+    fill = rgba(key)
+    for i in range(r):
+        for j in range(r - i):
+            # top-left, top-right, bottom-left, bottom-right
+            d.point((x0 + i, y0 + j), fill=fill)
+            d.point((x1 - i, y0 + j), fill=fill)
+            d.point((x0 + i, y1 - j), fill=fill)
+            d.point((x1 - i, y1 - j), fill=fill)
 
 
 # ---------------------------------------------------------------------------------------- shell
@@ -146,67 +163,82 @@ def shell():
 # ---------------------------------------------------------------------------------------- window
 def window():
     """
-    Night sky, moon, city silhouette, lit windows. The one COLD, FAR light in the room.
+    Night sky, moon, a city in two depth layers, lit windows. The one COLD, FAR light in the room.
 
-    The sky is `panel` and the buildings are `void`: a silhouette only reads if the sky behind it is
-    lighter than it is. The first version painted both in `void` and the entire city disappeared.
+    The city is built as TWO layers, which is the atmospheric-perspective rule: the far skyline is only
+    one value off the sky and almost no detail, the near skyline is `void` with lit windows. One flat row
+    of buildings reads as wallpaper; two layers read as a city with depth behind glass.
     """
     img = Image.new('RGBA', (WIN_W, WIN_H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     Wm, Hm = WIN_W, WIN_H
 
-    # ---- reveal: a concrete surround with a lit top edge and a black inner lip
+    # ---- reveal: a concrete surround, lit top edge, black inner lip, and a sill
     round_rect(d, [0, 0, Wm - 1, Hm - 1], fill=rgba('panel2'), r=2)
-    hline(d, 2, Wm - 3, 0, 'line')
-    vline(d, 0, 1, Hm - 2, 'line')
-    vline(d, Wm - 1, 1, Hm - 2, 'void')
-    hline(d, 2, Wm - 3, Hm - 1, 'void')
+    hline(d, 2, Wm - 2, 0, 'line')
+    vline(d, 0, 1, Hm - 1, 'line')
+    vline(d, Wm - 1, 1, Hm - 1, 'void')
+    hline(d, 2, Wm - 2, Hm - 1, 'void')
 
-    gx0, gy0, gx1, gy1 = 5, 5, Wm - 6, Hm - 6
-    d.rectangle([gx0, gy0, gx1, gy1], fill=rgba('panel'))          # the sky: one step up from black
+    gx0, gy0, gx1, gy1 = 5, 5, Wm - 7, Hm - 7
+    d.rectangle([gx0, gy0, gx1, gy1], fill=rgba('panel'))          # the sky
 
-    # ---- stars: seven, sparse. A pixel sky is made by restraint, not by noise.
-    for (sx, sy) in ((gx0 + 9, gy0 + 10), (gx0 + 24, gy0 + 6), (gx0 + 46, gy0 + 16),
-                     (gx0 + 12, gy0 + 30), (gx0 + 35, gy0 + 26), (gx0 + 62, gy0 + 34),
-                     (gx0 + 5, gy0 + 46)):
-        if sx <= gx1:
-            d.point((sx, sy), fill=rgba('muted'))
+    # ---- stars: sparse, up in the top third where the sky is darkest
+    for (fx, fy) in ((0.10, 0.12), (0.28, 0.07), (0.46, 0.15), (0.63, 0.09),
+                     (0.80, 0.18), (0.92, 0.10), (0.36, 0.26), (0.74, 0.30)):
+        d.point((gx0 + int(fx * (gx1 - gx0)), gy0 + int(fy * (gy1 - gy0))), fill=rgba('muted'))
 
-    # ---- moon: small, high, crescent. Its lit side takes the only cold white in the room.
-    mx, my, mr = gx0 + 52, gy0 + 20, 6
+    # ---- moon, high and right: a crescent with the shadow side painted in the sky colour
+    mx, my, mr = gx0 + int(0.72 * (gx1 - gx0)), gy0 + 13, 6
     d.ellipse([mx - mr, my - mr, mx + mr, my + mr], fill=rgba('textdim'))
     d.ellipse([mx - mr + 3, my - mr - 1, mx + mr + 3, my + mr + 1], fill=rgba('panel'))
     d.point((mx - 3, my + 2), fill=rgba('muted'))
 
-    # ---- skyline: five masses of different heights, `void` against the `panel` sky
-    horizon = gy1 - 22
-    for (bx, bh, bw) in ((gx0, 15, 14), (gx0 + 15, 24, 12), (gx0 + 28, 11, 13),
-                         (gx0 + 42, 20, 11), (gx0 + 54, 26, 13)):
-        bx1 = min(bx + bw, gx1)
-        if bx > gx1 or bx1 <= bx:
+    # ---- FAR skyline: one value off the sky, no windows, no detail. This is the layer that gives depth.
+    far_base = gy1 - 12
+    for (fx, fw, fh) in ((0.02, 0.13, 20), (0.16, 0.10, 30), (0.27, 0.14, 24),
+                         (0.43, 0.11, 34), (0.55, 0.13, 26), (0.70, 0.12, 30), (0.83, 0.15, 22)):
+        bx0 = gx0 + int(fx * (gx1 - gx0))
+        bx1 = min(bx0 + int(fw * (gx1 - gx0)), gx1)
+        if bx1 <= bx0:
             continue
-        d.rectangle([bx, gy1 - bh, bx1, gy1], fill=rgba('void'))
-        # a lit parapet on the tallest two: a city at night is lit from above as well as inside
-        if bh >= 20:
-            hline(d, bx, bx1, gy1 - bh, 'line')
-            d.point((bx + 2, gy1 - bh - 1), fill=rgba('danger'))
-        # windows: one in four, warm and cold mixed -- never a single colour
-        for wy in range(gy1 - bh + 4, gy1 - 2, 5):
-            for wx in range(bx + 2, bx1 - 1, 4):
-                seed = (wx * 7 + wy * 13) % 13
+        d.rectangle([bx0, far_base - fh, bx1, gy1], fill=rgba('panel2'))
+    # a single pale band along the far horizon: the city's own glow, dithered so it is not a stripe
+    for y in range(far_base - 4, far_base):
+        for x in range(gx0, gx1 + 1):
+            if ((x + y) & 1) == 0:
+                d.point((x, y), fill=rgba('line'))
+
+    # ---- NEAR skyline: `void` against the sky, lit windows, a few roofs and a red aircraft light
+    near_base = gy1
+    near = ((0.00, 0.15, 26), (0.14, 0.13, 18), (0.26, 0.12, 32),
+            (0.38, 0.11, 22), (0.48, 0.14, 38), (0.61, 0.12, 26),
+            (0.72, 0.13, 20), (0.84, 0.14, 30))
+    for (fx, fw, fh) in near:
+        bx0 = gx0 + int(fx * (gx1 - gx0))
+        bx1 = min(bx0 + int(fw * (gx1 - gx0)), gx1)
+        if bx1 <= bx0:
+            continue
+        d.rectangle([bx0, near_base - fh, bx1, near_base], fill=rgba('void'))
+        hline(d, bx0, bx1, near_base - fh, 'line')              # the parapet catches the sky
+        if fh >= 30:
+            d.point((bx0 + 2, near_base - fh - 1), fill=rgba('danger'))   # aircraft light
+        for wy in range(near_base - fh + 4, near_base - 2, 5):
+            for wx in range(bx0 + 2, bx1 - 1, 4):
+                seed = (wx * 7 + wy * 13 + (wx * wy) // 3) % 13
                 if seed == 0:
                     d.point((wx, wy), fill=rgba('warn'))
-                elif seed == 4:
+                elif seed == 5:
                     d.point((wx, wy), fill=rgba('textdim'))
-                elif seed == 8:
+                elif seed == 9:
                     d.point((wx, wy), fill=rgba('line'))
 
-    # ---- glazing bars, painted OVER the sky so the frame reads as glass, and a sill
+    # ---- glazing bars over the whole thing, so it reads as glass and not as a picture
     d.line([gx0 + (gx1 - gx0) // 2, gy0, gx0 + (gx1 - gx0) // 2, gy1], fill=rgba('panel2'))
     d.line([gx0, gy0 + (gy1 - gy0) // 3, gx1, gy0 + (gy1 - gy0) // 3], fill=rgba('panel2'))
     hline(d, gx0, gx1, gy1, 'void')
 
-    # ---- the corner of the glass catches the sky: a dithered wedge in the top-left
+    # ---- the top-left corner of the glass catches the sky: a dithered wedge, the only cool highlight
     for y in range(gy0, gy0 + 16):
         for x in range(gx0, gx0 + 16 - (y - gy0)):
             if ((x + y) & 1) == 0:
@@ -216,63 +248,76 @@ def window():
 
 # ---------------------------------------------------------------------------------------- monitor stack
 def _screen(d, x, y, w, h):
-    """One white screen: a case with a bezel, a glare streak in the top-left, black under the bottom lip."""
-    round_rect(d, [x, y, x + w, y + h], fill=rgba('panel'), r=1)
-    d.rectangle([x + 1, y + 1, x + w - 1, y + h - 2], fill=rgba('text'))
-    # glare: a small stepped wedge in the top-LEFT corner only -- a glare, not a stripe. A full diagonal
-    # lines up with the screen beside it and the whole stack reads as one scratch across the wall.
-    for i, wlen in enumerate((4, 3, 2)):
-        d.line([x + 2, y + 3 + i, x + 2 + wlen, y + 3 + i], fill=rgba('white'))
-    d.line([x + 2, y + 3, x + 2, y + 6], fill=rgba('white'))
-    # a dead pixel row along the top: it is what makes a white screen look like a machine
-    hline(d, x + 1, x + w - 1, y + 1, 'textdim')
-    d.line([x, y + h, x + w, y + h], fill=rgba('void'))
+    """
+    One of the table's monitors. Same object language as the big one on the desk, at a third of the size:
+    a cut-corner plastic case, a thick bottom bezel holding an LED, and an inset white tube (not a white
+    rectangle with a border). White is the light; the case around it is what makes it read as a monitor.
+    """
+    # case
+    d.rectangle([x, y, x + w, y + h], fill=rgba('void'))
+    d.rectangle([x + 1, y + 1, x + w - 1, y + h - 1], fill=rgba('panel'))
+    cut_corners(d, [x + 1, y + 1, x + w - 1, y + h - 1], 2, 'void')
+    hline(d, x + 3, x + w - 3, y + 1, 'line')
+
+    # the tube: inset, with the white phosphor and a stepped glare in the top-left corner
+    tx0, ty0 = x + 3, y + 3
+    tx1, ty1 = x + w - 4, y + h - 6          # the bottom 3 px are bezel, not glass
+    d.rectangle([tx0, ty0, tx1, ty1], fill=rgba('text'))
+    for i, wlen in enumerate((3, 2)):
+        d.line([tx0 + 1, ty0 + 1 + i, tx0 + 1 + wlen, ty0 + 1 + i], fill=rgba('white'))
+    # a dead-pixel row along the top: a machine, not a lamp
+    hline(d, tx0, tx1 + 1, ty0, 'textdim')
+
+    # bottom bezel: an LED and two slots
+    ly = y + h - 3
+    d.point((x + w - 6, ly), fill=rgba('glow_teal'))
+    vline(d, x + 4, ly, ly + 1, 'panel2')
+    vline(d, x + 7, ly, ly + 1, 'panel2')
 
 
 def monitor_stack():
     """
-    The brief: a table with six monitors on it -- three underneath, three above -- all on white screens,
-    and two more glowing under the table. One of the six is dead; a face of black is the eeriest thing
-    in the frame and it stops the wall of white from becoming a lightbox.
+    The table in the furthest part of the room: six monitors in two rows of three -- three underneath,
+    three above -- and two more on a shelf under the table. All of them retro cases, all of them white.
+    One of the six is dead, because a face of black in a wall of white is the eeriest thing in the frame.
     """
     img = Image.new('RGBA', (STACK_W, STACK_H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     Wm, Hm = STACK_W, STACK_H
 
-    SW, SH, GAP = 30, 22, 4
+    SW, SH, GAP = 30, 26, 3
     xs = [2, 2 + SW + GAP, 2 + 2 * (SW + GAP)]
-    upper_y, lower_y = 2, 26
-    table_y = 50
+    upper_y, lower_y = 2, 30
+    table_y = 58
 
-    # ---- two cables down the back, drawn FIRST so they pass behind everything: the stack is installed,
-    # not floating
+    # ---- cables first, so they pass behind everything: the stack is installed, not floating
     for x0 in (5, Wm - 6):
-        for i in range(table_y + 6, Hm):
+        for i in range(table_y + 4, Hm):
             d.point((x0, i), fill=rgba('void'))
 
-    # ---- the table: a slab, then two legs in silhouette, then the shelf that carries the lower pair
+    # ---- the table: a slab with a lit top edge, two legs, and a shelf under it
     d.rectangle([0, table_y, Wm - 1, table_y + 3], fill=rgba('panel2'))
     d.line([0, table_y, Wm - 1, table_y], fill=rgba('line'))
     d.line([0, table_y + 3, Wm - 1, table_y + 3], fill=rgba('void'))
-    for lx in (3, Wm - 5):
+    for lx in (3, Wm - 6):
         d.rectangle([lx, table_y + 4, lx + 2, Hm - 1], fill=rgba('panel'))
         d.line([lx + 2, table_y + 4, lx + 2, Hm - 1], fill=rgba('void'))
-    d.rectangle([6, 58, Wm - 7, 59], fill=rgba('panel'))
 
-    # ---- two monitors under the table, on the shelf, glowing up at the slab
-    for sx in (8, 54):
-        _screen(d, sx, 60, 34, 26)
+    # ---- two monitors on the shelf, glowing up at the underside of the table
+    d.rectangle([7, 68, Wm - 8, 69], fill=rgba('panel'))
+    for sx in (9, 55):
+        _screen(d, sx, 70, 32, 26)
 
-    # ---- three under, three above
+    # ---- six on the table, three under and three above
     for sx in xs:
         _screen(d, sx, lower_y, SW, SH)
     for sx in xs:
         _screen(d, sx, upper_y, SW, SH)
-    # the middle of the top row is dead
-    d.rectangle([xs[1] + 1, upper_y + 1, xs[1] + SW - 1, upper_y + SH - 2], fill=rgba('void'))
-    for i in range(6):
-        d.point((xs[1] + 3 + i * 4, upper_y + 7), fill=rgba('panel2'))
-
+    # the middle of the top row is dead: case on, tube off
+    dx = xs[1]
+    d.rectangle([dx + 3, upper_y + 3, dx + SW - 4, upper_y + SH - 6], fill=rgba('void'))
+    for i in range(5):
+        d.point((dx + 5 + i * 4, upper_y + 8), fill=rgba('panel2'))
     return img
 
 
@@ -315,124 +360,175 @@ def server():
 # ---------------------------------------------------------------------------------------- crt
 def crt():
     """
-    The old monitor the menu lives in: a deep plastic case, a thick bezel, a control strip at the bottom
-    right. The glass is left empty here -- the composite paints its phosphor and the menu on top.
+    The old monitor the menu lives in.
+
+    A 1990s office CRT, read from the actual object rather than from a "retro" filter:
+
+      - a DEEP case: the plastic is thicker at the bottom (the tube is heavy) and there are feet;
+      - a THICK front bezel, wider at the bottom because the control strip lives there;
+      - CUT CORNERS on both the case and the tube -- a CRT is a rounded box, never a rectangle;
+      - a SHADOW SIDE: the right of the case is one value darker, because the light is on the left;
+      - the tube is darker at its own edges than in the middle (phosphor falls off at the rim);
+      - a moulded seam line across the case, a vent grille, a badge, two knobs, a power LED.
+
+    The glass itself is left as flat `void` here: the composite paints the phosphor, and MenuView paints
+    its own copy in GlassMaterial().
     """
     img = Image.new('RGBA', (CRT_W, CRT_H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     Wm, Hm = CRT_W, CRT_H
     gx, gy, gw, gh = CRT_GLASS
 
-    # ---- case: two values and a black outline, plus a chamfer at each corner
-    round_rect(d, [0, 0, Wm - 1, Hm - 1], fill=rgba('panel2'), outline=rgba('void'), r=6)
-    round_rect(d, [3, 3, Wm - 4, Hm - 4], fill=rgba('panel'), outline=rgba('void'), r=5)
-    # the top edge catches the room; the bottom edge is in its own shadow
-    hline(d, 6, Wm - 7, 3, 'line')
-    hline(d, 6, Wm - 7, Hm - 5, 'void')
+    # ---- feet: two blocks under a case this heavy, one value darker than the case
+    d.rectangle([26, Hm - 5, 62, Hm - 1], fill=rgba('void'))
+    d.rectangle([Wm - 62, Hm - 5, Wm - 26, Hm - 1], fill=rgba('void'))
 
-    # ---- bezel: the plastic lip that surrounds the tube, with a highlight on the top-left of the glass
-    d.rectangle([gx - 4, gy - 4, gx + gw + 3, gy + gh + 3], fill=rgba('panel2'))
-    vline(d, gx - 4, gy - 4, gy + gh + 3, 'void')
-    hline(d, gx - 4, gx + gw + 3, gy - 4, 'void')
-    d.rectangle([gx - 1, gy - 1, gx + gw, gy + gh], fill=rgba('void'))
+    # ---- the case: three values, cut corners, black outline
+    round_rect(d, [0, 0, Wm - 1, Hm - 6], fill=rgba('void'), r=8)
+    round_rect(d, [1, 1, Wm - 2, Hm - 7], fill=rgba('panel2'), r=8)
+    cut_corners(d, [1, 1, Wm - 2, Hm - 7], 6, 'void')
+    # the moulded face catches the room: `panel` on the left, `panel2` on the right
+    round_rect(d, [3, 3, Wm - 4, Hm - 8], fill=rgba('panel'), r=7)
+    cut_corners(d, [3, 3, Wm - 4, Hm - 8], 5, 'panel2')
+    d.rectangle([Wm - 30, 8, Wm - 4, Hm - 10], fill=rgba('panel'))
+    d.rectangle([Wm - 6, 10, Wm - 4, Hm - 12], fill=rgba('panel2'))    # shadow side
+    hline(d, 10, Wm - 12, 3, 'line')
+    hline(d, 4, Wm - 5, Hm - 8, 'void')
 
-    # ---- control strip: a speaker grille, a power LED, four small buttons
+    # ---- the bezel around the tube: `panel` with a black inner lip all the way round, and a
+    #      wider bottom band that carries the controls
+    d.rectangle([gx - 7, gy - 7, gx + gw + 6, gy + gh + 15], fill=rgba('panel'))
+    cut_corners(d, [gx - 7, gy - 7, gx + gw + 6, gy + gh + 15], 7, 'panel2')
+    hline(d, gx - 7, gx + gw + 6, gy - 7, 'line')
+    vline(d, gx - 7, gy - 7, gy + gh + 15, 'linehi')
+    d.rectangle([gx - 2, gy - 2, gx + gw + 1, gy + gh + 1], fill=rgba('void'))
+    cut_corners(d, [gx - 2, gy - 2, gx + gw + 1, gy + gh + 1], 8, 'panel')
+
+    # ---- the control strip: vent grille, badge, two knobs, power LED, three status dots
     sy = gy + gh + 6
-    for i in range(9):
+    for i in range(14):
         vline(d, 12 + i * 3, sy, sy + 4, 'line')
-    d.rectangle([80, sy + 2, 84, sy + 3], fill=rgba('line'))
-    d.point((96, sy + 2), fill=rgba('glow_teal'))
-    for i in range(4):
-        d.rectangle([170 + i * 10, sy, 174 + i * 10, sy + 5], fill=rgba('panel2'))
-        d.point((172 + i * 10, sy + 1), fill=rgba('line'))
-    # three amber status dots, the only warmth on the case
+    # badge: a recessed plate with two glyph-ish marks
+    d.rectangle([64, sy - 1, 90, sy + 6], fill=rgba('panel2'))
+    d.rectangle([64, sy - 1, 90, sy + 6], outline=rgba('void'))
+    d.rectangle([67, sy + 2, 76, sy + 4], fill=rgba('line'))
+    d.point((80, sy + 2), fill=rgba('line'))
+    d.point((84, sy + 2), fill=rgba('line'))
+    # two knobs: a circle is a pixel cross, not a disc
+    for kx in (108, 128):
+        d.rectangle([kx, sy - 1, kx + 9, sy + 7], fill=rgba('void'))
+        d.rectangle([kx + 1, sy, kx + 8, sy + 6], fill=rgba('panel2'))
+        vline(d, kx + 4, sy + 1, sy + 5, 'line')
+        hline(d, kx + 2, kx + 6, sy + 3, 'line')
+    # power: an LED plus a button with a lit top edge
+    d.point((152, sy + 3), fill=rgba('glow_teal'))
+    d.rectangle([160, sy, 172, sy + 6], fill=rgba('panel2'))
+    d.rectangle([160, sy, 172, sy + 6], outline=rgba('void'))
+    hline(d, 161, 171, sy + 1, 'line')
+    # three status dots, the only warmth on the case
     for i, key in enumerate(('signal', 'signal', 'danger')):
-        d.rectangle([206 + i * 5, sy + 1, 208 + i * 5, sy + 3], fill=rgba(key))
+        d.rectangle([196 + i * 6, sy + 2, 199 + i * 6, sy + 4], fill=rgba(key))
 
-    # ---- the case sits on a foot: a 2-px black line at the very bottom
-    hline(d, 0, Wm - 1, Hm - 1, 'void')
+    # ---- moulded seam across the case, and a screw at each corner
+    hline(d, 4, gx - 9, 12, 'panel2')
+    hline(d, gx + gw + 8, Wm - 5, 12, 'panel2')
+    for (sx, sy2) in ((7, 7), (Wm - 9, 7), (7, Hm - 12), (Wm - 9, Hm - 12)):
+        d.point((sx, sy2), fill=rgba('line'))
+
+    # ---- the tube's own rim: darker at the very edge, the way phosphor falls off
+    for i in range(2):
+        d.rectangle([gx + i, gy + i, gx + gw - 1 - i, gy + gh - 1 - i], outline=rgba('void'))
     return img
 
 
 # ---------------------------------------------------------------------------------------- desk
 def desk():
-    """The desk the CRT sits on: coffee + smoke, keyboard, mouse, a pile of application forms."""
+    """
+    The desk the monitor stands on: coffee with smoke, keyboard, mouse, a pile of application forms.
+    Everything sits to the RIGHT of the monitor (8..260), because a prop that is entirely hidden behind
+    the monitor is a prop that does not exist.
+    """
     img = Image.new('RGBA', (W, DESK_H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
+    ty = DESK_TOP
 
     # ---- desk top: a slab with a lit top edge and a dark front face
-    d.rectangle([0, 0, W - 1, 30], fill=rgba('panel2'))
-    hline(d, 0, W - 1, 0, 'line')
-    dither_band(d, 0, 26, W - 1, 30, 'panel2', 'panel', density=2)
-    d.rectangle([0, 31, W - 1, DESK_H - 1], fill=rgba('void'))
-    hline(d, 0, W - 1, 31, 'panel')
-    for y, x0, x1 in ((12, 20, 210), (18, 60, 300), (8, 330, 460)):
-        hline(d, x0, x1, y, 'panel')
+    d.rectangle([0, ty, W - 1, ty + 30], fill=rgba('panel2'))
+    d.line([0, ty, W - 1, ty], fill=rgba('line'))
+    dither_band(d, 0, ty + 26, W - 1, ty + 28, 'panel2', 'panel', density=2)
+    d.rectangle([0, ty + 31, W - 1, DESK_H - 1], fill=rgba('void'))
+    d.line([0, ty + 31, W - 1, ty + 31], fill=rgba('panel'))
+    # a drawer front and its handle: the front of a desk is furniture, not a void band
+    d.rectangle([300, ty + 34, 460, ty + 44], fill=rgba('void'))
+    d.rectangle([300, ty + 34, 460, ty + 44], outline=rgba('panel'))
+    d.rectangle([368, ty + 37, 392, ty + 38], fill=rgba('panel'))
+    for x in range(0, W, 8):
+        d.point((x, ty + 32), fill=rgba('panel'))
 
-    # ---- coffee cup: left of the keyboard, handle to the right, three curls of steam (the one warmth)
-    cx, cy = 74, DESK_TOP + 6
-    d.rectangle([cx - 10, cy + 3, cx + 10, cy + 22], fill=rgba('panel'))
-    vline(d, cx - 10, cy + 3, cy + 22, 'linehi')
-    vline(d, cx + 10, cy + 3, cy + 22, 'line')
-    hline(d, cx - 9, cx + 9, cy + 22, 'void')
-    round_rect(d, [cx - 12, cy, cx + 12, cy + 4], fill=rgba('panel2'), outline=rgba('line'), r=2)
-    hline(d, cx - 7, cx + 7, cy + 2, 'ink')
-    hline(d, cx - 3, cx + 2, cy + 2, 'orange')
+    # ---- coffee: a tapered cup with a handle, a saucer, and three curls of steam (the one warmth)
+    cx, cy = 274, ty + 4
+    d.rectangle([cx - 9, cy + 4, cx + 9, cy + 20], fill=rgba('panel'))
+    vline(d, cx - 9, cy + 4, cy + 20, 'linehi')
+    vline(d, cx + 9, cy + 4, cy + 20, 'line')
+    hline(d, cx - 9, cx + 9, cy + 20, 'void')
+    round_rect(d, [cx - 11, cy, cx + 11, cy + 4], fill=rgba('panel2'), outline=rgba('line'), r=2)
+    hline(d, cx - 6, cx + 6, cy + 2, 'ink')
+    hline(d, cx - 2, cx + 2, cy + 2, 'orange')
     for i in range(1, 8):
-        d.point((cx + 12 + (1 if i in (1, 7) else 0), cy + 6 + i), fill=rgba('linehi'))
-    for k, (x0, height, tone) in enumerate(((cx - 5, 14, 'textdim'), (cx, 20, 'muted'), (cx + 5, 11, 'linehi'))):
+        d.point((cx + 11 + (1 if i in (1, 7) else 0), cy + 7 + i), fill=rgba('linehi'))
+    for (x0, height, tone) in ((cx - 4, 13, 'textdim'), (cx, 19, 'muted'), (cx + 4, 10, 'linehi')):
         for i in range(height):
             y = cy - 2 - i
             if y < 0:
                 continue
             d.point((x0 + ((i // 5) % 2), y), fill=rgba(tone))
 
-    # ---- keyboard: a wedge, key rows, a spacebar. Sits right of the coffee, under the CRT.
-    kx, ky, kw, kh = 108, DESK_TOP + 8, 104, 24
+    # ---- keyboard: a wedge, four key rows, a spacebar
+    kx, ky, kw, kh = 292, ty + 8, 92, 22
     round_rect(d, [kx, ky, kx + kw, ky + kh], fill=rgba('panel'), outline=rgba('void'), r=2)
     hline(d, kx + 1, kx + kw - 1, ky, 'line')
-    for row in range(4):
+    for row in range(3):
         y = ky + 4 + row * 4
-        for col in range(21):
+        for col in range(18):
             x = kx + 3 + col * 5
-            if row == 3 and 4 <= col <= 15:
+            if row == 2 and 3 <= col <= 13:
                 continue
             d.point((x, y), fill=rgba('line'))
             d.point((x, y + 1), fill=rgba('panel2'))
-    # spacebar + two modifiers
-    d.rectangle([kx + 22, ky + 18, kx + 78, ky + 20], fill=rgba('line'))
-    d.rectangle([kx + 3, ky + 18, kx + 15, ky + 20], fill=rgba('panel2'))
-    d.rectangle([kx + 84, ky + 18, kx + 100, ky + 20], fill=rgba('panel2'))
+    d.rectangle([kx + 18, ky + 16, kx + 70, ky + 18], fill=rgba('line'))
+    d.rectangle([kx + 3, ky + 16, kx + 13, ky + 18], fill=rgba('panel2'))
+    d.rectangle([kx + 76, ky + 16, kx + 89, ky + 18], fill=rgba('panel2'))
 
-    # ---- mouse: right of the coffee, left of the forms, with a 2-px cable
-    round_rect(d, [246, DESK_TOP + 8, 260, DESK_TOP + 24], fill=rgba('panel'), outline=rgba('line'), r=4)
-    hline(d, 248, 258, DESK_TOP + 9, 'linehi')
-    vline(d, 253, DESK_TOP + 11, DESK_TOP + 15, 'void')
-    for i in range(6):
-        d.point((254 + i // 3, DESK_TOP + 7 - i // 2), fill=rgba('panel'))
-
-    # ---- pile of application forms: off-white, black outline, three sheets, a red stamp
-    fx, fy = 292, DESK_TOP + 2
+    # ---- mouse, right of the keyboard, with a 2 px cable
+    round_rect(d, [390, ty + 8, 403, ty + 23], fill=rgba('panel'), outline=rgba('line'), r=4)
+    hline(d, 392, 401, ty + 9, 'linehi')
+    vline(d, 396, ty + 11, ty + 15, 'void')
     for i in range(5):
-        x = fx + i * 3
-        y = fy + i * 2
-        d.rectangle([x, y, x + 74, y + 28], fill=rgba('paper'))
-        d.rectangle([x, y, x + 74, y + 28], outline=rgba('ink'))
-        # ruled lines on the top sheet only
-        for r in range(5):
-            hline(d, x + 6, x + 68, y + 6 + r * 4, 'paperdim')
-        d.point((x + 4, y + 4), fill=rgba('paperdim'))
-    # the stamp: a small red mark on the top sheet, which is the whole story of the game
-    d.rectangle([fx + 50, fy + 18, fx + 66, fy + 24], outline=rgba('danger'))
-    hline(d, fx + 52, fx + 64, fy + 21, 'danger')
-    # a pen, dropped beside the pile
-    for i in range(14):
-        d.point((fx + 68 + i, DESK_TOP + 26 - i // 4), fill=rgba('linehi'))
-    d.point((fx + 82, DESK_TOP + 22), fill=rgba('signal'))
+        d.point((398 + i // 3, ty + 6 - i // 2), fill=rgba('panel'))
 
-    # The desk does NOT paint its own light. The ambience pass in MenuView.Light() decides what the CRT
-    # does to the desk -- a hand-painted wedge fought it and left the familiar green diagonal stripes.
+    # ---- the pile of application forms: three sheets, black outline, a red stamp, a pen
+    # A pile of paper is not a white box: the sheets under the top one are in shadow, so they are
+    # `paperdim` and only the top sheet is `paper`. Three sheets, each 3 px off the one below.
+    fx, fy = 412, ty + 3
+    for i in (2, 1, 0):
+        x, y = fx + i * 3, fy + i * 2
+        top = (i == 0)
+        d.rectangle([x, y, x + 56, y + 22], fill=rgba('paper' if top else 'paperdim'),
+                    outline=rgba('void'))
+        if top:
+            for r in range(4):
+                hline(d, x + 5, x + 51, y + 6 + r * 4, 'paperdim')
+            d.point((x + 3, y + 4), fill=rgba('paperdim'))
+            # the stamp: a small red mark, and the only red on the desk
+            d.rectangle([x + 34, fy + 14, x + 50, fy + 19], outline=rgba('danger'))
+            hline(d, x + 36, x + 48, fy + 16, 'danger')
+        else:
+            hline(d, x, x + 56, y + 22, 'ink')
+
+    # The desk does NOT paint its own light: the ambience pass owns that.
     return img
+
+
 def palette_gate(images):
     vals = set(PALETTE.values())
     bad = 0

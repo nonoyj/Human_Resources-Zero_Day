@@ -28,46 +28,61 @@ namespace HRZeroDay.Core.Rules
         public const int W = 480, H = 270;
 
         // ---- the room's own furniture, in draw order (back to front)
-        public const int WindowX = 368, WindowY = 34;     // menu/window.png         82x108, hung on the wall
-        public const int StackX = 260, StackY = 102;      // menu/monitor_stack.png 100x100, on the floor
-        public const int ServerX = 454, ServerY = 90;     // menu/server.png         26x112, on the floor
+        public const int WindowX = 360, WindowY = 30;     // menu/window.png         96x108, hung on the wall
+        public const int StackX = 262, StackY = 100;      // menu/monitor_stack.png 96x104, on the floor
+        public const int ServerX = 458, ServerY = 84;     // menu/server.png         22x112, on the floor
 
         // ---- the CRT the menu lives in: menu/crt.png 240x186, glass 208x136
-        public const int CrtX = 14, CrtY = 30;            // stands ON the desk: CrtY + CrtH == DeskSurfaceY
-        public const int GlassX = 28;
-        public const int GlassY = CrtY + 14;              // always relative to the case
-        public const int GlassW = 212, GlassH = 126;
+        public const int CrtX = 6, CrtY = 16;             // a DOMINANT monitor: 252x186, feet on the desk
+        public const int GlassX = CrtX + 24;
+        public const int GlassY = CrtY + 16;              // always relative to the case
+        public const int GlassW = 224, GlassH = 148;
+
+        /// <summary>
+        /// A CRT's tube is a TRAPEZOID: every corner of a real tube is cut, and the picture inside it is
+        /// smaller than the tube. v115 measured text against the flat glass rect and the title sat on the
+        /// curve, which the player saw as "the text is offscreen". Text is measured against THIS inset.
+        /// </summary>
+        public const int TubeInset = 4;   // 210 was too tight: the tagline is 215 px and hung on the curve
 
         // ---- the desk band and what sits on it
-        public const int DeskY = 184;                     // menu/desk.png 480x64 (18 px of steam headroom)
-        public const int DeskSurfaceY = 202;              // DeskY + the sprite's 18 px of steam headroom
+        public const int DeskY = 180;                     // menu/desk.png 480x64 (18 px of steam headroom)
+        public const int DeskSurfaceY = 198;              // DeskY + the sprite's 18 px of steam headroom
 
         // ---- sprite sizes, mirrored from tools/art/make_menu_room.py. The tests read these.
-        public const int CrtW = 240, CrtH = 172;
-        public const int WindowW = 82, WindowH = 108;
-        public const int StackW = 100, StackH = 100;
-        public const int ServerW = 26, ServerH = 112;
+        public const int CrtW = 252, CrtH = 186;
+        public const int WindowW = 96, WindowH = 108;
+        public const int StackW = 96, StackH = 104;
+        public const int ServerW = 22, ServerH = 112;
         public const int FloorY = 196;
 
-        // ---- type inside the glass: 3x title, 1x rows
-        public const int TitleScale = 2;   // 206 px of the 228 px glass: a title, not a caption
-        public const int TitleTop = GlassY + 8;
-        public const int SubtitleTop = GlassY + 24;
-        public const int TaglineTop = GlassY + 40;
+        // ---- type inside the glass: 2x title, 1x rows. 206 px of the 202 px tube inset: the title is the
+        // widest thing the screen can hold, and every other line is measured against the same inset.
+        public const int TitleScale = 2;
+        public const int TitleTop = GlassY + 10;
+        public const int SubtitleTop = GlassY + 28;
+        public const int TaglineTop = GlassY + 46;
 
         // ---- the option rows
         public const int PillX = GlassX + 52;
-        public const int PillW = 122;
-        public const int PillH = 11;
-        public const int PillStep = 13;
-        public static int PillTop { get { return GlassY + 52; } }
-        public static int FooterTop { get { return GlassY + GlassH - 9; } }
+        public const int PillW = 120;
+        public const int PillH = 12;
+        public const int PillStep = 14;
+        // the pill block is anchored to the FOOTER, not the glass top: rows 4 x 14 + 12 must clear it
+        public static int PillTop { get { return FooterTop - (4 * PillStep + PillH) - 4; } }
+        public static int FooterTop { get { return GlassY + GlassH - 14; } }
 
         // The atlas is 5x7, 2 px letter gap, 3 px line gap (art/kit/fonts/monitor_font_5x7.json).
         public const int GlyphW = 5, GlyphH = 7, LetterGap = 2, LineGap = 3;
 
-        public static int TextCols { get { return (GlassW - 12) / (GlyphW + LetterGap); } }
-        public static int TextRows { get { return (GlassH + LineGap) / (GlyphH + LineGap); } }
+        /// <summary>The rect text is allowed to occupy: the glass, pulled in by the tube's corner cut.</summary>
+        public static int TextX { get { return GlassX + TubeInset; } }
+        public static int TextY { get { return GlassY + TubeInset; } }
+        public static int TextW { get { return GlassW - 2 * TubeInset; } }
+        public static int TextH { get { return GlassH - 2 * TubeInset; } }
+
+        public static int TextCols { get { return TextW / (GlyphW + LetterGap); } }
+        public static int TextRows { get { return (TextH + LineGap) / (GlyphH + LineGap); } }
 
         // ------------------------------------------------------------------ light
         //
@@ -93,16 +108,51 @@ namespace HRZeroDay.Core.Rules
         /// <summary>Inside this distance from the glass, a lit surface takes the cyan ramp instead.</summary>
         public const int CyanNear = 14;
 
-        /// <summary>How far the monitor's cyan fade reaches out from its case, in px. 84 px is about a
-        /// third of the frame width: enough to light the desk under the screen, not enough to reach the
-        /// window across the room.</summary>
-        public const int FadeReach = 84;
+        /// <summary>
+        /// How far the monitor's cyan fade reaches, in px. It reaches DOWN much further than it does
+        /// sideways, because a screen lights the desk it stands on and only spills a little round its own
+        /// edges. An equal reach on every side drew a visible dome over the wall.
+        /// </summary>
+        public const int FadeReach = 58;          // sideways
+        public const int FadeDrop = 74;           // down, onto the desk and the floor
 
         /// <summary>
         /// A 4x4 Bayer matrix. The fade is ordered-dithered against this, NOT against (x&3)+((y&3)&lt;&lt;2):
         /// a linear index is itself a diagonal ramp, so the dither clumps into diagonal streaks and the
         /// light looks brushed on. Bayer spreads every threshold evenly.
         /// </summary>
+        /// <summary>
+        /// How heavy the dust is. 0..4: 0 is a clean room, 4 is a tv that has not been wiped since 1994.
+        /// The grain is CLUMPED, not per-pixel noise: at 480x270 a single-pixel speckle reads as static on
+        /// a bad cable, while two-pixel clumps read as dust on glass.
+        /// </summary>
+        public const int DustDensity = 2;
+
+        /// <summary>
+        /// Where the dust sits: on every dark surface, thin in the middle of the frame and heavier toward
+        /// the corners. The placement is a per-block hash, NOT a radius threshold -- a radius threshold puts
+        /// the dust in a ring, and a ring of dust on a 480x270 frame reads as a border, not as age.
+        /// </summary>
+        public const double DustStart = 0.35;      // corner weight where the dust begins to thicken
+        public const double DustEnd = 1.15;        // ...and where it is densest
+
+        /// <summary>Fraction of 2x2 blocks that carry dust, in the middle of the frame and at the corners.</summary>
+        public const double DustMin = 0.004;
+        public const double DustMax = 0.030;
+
+        /// <summary>
+        /// A small integer hash for the dust. (x*73856093 ^ y*19349663) &amp; 15 -- the obvious choice -- is
+        /// periodic in x and y at 16 px, and a periodic dust pattern reads as a screen-door mesh over the
+        /// whole room. This is a Wang mix, so neighbouring blocks are uncorrelated.
+        /// </summary>
+        public static uint DustHash(int x, int y)
+        {
+            uint h = (uint)(x * 374761393 + y * 668265263);
+            h = (h ^ (h >> 13)) * 1274126177u;
+            h ^= h >> 16;
+            return h;
+        }
+
         public static readonly int[] Bayer4 =
         {
              0,  8,  2, 10,
@@ -140,7 +190,7 @@ namespace HRZeroDay.Core.Rules
         /// <summary>The CRT. The key light: broad, cyan, and the reason the desk is the brightest place.</summary>
         public static LightSource MonitorLight()
         {
-            return new LightSource(GlassX + GlassW / 2, GlassY + GlassH / 2, 232, 176, 1.55, 2);
+            return new LightSource(GlassX + GlassW / 2, GlassY + GlassH / 2, 244, 188, 1.55, 2);
         }
 
         /// <summary>The window. Cold and high: it lifts the back wall, never the desk.</summary>

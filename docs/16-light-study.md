@@ -104,3 +104,72 @@ frame (`textdim`). Seven stars. Restraint, not noise.
 
 The geometry gate exists because the window shipped *behind* the monitor once. Anything this easy to get
 wrong belongs in a gate, not in a screenshot review.
+
+---
+
+## 9. v116: what the second look changed
+
+The player's notes after installing v115, in order, with what each one changed.
+
+### 9.1 "The text is offscreen"
+
+It was not offscreen — it was on the **curve**. A CRT's tube is a rounded box: every corner is cut, and the
+picture inside it is smaller than the tube. v115 measured every line against the flat glass rect, so a line
+that "fitted" could still sit on the cut corner. That is what a player sees as offscreen text.
+
+- `MenuLayout.TubeInset` (7 px) defines the **picture area**: `TextX/TextY/TextW/TextH`.
+- `Centre()` centres on the tube, `InGlass()` clips to the tube, and the composite's `check()` fails the
+  build if any line is wider than the tube.
+- The pills are anchored to the **footer** (`PillTop = FooterTop - (4 * PillStep + PillH) - 4`), so the row
+  block can never drift into the footer no matter how the tube is re-cut.
+
+### 9.2 "Make the monitor more dominant, and it should look old/retro"
+
+Research (datagubbe.se on CRTs, and how vintage monitors are actually drawn):
+
+- a CRT is a **deep case** — thick plastic, heavier at the bottom, standing on feet;
+- a **thick front bezel**, wider at the bottom because that is where the controls live;
+- **cut corners** on both case and tube. A rectangle reads as a flat panel, not a tube;
+- a **shadow side**: one face of the case is a value darker, because the light is on one side;
+- the tube is darker at its own rim than in the middle (phosphor falls off);
+- real furniture: moulded seam, vent grille, badge, two knobs, power LED, status dots, four screws.
+
+The desk monitor went 240×172 → **252×186** with 224×148 of tube, and the six back-wall screens are now
+little retro cases too (cut-corner plastic, bottom bezel with an LED, inset white tube) instead of white
+rectangles with a border.
+
+### 9.3 "A dusty vignette over the menu with grains"
+
+- The grain is **clumped**: 2×2 blocks, never single pixels. A one-pixel speckle at 480×270 reads as cable
+  noise; a two-pixel clump reads as dust on glass.
+- It lands only on **dark** surfaces (`void`/`panel`/`panel2`), never on a screen and never inside the glass
+  — dust on a white screen is a scratch, and the screens are the light in this room.
+- Placement is a **Wang hash per block**, not a radius threshold and not `(x*A ^ y*B) & 15`. Both of those
+  are periodic, and periodic dust draws a visible ring or a screen-door mesh over the frame. Both were tried
+  and rejected in this round.
+- Density: ~0.4% of blocks in the middle of the frame, ~3% at the corners (`DustMin`/`DustMax`,
+  `DustDensity`).
+- The grain is **deterministic**, so the frame does not crawl between runs.
+
+### 9.4 The cyan fade became directional
+
+An equal reach on every side drew a dome over the wall. A screen lights the desk it stands on and spills only
+a little round its own edges, so the fade now reaches **58 px sideways and 74 px down** (`FadeReach`,
+`FadeDrop`), still landing only on dark surfaces through a Bayer 4×4 threshold.
+
+### 9.5 Three things that had to be undone mid-round
+
+Worth recording because they are the failure modes of this style:
+
+| Tried | Why it failed |
+|---|---|
+| Dust keyed to a radius from the centre | drew a **ring** of dust around a clean middle |
+| Dust keyed to `(x*A ^ y*B) & 15` | periodic at 16 px: a **screen-door mesh** over the whole room |
+| A half-checker vignette between r 0.92 and 1.18 | drew a visible **dome** across the frame |
+| The tube's emissive edge in `signaldim`, all four sides | read as a **neon frame** pasted on the monitor |
+
+### 9.6 Atmospheric perspective in the window
+
+The city is two layers, which is the pixel-art rule for depth: a **far** skyline one value off the sky with no
+detail, and a **near** skyline in `void` with lit windows. One flat row of buildings reads as wallpaper. The
+window was also widened 82 → 96 px, as asked.

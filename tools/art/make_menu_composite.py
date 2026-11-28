@@ -32,27 +32,33 @@ W, H = 480, 270
 # ---- mirrored from MenuLayout.cs --------------------------------------------------------------------
 # These MUST equal unity/Assets/Scripts/Core/Rules/MenuLayout.cs. check() asserts it against the sprite
 # sizes, so a stale number here fails the gate instead of quietly painting the room wrong.
-WIN_X, WIN_Y = 368, 34
-STACK_X, STACK_Y = 260, 102
-SRV_X, SRV_Y = 454, 90
-CRT_X, CRT_Y = 14, 30
-GLASS_X, GLASS_Y, GLASS_W, GLASS_H = 28, CRT_Y + 14, 212, 126
-DESK_Y = 184          # DESK_TOP=18 of a 64 px sprite: the slab still meets the wall at 202
+WIN_X, WIN_Y = 360, 30
+STACK_X, STACK_Y = 262, 100
+SRV_X, SRV_Y = 458, 84
+CRT_X, CRT_Y = 6, 16
+GLASS_X, GLASS_Y, GLASS_W, GLASS_H = 30, CRT_Y + 16, 224, 148
+DESK_Y = 180          # DESK_TOP=18 of a 64 px sprite: the slab still meets the wall at 198
 TITLE_SCALE = 2
-TITLE_TOP, SUB_TOP, TAG_TOP = GLASS_Y + 8, GLASS_Y + 24, GLASS_Y + 40
-PILL_X, PILL_W, PILL_H, PILL_STEP = GLASS_X + 52, 122, 11, 13
-PILL_TOP = GLASS_Y + 52
-FOOTER_TOP = GLASS_Y + GLASS_H - 9
+TITLE_TOP, SUB_TOP, TAG_TOP = GLASS_Y + 10, GLASS_Y + 28, GLASS_Y + 46
+PILL_X, PILL_H, PILL_STEP = GLASS_X + 52, 12, 15
+PILL_W = 120
+FOOTER_TOP = GLASS_Y + GLASS_H - 14
+PILL_TOP = FOOTER_TOP - (4 * PILL_STEP + PILL_H) - 4
+TUBE_INSET = 4
 
 # the ramp + the three lights, mirrored from MenuLayout.cs
 RAMP = ['void', 'panel', 'panel2', 'line']
 CYAN_NEAR = 14
-FADE_REACH = 84
+FADE_REACH = 58
+FADE_DROP = 74
 BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
+DUST_DENSITY = 2
+DUST_MIN, DUST_MAX = 0.004, 0.030
+DUST_START, DUST_END = 0.35, 1.15
 LIGHTS = [
-    (STACK_X + 50, STACK_Y + 26, 96, 88, 2.10, 1),
+    (STACK_X + 48, STACK_Y + 26, 96, 88, 2.10, 1),
     (WIN_X + 41, WIN_Y + 54, 92, 106, 1.90, 1),
-    (GLASS_X + GLASS_W // 2, GLASS_Y + GLASS_H // 2, 232, 176, 1.55, 2),
+    (GLASS_X + GLASS_W // 2, GLASS_Y + GLASS_H // 2, 244, 188, 1.55, 2),
 ]
 
 
@@ -89,7 +95,7 @@ def light(img):
             if c[3] == 0:
                 continue
             # the monitor's own case and tube are a light SOURCE: the light pass never touches them
-            if CRT_X <= x < CRT_X + 240 and CRT_Y <= y < CRT_Y + 172:
+            if CRT_X <= x < CRT_X + 252 and CRT_Y <= y < CRT_Y + 186:
                 continue
             step = idx_of.get(c[:3])
             if step is None:
@@ -122,9 +128,11 @@ def light(img):
             if step <= 1:
                 fx = max(CRT_X - x, x - (CRT_X + 239), 0)
                 fy = max(CRT_Y - y, y - (CRT_Y + 171), 0)
-                fd = max(fx, fy)
-                if fd < FADE_REACH:
-                    thr = int(((1.0 - fd / FADE_REACH) ** 1.6) * 16.0) - 2
+                fd, reach = fx, FADE_REACH
+                if y >= CRT_Y + 186:
+                    fd, reach = fy, FADE_DROP
+                if fd < reach:
+                    thr = int(((1.0 - fd / reach) ** 1.6) * 16.0) - 2
                     pat4 = BAYER4[((y & 3) << 2) | (x & 3)]
                     if pat4 < thr:
                         px[x, y] = teal
@@ -132,7 +140,7 @@ def light(img):
     # the CRT's own spill: TWO rings, dark teal, the outer one dithered. Same as MenuView.Halo().
     for ring in range(1, 3):
         x0, y0 = CRT_X - ring, CRT_Y - ring
-        x1, y1 = CRT_X + 240 + ring, CRT_Y + 172 + ring
+        x1, y1 = CRT_X + 252 + ring, CRT_Y + 186 + ring
         for x in range(x0, x1 + 1):
             for yy in (y0, y1):
                 _halo_px(px, x, yy, ring, teal, teal_dim)
@@ -147,14 +155,14 @@ def light(img):
             c = px[x, y]
             if c[3] == 0:
                 continue
-            if CRT_X <= x < CRT_X + 240 and CRT_Y <= y < CRT_Y + 172:
+            if CRT_X <= x < CRT_X + 252 and CRT_Y <= y < CRT_Y + 186:
                 continue
             dx = (x - W / 2) / (W / 2)
             dy = (y - H / 2) / (H / 2)
             r = math.sqrt(dx * dx + dy * dy)
-            if r > 1.25:
+            if r > 1.18:
                 px[x, y] = dark
-            elif r >= 1.0 and ((x + y) & 1) == 0:
+            elif r > 1.06 and BAYER4[((y & 3) << 2) | (x & 3)] < 4:
                 px[x, y] = dark
 
 
@@ -197,6 +205,49 @@ def glass_material(img):
             if ((x + y) & 1) == 0:
                 img.putpixel((x, y), GLASS_WASH)
     return img
+
+
+def dust_hash(x, y):
+    """Wang mix, mirrored from MenuLayout.DustHash(). The obvious (x*A ^ y*B) & 15 is periodic at 16 px and
+    draws a screen-door mesh over the whole room."""
+    h = (x * 374761393 + y * 668265263) & 0xFFFFFFFF
+    h = ((h ^ (h >> 13)) * 1274126177) & 0xFFFFFFFF
+    return h ^ (h >> 16)
+
+
+def dust(img):
+    """
+    The dusty vignette, mirrored from MenuView.Dust().
+
+      - CLUMPED 2x2 blocks on a Bayer 4x4 threshold plus a per-block hash. Single-pixel speckle reads as
+        static; two-pixel clumps read as dust on glass.
+      - only on dark surfaces (void/panel/panel2); never on a screen, never inside the glass.
+      - heaviest in the corners, where dust actually settles on a CRT.
+      - deterministic: the same frame every run.
+    """
+    px = img.load()
+    dark = {PALETTE['void'], PALETTE['panel'], PALETTE['panel2']}
+    grain = PALETTE['line']
+    cx, cy = W / 2.0, H / 2.0
+    diag = (cx * cx + cy * cy) ** 0.5
+    for by in range(0, H, 2):
+        for bx in range(0, W, 2):
+            dx = (bx - cx) / diag
+            dy = (by - cy) / diag
+            r = ((dx * dx + dy * dy) ** 0.5) * 1.414
+            fall = min(max((r - DUST_START) / (DUST_END - DUST_START), 0.0), 1.0)
+            chance = (DUST_MIN + (DUST_MAX - DUST_MIN) * fall) * (DUST_DENSITY / 2.0)
+            if (dust_hash(bx >> 1, by >> 1) & 0xFFFF) / 65536.0 >= chance:
+                continue
+            clump = [(bx + ox, by + oy) for oy in range(2) for ox in range(2)]
+            if any(x >= W or y >= H for x, y in clump):
+                continue
+            if any(GLASS_X <= x < GLASS_X + GLASS_W and GLASS_Y <= y < GLASS_Y + GLASS_H for x, y in clump):
+                continue
+            if any(px[x, y][3] == 0 or px[x, y][:3] not in dark for x, y in clump):
+                continue
+            for x, y in clump:
+                px[x, y] = grain
 
 
 def paint_menu(img, rows):
@@ -306,6 +357,7 @@ def main():
     img = compose()
     glass_material(img)
     light(img)
+    dust(img)
     paint_menu(img, labels())
     base = os.path.join(ROOT, 'art', 'kit', 'reference')
     img.save(os.path.join(base, 'menu_v115_1x.png'))

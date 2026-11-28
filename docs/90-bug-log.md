@@ -1376,3 +1376,37 @@ C# drew a 2-ring dark one. Every render I approved was not the frame Unity would
 **Fix:** the composite's constants now sit under a comment that says they must equal `MenuLayout.cs`, and the
 geometry gate fails when they do not. Patching by string is banned for these two files (see
 `docs/14-art-to-unity-pipeline.md`).
+
+## BUG-069 -- v116: text "offscreen" on the tube, and a dust pass that painted a mesh (2026-11-28)
+
+**Reported:** by the player after v115: *"the text is offscreen"*, plus three art directions (older monitor,
+dusty vignette with grain, wider window).
+
+**a. Type was measured against the flat glass rect, not the tube.** A CRT's tube is a rounded box — its
+corners are cut and the picture is smaller than the tube — so a line that fitted the rect could sit on the
+curve. The player reads that as offscreen text.
+**Fix:** `TubeInset` (7 px) and `TextX/TextY/TextW/TextH`; `Centre()` centres on the tube, `InGlass()` clips
+to it, and the composite fails the build if any line is wider than it. The pill block is anchored to the
+footer so it cannot drift into it.
+
+**b. The dust was a screen-door mesh.** `(x * 73856093 ^ y * 19349663) & 15` is periodic in x and y at 16 px,
+so the grain formed a regular grid over the whole room — the exact failure mode the grain research warns
+about. The first attempt also keyed density to a radius from the centre, which drew a *ring* of dust around a
+clean middle.
+**Fix:** a Wang mix (`MenuLayout.DustHash`), clumped 2x2 blocks, density as a fraction of blocks (0.4% middle
+/ 3% corners), dark surfaces only, deterministic.
+
+**c. The vignette was a dome.** A half-checker band between r 0.92 and 1.18 across 480x270 rendered as a grey
+arc over the frame, not a vignette.
+**Fix:** corners fall one step past r 1.18 with a sparse Bayer seam between 1.06 and 1.18. No half-checker.
+
+**d. The tube's emissive edge was a neon frame.** `signaldim` on all four sides of the picture area.
+**Fix:** dark teal (`glow_teal`) on the top and left only.
+
+**e. The cyan fade was a dome over the wall.** An equal reach on every side.
+**Fix:** directional — 58 px sideways, 74 px down onto the desk (`FadeReach`, `FadeDrop`).
+
+**f. A prop was entirely behind the monitor.** The coffee cup sat at x=74 and the case now ends at x=258.
+**Fix:** everything on the desk moved right (coffee 274, keyboard 292, mouse 390, forms 412). A prop that is
+completely hidden is a prop that does not exist, and the composite's geometry gate only checks the back wall
+— this was caught by looking at the render.
