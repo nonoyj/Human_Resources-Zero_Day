@@ -1719,3 +1719,35 @@ seconds after the last click. It hangs under the keyboard on the desk's front fa
 246,206, 192x34) -- the first version sat on the tube and covered the rows, which the render of it made
 obvious. The frame dissolves last, so at half-fade the box still reads as a box. A unit test pins it off the
 glass, on the canvas, under the keys, and wide enough for its longest line.
+
+---
+
+## v126 — the fourth session report
+
+Four reports, one log. Each row is a CLASS of bug, so each one gets a rule and something that runs.
+
+| # | The report | What it actually was | The fix | What now catches it |
+|---|---|---|---|---|
+| 1 | `Test-ArtPipeline.ps1` still will not parse at line 157 | a stray `if (-not $SkipCompile) {` opened at ~line 95 and was never closed, present since `defc45c`. PowerShell parses a whole file before running any of it, so **the art gate has never once run on the player's machine** — every "ART PIPELINE OK" reported since v119.7 was about a file no interpreter had accepted | the brace, and the habit: `tools/check_powershell_syntax.py` now asks PowerShell's own `Parser::ParseFile`, and says `FALLBACK … NOT a parse` (exit 2) when `pwsh` is absent so it can never be quoted as green. Proven against `git show 211594f:scripts/Test-ArtPipeline.ps1` → `:150 MissingCatchOrFinally`, `:447 UnexpectedToken`. `Build-Bundle.ps1` refuses to build a zip containing a `.ps1` that does not parse | `pwsh 7.4.6 -File scripts/Test-ArtPipeline.ps1` → `ART PIPELINE OK`; `check_powershell_syntax.py` → `PASS: 17` |
+| 2 | menu title/rows still look distorted; the keyboard's text is fine | the pen advanced `(GlyphW + gap) * scale`, so the 2 px letter gap was multiplied by the title's 2x — rivers between letters, last letter off the tube — and the title bled a column to fake weight (a 2 px one-sided shear) | pen advances `GlyphW*scale + gap*scale` after each glyph, space `cellW*scale`, title bleed 0, and every glyph lookup goes through `InkTopDown()` so a bottom-up source cannot draw letters upside down | `RenderDump … base` → `docs/images/v126/menu-text.png` |
+| 3 | "clicking the lamp only lights what's behind it, not the desk and the paper — I meant the one in the menu" | both earlier fixes aimed ONE ellipse at rows 158/172: inside the desk band, but on the lamp's own **stem and base**. The bulb is at canvas row 88 (the shade is sprite rows 8..28), 62 px above the wood. And the bounce's squared falloff meant the mug at r=0.97 received a lift of 0.0006 — nominally inside the pool, measurably black | the lamp is now TWO sources, which is what a desk lamp is: a narrow cone leaving the shade (52x50 at row 118) and a wide pool lying ON the desk (160x30 at (384,176), falloff 0.5 — a plateau, not a spike). Measured, base vs `nolamp`: desk band 24.5 % lifted, wall 4.8 %, ratio **3.4** (was 1.9 with the beam on the pole); papers 64 %, keyboard 35 %, mug 4 % | `LightingTests.the_menu_lamp_lights_the_desk_objects` (pool must span x269..479), `MenuTests`' lamp assertions rewritten for two sources, and `docs/images/v126/menu-lamp-on-vs-off.png` |
+| 4 | "the HUD should not be text but clickable objects" | it was sixteen lines of TextMesh prose in the corner, including the key legend `[L] LETTER [1-5] FLAGS [A] APPROVE [S] REJECT [TAB] ALERTS` — a list of things the game already knew how to do, printed instead of offered | `Core/Rules/HudRules` owns geometry, four states, hit test, state colours; `GameHudObjects` paints the layer through `ObjectPlate.DrawHud` (the same call the offline dump uses) and forwards clicks to the same methods the keyboard calls. Clicks hit the HUD **before** the room, so a stamp pad can never land on the applicant behind it | 10 `HudTests` (frame + play band, no overlap, resting positions stable, disabled-is-not-clickable, both input paths, no key legend, stamp-while-reading, overlays own their corner) + `RenderDump hud|hudletter` |
+
+### Found on the way, unfixed until now
+
+* the letter printed `X BACK TO DESK` and **X did nothing** — a legend for an action that never existed. Removed; the
+  letter's own tray object is the way back. (Same class as #4: a legend is not an affordance.)
+* the security board's summary comment claimed "shape first, number last" while the shape was the characters
+  `▮▯` — which the 5x7 atlas does not contain, so the board rendered as `WATCH 62` with no shape at all. The pips
+  are drawn pixel blocks now (`HudRules.PipRect`), and the test counts pips instead of characters.
+* the first HUD render (not the code review) showed four things words could not: readings printed inside the
+  LETTER plate, no pips, stamp pads filled `void` so they read as holes, and dim top-lit ink. **A layout that has
+  not been looked at is a layout that has not been tested.**
+
+### P, first slice (in-game art)
+
+The desk's room is painted in the menu's materials by `tools/art/make_desk_room.py` (which imports
+`make_menu_room`, so the dither tables, the palette and the vanishing point cannot drift): `backgrounds/office_M0.png`,
+`desk/monitor_M.png`, `desk/monitor_stand_M.png`, `desk/foreground_M.png`. See
+`docs/images/v126/room-before-after.png`. **Written, gated, not yet wired** — the layout still points at
+`office_L0`/`desk_foreground`, and no applicant stands in the new room yet.
