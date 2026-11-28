@@ -6,33 +6,33 @@ three causes:
 
 | Cause | How to confirm |
 |---|---|
-| **A.** You never extracted the bundle, so `HR-ZeroDay` doesn't exist on disk | `Test-Path C:\users\user\HR-ZeroDay` → `False` |
+| **A.** You never extracted the bundle, so `HR-ZeroDay` doesn't exist on disk | `Test-Path C:\users\user\HR-ZeroDay` -> `False` |
 | **B.** You extracted it but the folder is **nested** (`HR-ZeroDay\HR-ZeroDay-bundle\docs\...`) | the search in Step 2 finds the file several levels deeper than expected |
 | **C.** You were in a different directory (`C:\users\user` instead of `C:\users\user\HR-ZeroDay`) | `Get-Location` shows something else |
 
 ---
 
-## Step 1 — Find out where you are and what exists
+## Step 1 -- Find out where you are and what exists
 
 ```powershell
 Get-Location
 Test-Path C:\users\user\HR-ZeroDay
 ```
 
-## Step 2 — Find the script wherever it landed (this is the reliable way)
+## Step 2 -- Find the script wherever it landed (this is the reliable way)
 
 ```powershell
 Get-ChildItem C:\users\user -Recurse -Filter Setup-DevEnvironment.ps1 -ErrorAction SilentlyContinue |
   Select-Object -ExpandProperty FullName
 ```
 
-Three possible outcomes — act on the one you get:
+Three possible outcomes -- act on the one you get:
 
 ### Outcome 1: it prints nothing
 The bundle isn't extracted yet.
 
 1. Download `HR-ZeroDay-bundle-v2-with-git.zip` from the workspace file viewer.
-2. In File Explorer, right-click the zip → **Extract All…** → type `C:\users\user\` → **Extract**.
+2. In File Explorer, right-click the zip -> **Extract All...** -> type `C:\users\user\` -> **Extract**.
 3. Check: `Test-Path C:\users\user\HR-ZeroDay\scripts\Setup-DevEnvironment.ps1` must be `True`.
 4. Continue to **Step 3**.
 
@@ -58,7 +58,7 @@ cd C:\users\user\HR-ZeroDay
 ```
 Then **Step 3**.
 
-## Step 3 — Run setup (copy-paste the whole block, it must be run from the repo root)
+## Step 3 -- Run setup (copy-paste the whole block, it must be run from the repo root)
 
 ```powershell
 cd C:\users\user\HR-ZeroDay
@@ -80,16 +80,16 @@ Confirm `Get-Location` prints exactly `C:\users\user\HR-ZeroDay`.
 
 ---
 
-## Step 4 — Unity Hub (manual, ~30–40 min mostly download)
+## Step 4 -- Unity Hub (manual, ~30-40 min mostly download)
 
-1. Open **Unity Hub** → sign in.
-2. **Installs** → **Install Editor** → **Archive** tab → search `6000.3.29f1` → **Install**.
-3. Tick exactly: **Android Build Support** ✅ (its children **Android SDK & NDK Tools** ✅,
-   **OpenJDK** ✅) and **Windows Build Support (IL2CPP)** ✅. Everything else ❌.
+1. Open **Unity Hub** -> sign in.
+2. **Installs** -> **Install Editor** -> **Archive** tab -> search `6000.3.29f1` -> **Install**.
+3. Tick exactly: **Android Build Support** [x] (its children **Android SDK & NDK Tools** [x],
+   **OpenJDK** [x]) and **Windows Build Support (IL2CPP)** [x]. Everything else [ ].
 4. Accept the default install path.
-5. **Preferences** (gear) → **Licenses** → **Add** → **Get a free personal license**.
+5. **Preferences** (gear) -> **Licenses** -> **Add** -> **Get a free personal license**.
 
-## Step 5 — Verify (close and reopen PowerShell first, so PATH refreshes)
+## Step 5 -- Verify (close and reopen PowerShell first, so PATH refreshes)
 
 ```powershell
 cd C:\users\user\HR-ZeroDay
@@ -104,7 +104,7 @@ Then:
 .\scripts\setup-workspace.ps1
 ```
 
-## Step 6 — Push to GitHub (already done 2026-11-25; from here use `git push` / `git pull`, see `docs/BUNDLE-WORKFLOW.md`)
+## Step 6 -- Push to GitHub (already done 2026-11-25; from here use `git push` / `git pull`, see `docs/BUNDLE-WORKFLOW.md`)
 
 ```powershell
 cd C:\users\user\HR-ZeroDay
@@ -116,7 +116,7 @@ git push -u origin main --force
 
 `--force` here is intentional **only if the remote is empty or you want my history to replace it**.
 If the remote already has commits you care about, use `git push -u origin main` without `--force`
-and tell me — we'll merge instead.
+and tell me -- we'll merge instead.
 
 ---
 
@@ -145,7 +145,7 @@ The string is missing the terminator: ".
 ```
 
 **Cause:** the `.ps1` file had non-ASCII characters (em-dashes) and Windows PowerShell 5.1 decoded it
-as ANSI. Fixed on 2026-11-25 — all scripts are now ASCII-only with a UTF-8 BOM.
+as ANSI. Fixed on 2026-11-25 -- all scripts are now ASCII-only with a UTF-8 BOM.
 
 **What to do:**
 1. Re-extract the latest bundle (`HR-ZeroDay-bundle-v2-with-git.zip`) or `git pull`.
@@ -157,4 +157,4 @@ cd C:\users\user\HR-ZeroDay
 ```
 
 Expect `PASS` for all three scripts, then `All scripts healthy.` If you see `FAIL (encoding)`, the file
-is still the old copy — you are in a stale folder; check `Get-Location`.
+is still the old copy -- you are in a stale folder; check `Get-Location`.

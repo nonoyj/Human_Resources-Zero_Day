@@ -15,7 +15,7 @@
 //   renderer (tools/art/make_menu_composite.py) and the sprite generator draw, so the preview cannot
 //   drift from the game.
 //
-// THE LIGHT (docs/16-light-study.md §10, docs/20-v118-cinematic.md)
+// THE LIGHT (docs/16-light-study.md #10, docs/20-v118-cinematic.md)
 //   Six rules, and each one is a line of code somewhere:
 //     1. TWO sources with opposite temperature: a COLD key (the tube) and a WARM practical (the lamp).
 //        A frame lit by one temperature is a monochrome frame, however pretty the colour is.
@@ -52,6 +52,12 @@ namespace HRZeroDay.Core.Rules
 
         // ---- the monitor the menu lives in: menu/crt.png 260x186, glass 228x152 at (26,12)
         public const int CrtX = 104, CrtY = 10;
+
+        // ---- THE WALL CLOCK (v130). The game's room gained a clock, and the front door is the same room, so
+        // it gains one too: 30x30 at menu anchor (376,12) -- menu/clock.png, sprite-painted, hands written by
+        // RoomClock. It is a FIXTURE, not a prop: it hangs on the wall, it is never lit from the desk, and it
+        // carries its own small warm source so it reads at a glance in a dark room.
+        public const int ClockX = 376, ClockY = 12, ClockW = 30, ClockH = 30;
         public const int GlassX = CrtX + 26;
         public const int GlassY = CrtY + 12;
         public const int GlassW = 228, GlassH = 152;
@@ -204,7 +210,7 @@ namespace HRZeroDay.Core.Rules
 
         // ------------------------------------------------------------------ light
         //
-        // HOW THE ROOM IS LIT (docs/16-light-study.md §10)
+        // HOW THE ROOM IS LIT (docs/16-light-study.md #10)
         //
         // Each material has a ramp of 3-5 steps in menu_palette.py. A light raises a surface ONE step
         // along its own ramp; it never replaces the surface with the light's colour. That is the whole
@@ -308,9 +314,22 @@ namespace HRZeroDay.Core.Rules
 
         public static LightSource[] Lights()
         {
-            // v120: the lamp now contributes TWO sources (the cone and its bounce off the desk). The order is
-            // back to front: the window's cold fill, the lamp's cone, the bounce, then the tube's key.
-            return new[] { WindowLight(), LampLight(), LampBounceLight(), MonitorLight() };
+            // v120: the lamp contributes TWO sources (the cone and its bounce off the desk).
+            // v130: plus the CLOCK's own small warm light, so the wall clock reads at a glance on the front
+            // door too, and so this list and `LightRig.ForMenu` are the same five in the same order. Two
+            // lists of one room is how the pool ended up on the wall in v120 while the tests were green;
+            // `menu_lights_are_one_list` now holds them against each other.
+            return new[] { WindowLight(), LampLight(), LampBounceLight(), MonitorLight(), ClockLight() };
+        }
+
+        /// <summary>
+        /// The wall clock's light (v130). Small, warm, on the wall right of the tube: it exists so the clock
+        /// is legible in a dark room, and so the room has a source whose only job is to make one object
+        /// readable -- the same reason a real office clock has its own small fixture.
+        /// </summary>
+        public static LightSource ClockLight()
+        {
+            return new LightSource(ClockX + ClockW / 2, ClockY + ClockH / 2, 54, 38, 0.30, 1);
         }
 
         /// <summary>
@@ -384,7 +403,7 @@ namespace HRZeroDay.Core.Rules
 
         /// <summary>
         /// The breach beat: a random screen, every 14 to 26 seconds, for 1.4 s. Rationed on purpose --
-        /// an alarm that fires constantly stops being an alarm (docs/17 §4, motion_manifest.py).
+        /// an alarm that fires constantly stops being an alarm (docs/17 #4, motion_manifest.py).
         /// </summary>
         public const double BreachMin = 14.0, BreachMax = 26.0, BreachHold = 1.4;
 

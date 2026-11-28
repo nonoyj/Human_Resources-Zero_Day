@@ -1,6 +1,6 @@
-# Changes made — 2026-11-26
+# Changes made -- 2026-11-26
 
-**Author:** Agent (Arena) · **Branch:** `arena/c1faebb9-human-resources-zero-day`
+**Author:** Agent (Arena) - **Branch:** `arena/c1faebb9-human-resources-zero-day`
 **Commits:** `2bc441a` (interaction layer), `d0b0735` (this report), plus the merge/reconciliation
 commit on this branch. **Scope:** client / gameplay interaction only. **No backend files changed.**
 
@@ -18,7 +18,7 @@ composition L, day/night room, wear overlays, five paperwork flags).
 
 ## 2. Files changed, by purpose
 
-### New gameplay code — `unity/Assets/Scripts/Game/Interaction/`
+### New gameplay code -- `unity/Assets/Scripts/Game/Interaction/`
 
 | File | What it does |
 |---|---|
@@ -45,7 +45,7 @@ composition L, day/night room, wear overlays, five paperwork flags).
 | `tools/CoreTests/CoreTests.csproj`, `Program.cs` | Added 10 interaction tests alongside main's expanded suite. |
 | `tools/CoreTests/InteractionTests.cs` | 10 tests: reveal coverage, presentation map, honest humans, synthetic provability, day gating, dedupe, hit-test geometry, tool budget, full stamp loop, paperwork flag lock/trust. |
 
-### Playable browser twin — `prototype/web/`
+### Playable browser twin -- `prototype/web/`
 
 | File | What it does |
 |---|---|
@@ -71,7 +71,7 @@ composition L, day/night room, wear overlays, five paperwork flags).
 
 ## 3. Bugs and integration defects fixed
 
-- **BUG-024** — `Build(layout, null)` dereferenced a null parent. Logged first; main later fixed it
+- **BUG-024** -- `Build(layout, null)` dereferenced a null parent. Logged first; main later fixed it
   independently. The duplicate fix was removed in the merge; the log entry is kept.
 - **Merge-defects:** duplicate `Mathf` type and duplicate `GameObject.SetActive` signature in the
   combined `UnityStubs.cs`; stale hardcoded monitor/document rect and unscaled applicant hotspot
@@ -98,16 +98,16 @@ curl /prototype/web/                                 -> HTTP 200 (live preview)
 ```
 
 **Not run:** `dotnet build tools/UnityStubs/CompileCheck.csproj` and
-`dotnet run --project tools/CoreTests` — no .NET SDK in this sandbox. BE1 must run both on the PC.
+`dotnet run --project tools/CoreTests` -- no .NET SDK in this sandbox. BE1 must run both on the PC.
 
 ---
 
 ## 5. What is deliberately not done
 
-- No `ProjectSettings/` / `Packages/` in the repo yet — the user created the Unity project locally;
+- No `ProjectSettings/` / `Packages/` in the repo yet -- the user created the Unity project locally;
   BE1 adopts it with `scripts/Adopt-UnityProject.ps1` (`docs/19-unity-project-setup.md`).
-- No backend, server, API or telemetry changes — owned by the user.
-- No Field Manual / day-summary / endings screens — FE work.
+- No backend, server, API or telemetry changes -- owned by the user.
+- No Field Manual / day-summary / endings screens -- FE work.
 - Hotspots use 6 px collider padding, not literal 48 dp; an inspect-list UI is the proper fix.
 - Unity overlay text uses the built-in font, not the new 5x7 monitor atlas.
 

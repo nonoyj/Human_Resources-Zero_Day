@@ -5,7 +5,7 @@
 // applies it to sprites in the scene.
 //
 // DESIGN CONSTRAINTS
-//   * The room is already dark and mysterious (bible §2). Bright midday would break the mood, so "day"
+//   * The room is already dark and mysterious (bible #2). Bright midday would break the mood, so "day"
 //     here is OVERCAST daylight -- a grey-blue high sun behind cloud, which is what a city office with a
 //     night shift actually sees at 08:00. Night is the darkest, coldest step, not black.
 //   * Three stops, because the art is palette-locked and the tint must stay on-palette:

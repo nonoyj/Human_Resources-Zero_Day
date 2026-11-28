@@ -1,4 +1,4 @@
-# backend/ — HR//0D service
+# backend/ -- HR//0D service
 
 FastAPI + SQLite/Postgres. **The game never needs it**: it records anonymous telemetry and serves
 hash-pinned content packs, and the client plays fully offline.
@@ -26,7 +26,7 @@ endpoints; **must** be set in any non-local environment).
 |---|---|---|
 | GET | `/healthz` | liveness |
 | GET | `/v1/content/manifest` | bearer `CONTENT_KEY`; hash-pinned asset list |
-| POST | `/v1/admin/packs` | validates a pack with `validate_pack.py`; refuses I1–I8 violations |
+| POST | `/v1/admin/packs` | validates a pack with `validate_pack.py`; refuses I1-I8 violations |
 | POST | `/v1/runs` | idempotent; **refuses payloads with PII keys** |
 | POST | `/v1/runs/{id}/events` | 202 partial accept, 256 KB body cap |
 | POST | `/v1/runs/{id}/finish` | closes a run |
@@ -40,18 +40,18 @@ Built and tested: everything above, **26 pytest checks** in `tests/`.
 
 **Done in v120** (two of the three that mattered before a public build):
 
-* **rate limits are ENFORCED** — 60 event writes per 10 minutes per device key, fixed window, `429` with a
+* **rate limits are ENFORCED** -- 60 event writes per 10 minutes per device key, fixed window, `429` with a
   `Retry-After` the client can obey, expired windows purged on every write so the table cannot grow one dead
   row per device forever. The table had existed since v1 with nothing reading it.
-* **`DELETE /v1/devices/{key}` exists** — deletes the runs, their events (explicitly, and the cascade is now
+* **`DELETE /v1/devices/{key}` exists** -- deletes the runs, their events (explicitly, and the cascade is now
   actually on: SQLite ignores `ON DELETE CASCADE` unless `PRAGMA foreign_keys = ON` is set **per
   connection**, which is the one place SQLite and Postgres differ at runtime) and the key's rate window.
-  Answers `200 {"purged": true, "runsRemoved": n}` even for a key it has never seen — a `404` there would be
+  Answers `200 {"purged": true, "runsRemoved": n}` even for a key it has never seen -- a `404` there would be
   an oracle for which device keys exist.
 
-**Owed, in priority order:** object storage under hash names (and a check that the URL serves the hash) ·
-ops console · deploy + HTTPS + backup restore drill + a PII-in-logs CI grep · a 20 devices × 20 runs soak
-with p95 < 400 ms · committed OpenAPI + `fixtures/`.
+**Owed, in priority order:** object storage under hash names (and a check that the URL serves the hash) -
+ops console - deploy + HTTPS + backup restore drill + a PII-in-logs CI grep - a 20 devices x 20 runs soak
+with p95 < 400 ms - committed OpenAPI + `fixtures/`.
 
 **Nothing in this round changes the contract the game uses**: the client never calls the service, so a
 player on a plane sees exactly the same game. The two additions are for the operator, not the player.

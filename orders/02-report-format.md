@@ -1,4 +1,4 @@
-# ORDER 02 — THE REPORT FORMAT, AND THE POWERSHELL HANDOVER
+# ORDER 02 -- THE REPORT FORMAT, AND THE POWERSHELL HANDOVER
 
 ## The headings, defined
 
@@ -25,7 +25,7 @@ not a diary of my edits; my edits appear in `What to expect` and in the commit m
 
 Missing any of the four = incomplete delivery. This has been missed twice and refused twice.
 
-## The PowerShell block — mandatory every time
+## The PowerShell block -- mandatory every time
 
 It must, in one paste: fetch the bundle from the repo, extract it to a versioned folder, apply it with a
 reinstall, push, and **run the gates with the output saved to a file the player can send back**.
@@ -67,7 +67,7 @@ Select-String -Path $log -Pattern 'FAIL|ERROR|error CS|Exception' | ForEach-Obje
 
 ## What the player sends back
 
-1. `gate-vNNN.log` — the whole file.
+1. `gate-vNNN.log` -- the whole file.
 2. The **ERROR lines** the block prints at the end (it prints them, so they are already in the file and in the
    console).
 3. A screenshot of the running game, if the round changed art.

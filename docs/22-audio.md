@@ -1,4 +1,4 @@
-# 22 — AUDIO
+# 22 -- AUDIO
 
 **What the game sounds like, why, and how to change it.** Added 2026-11-27 with v105.
 
@@ -9,7 +9,7 @@
 The game is a CRT terminal on a desk in an office at night. Every sound in it is a machine, a phone, paper,
 or a building that is still running. So the mix is built the way that room sounds: **a bed you stop
 hearing, and events you feel.** There is no music. The room is already playing before the player can do
-anything, and it changes as the run does — it flattens and gains hiss as corruption rises — so the game
+anything, and it changes as the run does -- it flattens and gains hiss as corruption rises -- so the game
 gets worse to be in as the story does.
 
 ## 2. The nine sounds, all generated from code
@@ -31,7 +31,7 @@ no samples and no licences.
 
 ## 3. The mix rules (and they are tests)
 
-`unity/Assets/Scripts/Core/Rules/AudioRules.cs` — pure C#, no UnityEngine, checked by
+`unity/Assets/Scripts/Core/Rules/AudioRules.cs` -- pure C#, no UnityEngine, checked by
 `tools/CoreTests/AudioTests.cs` (6 checks, run with the other 152):
 
 - **Event cues clear 6 dB over the bed; texture cues clear 4 dB.** A footstep as loud as a stamp is a
@@ -63,10 +63,10 @@ is the single entry point for an options screen.
 
 ## 5. Judging it without Unity
 
-- `python tools/audio/preview_audio.py` → `art/kit/reference/audio_sheet.png` (levels, the bed's loop
-  seam, a spectrogram per cue) **and** `%TEMP%\desk_minute.wav` (written by `tools/audio/preview_audio.py`) — 22 seconds of the bed plus the
+- `python tools/audio/preview_audio.py` -> `art/kit/reference/audio_sheet.png` (levels, the bed's loop
+  seam, a spectrogram per cue) **and** `%TEMP%\desk_minute.wav` (written by `tools/audio/preview_audio.py`) -- 22 seconds of the bed plus the
   nine cues in the order a player meets them. That file is a reference, not a game asset.
-- `python tools/audio/make_audio.py --check` → fails if a WAV is missing, stale or the wrong format.
+- `python tools/audio/make_audio.py --check` -> fails if a WAV is missing, stale or the wrong format.
 - The art gate runs both, plus: every WAV has an audio `.meta` in Resources, and every cue name in the C#
   enum resolves to a published file.
 

@@ -29,6 +29,7 @@
     <Compile Include="AudioTests.cs" />
     <Compile Include="MenuTests.cs" />
     <Compile Include="LightingTests.cs" />
+    <Compile Include="LightRigTests.cs" />
     <Compile Include="HudTests.cs" />
     <Compile Include="SecurityTests.cs" />
     <Compile Include="IntroTests.cs" />
@@ -57,6 +58,8 @@
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/RoomLighting.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/DeskLightDriver.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/ScreenLight.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Desk/RoomClockView.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Desk/LampView.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/PaletteLadder.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/ObjectPlate.cs" />
     <Compile Include="../UnityStubs/UnityStubs.cs" />

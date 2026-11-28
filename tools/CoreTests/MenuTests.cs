@@ -373,7 +373,11 @@ namespace HRZeroDay.Tests
             // v120: FOUR sources, because the lamp contributes a cone AND its bounce off the desk. The film
             // look still needs the same three THINGS -- cold key, warm practical, and the tube between them --
             // so the assertion is about temperature, not about a count that would forbid the bounce.
-            True(lights.Length == 4, "the room is lit by " + lights.Length + " sources; the lamp needs its cone and its bounce");
+            // v130: FIVE -- the lamp's cone, the lamp's pool on the wood, the window's cold key, the tube
+            // between them, and the wall clock's own small warm light (a source whose only job is to make one
+            // object readable). The rule under test was never the count, it is the temperature note below.
+            True(lights.Length == 5, "the room is lit by " + lights.Length + " sources; v130 has five " +
+                 "(window, lamp cone, lamp pool, tube, clock)");
             foreach (var l in lights)
                 True(l.Strength >= 1 && l.Strength <= MenuLayout.MaxLift,
                      "a light adds " + l.Strength + " steps; ambient light may add one and no more");

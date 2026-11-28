@@ -204,6 +204,13 @@ namespace HRZeroDay.Core.Data
             a.referral = GenerationConfig.Referrals[rng.Next(GenerationConfig.Referrals.Length)];
             a.coverLetterId = "letter_" + archetype.ToString().ToLowerInvariant() + "_" + rng.Next(1, 4);
             a.portraitId = "portrait_" + (_idCounter++).ToString("D3");
+            // ---- VARIETY (v130, the player's instruction: "add varieties of the applicant").
+            // Until now the sprite was a function of the ARCHETYPE -- six values for a whole run -- so every
+            // warehouse supervisor in the game was the same person. The art already ships variants
+            // (human_solid_a/_b/_c, synthetic_polished_a/_b/_c, ...); this picks one per APPLICANT, from the
+            // run's own rng, so it is stable under I7 (same seed -> same run -> same faces) and different
+            // from seed to seed.
+            a.spriteKey = Appearances.Pick(archetype, rng);
 
             ApplyArchetype(a, archetype, day, rng);
             return a;

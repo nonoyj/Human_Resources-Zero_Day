@@ -43,7 +43,7 @@ RULES = {
     # background, so the two align exactly when both are spawned at 0,0.
     'fx':         dict(ppu=16, svc='Single', kind='fx'),
     'fonts':      dict(ppu=16, svc='Single', kind='font'),
-    # after-hours sweep: flat style on purpose (docs/16 §6). Ships at 480x270 like the backgrounds.
+    # after-hours sweep: flat style on purpose (docs/16 #6). Ships at 480x270 like the backgrounds.
     'sweep':      dict(ppu=16, svc='Single', kind='sweep'),   # glyph atlas; composited at runtime, not sliced
 }
 

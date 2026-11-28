@@ -1,4 +1,4 @@
-# Backend Specification (summary — full brief in `handoff/2026-11-25_agent-to-backend-team_backend-spec.md`)
+# Backend Specification (summary -- full brief in `handoff/2026-11-25_agent-to-backend-team_backend-spec.md`)
 
 The backend exists for exactly three jobs. Anything beyond these is scope creep and gets rejected.
 
@@ -15,12 +15,12 @@ storing real people's data.
 
 ```
 Android client (offline-first, JSON cache, hash-pinned packs)
-        │ HTTPS — public content key + per-install device key
-        ▼
-FastAPI (Python 3.12) · stateless · 2 workers
-        ├── PostgreSQL 16   (content_packs, runs, run_events, rate_limits)
-        └── S3-compatible object storage (packs: <id>-<version>.json.zst, hash-named)
-        └── static ops console (read-only + publish/revoke)
+        | HTTPS -- public content key + per-install device key
+        v
+FastAPI (Python 3.12) - stateless - 2 workers
+        +-- PostgreSQL 16   (content_packs, runs, run_events, rate_limits)
+        +-- S3-compatible object storage (packs: <id>-<version>.json.zst, hash-named)
+        +-- static ops console (read-only + publish/revoke)
 ```
 Deploy: one container + managed Postgres, region SG or PH. No k8s, no queues, no Redis.
 
@@ -30,10 +30,10 @@ Deploy: one container + managed Postgres, region SG or PH. No k8s, no queues, no
    the last cached pack. If the network layer prevents play, the design is wrong.
 2. **Packs are immutable and hash-pinned.** Client refuses a pack whose `sha256` doesn't match the
    manifest. A leaked public content key must be worthless.
-3. **Publishing a pack runs the fairness validator** (`validate_pack.py`, lifting invariants I1–I8 from
+3. **Publishing a pack runs the fairness validator** (`validate_pack.py`, lifting invariants I1-I8 from
    `prototype/generator_sim.py`). A pack that can produce an unprovable AI is refused. This is the
    product's integrity guarantee.
-4. **No PII.** Device UUID only. IPs kept ≤ 24 h for rate limiting. No display names on the leaderboard.
+4. **No PII.** Device UUID only. IPs kept <= 24 h for rate limiting. No display names on the leaderboard.
 5. **Fake backend first.** Dev A codes against `IBackend` with `FakeBackend` (fixtures committed in
    `backend/fixtures/`). The game is never blocked by backend progress.
 
@@ -57,12 +57,12 @@ public interface IBackend {
 }
 ```
 Both `HttpBackend` and `FakeBackend` implement this. All calls are fire-and-forget with a local
-outbox queue persisted in the save file, flushed on next launch — **so a failed sync never affects
+outbox queue persisted in the save file, flushed on next launch -- **so a failed sync never affects
 gameplay or the save**.
 
 ## Backend dev deliverables (10 days, part-time)
 
-See the handoff §7 for the day-by-day table. Milestones that matter to the game team:
+See the handoff #7 for the day-by-day table. Milestones that matter to the game team:
 
 | Milestone | Needed by | Unblocks |
 |---|---|---|
@@ -70,7 +70,7 @@ See the handoff §7 for the day-by-day table. Milestones that matter to the game
 | `POST /runs` + `/events` + fixtures | Day 4 | telemetry, leaderboard screen |
 | `validate_pack.py` gate | Day 5 | content publishing safety |
 | Staging deploy + OpenAPI | Day 7 | end-to-end test on a real phone |
-| Soak test 20 devices × 20 runs | Day 8 | go/no-go for the leaderboard feature |
+| Soak test 20 devices x 20 runs | Day 8 | go/no-go for the leaderboard feature |
 
 ## Fallback (decided now, so nobody panics on Day 10)
 

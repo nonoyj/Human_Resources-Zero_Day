@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """HR//0D after-hours sweep art -- the one place the game changes style on purpose.
 
-docs/16-after-hours-sweep.md §6 decides the contrast:
+docs/16-after-hours-sweep.md #6 decides the contrast:
 
     main game   painterly bust, dither ramps, rim light
     sweep       FLAT side-on room, 2-tone fills, hard 1 px edges, tiny (~16 px) characters,

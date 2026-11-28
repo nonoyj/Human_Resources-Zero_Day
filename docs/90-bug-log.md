@@ -1,10 +1,10 @@
 # Bug Log
 
-Every non-trivial bug gets an entry. Format is mandatory — the **Prevention rule** line is
+Every non-trivial bug gets an entry. Format is mandatory -- the **Prevention rule** line is
 what stops us from repeating problems.
 
 ```
-### BUG-000 — <one-line symptom>
+### BUG-000 -- <one-line symptom>
 - **Found:** <date> by <who>   **Severity:** P0/P1/P2
 - **Symptom:** what the player/dev sees
 - **Repro:** numbered steps
@@ -14,44 +14,44 @@ what stops us from repeating problems.
 - **Prevention rule:** the rule we add to the checklist
 ```
 
-Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmetic/annoying.
+Severity: **P0** blocks the event - **P1** breaks a core loop - **P2** cosmetic/annoying.
 
 ---
 
 ## Standing prevention rules (accumulated)
 
-1. Never write directly to a save path — write `.tmp`, then replace.
+1. Never write directly to a save path -- write `.tmp`, then replace.
 2. Never `FindObjectOfType` inside `Update`.
-3. No applicant data hardcoded in prefabs — always from JSON.
+3. No applicant data hardcoded in prefabs -- always from JSON.
 4. Every screen ships with a back affordance + safe-area anchor.
 5. Any coroutine that animates a transition must be cancelled in `OnDisable`.
 6. All string literals in UI come from content files.
-7. Test every screen at 720×1280 *and* 1080×2400 before merging.
-8. Never assume `Application.persistentDataPath` exists — create it.
+7. Test every screen at 720x1280 *and* 1080x2400 before merging.
+8. Never assume `Application.persistentDataPath` exists -- create it.
 9. Guard against double-tap on any irreversible action (stamp, grant access, fire).
-10. Audio must survive scene loads → single persistent `AudioManager` in `00_Boot`.
+10. Audio must survive scene loads -> single persistent `AudioManager` in `00_Boot`.
 
 ---
 
 ## Entries
 
-### BUG-001 — `Setup-DevEnvironment.ps1` fails to parse with "Unexpected token" / "string is missing the terminator"
-- **Found:** 2026-11-25 by the user (Windows PowerShell 5.1) · **Severity:** P0 (blocked all setup)
+### BUG-001 -- `Setup-DevEnvironment.ps1` fails to parse with "Unexpected token" / "string is missing the terminator"
+- **Found:** 2026-11-25 by the user (Windows PowerShell 5.1) - **Severity:** P0 (blocked all setup)
 - **Symptom:** script refuses to run; error points at an em-dash mid-string, then cascades into 8 more
-  parse errors at unrelated lines (`â€” MISMATCH`, `Unexpected token '", 'User')`).
+  parse errors at unrelated lines (`aEUR" MISMATCH`, `Unexpected token '", 'User')`).
 - **Repro:** run any `.ps1` containing non-ASCII characters from Windows PowerShell 5.1.
 - **Root cause:** Windows PowerShell 5.1 reads `.ps1` files **as ANSI unless they start with a UTF-8
   BOM**. My files were UTF-8 *without* BOM, so `U+2014 EM DASH` was decoded as 3 ANSI bytes and broke
   string termination. PowerShell 7 defaults to UTF-8, which is why the script looked fine to me.
 - **Fix:** all `.ps1` files are now pure ASCII (em-dashes replaced with `--`), saved **UTF-8 with BOM**,
   CRLF line endings. Added `scripts/Test-Scripts.ps1` which fails the build on any non-ASCII byte.
-- **Regression test:** `scripts/Test-Scripts.ps1` (parse + encoding gate) — must print `PASS` for every
+- **Regression test:** `scripts/Test-Scripts.ps1` (parse + encoding gate) -- must print `PASS` for every
   script before any commit touching `scripts/`.
 - **Prevention rule:** **`scripts/*.ps1` must be ASCII-only, UTF-8 with BOM, CRLF. Run
   `scripts/Test-Scripts.ps1` before committing.** Never put typographic punctuation in code.
 
-### BUG-002 — `-Verify` crashed with "Cannot bind argument to parameter 'Path' because it is null"
-- **Found:** 2026-11-25 by the agent (dry-run in PowerShell 7) · **Severity:** P1
+### BUG-002 -- `-Verify` crashed with "Cannot bind argument to parameter 'Path' because it is null"
+- **Found:** 2026-11-25 by the agent (dry-run in PowerShell 7) - **Severity:** P1
 - **Root cause:** `$PSScriptRoot` is null when the script is dot-sourced/invoked in some contexts, and
   `$env:USERPROFILE` / `$env:ProgramFiles` are null off-Windows, so `Join-Path` got a null base.
 - **Fix:** fallbacks for `$PSScriptRoot` (`$MyInvocation.MyCommand.Definition`), `$UserHome`
@@ -62,8 +62,8 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
 - **Prevention rule:** **never build a path from an environment variable without a fallback**; verify
   scripts by executing them in CI or at least once locally, not only by reading them.
 
-### BUG-003 — distribution zip told the user it contained git history but did not
-- **Found:** 2026-11-25 by the agent (self-caught) · **Severity:** P2 (wasted time, damaged trust)
+### BUG-003 -- distribution zip told the user it contained git history but did not
+- **Found:** 2026-11-25 by the agent (self-caught) - **Severity:** P2 (wasted time, damaged trust)
 - **Root cause:** the zip builder skipped `.git`, and the bundle accidentally committed its own
   previous zip into history.
 - **Fix:** bundle is now produced from a fresh `git clone` (so history is intact), `*.zip` added to
@@ -71,8 +71,8 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
 - **Prevention rule:** **verify a distributed artefact by extracting it and running the command the
   user will run** (`git log`) before announcing it as ready.
 
-### BUG-004 — `-Verify` reported `D10 adb: not on PATH` right after installing it in the same run
-- **Found:** 2026-11-25 by the user (install + verify in one invocation) · **Severity:** P1 (false alarm)
+### BUG-004 -- `-Verify` reported `D10 adb: not on PATH` right after installing it in the same run
+- **Found:** 2026-11-25 by the user (install + verify in one invocation) - **Severity:** P1 (false alarm)
 - **Symptom:** `-D10 extracting platform-tools` printed `added ... to user PATH`, then the verify table
   said `D10 FAIL not on PATH`. A second run in a *new* shell would have passed.
 - **Root cause:** `[Environment]::SetEnvironmentVariable(..., 'User')` writes the **registry**, but the
@@ -85,37 +85,37 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
 - **Prevention rule:** **any check that depends on PATH/env must refresh from the registry first.**
   Never verify an environment mutation inside the process that made it without re-reading the source of truth.
 
-### BUG-005 — `D03/D04` permanently FAILed even with the Android modules installed
-- **Found:** 2026-11-25 by the user (Unity Hub showed Android Build Support 6.43 GB installed) · **Severity:** P1
+### BUG-005 -- `D03/D04` permanently FAILed even with the Android modules installed
+- **Found:** 2026-11-25 by the user (Unity Hub showed Android Build Support 6.43 GB installed) - **Severity:** P1
 - **Symptom:** Hub listed `Android Build Support`, `OpenJDK`, `Android SDK & NDK Tools` as *Installed*,
   but `-Verify` reported `D03 FAIL` and `D04 SDK=False NDK=False JDK=False`.
 - **Root cause:** wrong path. I checked `<version>\PlaybackEngines\AndroidPlayer`. Unity 6 puts it at
-  **`<version>\Editor\Data\PlaybackEngines\AndroidPlayer`**. The check could *never* pass — a false
+  **`<version>\Editor\Data\PlaybackEngines\AndroidPlayer`**. The check could *never* pass -- a false
   negative that wasted a Hub reinstall cycle.
 - **Fix:** the script now tries both layouts, selects the first that exists, and prints the
   `PlaybackEngines` directory listing when neither matches (so the next failure is diagnosable from the
   output alone). `Unity.exe` is likewise probed in both `Editor\` and `Editor\Data\`.
-- **Regression test:** fake-layout test in the sandbox — create
+- **Regression test:** fake-layout test in the sandbox -- create
   `<pf>\Unity\Hub\Editor\6000.3.29f1\Editor\Data\PlaybackEngines\AndroidPlayer\{SDK,NDK,OpenJDK}` and run
-  `-Verify` with `$env:ProgramFiles` pointed at it → D01–D04 all PASS (confirmed 2026-11-25).
+  `-Verify` with `$env:ProgramFiles` pointed at it -> D01-D04 all PASS (confirmed 2026-11-25).
 - **Prevention rule:** **never hardcode a third-party installation path from memory.** Find it by probing
   known candidates + listing the directory on failure.
 
-### BUG-006 — `D10 adb` still FAILed after the installer added it to PATH
-- **Found:** 2026-11-25 by the user (second verify run, fresh window) · **Severity:** P1
+### BUG-006 -- `D10 adb` still FAILed after the installer added it to PATH
+- **Found:** 2026-11-25 by the user (second verify run, fresh window) - **Severity:** P1
 - **Root cause:** the check tested `Test-Cmd 'adb'`, which only sees the *current process* PATH. When the
   user PATH is written by a non-elevated installer or the shell was started before the change, the
   command is still invisible even in a "new" window. Inferring "not installed" from that is wrong.
-- **Fix:** D10 now checks three independent facts — `adb.exe` on disk at the expected location, `adb`
-  resolvable on PATH, and whether the User PATH *registry value* contains `platform-tools` — and reports
+- **Fix:** D10 now checks three independent facts -- `adb.exe` on disk at the expected location, `adb`
+  resolvable on PATH, and whether the User PATH *registry value* contains `platform-tools` -- and reports
   the distinction ("installed; reopen PowerShell" vs "not installed").
 - **Regression test:** run `-Verify` in a shell whose PATH lacks the new entry; the detail must say
   "installed ... reopen PowerShell", never a bare "not installed".
 - **Prevention rule:** **distinguish "not installed" from "not visible in this shell".** Report the fact
   and the remedy separately.
 
-### BUG-007 — the headless test harness shipped without its `.csproj`
-- **Found:** 2026-11-25 by the agent during bundle verification · **Severity:** P1
+### BUG-007 -- the headless test harness shipped without its `.csproj`
+- **Found:** 2026-11-25 by the agent during bundle verification - **Severity:** P1
 - **Symptom:** fresh clone -> `dotnet run --project tools\CoreTests` ->
   *"Couldn't find a project to run."* Only `Program.cs` was committed.
 - **Root cause:** the standard Unity `.gitignore` contains `*.csproj`; it silently excluded
@@ -127,8 +127,8 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
 - **Prevention rule:** **verify a distribution by exercising it from a clean clone** (build + test),
   not by inspecting the source tree. Ignore rules are part of the build.
 
-### BUG-008 — workspace snapshot "over budget" while the project was only 9 MB
-- **Found:** 2026-11-25 by the user (platform warning) · **Severity:** P1 (blocks persistence)
+### BUG-008 -- workspace snapshot "over budget" while the project was only 9 MB
+- **Found:** 2026-11-25 by the user (platform warning) - **Severity:** P1 (blocks persistence)
 - **Symptom:** "went over budget", yet the repo was 53 tracked files / 9 MB and no single file exceeded
   the limits.
 - **Root cause:** the **agent** installed a .NET SDK into `/home/user/.tooling/` to compile and test the
@@ -143,8 +143,8 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
   (`.cache/`, `.venv/`, `node_modules/`, `/tmp`), never into a new dot-folder, and never into the repo.
   Check `du -sh` before the end of any turn that installs something.
 
-### BUG-009 — `.cache/` (a 567 MB SDK) was committed into git
-- **Found:** 2026-11-25 by the agent (git printed CRLF warnings for 700+ SDK files) · **Severity:** P1
+### BUG-009 -- `.cache/` (a 567 MB SDK) was committed into git
+- **Found:** 2026-11-25 by the agent (git printed CRLF warnings for 700+ SDK files) - **Severity:** P1
 - **Symptom:** bundle/jRepo suddenly had 794 tracked files (expected 53) and `.git` grew 3 MB -> 36 MB.
 - **Root cause:** the platform *excludes* `.cache/` from workspace snapshots, but **git has its own
   ignore list** -- and `.cache/` was not in `.gitignore`. `git add -A` then swept the entire SDK in.
@@ -156,8 +156,8 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
 - **Prevention rule:** **the platform's snapshot-exclusion list and `.gitignore` are different lists --
   satisfy both.** Never run `git add -A` in this workspace without checking the tracked-file count first.
 
-### BUG-010 — two art PNGs showed as permanently modified, blocking every update
-- **Found:** 2026-11-25 by the user (`Update-FromBundle.ps1` refused: ` M art/concepts/*.png`) · **Severity:** P1
+### BUG-010 -- two art PNGs showed as permanently modified, blocking every update
+- **Found:** 2026-11-25 by the user (`Update-FromBundle.ps1` refused: ` M art/concepts/*.png`) - **Severity:** P1
 - **Symptom:** `git status` reported both concept mockups modified on a machine where nobody had edited
   them; the update script correctly refused to run.
 - **Root cause:** `.gitattributes` declared `*.png filter=lfs ...`, but the files had been committed in an
@@ -173,8 +173,8 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
   and verify `git status` on a machine where the client is installed -- which is not the machine that
   authored the commit.
 
-### BUG-011 — the update script nested every folder (`docs/docs/`) and never replaced `.git`
-- **Found:** 2026-11-25 by the user (update output showed `HEAD before == HEAD after` and `?? docs/docs/`) · **Severity:** P0 (broke the only safe update path)
+### BUG-011 -- the update script nested every folder (`docs/docs/`) and never replaced `.git`
+- **Found:** 2026-11-25 by the user (update output showed `HEAD before == HEAD after` and `?? docs/docs/`) - **Severity:** P0 (broke the only safe update path)
 - **Symptom:**
   - `art/art/`, `docs/docs/`, `handoff/handoff/`, `prototype/prototype/`, `scripts/scripts/`, `tools/tools/`, `unity/unity/` appeared as untracked duplicates
   - `HEAD before: cb2bab6`, `HEAD after: cb2bab6` -- the bundle's history was **not** applied, so a brand-new bundle left the copy at an old commit
@@ -197,34 +197,34 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
 
 ---
 
-## BUG-014 — bundle zip contained a path Windows cannot write; every apply failed at extraction
+## BUG-014 -- bundle zip contained a path Windows cannot write; every apply failed at extraction
 
 - **Found:** 2026-11-26 by the user, applying v16 (a wall of
   `Remove-Item : Cannot find path '...\hr0d-boot-b28400fa\HR-ZeroDay\.git\objects\5e\decd...'`)
-- **Severity:** P0 — the update path was dead for everyone
+- **Severity:** P0 -- the update path was dead for everyone
 - **Symptom:** `Expand-Archive` created some entries and then failed on the rest, ending with
   `New-Object ... "The given path's format is not supported."` Nothing was applied.
 - **Root cause:** my ad-hoc zip step walked the whole repo root and swept up **sandbox tool caches**:
-  `.nuget/NuGet/NuGet.Config` and `.local/share/NuGet/http-cache/<hash>$ps:_api.nuget.org_v3_index.json/…`.
+  `.nuget/NuGet/NuGet.Config` and `.local/share/NuGet/http-cache/<hash>$ps:_api.nuget.org_v3_index.json/...`.
   That folder name contains a colon. NTFS forbids `:` in a path, so `Expand-Archive` cannot create it,
-  and its cleanup pass then reported every *other* entry as "cannot find path" — a misleading cascade
+  and its cleanup pass then reported every *other* entry as "cannot find path" -- a misleading cascade
   that points at `.git` when the real culprit is one NuGet cache folder. 514 zip entries; 2 of them
   were unrepresentable on Windows.
 - **Fix:** packaging is now a script, `scripts/Build-Bundle.ps1` (ASCII+BOM+CRLF, covered by
   `Test-Scripts.ps1`). It never packages `.local`, `.nuget`, `.dotnet`, `.tooling`, `node_modules`,
   Unity `Library/Temp/Logs/obj`, `__pycache__`, `*.zip`, `*.bundle`; it **skips and reports** any path
   containing `: * ? " < > |`; and it aborts if any of those leak in.
-- **Regression test:** build with the script, then verify the archive before shipping —
+- **Regression test:** build with the script, then verify the archive before shipping --
   `391 entries`, `bootstrap at root and inside HR-ZeroDay`, `git history present, no tooling caches,
   no unwritable paths`, then extract to a clean folder and run both palette checks + `dotnet run`.
 - **Prevention rule:** **never zip a working directory you have also used as a toolchain home.** Package
   from an explicit allow-list (or an explicit deny-list that includes every cache dir), and validate the
   archive against the *target* OS's path rules before calling it done.
 
-## BUG-015 — `.\Apply-Bundle.ps1` was not in the zip root (bootstrap unreachable)
+## BUG-015 -- `.\Apply-Bundle.ps1` was not in the zip root (bootstrap unreachable)
 
-- **Found:** 2026-11-26 by the user: `The term '.\Apply-Bundle.ps1' is not recognized…`
-- **Severity:** P1 — a one-line fix, but it blocks the whole handoff
+- **Found:** 2026-11-26 by the user: `The term '.\Apply-Bundle.ps1' is not recognized...`
+- **Severity:** P1 -- a one-line fix, but it blocks the whole handoff
 - **Symptom:** standing in `Downloads`, the documented first command failed with
   `CommandNotFoundException`, even though the zip was downloaded correctly.
 - **Root cause:** the bootstrap existed only at `HR-ZeroDay/Apply-Bundle.ps1` in the earlier build
@@ -236,19 +236,19 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
 - **Prevention rule:** **the operator's very first command must be tested from the folder the docs name.**
   Bundles are judged from `Downloads`, not from a repo.
 
-## BUG-016 — the palette checks needed Pillow, so verification failed on a clean machine
+## BUG-016 -- the palette checks needed Pillow, so verification failed on a clean machine
 
 - **Found:** 2026-11-26 by the user on the freshly applied v17:
   `ModuleNotFoundError: No module named 'PIL'` from both `tools/art/make_art_kit.py --check` and
   `tools/art/make_applicants.py --check`.
-- **Severity:** P1 — the art was fine; the *proof* was unavailable. The team's verify loop broke on
+- **Severity:** P1 -- the art was fine; the *proof* was unavailable. The team's verify loop broke on
   any machine that had not run `pip install pillow`.
 - **Root cause:** both checkers imported Pillow at module scope. `--check` only needs to *read* pixels,
   and Pillow was doing work the standard library can do.
-- **Fix:** new `tools/art/pngcheck.py` — a dependency-free PNG decoder (colour types 0/2/3/4/6, 8-bit,
+- **Fix:** new `tools/art/pngcheck.py` -- a dependency-free PNG decoder (colour types 0/2/3/4/6, 8-bit,
   non-interlaced; all five filter types). Both `--check` paths now use it. Pillow is imported lazily and
   is only required to *regenerate* art; without it the generators print
-  `Pillow is required to REGENERATE…` and exit 2 instead of crashing.
+  `Pillow is required to REGENERATE...` and exit 2 instead of crashing.
   `Setup-DevEnvironment.ps1 -Verify` gained check `D13` so the dependency is visible, not implied.
 - **Regression test:** `tools/art/selfcheck_pngcheck.py` writes RGBA / palette+tRNS / grey+alpha PNGs,
   decodes them back, and (when Pillow exists) cross-checks the decoder against Pillow on real kit files
@@ -256,13 +256,13 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
   import-blocked (`PYTHONPATH` stub): both still print PASS, `73 sprites` and `28 applicant sprites`;
   regeneration without Pillow exits 2 with a one-line explanation.
 - **Prevention rule:** **verification must never depend on a package that only the generator needs.**
-  If a check can be written against the standard library, write it that way — a green check that
+  If a check can be written against the standard library, write it that way -- a green check that
   requires an install is not a green check.
 
-## BUG-017 — the twin renderer drew every applicant upside-down
+## BUG-017 -- the twin renderer drew every applicant upside-down
 
 - **Found:** 2026-11-26 while building `tools/comp/twin_desk.py`; caught by looking at the render, not by a test.
-- **Severity:** P2 — offline renderer only, no shipped art affected. Would have poisoned every future
+- **Severity:** P2 -- offline renderer only, no shipped art affected. Would have poisoned every future
   layout decision made against the twin.
 - **Root cause:** `pngcheck.read_rgba` already returns rows **top-down** (PNG order normalised). The
   slicer re-flipped them as if they came from a bottom-up source, so each frame was mirrored vertically.
@@ -271,83 +271,83 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
 - **Prevention rule:** **know which direction your byte rows run before writing any blit.** Add a
   deliberately asymmetric test sprite (a 3-pixel notch in one corner) whenever a new blitter appears.
 
-## BUG-018 — `[MenuItem("x", priority = N)]` is not valid C#
+## BUG-018 -- `[MenuItem("x", priority = N)]` is not valid C#
 
 - **Found:** 2026-11-26 by `tools/UnityStubs` (the stub compile), **before any Unity install existed**.
-- **Severity:** P1 — the whole Editor menu (and therefore the art importer and scene builder) would have
+- **Severity:** P1 -- the whole Editor menu (and therefore the art importer and scene builder) would have
   failed to compile on the first project open, blocking Dev B.
 - **Root cause:** C# attributes do not accept named arguments to a constructor unless the attribute
-  declares a settable property of that name. Unity's `MenuItem` has **no** `priority` property — only
+  declares a settable property of that name. Unity's `MenuItem` has **no** `priority` property -- only
   positional ctor parameters.
-- **Fix:** `[MenuItem("HR//0D/Build Desk Scene", false, 20)]` — the third positional parameter *is* the
+- **Fix:** `[MenuItem("HR//0D/Build Desk Scene", false, 20)]` -- the third positional parameter *is* the
   priority. Verified by stubbing the four real ctor overloads and compiling.
 - **Prevention rule:** **the Unity-facing code must compile without Unity.** `tools/UnityStubs` +
   `.\scripts\Test-ArtPipeline.ps1` do this in ~6 s; it has already paid for itself three times
   (also caught a missing `using`, an ambiguous `TextAsset`, and `Color32` -> `Color`).
 
-## BUG-019 — applying a bundle without `-Clean` left the files newer than HEAD
+## BUG-019 -- applying a bundle without `-Clean` left the files newer than HEAD
 
 - **Found:** 2026-11-26 by the user while applying v21: files landed correctly (`Test-Path` -> `True`)
   but `git log` still showed `dc55e59` and `git status` listed 6 modified/untracked entries.
-- **Severity:** P1 — the exact "is my copy right?" doubt the bundle exists to remove. It also made the
+- **Severity:** P1 -- the exact "is my copy right?" doubt the bundle exists to remove. It also made the
   new `Connect-Remote.ps1` look broken when it was merely uncommitted.
 - **Root cause:** `.git` was only adopted when `-Clean` was passed, but the file copy always ran. So a
-  non-Clean apply overwrote the working tree while keeping the older history — dirty by construction.
+  non-Clean apply overwrote the working tree while keeping the older history -- dirty by construction.
 - **Fix:** `Apply-Bundle.ps1` now adopts the bundle's `.git` on **every** apply (unless `-NoGit`),
   saves and restores the user's `origin` URL (a bundle's `.git` has no remote), and runs
   `git reset --mixed HEAD` so index and files agree.
 - **Prevention rule:** **the file copy and the history copy must be one operation.** If a step can
   leave files and HEAD disagreeing, it must not exist.
 
-## BUG-020 — `git fetch ... 2>&1 | Out-String` kills the script in PowerShell 5.1
+## BUG-020 -- `git fetch ... 2>&1 | Out-String` kills the script in PowerShell 5.1
 
 - **Found:** 2026-11-26 by the user on Windows PowerShell 5.1 (`Connect-Remote.ps1` printed `==> fetching`
   then `NativeCommandError` and stopped, even though the fetch itself had succeeded).
-- **Severity:** P1 — the runbook died at the moment it was supposed to report good news.
+- **Severity:** P1 -- the runbook died at the moment it was supposed to report good news.
 - **Root cause:** PS 5.1 wraps a native command's **first stderr line** in an `ErrorRecord`; with
   `$ErrorActionPreference = 'Stop'` and a redirection/pipe (`2>&1 |`), that record is *terminating*.
-  Git writes progress and `From https://…` to stderr by design. PowerShell 7 changed this behaviour,
+  Git writes progress and `From https://...` to stderr by design. PowerShell 7 changed this behaviour,
   which is why the sandbox never reproduced it.
-- **Fix:** never redirect a native command's stderr when the script may run on 5.1 — use
+- **Fix:** never redirect a native command's stderr when the script may run on 5.1 -- use
   `& git fetch origin --prune | Out-Host`, and set `$ErrorActionPreference = 'Continue'` before native
   calls, checking `$LASTEXITCODE` instead of relying on exceptions. Also dropped a stale `$branch`
   reference that printed `git push -u origin ` with no branch name.
 - **Prevention rule:** **test on the operator's shell, not the one you have.** The sandbox has
   PowerShell 7; the user has 5.1. Any stderr redirection of a native tool is a 5.1 landmine.
-  `.\scripts\Test-Scripts.ps1` only catches *parse* errors — it cannot catch this class.
+  `.\scripts\Test-Scripts.ps1` only catches *parse* errors -- it cannot catch this class.
 
-## BUG-021 — a copied `.git` folder produced a working copy that was dirty no matter what
+## BUG-021 -- a copied `.git` folder produced a working copy that was dirty no matter what
 
 - **Found:** 2026-11-26 while reproducing the user's v22 apply: files arrived (including the *new*
   `Apply-Bundle.ps1`) but `git log` still showed the OLD commit and `git status` listed 8 entries.
-- **Severity:** P1 — every bundle after the first was untrustworthy, and the GitHub push published a
+- **Severity:** P1 -- every bundle after the first was untrustworthy, and the GitHub push published a
   snapshot whose own scripts were older than the files next to them.
 - **Root cause:** three independent faults, all in "copy `.git` with `Copy-Item -Recurse`":
   1. the copy loop set `ErrorActionPreference='Stop'`, so the first file Windows refused (a locked
-     `.git/index`) aborted the whole `.git` copy inside `try{}catch{}` — the exception was swallowed and
+     `.git/index`) aborted the whole `.git` copy inside `try{}catch{}` -- the exception was swallowed and
      the swap silently never happened;
   2. a replaced `.git` was therefore never introduced, leaving HEAD old while files were new;
   3. later, discovering the branch by running `git` inside the *extracted* folder resolved to an
      unrelated parent repository (the test sandbox), returning an empty branch name.
 - **Fix:** history no longer travels as a `.git` folder. `Build-Bundle.ps1` writes a **git bundle**
-  (`git bundle create … main`, verified with `git bundle verify` → *"records a complete history"*) plus a
+  (`git bundle create ... main`, verified with `git bundle verify` -> *"records a complete history"*) plus a
   literal `history.branch` file. `Apply-Bundle.ps1` then does `git init` + `git fetch history.bundle`
   + `symref HEAD` + `reset --mixed`, preserving the user's `origin`, and excludes the two transport
   files from the file copy. `-Reinstall` added for "match the files to HEAD without touching a remote".
   `Apply-Bundle` now **exits 1 and prints the fix** when the tree is dirty instead of warning politely.
-- **Proven on three scenarios:** stale `.git` + real origin → `history adopted: main at a70342c`,
-  `origin preserved`, `working tree clean -- files match HEAD exactly`; empty folder → same, with a
-  `no origin` hint; running the repo's own script copy → clean.
+- **Proven on three scenarios:** stale `.git` + real origin -> `history adopted: main at a70342c`,
+  `origin preserved`, `working tree clean -- files match HEAD exactly`; empty folder -> same, with a
+  `no origin` hint; running the repo's own script copy -> clean.
 - **Prevention rule:** **never package a `.git` directory.** Ship a bundle file that git validates, and
   make the transport self-describing (a `history.branch` literal) instead of inferring state by running
   git in a folder that may not be a repo. Also: never let a `catch {}` swallow the loop that performs a
   required swap.
 
-## BUG-022 — `return` inside a `foreach` exited the whole apply script
+## BUG-022 -- `return` inside a `foreach` exited the whole apply script
 
 - **Found:** 2026-11-26 while regression-testing the BUG-021 rewrite: the apply printed
   `==> copying project files` and then simply stopped, exit code 0, no error.
-- **Severity:** P1 — a silent half-apply. The worst possible failure: no message, no non-zero exit.
+- **Severity:** P1 -- a silent half-apply. The worst possible failure: no message, no non-zero exit.
 - **Root cause:** the copy loop was converted from `Get-ChildItem | ForEach-Object { ... return }` to a
   plain `foreach ($it in $items) { ... }` but the `return` statements were kept. In a `ForEach-Object`
   block `return` skips one item; in a plain `foreach` inside a script it returns from the *script*.
@@ -356,11 +356,11 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
 - **Prevention rule:** after changing a pipeline block into a `foreach` statement (or back), grep the
   block for `return`. They are not interchangeable.
 
-## BUG-023 — `Get-Item` silently refuses dot-files off Windows
+## BUG-023 -- `Get-Item` silently refuses dot-files off Windows
 
 - **Found:** 2026-11-26 by the user-visible symptom `Could not find item /home/user/.gitattributes`,
   thrown by the *first* tracked file during bundle build.
-- **Severity:** P2 — build-tooling only; Windows (where the team builds) is unaffected because
+- **Severity:** P2 -- build-tooling only; Windows (where the team builds) is unaffected because
   "hidden" there is an attribute, not a leading dot.
 - **Root cause:** on Linux/macOS PowerShell reports dot-prefixed names as hidden, and `Get-Item` (like
   `Get-ChildItem` without `-Force`) skips hidden items and then complains the path does not exist.
@@ -373,13 +373,13 @@ Severity: **P0** blocks the event · **P1** breaks a core loop · **P2** cosmeti
 
 `Build-Bundle.ps1` collects **`git ls-files`** (the tracked tree), refuses to build when the working
 tree is dirty, and ships `history.bundle` + `history.branch` instead of a `.git` folder. That makes
-"the zip" and "the commit it names" the same thing by construction — BUG-019, BUG-021 and every
+"the zip" and "the commit it names" the same thing by construction -- BUG-019, BUG-021 and every
 variant of "bundle newer than its HEAD" cannot recur.
 
-## BUG-024 — `HR//0D > Build Desk Scene` throws NullReferenceException before creating anything
+## BUG-024 -- `HR//0D > Build Desk Scene` throws NullReferenceException before creating anything
 
 - **Found:** 2026-11-26 by the agent while wiring the interaction layer (type-check review).
-  **Severity:** P1 — the documented way to create the first scene cannot work at all.
+  **Severity:** P1 -- the documented way to create the first scene cannot work at all.
 - **Symptom:** the menu calls `DeskSceneBuilder.Build(layout, null)`, then `Build` immediately runs
   `parent.Find(RootName)` on the null parent. Unity reports a `NullReferenceException` and no
   `Assets/Scenes/Desk.unity` is written.
@@ -399,13 +399,13 @@ variant of "bundle newer than its HEAD" cannot recur.
 - **Symptom:** the monitor read as hanging in mid-air; the desk surface started below it with nothing
   joining the two.
 - **Cause:** `monitor_small.png` included a 4 px stand *inside the monitor sprite*, but the monitor
-  layer sorts at `−20` and the desk foreground at `+10`. The desk therefore always painted over any
+  layer sorts at `-20` and the desk foreground at `+10`. The desk therefore always painted over any
   part of the stand that reached the desk surface, so only the bezel showed and it looked detached.
 - **Fix:** the stand became its own layer, `desk/monitor_stand.png` (44x26, ragged neck + ellipse base
-  + contact shadow), sorting `−19`, anchored `[69, 60]` so its bottom 4 px hide behind the desk edge.
+  + contact shadow), sorting `-19`, anchored `[69, 60]` so its bottom 4 px hide behind the desk edge.
   The monitor sprite moved from anchor y `76` to `86` to sit on the neck.
 - **Prevention rule:** a prop that stands on a surface may never rely on pixels inside its own sprite
-  crossing a *higher* sorting layer. Split it, or it silently cannot touch the floor. (Bible §7b.)
+  crossing a *higher* sorting layer. Split it, or it silently cannot touch the floor. (Bible #7b.)
 
 ## BUG-026 -- workspace snapshot over budget, 4,283 files silently dropped (2026-11-26)
 
@@ -428,8 +428,8 @@ Redundant, not broken. Nothing shipped was touched; every gate re-ran green afte
 |---|---|
 | `tools/art/make_artifact_legend.py`, `make_character_spread.py`, `make_composition_preview.py` | One-off contact-sheet scripts with no caller and no gate. All three were superseded by `twin_desk.py` |
 | `art/kit/reference/{applicants_sheet,artifact_legend,character_spread,composition_preview,window_detail}.png` | Their outputs. The live previews are `twin_desk_*.png` (which the gates verify) |
-| `art/concepts/study_K_*.png`, `study_L_*.png`, `study_contact_sheet_JK.png` | Studies A–K were deleted when L was promoted; these three were the leftovers. The generator stays (`study_desk_workdesk.py` is referenced by a gate) |
-| `docs/PROJECT-STATUS.md` | Pinned `dfea20f` / 53 files. Had been false for weeks — the most confusing file in the repo |
+| `art/concepts/study_K_*.png`, `study_L_*.png`, `study_contact_sheet_JK.png` | Studies A-K were deleted when L was promoted; these three were the leftovers. The generator stays (`study_desk_workdesk.py` is referenced by a gate) |
+| `docs/PROJECT-STATUS.md` | Pinned `dfea20f` / 53 files. Had been false for weeks -- the most confusing file in the repo |
 | `docs/NEXT-STEPS.md` | Superseded by `docs/16-the-later-list.md` |
 | `docs/03-title-shortlist.md` | Title is locked |
 | `docs/05-design-suggestions.md` | Superseded by `docs/06-decisions.md` |
@@ -437,7 +437,7 @@ Redundant, not broken. Nothing shipped was touched; every gate re-ran green afte
 | `.cache/`, `.dotnet/`, `.local/`, `.nuget/` at the workspace root | Toolchain droppings (BUG-026) |
 | `tools/art/__pycache__/` | Build droppings |
 
-**Docs now have an index** (`docs/README.md`) with a "deleted on purpose — do not recreate" list, and
+**Docs now have an index** (`docs/README.md`) with a "deleted on purpose -- do not recreate" list, and
 `README.md` links to it instead of describing files that no longer exist (it still pointed at a
 `content/` folder that was never created).
 
@@ -448,10 +448,10 @@ Redundant, not broken. Nothing shipped was touched; every gate re-ran green afte
 - **Cause:** `ragged_rect(..., amp=1)` was applied to a 154x106 box. Its 1 px step-by-step edges are
   designed for hand-drawn *props*; on a hard rectangle at that size every edge becomes a broken run,
   and `scuff(n=14)` added the rest.
-- **Fix:** the monitor is now drawn straight (case → bezel face with bevel → glass → 1 dent, 2 chips,
+- **Fix:** the monitor is now drawn straight (case -> bezel face with bevel -> glass -> 1 dent, 2 chips,
   4 scuffs). Global wear was recalibrated: `LEVELS` scuffs 10/22/36 -> **4/9/16**, applicants halved,
   desk 22 -> 14, noticeboard 6 -> 3, stamps 3 -> 2, documents 10 -> 5.
-- **Rule (bible §6b):** big hard objects stay hard. Only paper and soft goods get torn silhouettes.
+- **Rule (bible #6b):** big hard objects stay hard. Only paper and soft goods get torn silhouettes.
 - **Also rejected:** a diagonal glare streak across the glass -- it read as a scratch and competed with
   the email text the player is reading.
 
@@ -486,12 +486,12 @@ Redundant, not broken. Nothing shipped was touched; every gate re-ran green afte
 
 The user's apply got further every time and failed somewhere new. All four are in the same 30 lines.
 
-- **BUG-038 `refusing to fetch into branch 'refs/heads/main' checked out at ...`** — `git init` puts
+- **BUG-038 `refusing to fetch into branch 'refs/heads/main' checked out at ...`** -- `git init` puts
   `HEAD` on `refs/heads/main` on git builds whose default branch is `main`; fetching
   `refs/heads/*:refs/heads/*` then writes into the checked-out branch and git refuses.
   **This box defaults to `master`, so the rehearsal could never reproduce it.** Rule: *behaviour that
   depends on a machine setting is never proven by one machine.*
-- **BUG-039 `git clone` was the obvious fix and is wrong** — it refuses a non-empty target, and the
+- **BUG-039 `git clone` was the obvious fix and is wrong** -- it refuses a non-empty target, and the
   working copy is always full of the previous version. Replaced with: `init`, then fetch into
   `refs/hr0d-incoming/*` (a namespace that can never be checked out), then `update-ref` each branch
   into place, then `symbolic-ref` + `reset --mixed`.
@@ -499,16 +499,16 @@ The user's apply got further every time and failed somewhere new. All four are i
   - source and destination were swapped in the fetch refspec (`+refs/hr0d-incoming/*:refs/heads/*`), so
     the fetch "succeeded" and created nothing;
   - `%(refname:short)` strips `refs/`, so the prefix match never fired and branches landed at
-    `refs/heads/hr0d-incoming/main` — and the next check then blamed the bundle;
+    `refs/heads/hr0d-incoming/main` -- and the next check then blamed the bundle;
   - `for-each-ref --format='%(refname) %(objectname)'` survives PowerShell as one argument but **not**
     through `ProcessStartInfo` quoting: git received two args, expanded only the first, and the sha
     silently vanished. Format strings are now **one token** (`'%(refname)|%(objectname)'`).
   - the fetch was `-Quiet`, so its failure reason was hidden and reported as "the bundle has no branches".
 - **BUG-041 `Expand-Archive` refused a dot-file entry** (`Cannot find path .../.gitattributes`). Windows
   PowerShell 5.1 extracts the same zip happily, but a script that only runs on one host cannot be
-  rehearsed — the zip is now extracted entry by entry through the `ZipFile` API.
+  rehearsed -- the zip is now extracted entry by entry through the `ZipFile` API.
 - **Also:** after a `-Clean` copy the tree can hold files the new `HEAD` never had (they came from the
-  *previous* version), which was reported as "files do NOT match HEAD" — alarming and wrong. A `-Clean`
+  *previous* version), which was reported as "files do NOT match HEAD" -- alarming and wrong. A `-Clean`
   apply now ends with `reset --hard` + `clean -fd` so the tree check means what it says.
 
 **Proof:** under `$PSNativeCommandUseErrorActionPreference = $true` (reproduces 5.1), three scenarios:
@@ -530,11 +530,11 @@ folder with no `.git`. All three end at `HEAD ... working tree clean -- files ma
 - **Fix (BUG-037):** no native command is invoked with `&` in `Apply-Bundle.ps1` any more. There is one
   `Git` helper that starts `git` as a `System.Diagnostics.Process` with `RedirectStandardOutput/Error`,
   returns stdout as a string, prints stderr in grey, and leaves the exit code in `$script:GitExitCode`.
-  Ten call sites migrated. **Rule: in a 5.1 script, treat native stderr as data — start the process.**
+  Ten call sites migrated. **Rule: in a 5.1 script, treat native stderr as data -- start the process.**
 - **Second bug found by rehearsing:** `Clear-Host` shells out to `clear`, which exits non-zero when
   `TERM` is unset or output is piped -- fatal under the same error handling. Removed (cosmetic).
 - **Third bug found:** the shipped bootstrap at the **repo root** was never linted, because
-  `Test-Scripts.ps1` only walked `scripts\`. It now checks the root bootstrap too — that is why three
+  `Test-Scripts.ps1` only walked `scripts\`. It now checks the root bootstrap too -- that is why three
   releases of broken bootstrap went out green.
 - **Proof:** rehearsed with `$PSNativeCommandUseErrorActionPreference = $true` (pwsh's switch that
   reproduces 5.1's behaviour) against a repo with **no origin**, twice in a row, plus the `-Reinstall`
@@ -565,7 +565,7 @@ folder with no `.git`. All three end at `HEAD ... working tree clean -- files ma
 The user applied v45 correctly and the apply **still** reported `HEAD 0b52098` (the v44 commit) and a
 dirty tree. The files were right; three separate defects meant the history step could never work.
 
-- **BUG-032 — the bootstrap looked for the history in a place the bundle never puts it.**
+- **BUG-032 -- the bootstrap looked for the history in a place the bundle never puts it.**
   `Build-Bundle.ps1` ships `history.bundle` / `history.branch` at the **zip root**; `Apply-Bundle.ps1`
   (the root bootstrap) builds `$root` = the extracted *project folder* and then tested
   `$root\.git`. There is no such folder in any bundle, so every `-Clean` apply printed
@@ -575,10 +575,10 @@ dirty tree. The files were right; three separate defects meant the history step 
   `.git` folder (older bundles), and fetches from the bundle with `git fetch <file> refs/heads/*:...`.
   `Build-Bundle.ps1` now writes the transport files in **both** locations and fails the build if either
   is missing.
-- **BUG-033 — "history adopted" could be a lie.** `git symbolic-ref` + `reset --mixed` were run without
+- **BUG-033 -- "history adopted" could be a lie.** `git symbolic-ref` + `reset --mixed` were run without
   checking that the branch actually exists in the bundle; a miss would leave `HEAD` dangling (which
   reads as `0 commits`). Now the script verifies `refs/heads/<branch>` exists and **fails loudly**.
-- **BUG-034 — no recovery path.** The script's own advice was `git reset --hard && git clean -fd`, which
+- **BUG-034 -- no recovery path.** The script's own advice was `git reset --hard && git clean -fd`, which
   the user would have to type. There is now **`-Reinstall`**: does exactly that, no extraction, idempotent.
 
 **Also fixed here:** `scripts/Build-Bundle.ps1` shipped `history.bundle` at the root only, and the
@@ -668,7 +668,7 @@ strict as Unity"**.
 
 **Fix.**
 - `TextMesh` keeps only members it really has. `sortingOrder` / `sortingLayerName` moved to a `Renderer`
-  base class, with `MeshRenderer` and `SpriteRenderer` deriving from it — Unity's own hierarchy.
+  base class, with `MeshRenderer` and `SpriteRenderer` deriving from it -- Unity's own hierarchy.
 - The three call sites use `GetComponent<MeshRenderer>().sortingOrder`, which is what the engine requires.
 - **New guard** in `scripts/Test-ArtPipeline.ps1`: it parses the `TextMesh` stub and fails by name if
   `sortingOrder` or `sortingLayerName` ever appears there again. Verified by re-adding the lie.
@@ -685,14 +685,14 @@ plus the going in and out of unity to extract a file."*
 **Three separate wastes, all fixed:**
 1. The `HR//0D` menu is **not** required to play. `GameBoot` builds the desk at `AfterSceneLoad` when no
    `DeskBootstrap` exists, so pressing Play is the whole step. The menu is only for when art PNGs changed.
-2. `scripts/Open-Game.ps1` opens the project on the detected Unity install — no Hub clicking.
+2. `scripts/Open-Game.ps1` opens the project on the detected Unity install -- no Hub clicking.
 3. `Apply-Bundle.ps1` used a hard `Remove-Item` on `.git`, which is what demanded a closed editor. It now
    retries five times and only asks for a closed editor if all five fail.
 
 **And a documentation bug that cost the player a round trip:** the previous `docs/BUNDLE-WORKFLOW.md` said
-`.\scripts\Open-Game.ps1` right after the apply line — but that script ships *inside* the bundle, so it
+`.\scripts\Open-Game.ps1` right after the apply line -- but that script ships *inside* the bundle, so it
 does not exist until the apply has run. It also never said the zip lives in `Downloads` while the repo is
-elsewhere. The page is rewritten with the two commands in order and a symptom → cause → fix table.
+elsewhere. The page is rewritten with the two commands in order and a symptom -> cause -> fix table.
 
 ## BUG-044 -- the bundle shipped without the art the game loads at runtime (player report, 2026-11-25)
 
@@ -716,14 +716,14 @@ The art was in the repository the whole time.
 The art gate then *enforced* the mistake: it failed if `Resources/Art` was tracked in git. So the gate was
 green while every bundle was missing 85 files the game needs.
 
-**This is the same class as BUG-042** — a local check blessing something the real environment rejects.
+**This is the same class as BUG-042** -- a local check blessing something the real environment rejects.
 
 **Fix.**
 - `unity/Assets/Resources/Art/` is **committed**. A file the game reads at runtime is a source file.
 - `publish_to_unity.py` now writes **both** mirrors (authoring `Assets/Art/Kit` and runtime
   `Assets/Resources/Art/Kit`) and verifies both; `--verify` names which mirror is missing or stale.
 - The gate rule is **inverted**: it used to require the folder to be untracked, it now requires every
-  manifest sprite to be tracked under `Resources/Art` and byte-identical. Verified by hiding the folder —
+  manifest sprite to be tracked under `Resources/Art` and byte-identical. Verified by hiding the folder --
   the gate fails by name.
 - `docs/BUNDLE-WORKFLOW.md` no longer claims the menu is needed before Play. It was, until this fix.
 
@@ -742,24 +742,24 @@ corrupted or does not exist. (Texture 'monitor_font_5x7')
 **Root cause.** `MonitorScreenView` and `LetterView` read the font atlas pixel by pixel with
 `GetPixels32()`. That requires the texture to be imported with **Read/Write Enabled**, which is a flag
 that exists **only in the texture's `.meta` file**. No `.meta` file was committed, so Unity generated one
-on import with its default — Read/Write **disabled** — and the first `GetPixels32()` threw.
+on import with its default -- Read/Write **disabled** -- and the first `GetPixels32()` threw.
 
 `ArtKitImporter.ConfigureFontAtlas()` had known about this for a while, but it is an editor menu step, and
-it configured `Assets/Resources/fonts/...` and `Assets/Art/Kit/fonts/...` — not the new runtime mirror at
+it configured `Assets/Resources/fonts/...` and `Assets/Art/Kit/fonts/...` -- not the new runtime mirror at
 `Assets/Resources/Art/Kit/fonts/...`. So even running the menu was not guaranteed to fix it.
 
 **Fix, in depth order.**
 1. **The atlas `.meta` files are committed** with `isReadable: 1` and `filterMode: 0` (point). A fresh
    clone now imports correctly before anyone presses Play. `make_font.py` regenerates them, so they cannot
    drift from the atlas; the guid is derived from the path, so re-running never churns the repo.
-2. **The atlas PNG is no longer required at all.** The font json already carried `rows` per glyph — the
-   same ink as the PNG — and had done since the monitor screen was built, purely because the raster tests
+2. **The atlas PNG is no longer required at all.** The font json already carried `rows` per glyph -- the
+   same ink as the PNG -- and had done since the monitor screen was built, purely because the raster tests
    could not decode a PNG in C#. `FontAtlasGlyphSource` now reads those rows first and only falls back to
    the texture. `RowsFromMetrics()` is the bridge. If the atlas is readable it is used and wins, so art and
    data still cannot disagree.
-3. `LetterView` had the identical bug and would have been the next crash — same fallback applied.
+3. `LetterView` had the identical bug and would have been the next crash -- same fallback applied.
 4. **Gate:** `Test-ArtPipeline` now fails if either atlas `.meta` is missing or does not say
-   `isReadable: 1`. Verified by flipping the flag to 0 — it fails by file name.
+   `isReadable: 1`. Verified by flipping the flag to 0 -- it fails by file name.
 
 **Lesson.** A build input that lives in an uncommitted file is not a build input. Unity is especially good
 at hiding these: import settings, scene files and `.meta` guids all live in files that are easy to ignore
@@ -776,13 +776,13 @@ Resources/Art/Kit/applicants/frames/app_human_solid_a_192x216__human_solid_a_neu
 
 **Root cause.** `DeskSceneBuilder.LoadFrames` loads four child PNGs per applicant (neutral / breathe /
 breathe_fidget / blink) through `Resources.Load<Sprite>`. Those files were cut by
-`ArtKitImporter.ExtractFrames` — an **editor menu** step — because Unity 6 removed
+`ArtKitImporter.ExtractFrames` -- an **editor menu** step -- because Unity 6 removed
 `TextureImporter.spritesheet` and the replacement lives in a 2D package this assembly does not reference.
 The code was fine. Its *address* was not: nothing in the repository produced the files.
 
 **Fix.**
 - `tools/art/extract_frames.py` cuts the 56 frames in python, into **both** mirrors, from the frame names
-  and rects in `unity_sprites.json` — so the manifest stays the single source of truth and the script and
+  and rects in `unity_sprites.json` -- so the manifest stays the single source of truth and the script and
   the editor importer cannot disagree. `--check` verifies every frame exists.
 
 ## BUG-047 -- every sprite in the runtime mirror had no `.meta`, so `Resources.Load<Sprite>` returns null
@@ -790,7 +790,7 @@ The code was fine. Its *address* was not: nothing in the repository produced the
 **Found while fixing BUG-046, before the player hit it.**
 
 A PNG with no `.meta` is imported by Unity with the **default** settings, and the default `textureType` is
-`Default`, not `Sprite`. `Resources.Load<Sprite>()` then returns **null with no error at all** — every
+`Default`, not `Sprite`. `Resources.Load<Sprite>()` then returns **null with no error at all** -- every
 piece of art in the game would silently fail to appear. This was the very next wall after the frames.
 
 **Fix.** `tools/art/write_unity_metas.py` writes a `.meta` for every image in the runtime mirror: sprites
@@ -813,8 +813,8 @@ produced by something that only runs on the developer's machine.
 | 046 | `frames/<stem>__<frame>.png` | cut by an editor menu |
 | 047 | `*.png.meta` for all art | same as 045 |
 
-**The rule that closes it:** if the runtime reads a file, that file — and the import settings that make it
-readable — belong in the commit. Before shipping, ask: *what does the build read that a fresh clone would
+**The rule that closes it:** if the runtime reads a file, that file -- and the import settings that make it
+readable -- belong in the commit. Before shipping, ask: *what does the build read that a fresh clone would
 not have?* `publish_to_unity.py --verify` now answers that question in one command.
 
 ## BUG-048 -- the fix for BUG-042 crashed the game in the opposite direction (player report, 2026-11-25)
@@ -827,7 +827,7 @@ but a script is trying to access it.
 ```
 
 **Root cause.** Fixing BUG-042 (`TextMesh.sortingOrder` does not exist) I replaced it with
-`GetComponent<MeshRenderer>().sortingOrder` — on **every** object, including one that is a `SpriteRenderer`.
+`GetComponent<MeshRenderer>().sortingOrder` -- on **every** object, including one that is a `SpriteRenderer`.
 The failing object is named "Text" and it is the letter page's `SpriteRenderer`. `SpriteRenderer` **is** a
 `Renderer` and sets `sortingOrder` directly; asking it for a `MeshRenderer` throws.
 
@@ -839,12 +839,12 @@ The real hierarchy, which decides everything:
 | `Renderer` (any) | yes | `.sortingOrder = n` |
 | `TextMesh` | **no** (Component) | `textMesh.GetComponent<MeshRenderer>().sortingOrder = n` |
 
-**Fix.** `DeskRuntimeScene.SetTextMeshSorting(mesh, order)` — one guarded helper used by every `TextMesh`
+**Fix.** `DeskRuntimeScene.SetTextMeshSorting(mesh, order)` -- one guarded helper used by every `TextMesh`
 in the game; `SpriteRenderer`s set their order directly with a comment saying why.
 
 **Gate.** A pattern check over all game scripts fails if
 (a) any `SpriteRenderer` asks for a `MeshRenderer`, or (b) any `*.sortingOrder =` lands on a `TextMesh`.
-Verified by re-injecting pattern (b) — the gate fails by name.
+Verified by re-injecting pattern (b) -- the gate fails by name.
 
 ## BUG-049 -- the merge (2026-11-25)
 
@@ -857,12 +857,12 @@ The merge gates are now the same five as a release: compile, tests, scripts, art
 
 Six boot failures in one day (BUG-042, 044, 045, 046, 047, 048) all had the same shape: **my checks read
 the working directory; the player runs the commit.** Anything the working directory had that the commit did
-not — a gitignored art folder, a `.meta` Unity generated earlier, frames an editor menu cut — passed the
+not -- a gitignored art folder, a `.meta` Unity generated earlier, frames an editor menu cut -- passed the
 gate and failed on his machine.
 
 `tools/verify_fresh_clone.py` closes the entire class:
 
-1. `git archive HEAD` → a temp folder, so the tree contains exactly what the commit contains.
+1. `git archive HEAD` -> a temp folder, so the tree contains exactly what the commit contains.
 2. Every verification runs **inside that folder**: both art mirrors, the frames, the import settings, the
    palette, the proportions, the font, the manifest.
 
@@ -916,7 +916,7 @@ shows is spelled out in text the atlas can draw**, and `PageTransformTests` asse
 
 ## BUG-056 -- `Copy-Item -Recurse` into an existing folder makes a double nest (2026-11-27)
 
-`art\art`, `docs\docs`, `tools\tools` — the phantom nesting this project has chased since BUG-021 was not a
+`art\art`, `docs\docs`, `tools\tools` -- the phantom nesting this project has chased since BUG-021 was not a
 bad bundle and not a bad merge. On Windows PowerShell 5.1,
 `Copy-Item -Path <dir> -Destination <existing dir> -Recurse` copies the source directory *into* the
 destination instead of merging its contents, so every apply created `<dir>\<dir>`, then the next apply's
@@ -931,8 +931,8 @@ sweep now asks git whether the nested path is tracked, so it can never delete a 
 
 The read-out opened as a card five times the desk. Two separate mistakes, one cause:
 
-1. `Repaint()` created the sprite at `blocksPerUnit` = 16 ppu — which *already* returns a sprite whose
-   world size is `pixels / 16` — and then set `localScale = (w/ppu, h/ppu)`. A 176 px panel became
+1. `Repaint()` created the sprite at `blocksPerUnit` = 16 ppu -- which *already* returns a sprite whose
+   world size is `pixels / 16` -- and then set `localScale = (w/ppu, h/ppu)`. A 176 px panel became
    `176/16 * 176/16 = 121` units wide on a 30-unit camera. **A ppu sprite needs no scale at all.**
 2. The panel's anchor was read as a CENTRE by `CalloutCanvasRect()` (the router) but placed by a function
    that skipped the canvas-centre offset, so the drawn panel and the "tap inside to close" rect described
@@ -970,7 +970,7 @@ behind.
 
 **Fix:** `-Clean` now resets the tree to the **bundle's commit** (`$bundleHead`) after copying, so "the
 bundle's file set is the truth" is true by construction rather than by hope. The `still nested: art\art`
-warnings were the same script asking the filesystem a question only git can answer — it now asks git, and
+warnings were the same script asking the filesystem a question only git can answer -- it now asks git, and
 only for a path the bundle actually tracks.
 
 ## BUG-054 -- the walk's caption band was sized from the font's glyph WIDTH
@@ -996,7 +996,7 @@ the monitor. Three faults, none of which throws:
 1. **Every hotspot sat at the applicant's centre.** `BuildHotspots` converted an authored 192x216 rect
    into a child position and divided by the pixels-per-unit but **not** by the applicant layer's
    `scaleFactor` (0.96). All nine landed on the same point, 144.5 px from where they belong. The router
-   then hit-tested "inside object origin +- collider/2" — the same wrong point — so the geometry agreed
+   then hit-tested "inside object origin +- collider/2" -- the same wrong point -- so the geometry agreed
    with itself and disagreed with the screen. *(The first version of this fix divided by the scale in
    the divisor and STILL failed by 3.84 px, because it also ignored that the applicant sprite is placed
    by its centre; the shared function now derives everything from the rect's canvas centre.)*
@@ -1008,7 +1008,7 @@ the monitor. Three faults, none of which throws:
 
 **The reason no gate caught it:** nothing tested placement. `HotspotReachTests` now reproduces the
 runtime placement **through the same function the runtime uses** and asserts, for all nine hotspots, that
-a tap on the drawn body part resolves back to that artifact — plus that the object/collider maths lands
+a tap on the drawn body part resolves back to that artifact -- plus that the object/collider maths lands
 on the drawn rect. A gate rule fails the build if inline `rect[...] * 0.5f` maths reappears in a builder.
 
 **Class of bug:** *a rule that is duplicated instead of shared.* The test I first wrote mirrored the
@@ -1216,7 +1216,7 @@ acceptance test, capture path.
 | D-2 | **FIXED in v90.** `Apply-Bundle` prints `still nested: art\art`, `content\content`, ... on a clean tree. Cosmetic: the nesting check reports the *target* of a correct move. | `scripts/Apply-Bundle.ps1` | A clean apply prints no `still nested` line | console paste, 2026-11-26 |
 | D-3 | **PARTLY FIXED in v90** (one HUD block, sized from its own proportions). Text scale differs between the desk HUD, the letter and the sweep page; the HUD has been reduced twice by eye. | `GameHud.cs`, `LetterView.cs`, `SweepView.cs` | One documented scale (sizes + steps) used by all three | screenshots v87 |
 | D-4 | Cast still reads in three tone families even with four tones wired; faces are crude at 3x. | `tools/art/make_applicants.py` | Full cast sheet shows a continuous spread and a readable 3x face | `/tmp/cast_final.png` (regenerate) |
-| D-5 | **STILL OPEN — now with a lead.** The save `IOException at hr0d_save.json` still appears in the Console on quit after the quit-skip. | `unity/Assets/Scripts/Game/Desk/*Save*` | Quitting from Play mode prints no IOException | console paste, v87 |
+| D-5 | **STILL OPEN -- now with a lead.** The save `IOException at hr0d_save.json` still appears in the Console on quit after the quit-skip. | `unity/Assets/Scripts/Game/Desk/*Save*` | Quitting from Play mode prints no IOException | console paste, v87 |
 
 ## BUG-063 -- v102: the intro had no owner on the client side, and no way to be wrong safely
 
@@ -1264,11 +1264,11 @@ The v102 log said this, in this order:
 Read together, that is the whole bug: **the apply that should have proved the Unity-file sweep was running
 the pre-sweep script.** The launcher in `Downloads` is deliberately never overwritten by a bundle, so the
 copy that executes is always the previous round's; the refresh happens at the end, for next time. A fix
-therefore takes two applies to reach the machine — and the first apply prints exactly the warning the fix
+therefore takes two applies to reach the machine -- and the first apply prints exactly the warning the fix
 was written to remove, which reads as "the fix failed".
 
 Reproduced exactly (v101 launcher + v102 zip on a tree with Unity leftovers) before changing anything:
-first apply → `bootstrap refreshed` + clean, second apply → `swept 4 stray file(s)` + clean. So the sweep
+first apply -> `bootstrap refreshed` + clean, second apply -> `swept 4 stray file(s)` + clean. So the sweep
 worked; it just was not running.
 
 Three changes:
@@ -1279,7 +1279,7 @@ Three changes:
    and ends `working tree clean -- files match HEAD exactly`.
 2. **The re-run splats a hashtable.** The first attempt built an argument *array*; PowerShell then passed
    `-WorkingCopy` and its value as two positional strings, the child's binder rejected the value
-   (`A positional parameter cannot be found...`), and the fallback silently applied with the old script —
+   (`A positional parameter cannot be found...`), and the fallback silently applied with the old script --
    the bug fixing itself into invisibility. The gate now asserts `$childArgs = @{`.
 3. **Failure is a warning.** A read-only or locked `Downloads` folder must never be the reason an install
    dies, so the catch block says so and applies with the version on disk.
@@ -1323,7 +1323,7 @@ Key (one clip, two pitches) suppress each other, and unrelated cues never do.
 **a. A volume could only go up.** `MenuView` wired one key per volume row, and that key was "increase";
 `StepVolume` accepted a delta but nothing in the router could produce a negative one. Turning a sound down
 was permanent.
-**Fix:** LEFT/RIGHT and A/D call `MenuStep(±1)`; SPACE on a volume row is "up". `CheckEveryRowCanBeReachedAndEveryVolumeCanGoBothWays`
+**Fix:** LEFT/RIGHT and A/D call `MenuStep(+/-1)`; SPACE on a volume row is "up". `CheckEveryRowCanBeReachedAndEveryVolumeCanGoBothWays`
 walks from full to silence and back.
 
 **b. The consent checkbox was not the consent row.** The `[ ] SHARE ANONYMOUS DATA` line was painted as
@@ -1382,15 +1382,15 @@ geometry gate fails when they do not. Patching by string is banned for these two
 **Reported:** by the player after v115: *"the text is offscreen"*, plus three art directions (older monitor,
 dusty vignette with grain, wider window).
 
-**a. Type was measured against the flat glass rect, not the tube.** A CRT's tube is a rounded box — its
-corners are cut and the picture is smaller than the tube — so a line that fitted the rect could sit on the
+**a. Type was measured against the flat glass rect, not the tube.** A CRT's tube is a rounded box -- its
+corners are cut and the picture is smaller than the tube -- so a line that fitted the rect could sit on the
 curve. The player reads that as offscreen text.
 **Fix:** `TubeInset` (7 px) and `TextX/TextY/TextW/TextH`; `Centre()` centres on the tube, `InGlass()` clips
 to it, and the composite fails the build if any line is wider than it. The pill block is anchored to the
 footer so it cannot drift into it.
 
 **b. The dust was a screen-door mesh.** `(x * 73856093 ^ y * 19349663) & 15` is periodic in x and y at 16 px,
-so the grain formed a regular grid over the whole room — the exact failure mode the grain research warns
+so the grain formed a regular grid over the whole room -- the exact failure mode the grain research warns
 about. The first attempt also keyed density to a radius from the centre, which drew a *ring* of dust around a
 clean middle.
 **Fix:** a Wang mix (`MenuLayout.DustHash`), clumped 2x2 blocks, density as a fraction of blocks (0.4% middle
@@ -1404,12 +1404,12 @@ arc over the frame, not a vignette.
 **Fix:** dark teal (`glow_teal`) on the top and left only.
 
 **e. The cyan fade was a dome over the wall.** An equal reach on every side.
-**Fix:** directional — 58 px sideways, 74 px down onto the desk (`FadeReach`, `FadeDrop`).
+**Fix:** directional -- 58 px sideways, 74 px down onto the desk (`FadeReach`, `FadeDrop`).
 
 **f. A prop was entirely behind the monitor.** The coffee cup sat at x=74 and the case now ends at x=258.
 **Fix:** everything on the desk moved right (coffee 274, keyboard 292, mouse 390, forms 412). A prop that is
 completely hidden is a prop that does not exist, and the composite's geometry gate only checks the back wall
-— this was caught by looking at the render.
+-- this was caught by looking at the render.
 
 ## BUG-070 -- v116 install: the apply left six scripts "modified", so the tree looked dirty (2026-11-28)
 
@@ -1418,7 +1418,7 @@ completely hidden is a prop that does not exist, and the composite's geometry ga
 `Setup-DevEnvironment.ps1`, `Update-FromBundle.ps1`.
 
 **Cause.** Not the scripts' content. `.gitattributes` says `* text=auto eol=lf`, so git stores LF and compares
-against LF — but those six tracked files had **CRLF in the working tree**, and `Apply-Bundle` writes the zip's
+against LF -- but those six tracked files had **CRLF in the working tree**, and `Apply-Bundle` writes the zip's
 bytes straight to disk with `Copy-Item`, which never runs git's line-ending filter. On the receiving machine
 `git status` therefore reported six files as modified on a copy that was byte-for-byte the commit the bundle
 named. Every downstream tool believed it: `Where-Am-I` said "copy them or stash them", `Build-Bundle` refused
@@ -1429,7 +1429,7 @@ to run, and the next bundle would have been packed from a tree that only *looked
 2. **`Build-Bundle.ps1` now owns the invariant**: before packing it normalises every tracked text file to LF
    and reports how many it converted. The packer no longer trusts the host's working tree.
 3. **`Apply-Bundle.ps1` normalises on the way in**: after copying, it asks git which files differ, rewrites
-   those that differ *only* in line endings, and **leaves a genuine edit alone** — reporting it instead of
+   those that differ *only* in line endings, and **leaves a genuine edit alone** -- reporting it instead of
    silently reverting. Binary extensions are skipped on purpose: a PNG that differs is a real change.
 
 **What the player must do:** nothing beyond installing v117. The repair commit is inside the bundle's history,
@@ -1448,7 +1448,7 @@ their shift before pressing START.
 **Fix.** `Update()` returns early while `ShowingMenu || ShowingIntro`. The applicant actors are disabled on
 open and re-enabled on close, so nothing behind the door animates either. Pinned by
 `MenuTests.CheckTheMenuStopsTheClock()`, which reads `DeskBootstrap.cs` and asserts both guards are present
-between the `Update()` header and the first `Session.Tick(` — the bug cannot come back without failing the
+between the `Update()` header and the first `Session.Tick(` -- the bug cannot come back without failing the
 suite.
 
 ## BUG-072 -- the front door painted no text at all (2026-11-28)
@@ -1456,14 +1456,14 @@ suite.
 **Reported:** "there is no text in the menu items".
 
 **Cause.** `MenuView.Paint()` ended with `FlipToTextureOrder(buf, W, H)` and then called
-`MonitorScreenRaster.RenderRows(buf, W, H, rows, …)`. `RenderRows` converts canvas y-up coordinates into a
-top-down buffer — i.e. it inverts y again, relative to a buffer that had already been flipped. Every glyph
+`MonitorScreenRaster.RenderRows(buf, W, H, rows, ...)`. `RenderRows` converts canvas y-up coordinates into a
+top-down buffer -- i.e. it inverts y again, relative to a buffer that had already been flipped. Every glyph
 landed above the clip box and was discarded. The rows, the title and the footer were all being drawn off the
 top of the glass.
 
 **Fix.** The view now paints its own text into the buffer and the flip is the LAST operation before
-`SetPixels32`. The ordering rule is stated at the top of `Paint()`: *room → live screens → dust → text →
-flip → upload*, and nothing may call a raster helper after the flip.
+`SetPixels32`. The ordering rule is stated at the top of `Paint()`: *room -> live screens -> dust -> text ->
+flip -> upload*, and nothing may call a raster helper after the flip.
 
 ## BUG-074 -- palette.json had no writer, so the HUD could be tinted with a stale palette (2026-11-28)
 
@@ -1473,7 +1473,7 @@ without fixing that would have left the front door reading keys that did not exi
 while the rest of the game read a palette from three rounds ago.
 
 **Fix.** `tools/art/menu_palette.py --write-json` writes the file by MERGING: the front door's `material_step`
-keys are added, and every legacy key (`void`, `panel`, `text`, `signal`, `danger`, `paper`, `ink`, …) that the
+keys are added, and every legacy key (`void`, `panel`, `text`, `signal`, `danger`, `paper`, `ink`, ...) that the
 HUD, the letter and the sweep read is preserved. A writer that replaced the file would blank the HUD and fail
 the art gate simultaneously. `Test-ArtPipeline.ps1` now runs the writer before the palette gate, so a stale
 `palette.json` fails the build instead of quietly tinting the game wrong.
@@ -1600,7 +1600,7 @@ suppressed with `NoWarn CS0414`.
 **Fix.**
 * the stub's `==`/`!=` are **removed**, and `Color32Util.Same(a, b)` is the honest stand-in;
 * the one comparison in `MenuView` is now a channel test with a comment saying why;
-* `CS0414` is **removed from `NoWarn`** — a warning the editor shows must be a warning here;
+* `CS0414` is **removed from `NoWarn`** -- a warning the editor shows must be a warning here;
 * `_hoverDirty` is gone (it never had a reader);
 * a new rule test, `CheckTheStubsDoNotInventEngineApi`, reads the stub source and the csproj and fails if
   `Color32` regains an operator, if the `Same` stand-in disappears, if a Unity *class* is stubbed as a
@@ -1616,7 +1616,7 @@ seven superseded reference stills (`menu_2x.png`, `menu_composite_*`, `menu_v115
 
 **Cause.** The history adopt is a `reset --mixed`: it moves HEAD and leaves the working tree and index alone.
 The file copy then writes the new tree on top, but nothing removes files the new commit **deleted**. Git had
-never seen them go, so they came back as *untracked* — and the existing sweep only cleaned `unity/`, by design
+never seen them go, so they came back as *untracked* -- and the existing sweep only cleaned `unity/`, by design
 (so a note the player wrote in the repo survives). `-Clean` fixed it by brute force (`reset --hard` + `clean
 -fd`), but the plain apply had no path to it.
 
@@ -1722,23 +1722,23 @@ glass, on the canvas, under the keys, and wide enough for its longest line.
 
 ---
 
-## v126 — the fourth session report
+## v126 -- the fourth session report
 
 Four reports, one log. Each row is a CLASS of bug, so each one gets a rule and something that runs.
 
 | # | The report | What it actually was | The fix | What now catches it |
 |---|---|---|---|---|
-| 1 | `Test-ArtPipeline.ps1` still will not parse at line 157 | a stray `if (-not $SkipCompile) {` opened at ~line 95 and was never closed, present since `defc45c`. PowerShell parses a whole file before running any of it, so **the art gate has never once run on the player's machine** — every "ART PIPELINE OK" reported since v119.7 was about a file no interpreter had accepted | the brace, and the habit: `tools/check_powershell_syntax.py` now asks PowerShell's own `Parser::ParseFile`, and says `FALLBACK … NOT a parse` (exit 2) when `pwsh` is absent so it can never be quoted as green. Proven against `git show 211594f:scripts/Test-ArtPipeline.ps1` → `:150 MissingCatchOrFinally`, `:447 UnexpectedToken`. `Build-Bundle.ps1` refuses to build a zip containing a `.ps1` that does not parse | `pwsh 7.4.6 -File scripts/Test-ArtPipeline.ps1` → `ART PIPELINE OK`; `check_powershell_syntax.py` → `PASS: 17` |
-| 2 | menu title/rows still look distorted; the keyboard's text is fine | the pen advanced `(GlyphW + gap) * scale`, so the 2 px letter gap was multiplied by the title's 2x — rivers between letters, last letter off the tube — and the title bled a column to fake weight (a 2 px one-sided shear) | pen advances `GlyphW*scale + gap*scale` after each glyph, space `cellW*scale`, title bleed 0, and every glyph lookup goes through `InkTopDown()` so a bottom-up source cannot draw letters upside down | `RenderDump … base` → `docs/images/v126/menu-text.png` |
-| 3 | "clicking the lamp only lights what's behind it, not the desk and the paper — I meant the one in the menu" | both earlier fixes aimed ONE ellipse at rows 158/172: inside the desk band, but on the lamp's own **stem and base**. The bulb is at canvas row 88 (the shade is sprite rows 8..28), 62 px above the wood. And the bounce's squared falloff meant the mug at r=0.97 received a lift of 0.0006 — nominally inside the pool, measurably black | the lamp is now TWO sources, which is what a desk lamp is: a narrow cone leaving the shade (52x50 at row 118) and a wide pool lying ON the desk (160x30 at (384,176), falloff 0.5 — a plateau, not a spike). Measured, base vs `nolamp`: desk band 24.5 % lifted, wall 4.8 %, ratio **3.4** (was 1.9 with the beam on the pole); papers 64 %, keyboard 35 %, mug 4 % | `LightingTests.the_menu_lamp_lights_the_desk_objects` (pool must span x269..479), `MenuTests`' lamp assertions rewritten for two sources, and `docs/images/v126/menu-lamp-on-vs-off.png` |
-| 4 | "the HUD should not be text but clickable objects" | it was sixteen lines of TextMesh prose in the corner, including the key legend `[L] LETTER [1-5] FLAGS [A] APPROVE [S] REJECT [TAB] ALERTS` — a list of things the game already knew how to do, printed instead of offered | `Core/Rules/HudRules` owns geometry, four states, hit test, state colours; `GameHudObjects` paints the layer through `ObjectPlate.DrawHud` (the same call the offline dump uses) and forwards clicks to the same methods the keyboard calls. Clicks hit the HUD **before** the room, so a stamp pad can never land on the applicant behind it | 10 `HudTests` (frame + play band, no overlap, resting positions stable, disabled-is-not-clickable, both input paths, no key legend, stamp-while-reading, overlays own their corner) + `RenderDump hud|hudletter` |
+| 1 | `Test-ArtPipeline.ps1` still will not parse at line 157 | a stray `if (-not $SkipCompile) {` opened at ~line 95 and was never closed, present since `defc45c`. PowerShell parses a whole file before running any of it, so **the art gate has never once run on the player's machine** -- every "ART PIPELINE OK" reported since v119.7 was about a file no interpreter had accepted | the brace, and the habit: `tools/check_powershell_syntax.py` now asks PowerShell's own `Parser::ParseFile`, and says `FALLBACK ... NOT a parse` (exit 2) when `pwsh` is absent so it can never be quoted as green. Proven against `git show 211594f:scripts/Test-ArtPipeline.ps1` -> `:150 MissingCatchOrFinally`, `:447 UnexpectedToken`. `Build-Bundle.ps1` refuses to build a zip containing a `.ps1` that does not parse | `pwsh 7.4.6 -File scripts/Test-ArtPipeline.ps1` -> `ART PIPELINE OK`; `check_powershell_syntax.py` -> `PASS: 17` |
+| 2 | menu title/rows still look distorted; the keyboard's text is fine | the pen advanced `(GlyphW + gap) * scale`, so the 2 px letter gap was multiplied by the title's 2x -- rivers between letters, last letter off the tube -- and the title bled a column to fake weight (a 2 px one-sided shear) | pen advances `GlyphW*scale + gap*scale` after each glyph, space `cellW*scale`, title bleed 0, and every glyph lookup goes through `InkTopDown()` so a bottom-up source cannot draw letters upside down | `RenderDump ... base` -> `docs/images/v126/menu-text.png` |
+| 3 | "clicking the lamp only lights what's behind it, not the desk and the paper -- I meant the one in the menu" | both earlier fixes aimed ONE ellipse at rows 158/172: inside the desk band, but on the lamp's own **stem and base**. The bulb is at canvas row 88 (the shade is sprite rows 8..28), 62 px above the wood. And the bounce's squared falloff meant the mug at r=0.97 received a lift of 0.0006 -- nominally inside the pool, measurably black | the lamp is now TWO sources, which is what a desk lamp is: a narrow cone leaving the shade (52x50 at row 118) and a wide pool lying ON the desk (160x30 at (384,176), falloff 0.5 -- a plateau, not a spike). Measured, base vs `nolamp`: desk band 24.5 % lifted, wall 4.8 %, ratio **3.4** (was 1.9 with the beam on the pole); papers 64 %, keyboard 35 %, mug 4 % | `LightingTests.the_menu_lamp_lights_the_desk_objects` (pool must span x269..479), `MenuTests`' lamp assertions rewritten for two sources, and `docs/images/v126/menu-lamp-on-vs-off.png` |
+| 4 | "the HUD should not be text but clickable objects" | it was sixteen lines of TextMesh prose in the corner, including the key legend `[L] LETTER [1-5] FLAGS [A] APPROVE [S] REJECT [TAB] ALERTS` -- a list of things the game already knew how to do, printed instead of offered | `Core/Rules/HudRules` owns geometry, four states, hit test, state colours; `GameHudObjects` paints the layer through `ObjectPlate.DrawHud` (the same call the offline dump uses) and forwards clicks to the same methods the keyboard calls. Clicks hit the HUD **before** the room, so a stamp pad can never land on the applicant behind it | 10 `HudTests` (frame + play band, no overlap, resting positions stable, disabled-is-not-clickable, both input paths, no key legend, stamp-while-reading, overlays own their corner) + `RenderDump hud|hudletter` |
 
 ### Found on the way, unfixed until now
 
-* the letter printed `X BACK TO DESK` and **X did nothing** — a legend for an action that never existed. Removed; the
+* the letter printed `X BACK TO DESK` and **X did nothing** -- a legend for an action that never existed. Removed; the
   letter's own tray object is the way back. (Same class as #4: a legend is not an affordance.)
 * the security board's summary comment claimed "shape first, number last" while the shape was the characters
-  `▮▯` — which the 5x7 atlas does not contain, so the board rendered as `WATCH 62` with no shape at all. The pips
+  `#-` -- which the 5x7 atlas does not contain, so the board rendered as `WATCH 62` with no shape at all. The pips
   are drawn pixel blocks now (`HudRules.PipRect`), and the test counts pips instead of characters.
 * the first HUD render (not the code review) showed four things words could not: readings printed inside the
   LETTER plate, no pips, stamp pads filled `void` so they read as holes, and dim top-lit ink. **A layout that has
@@ -1749,26 +1749,26 @@ Four reports, one log. Each row is a CLASS of bug, so each one gets a rule and s
 The desk's room is painted in the menu's materials by `tools/art/make_desk_room.py` (which imports
 `make_menu_room`, so the dither tables, the palette and the vanishing point cannot drift): `backgrounds/office_M0.png`,
 `desk/monitor_M.png`, `desk/monitor_stand_M.png`, `desk/foreground_M.png`. See
-`docs/images/v126/room-before-after.png`. **Written, gated, not yet wired** — the layout still points at
+`docs/images/v126/room-before-after.png`. **Written, gated, not yet wired** -- the layout still points at
 `office_L0`/`desk_foreground`, and no applicant stands in the new room yet.
 
 ---
 
-## v127 — the room, the person, and the light (2026-11-28)
+## v127 -- the room, the person, and the light (2026-11-28)
 
 Composition N, from the player's own words: **"it would look cramped for the applicant if we put the window
 there and the applicant on the side, so we transfer the monitor on the right side then the applicants on the
 left."** Monitor right, applicant left, window behind the applicant. Evidence in `docs/images/v127/`.
 
-### BUG-012 — the applicant's hair read as a pale band lying on his forehead
-- **Found:** 2026-11-28 by the build, in the render (not in the code) · **Severity:** P1 (the face is the game)
+### BUG-012 -- the applicant's hair read as a pale band lying on his forehead
+- **Found:** 2026-11-28 by the build, in the render (not in the code) - **Severity:** P1 (the face is the game)
 - **Symptom:** three drafts in a row, the bust came out with a light band across the top of the forehead and a
   helmet-shaped cap; the player's standing note "the applicant must not look the same" was still true.
 - **Root cause:** the hair's base was `amber_1` with an "`amber_2` lit side", and **`amber_2` (76,55,34) is the
-  same *value* as `skin_2` (74,52,33)** — the fringe and the face are the same weight on screen, so the hair
+  same *value* as `skin_2` (74,52,33)** -- the fringe and the face are the same weight on screen, so the hair
   disappeared into the head and only its specular and its shadow outline survived. Two smaller causes stacked
   on top: the hairline was drawn on a straight diagonal (a cap), and there were no sideburns (a beanie).
-- **Fix:** `tools/art/make_applicant_M.py::paint_hair` — base `wood_0`, lit side `amber_1`, far side `ink`, the
+- **Fix:** `tools/art/make_applicant_M.py::paint_hair` -- base `wood_0`, lit side `amber_1`, far side `ink`, the
   only `amber_2` pixel is the crown's specular; a shallow widow's-peak arc for the hairline; five rows of
   sideburn. **Hair is darker than skin** is the rule.
 - **Regression test:** `make_applicant_M.py` palette gate (`0 off-palette pixels`) + the render in
@@ -1776,58 +1776,58 @@ left."** Monitor right, applicant left, window behind the applicant. Evidence in
 - **Prevention rule:** a material that shares a *value* with the thing it sits on is invisible. Compare the
   palette numbers of any two adjacent materials before drawing the seam between them.
 
-### BUG-013 — the face had a dotted vertical line down the middle of it
-- **Found:** 2026-11-28 · **Severity:** P1
+### BUG-013 -- the face had a dotted vertical line down the middle of it
+- **Found:** 2026-11-28 - **Severity:** P1
 - **Symptom:** a column of dots ran from the brow to the chin, and in one draft it passed exactly through
   both eye centres. The eyes themselves read as closed: a 4 px black bar with a lit pixel underneath.
-- **Root cause:** the head was shaded with the **room's ordered dither** — the same `BAYER4` pattern that makes
+- **Root cause:** the head was shaded with the **room's ordered dither** -- the same `BAYER4` pattern that makes
   a wall read as plaster. On a 74 px face that is a dotted line, not a plane change; and the shadow seam at
-  `CX + hw*0.42` landed on the eye line. The eye was drawn as a solid ink bar two rows tall — which *is* a
-  closed eyelid — with the "lit upper lid" row placed BELOW it.
-- **Fix:** three flat planes with hard edges and ONE 4 px dither band, on the lit edge only, at `±0.58`; the eye
+  `CX + hw*0.42` landed on the eye line. The eye was drawn as a solid ink bar two rows tall -- which *is* a
+  closed eyelid -- with the "lit upper lid" row placed BELOW it.
+- **Fix:** three flat planes with hard edges and ONE 4 px dither band, on the lit edge only, at `+/-0.58`; the eye
   is sclera / iris / sclera on two rows with a heavy upper lid, a lower lid in shadow and one cold catchlight.
   The brow is two short bars, not a full-width band (the band was a headband).
 - **Regression test:** the render; the palette gate.
 - **Prevention rule:** the room's dither belongs on surfaces big enough to average. On a face it is noise.
 
-### BUG-014 — the tube's light was a no-op, and both copies of the rule were wrong together
-- **Found:** 2026-11-28, by measurement · **Severity:** P1 (this is the lamp/tube report, three rounds old)
+### BUG-014 -- the tube's light was a no-op, and both copies of the rule were wrong together
+- **Found:** 2026-11-28, by measurement - **Severity:** P1 (this is the lamp/tube report, three rounds old)
 - **Symptom:** the player: "it lights the back, not the desk." Turning the tube on changed the desk by
-  **+1.0/255** — invisible.
+  **+1.0/255** -- invisible.
 - **Root cause:** three causes, each of which alone was enough.
   1. `ScreenLight.GlassX = 90` and `DeskRow = 206` were the **pre-move, left-hand** numbers. With the monitor
      on the right since composition N, the ellipse fell on the empty left half of the desk and died on the wall.
-  2. `tools/comp/preview_screenlight.py` imported `make_art_kit.PALETTE` — 24 legacy keys that share almost no
-     colour with the menu's room — so its ramp table built **0 pairs** and it reported a flat `+0.0` everywhere.
+  2. `tools/comp/preview_screenlight.py` imported `make_art_kit.PALETTE` -- 24 legacy keys that share almost no
+     colour with the menu's room -- so its ramp table built **0 pairs** and it reported a flat `+0.0` everywhere.
      The preview that should have caught #1 was wrong in the same direction.
   3. The tube's pool was **baked into the slab sprite** as `wood_3`/`wood_4`, so the runtime pass had nowhere to
      climb: the surface was already at the top of its ramp before the light was applied.
 - **Fix:** glass `364,115,91,47`, `DeskRow 170`, `ProjectY 205`; the preview reads `palette.json`; the bake is
   deleted and the slab ships with occlusion only (its far edge's contact shadow). Prop shadows and the lit face
   flip to the LEFT and to the object's right-hand edge, because the emitter is on the right now.
-- **Measured after:** desk under the tube **+16.0/255**, desk far left −0.7, wall **+0.0**. `docs/images/v127/tube_measured.png`.
+- **Measured after:** desk under the tube **+16.0/255**, desk far left -0.7, wall **+0.0**. `docs/images/v127/tube_measured.png`.
 - **Regression test:** `LightingTests.TubePoolLandsOnTheDesk` (rewritten: it demanded the emitter be left of
   centre, i.e. it enforced the *old* composition) + the measured dump.
 - **Prevention rule:** **a light is a coordinate before it is a colour.** Measure the delta between off and on
   and quote the number; and never bake into a sprite what a live pass is going to paint.
 
-### BUG-015 — the junk under the desk was invisible, and the lip was under the floor
-- **Found:** 2026-11-28 · **Severity:** P2 (the player asked for this mess twice)
+### BUG-015 -- the junk under the desk was invisible, and the lip was under the floor
+- **Found:** 2026-11-28 - **Severity:** P2 (the player asked for this mess twice)
 - **Symptom:** the band under the desk showed one dark slab and an `ERR 0x5D` screen; everything else the junk
   sprite draws was covered. Also, the desk's lip appeared *below* the bottom of the frame.
 - **Root cause:** the junk was drawn 38 px tall at the top of a 62 px canvas, so its towers sat at canvas rows
-  232..270 — behind the 14 px lip, which sorts above it. And the lip's y-up anchor had been computed from a
+  232..270 -- behind the 14 px lip, which sorts above it. And the lip's y-up anchor had been computed from a
   stale `foreground_M` height, which put it at rows 250..263, under the floor.
 - **Fix:** `props_junk` redrawn at **28 rows**, bottom-up, three clusters and two gaps ("don't completely fill
   it"); the slab ends at `DESK_LIP 228` and the lip is its own 14 px strip at y-up anchor 28; the floor under
-  the desk climbed from `floor_1`→void to a lit `floor_1`/`floor_2`, because steel-on-black is one silhouette.
+  the desk climbed from `floor_1`->void to a lit `floor_1`/`floor_2`, because steel-on-black is one silhouette.
 - **Regression test:** the twin render `--verify` and `docs/images/v127/desk_composition_N.png`.
 - **Prevention rule:** **a sprite is only visible in the band that is not covered.** Work out the free rows
   first, then author to them.
 
-### BUG-016 — the wall had a ruled shadow wedge across it
-- **Found:** 2026-11-28 · **Severity:** P2
-- **Root cause:** the wall's ambient field was `t = (x + (y - HORIZON)*0.35) / W` — a *diagonal* function of x and
+### BUG-016 -- the wall had a ruled shadow wedge across it
+- **Found:** 2026-11-28 - **Severity:** P2
+- **Root cause:** the wall's ambient field was `t = (x + (y - HORIZON)*0.35) / W` -- a *diagonal* function of x and
   y. In the composed frame that is a hard line from the top of the frame to the desk.
 - **Fix:** a vertical gradient with a 90 px dither band, plus a corner fall-off; the drawn seam line (which read
   as a pipe) is gone.
@@ -1835,23 +1835,23 @@ left."** Monitor right, applicant left, window behind the applicant. Evidence in
 
 ### Gates for v127 (all executed, all green)
 
-`CoreTests` **ALL TESTS PASSED** · `CompileCheck` **0 errors** · `Test-ArtPipeline.ps1` **ART PIPELINE OK** ·
-`publish_to_unity.py --verify` **111 sprites, sha256 verified** · `verify_fresh_clone.py` **PASS**.
+`CoreTests` **ALL TESTS PASSED** - `CompileCheck` **0 errors** - `Test-ArtPipeline.ps1` **ART PIPELINE OK** -
+`publish_to_unity.py --verify` **111 sprites, sha256 verified** - `verify_fresh_clone.py` **PASS**.
 
 **Found on the way:** `Test-ArtPipeline.ps1` ran a bare `dotnet build` in a folder with two project files, so it
-reported "Game/Editor scripts do not compile" (MSB1011) — a gate that failed for a reason that was not a compile
+reported "Game/Editor scripts do not compile" (MSB1011) -- a gate that failed for a reason that was not a compile
 error. It names `CompileCheck.csproj` now.
 
 ---
 
-## v128 — "looks like the menu" means IS the menu (2026-11-28)
+## v128 -- "looks like the menu" means IS the menu (2026-11-28)
 
 The player rejected v127 with four corrections. Every one of them had the same root: **v127 drew a second
 copy of objects that already existed in the menu.** A second window, a second monitor, second versions of the
 props, and props placed by hand against a desk whose perspective was drawn separately.
 
-### BUG-017 — the desk's window was not the menu's window
-- **Found:** 2026-11-28 · **Severity:** P1
+### BUG-017 -- the desk's window was not the menu's window
+- **Found:** 2026-11-28 - **Severity:** P1
 - **Symptom:** *"the windows does not look like to be the one in the menu."*
 - **Root cause:** `make_desk_room.window()` hand-painted a 176x236 window: its own sky gradient, hashed stars,
   invented skyline. Two drawings of one object are two objects.
@@ -1862,36 +1862,36 @@ props, and props placed by hand against a desk whose perspective was drawn separ
 - **Prevention rule:** if a thing exists in the menu, call the menu's code. Redrawing it in the menu's palette
   is not the same thing, and the player can always tell.
 
-### BUG-018 — the monitor was behind the desk, and was not the menu's monitor
-- **Found:** 2026-11-28 · **Severity:** P1
+### BUG-018 -- the monitor was behind the desk, and was not the menu's monitor
+- **Found:** 2026-11-28 - **Severity:** P1
 - **Symptom:** *"our monitor is literally behind the table."*
 - **Root cause:** two faults. The tube was a from-scratch 192x108 black bezel, not the menu's CRT; and its base
   sat at canvas row 184 while the desk's surface line was 186, so its own feet were *under* the wood.
 - **Fix:** `make_menu_room.crt(w, h)` is parametric (byte-identical at 260x186) and the desk's monitor is
-  `M.crt(200, 143)` at anchor row 185 — plinth on the surface, body above it. The separate arm layer is
+  `M.crt(200, 143)` at anchor row 185 -- plinth on the surface, body above it. The separate arm layer is
   retired, since the menu's CRT carries its own plinth; two stands under one monitor was the other half of the
   "behind the table" look.
 - **Prevention rule:** an object standing on a surface has its base ON the surface line and its body ABOVE it.
   Check the base row against the surface row, numerically, before rendering.
 
-### BUG-019 — the props sat on the edge of the desk instead of on the desk
-- **Found:** 2026-11-28 · **Severity:** P1 (the player's most precise note)
+### BUG-019 -- the props sat on the edge of the desk instead of on the desk
+- **Found:** 2026-11-28 - **Severity:** P1 (the player's most precise note)
 - **Symptom:** *"the objects are on the edge of the table and does not look like they are ON the table based on
   their angles."*
 - **Root cause:** three compounding faults.
   1. The props were **separate layers**, each drawn flat, so they had no contact shadow, no shared light and no
-     shared perspective — literally stickers over a photograph of wood.
+     shared perspective -- literally stickers over a photograph of wood.
   2. Their anchors put every base along the **near** lip, which is the closest edge of the wood.
-  3. They were the wrong drawings — v127's own cup and keyboard, not the menu's.
-- **Fix:** the desk is ONE layer built in the menu's own order — wood, then `M.forms/keyboard/mouse/cup` at the
+  3. They were the wrong drawings -- v127's own cup and keyboard, not the menu's.
+- **Fix:** the desk is ONE layer built in the menu's own order -- wood, then `M.forms/keyboard/mouse/cup` at the
   menu's 6 px inset from the far edge, then a contact shadow under each object, then the tube's cold pool and
   the window's spill painted over wood *and* props. The prop layer is deleted from the layout.
 - **Prevention rule:** **a prop standing on a surface belongs in the surface's layer.** Separate layers buy
-  sorting, and they cost the contact shadow, the shared light and the perspective — which is what "does not look
+  sorting, and they cost the contact shadow, the shared light and the perspective -- which is what "does not look
   like it is ON the table" is actually describing.
 
-### BUG-020 — the report format was missing
-- **Found:** 2026-11-28 · **Severity:** P2 (it made the build unreviewable)
+### BUG-020 -- the report format was missing
+- **Found:** 2026-11-28 - **Severity:** P2 (it made the build unreviewable)
 - **Symptom:** *"You did not do the What you did, What I did, What's to expect, What's next pattern."*
 - **Fix:** `STANDING-ORDERS.md` at the repo root, referenced from `AGENTS.md`. It carries the mandatory report
   format, the reuse-the-generator rule, the prop-perspective rule, the no-guessing rule and the gate list.
@@ -1899,62 +1899,117 @@ props, and props placed by hand against a desk whose perspective was drawn separ
 
 ### Measured after the rebuild
 
-- tube off → on, **desk under the tube +15.5/255 · desk far left −1.7 · wall above the monitor +0.6 ·
+- tube off -> on, **desk under the tube +15.5/255 - desk far left -1.7 - wall above the monitor +0.6 -
   wall far right +0.1** (`docs/images/v128/tube_measured.png`). The light lands on the desk and not on the wall.
-- Gates: `CoreTests` **ALL TESTS PASSED** · `CompileCheck` **0 errors** · `Test-ArtPipeline.ps1`
-  **ART PIPELINE OK** · `publish --verify` **112 sprites** · `verify_fresh_clone.py` **PASS**.
+- Gates: `CoreTests` **ALL TESTS PASSED** - `CompileCheck` **0 errors** - `Test-ArtPipeline.ps1`
+  **ART PIPELINE OK** - `publish --verify` **112 sprites** - `verify_fresh_clone.py` **PASS**.
 
 ---
 
-## v129 — BUG-022..025: the room is the menu's room, and the player's folder of standing orders
+## v129 -- BUG-022..025: the room is the menu's room, and the player's folder of standing orders
 
-### BUG-022 — the game room was a different room that shared the menu's colours
-- **Found:** 2026-11-29 (v129) · **Severity:** P1 (it is the rejection that repeats)
+### BUG-022 -- the game room was a different room that shared the menu's colours
+- **Found:** 2026-11-29 (v129) - **Severity:** P1 (it is the rejection that repeats)
 - **Symptom:** the player, for the fifth time: *"I have said COPY what's in the menu art and just change things
   that's necessary for the game but you kept on making a totally different one which has the same vibes."*
 - **Root cause:** `make_desk_room.py` had its own `floor()`, its own window geometry, and its own desk
   construction. They were *inspired* by `make_menu_room.py`, not *made by* it, so every menu correction since
   v116 silently forked the two rooms.
 - **Fix:** the shared drawing primitives are now the menu's own functions, called from the game's generator:
-  `window()` untouched, `crt()` at 200×143, and `floor_band(d, img, near, bottom, tile_w, vpx)` extracted out
+  `window()` untouched, `crt()` at 200x143, and `floor_band(d, img, near, bottom, tile_w, vpx)` extracted out
   of `desk()` so both rooms paint the identical floor. The game's numbers are now the menu's numbers:
   desk far edge **170**, floor line **164** (= the window sill), lip **214**, floor to **270**.
-- **Proof it is a copy and not a resemblance:** `git status art/kit/menu/` is **empty** after the extraction —
+- **Proof it is a copy and not a resemblance:** `git status art/kit/menu/` is **empty** after the extraction --
   the menu's sprites are byte-identical, so the menu cannot have been "reinterpreted".
 - **Prevention rule:** if a drawing is one line, call it. A second drawing of the same thing is a fork, and a
   fork is a future rejection with a delay attached.
 
-### BUG-023 — the applicant was under the table, and then the wrong size
-- **Found:** 2026-11-29 · **Severity:** P1
+### BUG-023 -- the applicant was under the table, and then the wrong size
+- **Found:** 2026-11-29 - **Severity:** P1
 - **Symptom:** *"kindly put them further back like they are sitting beside the table, they look like they are
   under the table with only the head visible."* The first v129 fix went too far the other way: at 0.72 the top
   of his head was in the floor band, so the wood crossed his **neck**.
 - **Root cause:** three anchors were tried and all three failed a different way, because the anchor was being
-  treated as a single dial for two independent things — how visible he is, and how deep he sits.
-- **Fix:** the base returns to the approved `docs/15` `0.96` (184×207) and he is put **behind the far side of
+  treated as a single dial for two independent things -- how visible he is, and how deep he sits.
+- **Fix:** the base returns to the approved `docs/15` `0.96` (184x207) and he is put **behind the far side of
   the desk**, beside it: anchor `[16,43]`, base row **227**, top row **20**, 57 px further back than the props.
   The wood's far edge (row 170) crosses his forearms, so he reads as seated at the table with the desk hiding
-  his lap — not a head on the floor, not a bust floating in the room.
+  his lap -- not a head on the floor, not a bust floating in the room.
 - **Prevention rule:** a subject's **base row** is what says where they are sitting. Decide the base row first,
   then choose the scale that fits the frame above it. Choosing scale first is what produced two wrong rooms.
 
-### BUG-024 — the tube's light was measured against the old desk
-- **Found:** 2026-11-29 · **Severity:** P1
+### BUG-024 -- the tube's light was measured against the old desk
+- **Found:** 2026-11-29 - **Severity:** P1
 - **Symptom:** after the desk moved 16 px up, `ScreenLight` and its offline twin were still pointing at
-  `GlassX 364 / GlassY 115 / DeskRow 170` with the five old prop rects — the pool was centred on a tube that no
+  `GlassX 364 / GlassY 115 / DeskRow 170` with the five old prop rects -- the pool was centred on a tube that no
   longer occupied those rows, and the prop shadows were cast from objects that had moved.
-- **Fix:** both copies re-measured off `monitor_M` (200×143, glass `20,9,175,116` at `[256,84]`): glass centre
-  **364,118**, half-size **88,58**; props are the four the desk carries — coffee, forms, keyboard, mouse.
-- **Measured (off → on, mean of the region):** desk under the tube **+15.16**, keyboard **+9.05**, desk far left
-  **−1.37**, wall above the monitor **+0.00**, wall far left **+0.00**, the CRT's own display **+0.00**.
+- **Fix:** both copies re-measured off `monitor_M` (200x143, glass `20,9,175,116` at `[256,84]`): glass centre
+  **364,118**, half-size **88,58**; props are the four the desk carries -- coffee, forms, keyboard, mouse.
+- **Measured (off -> on, mean of the region):** desk under the tube **+15.16**, keyboard **+9.05**, desk far left
+  **-1.37**, wall above the monitor **+0.00**, wall far left **+0.00**, the CRT's own display **+0.00**.
   `docs/images/v129/tube_on_measured.png`.
 
-### BUG-025 — there was no checked folder, so the orders lived in a document nobody walked
-- **Found:** 2026-11-29 · **Severity:** P1 (process)
+### BUG-025 -- there was no checked folder, so the orders lived in a document nobody walked
+- **Found:** 2026-11-29 - **Severity:** P1 (process)
 - **Symptom:** *"make a folder for it that you will always check and it will contain EACH AND EVERY instructions
   I have given to you all this time."* `STANDING-ORDERS.md` existed but was a long page, not a checklist.
-- **Fix:** `orders/` — `00-READ-FIRST.md`, `CHECKLIST.md`, `01-art-rules.md`, `02-report-format.md`,
+- **Fix:** `orders/` -- `00-READ-FIRST.md`, `CHECKLIST.md`, `01-art-rules.md`, `02-report-format.md`,
   `03-unity-and-bundle.md`, `04-IMPORTANT-MEMORY.md` (the player's words, verbatim), `05-phases.md` (the phase
   board and every pending item including the day/night cycle). `AGENTS.md` and `STANDING-ORDERS.md` both point
   at it, and `AGENTS.md` table-lists what each file is for.
 - **Prevention rule:** the orders are a **checklist that is walked**, not a document that is cited.
+
+---
+
+## v130 -- BUG-026..029: the game would not start, and the room had one light
+
+### BUG-026 -- the desk refused to build: the applicant layer had no frames
+- **Found:** 2026-11-29, in the player's own Unity console after applying v129.
+- **Symptom:** `[HR//0D] could not start the game: Assets/Art/Kit/applicants/bust_M_192x216.png has no frame
+  list in the manifest -- regenerate with tools/art/make_sprite_manifest.py`. Black Game view.
+- **Root cause:** v129 pointed the layout's applicant LAYER at the single-frame bust (`bust_M_192x216.png`,
+  `spriteMode: Single`) while `DeskSceneBuilder` builds the 4-frame animator from the SAME layer entry. The
+  layer and the animator were two different files pretending to be one.
+- **Fix:** the layer points at the 4-cell strip (`app_human_solid_a_192x216.png`) that the animator crops, so
+  the static draw and the animation can never disagree about which applicant is on screen.
+- **Prevention rule:** an entry that feeds two consumers must be one entry. A gate now asserts the layout's
+  applicant sprite has 4 cells (`Applicant_sheets_slice_into_four_frames`).
+
+### BUG-027 -- the art gate's traceback on Windows (`python.exe : Traceback`)
+- **Found:** 2026-11-29, same log. `Test-ArtPipeline.ps1` died inside `make_sprite_manifest.py --verify`.
+- **Root cause:** eight `.py` files and every `.ps1` carried non-ASCII characters (`->` written as an arrow,
+  `section` written as a section sign). PowerShell 5.1 reads scripts in the ANSI codepage, so a UTF-8 byte
+  sequence became mojibake and the parse failed before line one ran.
+- **Fix:** the whole tree is ASCII now (`python tools/check_ascii.py` is part of the gate). Diagrams that used
+  the arrow character use `->`.
+- **Prevention rule:** **ASCII or it does not ship.** Comments are documentation for humans, but a comment can
+  still stop a script from parsing.
+
+### BUG-028 -- every applicant of an archetype was the same person
+- **Found:** 2026-11-29, while implementing the player's "add varieties of the applicant".
+- **Root cause:** `DeskSession.ArtKey(archetype)` mapped a whole archetype to one file: 23 people per run,
+  six faces, and the three humans of one archetype literally identical. Fourteen variants were already in the
+  kit and were never asked for. Worse than a looks bug: it let the player learn a *face* instead of reading the
+  tell, which is the spot-the-difference failure `docs/17` section 8 forbids.
+- **Fix:** `Core/Data/Appearances.cs` picks a variant per APPLICANT from the run's own rng, stores it on the
+  record (`spriteKey`) so a resume shows the same face, and the key is a pure function of the seed (I7 holds).
+- **Gate:** `variety_every_variant_ships` (every key has a PNG and a manifest entry) and
+  `variety_is_stable_and_spread` (same seed -> same faces; a run uses at least four).
+
+### BUG-029 -- the room had ONE light, and a shadow that was a bar
+- **Found:** 2026-11-29, the player's request to add multiple light sources and make the monitor's shadow
+  react to its switch.
+- **Root cause:** light was baked into two sprites at build time (`make_menu_room`'s pools) and the runtime
+  pass (`ScreenLight`) knew about exactly one source. There was no way to express "the lamp is on but the tube
+  is off", and the first cast shadow I wrote was a vertical bar up each prop's side -- wrong for a light that
+  stands on the same plane as the prop.
+- **Fix:** `Core/Rules/LightRig.cs`: several ellipses, **add then clamp**, each with a near field and a wide
+  weak far field; light steps up the pixel's own ramp with a 4x4 ordered dither between steps; a cast shadow is
+  a **flat smear at the prop's foot** (`ContactBand`), strongest at its edge, present only while its light is on.
+- **Measured** (`tools/comp/preview_lightrig.py`, tube off -> on): wood under the tube **0.22 -> 2.52** steps,
+  wall above it **0.00 -> 0.32**, coffee's monitor-side flank **0.13 -> 0.62** vs its far flank **0.06 -> 0.38**,
+  keyboard **0.20 -> 2.35**.
+- **Also this round:** the game's room gained the menu's lamp as its own layer (`desk/lamp_M.png`) and a wall
+  clock (`RoomClock.cs` + `RoomClockView.cs`) so the player can see the time of shift.
+- **Prevention rule:** a light you cannot switch is a decal. Every source has a `Level` and a test that turns it
+  off.

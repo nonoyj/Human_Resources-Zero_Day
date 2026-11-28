@@ -15,8 +15,8 @@ Resampling the 264x200 bezel would blur its 1 px frame, which the Point filter t
 sprites are therefore re-authored at their final pixel size with the same 1 px structure and the same
 palette entries. Nothing else in the kit is touched.
 
-Palette rule (docs/15-art-bible.md §3): solid PALETTE colours only, alpha 0 or 255, no blending.
-Corruption states (bible §7): the same room with lighting changes only -- never a different room.
+Palette rule (docs/15-art-bible.md #3): solid PALETTE colours only, alpha 0 or 255, no blending.
+Corruption states (bible #7): the same room with lighting changes only -- never a different room.
 """
 import os, sys
 from PIL import Image, ImageDraw
@@ -386,7 +386,7 @@ def desk_front(img, d, level=0):
     d.rectangle([0, H - 7, W - 1, H - 1], fill=rgba('void'))
     d.line([0, H - 8, W - 1, H - 8], fill=rgba('line'))
 
-    # ---- warm rim only from the off-screen lamp on the left (bible §2)
+    # ---- warm rim only from the off-screen lamp on the left (bible #2)
     if level == 0:
         d.line([0, DESK_ROW, 148, DESK_ROW], fill=rgba('glow_amber'))    # lamp falloff on the lip
         d.line([0, DESK_ROW + 1, 96, DESK_ROW + 1], fill=rgba('paperdim'))
@@ -403,7 +403,7 @@ def room(level=0):
     img = new(W, H)
     d = ImageDraw.Draw(img)
     d.rectangle([0, 0, W - 1, H - 1], fill=rgba('void'))
-    # ceiling: two flat steps, no hanging fixture (bible §2)
+    # ceiling: two flat steps, no hanging fixture (bible #2)
     d.rectangle([0, 0, W - 1, 10], fill=rgba('void'))
     d.line([0, 10, W - 1, 10], fill=rgba('panel'))
     # far wall
@@ -764,7 +764,7 @@ def document_small():
     img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     d.rectangle([0, 0, w - 1, h - 1], fill=rgba('paper'), outline=rgba('ink'))
-    # PAPER RULE (bible §4b): sheets get torn EDGES, never a stepped fill -- a stepped fill makes the
+    # PAPER RULE (bible #4b): sheets get torn EDGES, never a stepped fill -- a stepped fill makes the
     # page look chewed. Tear the bottom and both sides by 1 px, occasionally 2.
     rnd = LCG(202)
     for x in range(w):

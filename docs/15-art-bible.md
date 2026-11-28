@@ -1,18 +1,18 @@
-# ART BIBLE — HUMAN RESOURCES: ZERO DAY
+# ART BIBLE -- HUMAN RESOURCES: ZERO DAY
 
 **This file is the single source of truth for how our art looks.** Read it before drawing anything.
 If a new piece of art disagrees with this file, the art is wrong. Anything the user approves is added
 here *the same day*, so we never rediscover our own style.
 
-Last updated: 2026-11-26 (composition L + bigger city, slab removed, glow steps live) · Owner: Agent · Approver: the user (final say on every entry)
+Last updated: 2026-11-26 (composition L + bigger city, slab removed, glow steps live) - Owner: Agent - Approver: the user (final say on every entry)
 
 ---
 
 ## 0. How to use this file
 
-1. Before drawing: read §2 (mood), §3 (palette), §4 (shapes), §5 (what we already shipped).
+1. Before drawing: read #2 (mood), #3 (palette), #4 (shapes), #5 (what we already shipped).
 2. After drawing: run the palette gate. Off-palette pixels must be **0**:
-   `python tools\art\make_art_kit.py --check` · `python tools\art\make_applicants.py --check`
+   `python tools\art\make_art_kit.py --check` - `python tools\art\make_applicants.py --check`
 3. If you add a rule or a new asset, add a line here in the same commit.
 
 ---
@@ -22,7 +22,7 @@ Last updated: 2026-11-26 (composition L + bigger city, slab removed, glow steps 
 > A dark, silent office at 3 a.m., rendered in 8 colours of navy and one shade of mint, where the only
 > warm light in the room is the one you brought with you.
 
-Reference image: `art/concepts/menu_concept_A.png` — the user approved **its mood, theme and vibe**, not
+Reference image: `art/concepts/menu_concept_A.png` -- the user approved **its mood, theme and vibe**, not
 its props. It is our north star for colour and light, never for subject matter.
 
 ---
@@ -38,7 +38,7 @@ its props. It is our north star for colour and light, never for subject matter.
 | Shadows | Flat and hard. One shadow under anything that stands on the floor (a 2 px dark line). No gradients, no drop shadows with blur. |
 | Contrast | Background lives at `void` / `panel` / `panel2`. Anything the player must read (paper, tells, UI) is `paper`, `text`, `textdim`, `signal`. |
 
-## 3. Palette (locked — `tools/art/make_art_kit.py::PALETTE`)
+## 3. Palette (locked -- `tools/art/make_art_kit.py::PALETTE`)
 
 | Role | Colour | Hex | Used for |
 |---|---|---|---|
@@ -59,7 +59,7 @@ its props. It is our north star for colour and light, never for subject matter.
 | **Glow 2** | `glow_amber` | `#5c4a20` | warm lamp falloff on surfaces away from the source |
 | **Glow 3** | `glow_red` | `#4a1520` | breach/corruption falloff |
 
-**Approved palette extension — DONE 2026-11-26.** The three glow steps are now in the palette and the
+**Approved palette extension -- DONE 2026-11-26.** The three glow steps are now in the palette and the
 gate enforces them: `glow_teal #0c3d38`, `glow_amber #5c4a20`, `glow_red #4a1520`. Use them only for
 light falloff; never as a base or a UI colour. No other new colours may be added without approval.
 
@@ -68,28 +68,28 @@ outside `PALETTE`; semi-transparent shadows.
 
 ## 4. Shape language (locked)
 
-- **Pixel grid:** 1 px detail minimum. Landscape 480×270, PPU 16, Point filter, no compression.
+- **Pixel grid:** 1 px detail minimum. Landscape 480x270, PPU 16, Point filter, no compression.
 - **Outlines:** 1 px, `line`/`linehi` on hardware; `ink` on paper. Never 2 px unless it is a shadow line.
 - **Corners:** square. Rounded corners only on UI 9-slices (3 px radius).
 - **Feet on the ground:** every prop that stands in the room touches the floor line and gets a 2 px
   contact shadow. *A plant floating 6 px above the floor is a bug, not a style* (user, 2026-11-26).
 - **Silhouette first:** the applicant must read as a dark shape against the wall. Keep the wall behind
-  the applicant **clean** — no window frame, no props, no panel seams crossing the head or shoulders.
+  the applicant **clean** -- no window frame, no props, no panel seams crossing the head or shoulders.
 - **Faces:** flat, frontal, no soft shading. Eyes need both a pupil and a catchlight pixel (BUG-012).
 
 ## 5. What is already shipped (do not redraw without approval)
 
 | Asset | File | Status |
 |---|---|---|
-| CRT monitor bezel | `art/kit/desk/monitor_bezel.png` | **approved as-is** — dark bezel, thin lit inner frame, indicator marks |
+| CRT monitor bezel | `art/kit/desk/monitor_bezel.png` | **approved as-is** -- dark bezel, thin lit inner frame, indicator marks |
 | Email sheet | `art/kit/desk/document_sheet.png` | approved |
 | ID card | `art/kit/desk/id_card.png` | approved |
 | Table + chair | `art/kit/desk/table_and_chair.png` | approved (the applicant's side of the desk) |
-| Applicant archetypes | `art/kit/applicants/*` (14 × 4-frame strips) | approved; panel behind each applicant is part of the sprite |
+| Applicant archetypes | `art/kit/applicants/*` (14 x 4-frame strips) | approved; panel behind each applicant is part of the sprite |
 | Portraits | `art/kit/portraits/*` (14) | approved |
 | UI 9-slices, bars, pips, slider | `art/kit/ui/*` (18) | approved |
 | Icons, stamps | `art/kit/icons/*` (18), `art/kit/stamps/*` (2) | approved |
-| Backgrounds | `art/kit/backgrounds/office_L0..L2.png` | **being replaced** — see §6 |
+| Backgrounds | `art/kit/backgrounds/office_L0..L2.png` | **being replaced** -- see #6 |
 
 ## 6. Composition (decided 2026-11-26, composition study H)
 
@@ -112,33 +112,33 @@ The desk you sit at, seen from your chair:
 +----------------------------------------------------------------+
 ```
 
-Measured proportions (of 480×270):
+Measured proportions (of 480x270):
 
 | Element | Size | Notes |
 |---|---|---|
-| Monitor | 164×124 (0.62×) | smaller than the applicant — the *user's* note: "the computer looks too big" |
-| Applicant | 180×203 (0.94×) | **must read bigger than the screen** |
-| Desk band | 64 px tall (y 0–64) | surface 12 px, front lip 52 px — "the desk is missing" is fixed by this |
-| Window | 172×62 at top-left | above the monitor; never behind the applicant |
-| Clean wall zone | x 296–480, above the desk | reserved for the applicant silhouette |
+| Monitor | 164x124 (0.62x) | smaller than the applicant -- the *user's* note: "the computer looks too big" |
+| Applicant | 180x203 (0.94x) | **must read bigger than the screen** |
+| Desk band | 64 px tall (y 0-64) | surface 12 px, front lip 52 px -- "the desk is missing" is fixed by this |
+| Window | 172x62 at top-left | above the monitor; never behind the applicant |
+| Clean wall zone | x 296-480, above the desk | reserved for the applicant silhouette |
 | Keyboard / mouse / mug / papers | on the desk band | paper stack on the **right**, not centre |
 
 **Desk-work layer (study J, 2026-11-26):** the desk must look *worked at*, not empty. Locked contents
-and placement (world px, 480×270):
+and placement (world px, 480x270):
 
 | Item | Where | Note |
 |---|---|---|
 | Keyboard | centred on the monitor's centre line, on the desk surface | "in front of the computer", not offset |
 | Mouse | immediately right of the keyboard, cable running back to it | |
 | Notepad + pen | far left of the desk | |
-| Sticky notes | left of the folder stack | `warn` + `paperdim` only — warm accents are rationed |
+| Sticky notes | left of the folder stack | `warn` + `paperdim` only -- warm accents are rationed |
 | Folder stack | centre-left of the desk | `paper` / `paperdim` with `ink` outline |
 | Clipboard | right of centre | |
 | **Coffee mug** | **far right of the desk** | user, 2026-11-26: "put the coffee to the right" |
 | Paper fold | never centre-right of the desk | it competes with the applicant's silhouette |
 
-**Background props are drawn large** (user, 2026-11-26): window ≈ 184×62, filing cabinet 44×76, wall
-clock r=11, plant 42 px tall, noticeboard 66×40. Small props read as decoration; big ones read as a room.
+**Background props are drawn large** (user, 2026-11-26): window ~ 184x62, filing cabinet 44x76, wall
+clock r=11, plant 42 px tall, noticeboard 66x40. Small props read as decoration; big ones read as a room.
 
 **The window / city (rewritten 2026-11-26, second pass).** The window is split into strict **zones**:
 above `skyline_top` = sky only (stars, moon, one wisp); below = silhouettes only, and every lit window
@@ -147,16 +147,16 @@ is clipped *inside* its own building. Depth comes from **sky gradient steps + di
 from a lighter "haze band" (that read as a grey slab across the middle of the window).
 Moon is a **crescent** with a single halo step; two aviation beacons blink in the sky.
 
-**The window / city (user, 2026-11-26):** the city must read **large** — the frame runs from just below
-the applicant's shoulder line (row 145) to well above his head (row 8), 224×137 px, on the **right**.
+**The window / city (user, 2026-11-26):** the city must read **large** -- the frame runs from just below
+the applicant's shoulder line (row 145) to well above his head (row 8), 224x137 px, on the **right**.
 His head sits against the sky, and the city lights act as a rim behind him. No moon at this size (it
 became a second focal point).
 
 **The applicant carries no backdrop.** The old lighter slab behind him was deleted from
-`make_applicants.py` (2026-11-26); the room supplies everything behind him. Never add a slab back —
+`make_applicants.py` (2026-11-26); the room supplies everything behind him. Never add a slab back --
 if an archetype needs separation, use a 1 px rim light, not a filled rectangle.
 
-**PROMOTED 2026-11-26 — composition L is the shipped desk.** The window sits on the **right, behind the
+**PROMOTED 2026-11-26 -- composition L is the shipped desk.** The window sits on the **right, behind the
 applicant's shoulders** (user: "it highlights the interviewee"), its frame top below his jaw so his head
 still reads against clean wall; the moon was dropped because at this size it became a second focal point.
 Filing cabinet and plant sit on the floor line between monitor and applicant; noticeboard and clock are
@@ -166,19 +166,19 @@ Shipped files (all generated by `tools/art/promote_composition_L.py`, off-palett
 
 | File | Size | Note |
 |---|---|---|
-| `backgrounds/office_L0..L2.png` | 480×270 | the room, three lighting states |
-| `desk/desk_foreground.png` | 480×64 | the desk you sit at + all desk work; sorts **above** the applicant |
-| `desk/monitor_small.png` | 154×106 | **1-px redraw** at the approved 0.58 scale — never a downscale |
-| `desk/document_small.png` | 108×63 | **1-px redraw** at 0.56 |
+| `backgrounds/office_L0..L2.png` | 480x270 | the room, three lighting states |
+| `desk/desk_foreground.png` | 480x64 | the desk you sit at + all desk work; sorts **above** the applicant |
+| `desk/monitor_small.png` | 154x106 | **1-px redraw** at the approved 0.58 scale -- never a downscale |
+| `desk/document_small.png` | 108x63 | **1-px redraw** at 0.56 |
 
-**Never resample a sprite to reach a scale.** Downscaling the 264×200 bezel would destroy its 1 px frame
+**Never resample a sprite to reach a scale.** Downscaling the 264x200 bezel would destroy its 1 px frame
 and the Point filter would bake the blur in. Re-author at final size instead.
 
-**Rejected compositions (do not revisit):** monitor ≥ 0.74× while the applicant is ≤ 0.70× (studies D/E);
+**Rejected compositions (do not revisit):** monitor >= 0.74x while the applicant is <= 0.70x (studies D/E);
 any prop overlapping the applicant; window frame crossing the applicant's head (window therefore lives
 top-left, above the monitor); props floating above the floor line.
 
-## 6b. RAGGED — the "used and second-hand" look (locked 2026-11-26)
+## 6b. RAGGED -- the "used and second-hand" look (locked 2026-11-26)
 
 Everything in this game is a bit worn. The reference is `art/concepts/menu_concept_A.png`: nothing there
 is a perfect rectangle. Helper: `tools/art/ragged.py`.
@@ -187,8 +187,8 @@ is a perfect rectangle. Helper: `tools/art/ragged.py`.
 |---|---|
 | Shapes are hand-drawn | `ragged_rect()` draws boxes whose edges step by 1 px. Never build a hero prop from `ImageDraw.rectangle` alone. |
 | 1 px inner lines stay straight | Wobbling an inner lit frame reads as *scribble*, not age. Only the OUTER silhouette wobbles. |
-| Paper is torn, never stepped | Sheets, letters, sticky notes: tear the EDGES (1–2 px, per side, ~30–50 %). A stepped fill makes a page look chewed. |
-| Corners chip | `notch_corner()` on at most two corners, 1–3 px deep, with an `ink`/`line` pixel at the base. |
+| Paper is torn, never stepped | Sheets, letters, sticky notes: tear the EDGES (1-2 px, per side, ~30-50 %). A stepped fill makes a page look chewed. |
+| Corners chip | `notch_corner()` on at most two corners, 1-3 px deep, with an `ink`/`line` pixel at the base. |
 | Scuffs are sparse | **~1 per 1,500 opaque px** (down from 900 on 2026-11-26), low contrast (`panel` / `void` on light surfaces, `linehi` on dark). Dust, not static. |
 | Big hard objects stay hard | **The monitor is drawn straight.** `ragged_rect` on a 154x106 box produces 1 px dotted edges with gaps -- it read as debris, not as a CRT. Monitors, cases and UI chrome get a *dented corner* and 3-4 scuffs; only paper and soft goods get torn silhouettes. |
 | 9-slices are never warped | Unity stretches those bands. `distress(..., nine_slice=True)` scuffs the fill only. |
@@ -197,14 +197,14 @@ is a perfect rectangle. Helper: `tools/art/ragged.py`.
 | Icons and 9-slices get one corner knock | `_chip()` in `make_art_kit.py`: one pixel off each corner, never the interior. A 9-slice border must tile. |
 
 **Rollout status (2026-11-26, complete):** desk props, monitor, documents, all 14 applicants, noticeboard,
-filing cabinet, wall head, 18 icons (×2 states), 2 stamps, 5 UI 9-slices. Everything in `art/kit/` now
+filing cabinet, wall head, 18 icons (x2 states), 2 stamps, 5 UI 9-slices. Everything in `art/kit/` now
 carries wear; the only perfect rectangles left are the 1 px window mullion and the room's floor seam,
 which are architectural, not props.
 
 ### 6b.1 Wear level drifts with corruption (user decision 2026-11-26)
 
-The kit is authored at **level 2 ("office surplus")**. It is never repainted per state — the drift is one
-overlay sprite, generated by `tools/art/make_wear_overlays.py` (480×270, palette-only, alpha 0/255):
+The kit is authored at **level 2 ("office surplus")**. It is never repainted per state -- the drift is one
+overlay sprite, generated by `tools/art/make_wear_overlays.py` (480x270, palette-only, alpha 0/255):
 
 | `CorruptionLevel` | Overlay | Reads as |
 |---|---|---|
@@ -214,21 +214,21 @@ overlay sprite, generated by `tools/art/make_wear_overlays.py` (480×270, palett
 | 3 (3 hired = defeat) | `fx/wear_b.png` + existing runtime `danger` tint | failing |
 
 Overlays are published to `Assets/Art/Kit/fx/` and appear in `unity_sprites.json` under `kind: fx`,
-ppu 16, so they align with `office_L0..L2` at the same position. Draw order: background → wear overlay →
-desk props → applicant.
+ppu 16, so they align with `office_L0..L2` at the same position. Draw order: background -> wear overlay ->
+desk props -> applicant.
 
-**Failed approaches — do not retry:** deleting random edge pixels (produces static noise); shifting
+**Failed approaches -- do not retry:** deleting random edge pixels (produces static noise); shifting
 whole rows/columns to wobble an edge (cuts 1 px frames into dashes); any post-process pass that nibbles a
-finished 1 px sprite (our sprites are thin — every pixel of a frame has ≤ 2 neighbours, so removal either
+finished 1 px sprite (our sprites are thin -- every pixel of a frame has <= 2 neighbours, so removal either
 does nothing or destroys the line). **Wear must be built in while drawing.**
 
 ## 7. Corruption states (decided 2026-11-26)
 
-One room, three **lighting** states — not three different rooms:
+One room, three **lighting** states -- not three different rooms:
 
 | Level | Treatment |
 |---|---|
-| `L0` normal | as §6 |
+| `L0` normal | as #6 |
 | `L1` warning | warm lamp off; window lights shift to `orange`; mint accents dim to `signaldim`; a `line`-coloured scan band |
 | `L2` breach | `danger` rim on the bezel and desk edge; window sky goes red-tinted via a flat `dangerdim` overlay sprite; every 3rd row darkened |
 
@@ -244,24 +244,24 @@ Identity is more than a colour swap. Each applicant now also varies in:
 | `glasses_shape` | rectangular / round (pixel-ring lenses with a glint) |
 | `accessory` | none / wristwatch / earrings / breast-pocket pen / ring |
 | `desk_prop` | mug / pen / folded note / phone face-down |
-| `folds`, `brow`, `mole` | 1–3 creases (never crossing the badge), 2–4 px brow, one off-centre mole |
+| `folds`, `brow`, `mole` | 1-3 creases (never crossing the badge), 2-4 px brow, one off-centre mole |
 | lanyard | a real V off both shoulders converging on the card, with a 1 px drift. Synthetics keep `straight_badge` (dead vertical) as a tell. |
 
-**Drawing rules learned here (do not re-break):** sleeves must GROW out of the shoulder over ~6 rows — a
+**Drawing rules learned here (do not re-break):** sleeves must GROW out of the shoulder over ~6 rows -- a
 fixed block starting below the shoulder leaves only its 1 px edge visible and the arm reads as a wire.
 Finger separations are `skin_mid` on `skin_light`, never `skin_dark`: four dark bars read as a fence.
 
 ## 7b. Floors: nothing floats (added 2026-11-26)
 
 **BUG-025.** The monitor hung 12 px above the desk. Cause was not the drawing: `monitor_small.png`
-drew a 4 px "stand" inside its own sprite, but the monitor layer sorts at **−20** and the desk layer
+drew a 4 px "stand" inside its own sprite, but the monitor layer sorts at **-20** and the desk layer
 at **+10**, so a stand baked into the monitor could never be seen below the desk edge.
 
 | Rule | Detail |
 |---|---|
-| Props that stand ON the desk are two layers | body sprite + `*_stand.png` (or shadow sprite) anchored separately, with the base overlapping the desk surface by 3–4 px so the desk layer covers the overhang |
+| Props that stand ON the desk are two layers | body sprite + `*_stand.png` (or shadow sprite) anchored separately, with the base overlapping the desk surface by 3-4 px so the desk layer covers the overhang |
 | Every prop gets a contact shadow | a dark line or 2-step band exactly where it meets the surface. No contact shadow = floating, at any resolution |
-| Check at 4×, not 1× | `twin_desk.py --zoom 4` with the right crop; a 12 px gap is invisible in a 480 px thumbnail |
+| Check at 4x, not 1x | `twin_desk.py --zoom 4` with the right crop; a 12 px gap is invisible in a 480 px thumbnail |
 
 ## 7c. The desk must read as furniture (locked 2026-11-26)
 
@@ -270,8 +270,8 @@ reasons, and the fixes are rules now:
 
 | Problem | Cause | Rule |
 |---|---|---|
-| Scrambled | eight small props spread evenly across 480 px, each competing | Props are **grouped** with gaps: work area (notepad, keyboard, mouse) → paperwork (sticky notes, folder, clipboard) → comfort (mug). Never place a prop in every band. |
-| Undefined | props had no contact shadow, and the front face was flat bands with tick marks | **Every prop gets a contact shadow.** The desk front is lip (3 bevelled rows) → apron → rail → kick shadow. Definition comes from value steps, never from added clutter. |
+| Scrambled | eight small props spread evenly across 480 px, each competing | Props are **grouped** with gaps: work area (notepad, keyboard, mouse) -> paperwork (sticky notes, folder, clipboard) -> comfort (mug). Never place a prop in every band. |
+| Undefined | props had no contact shadow, and the front face was flat bands with tick marks | **Every prop gets a contact shadow.** The desk front is lip (3 bevelled rows) -> apron -> rail -> kick shadow. Definition comes from value steps, never from added clutter. |
 | "Everything the same" | surface tone equals prop tone | A prop may never use the surface's own tone as its body: the mouse was `panel2` on a `panel2` desk and read as a plus sign. Use one step off. |
 | Fake depth | drawer drawn under the props read as a tray | No horizontal panel line directly under a prop cluster. |
 

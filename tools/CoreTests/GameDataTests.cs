@@ -78,9 +78,13 @@ namespace HRZeroDay.Tests
             foreach (var s in doc.RootElement.GetProperty("sprites").EnumerateArray())
             {
                 if (s.GetProperty("kind").GetString() != "applicant") continue;
-                // The layout's applicant LAYER is a whole single-frame bust (bust_M_192x216.png); the four-cell
-                // strips are what the animator crops. Both are applicants, so skip the unsliced one here.
-                if (s.GetProperty("spriteMode").GetString() == "Single") continue;
+                // v130: the assert that used to live here skipped anything whose spriteMode was "Single", which
+                // meant the one sheet that broke the player's build (the applicant layer pointed at the bust)
+                // was the one sheet this test refused to look at. A test that excuses the failing case is how a
+                // black screen shipped. The bust is now the exception by NAME, and everything else must slice:
+                // four cells per applicant, on the disk, in the manifest, at 192x216.
+                var source = s.GetProperty("source").GetString();
+                if (source.EndsWith("applicants/bust_M_192x216.png", StringComparison.Ordinal)) continue;
                 var frames = s.GetProperty("sprites").EnumerateArray().ToList();
                 if (frames.Count != 4)
                     return "FAIL  applicant_slices  " + s.GetProperty("source").GetString() +
@@ -96,6 +100,27 @@ namespace HRZeroDay.Tests
                     var r = f.GetProperty("rect");
                     if (r[2].GetInt32() != 192 || r[3].GetInt32() != 216)
                         return "FAIL  applicant_slices  wrong cell size in " + names.First();
+                }
+            }
+            // and the manifest must not promise a frame that is not on disk: the exact failure the player saw
+            // was "has no frame list in the manifest", and its sibling is a manifest naming frames that are absent
+            var resFrames = Path.Combine(RepoRoot(), "unity", "Assets", "Resources", "Art", "Kit", "applicants", "frames");
+            if (Directory.Exists(resFrames))
+            {
+                foreach (var s2 in doc.RootElement.GetProperty("sprites").EnumerateArray())
+                {
+                    if (s2.GetProperty("kind").GetString() != "applicant") continue;
+                    if (s2.GetProperty("sprites").GetArrayLength() == 0) continue;
+                    // the bust is a single-frame still (the applicant layer's fallback), not an animation
+                    if (s2.GetProperty("source").GetString().EndsWith("bust_M_192x216.png", StringComparison.Ordinal))
+                        continue;
+                    var stem = Path.GetFileNameWithoutExtension(s2.GetProperty("source").GetString());
+                    foreach (var f in s2.GetProperty("sprites").EnumerateArray())
+                    {
+                        var p = Path.Combine(resFrames, stem + "__" + f.GetProperty("name").GetString() + ".png");
+                        if (!File.Exists(p))
+                            return "FAIL  applicant_frames_on_disk  missing " + Path.GetFileName(p);
+                    }
                 }
             }
             return "PASS  Applicant_sheets_slice_into_four_frames";

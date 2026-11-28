@@ -18,6 +18,11 @@ namespace HRZeroDay.Game
         /// <summary>Seconds left on the current applicant. Owned by whatever drives the shift clock;
         /// the room light and the HUD must read the same number or the sky lies about the time.</summary>
         public double currentApplicantRemaining = ShiftClock.SecondsPerApplicant;
+        /// <summary>The wall clock's hands (v130). Fed the SAME progress the room light gets.</summary>
+        public RoomClockView clock;
+        /// <summary>The lamp's level (v130): 0 when it is off, 1 when it is on, ramped over a second.</summary>
+        public LampView lamp;
+        public bool lampOn = true;
 
         /// <summary>
         /// Shift progress 0..1. The day is a fixed number of applicants (ShiftController.Today), and each
@@ -37,8 +42,11 @@ namespace HRZeroDay.Game
 
         void Update()
         {
-            if (lighting == null) return;
-            lighting.Apply(ProgressOf(shift, currentApplicantRemaining));
+            double progress = ProgressOf(shift, currentApplicantRemaining);
+            if (lighting != null) lighting.Apply(progress);
+            // ONE progress, three readers: the room's tint, the lamp's level and the wall clock's hands.
+            if (clock != null) clock.progress = (float)progress;
+            if (lamp != null) lamp.SetOn(lampOn);
         }
     }
 }

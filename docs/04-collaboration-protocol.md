@@ -20,27 +20,27 @@ git push -u origin feat/inbox-screen     # then open a PR
 ```
 
 **Branch prefixes:** `feat/`, `fix/`, `art/`, `content/`, `docs/`, `chore/`.
-**Commit subjects:** imperative, ≤ 72 chars, conventional prefixes. One logical change per commit.
+**Commit subjects:** imperative, <= 72 chars, conventional prefixes. One logical change per commit.
 
 ### Never commit
 `Library/`, `Temp/`, `Logs/`, `*.apk`, `*.aab`, keystores, `.env`, `UserSettings/`.
-The `.gitignore` here already covers this — **verify `git status` before your first push**.
+The `.gitignore` here already covers this -- **verify `git status` before your first push**.
 
 ### Merge rules
 1. `main` must always open without console errors.
 2. PRs need **one reviewer** (any other teammate or me).
 3. **One owner per scene/prefab.** If you must edit someone else's, announce it in the group first.
-4. Force **text serialization** (`Edit → Project Settings → Editor → Asset Serialization → Force Text`)
+4. Force **text serialization** (`Edit -> Project Settings -> Editor -> Asset Serialization -> Force Text`)
    and LFS for `*.png *.psd *.wav *.mp3 *.ttf *.otf *.fbx`.
 5. If `main` breaks: the person who merged fixes it *before* any new work. That's the rule.
 
 ## 2. Handoff files (how we talk without talking)
 
-Every task that crosses a boundary (art → code, content → code, code → QA) gets a file in
+Every task that crosses a boundary (art -> code, content -> code, code -> QA) gets a file in
 `handoff/` named `YYYY-MM-DD_<from>-to-<to>_<topic>.md`:
 
 ```markdown
-# HANDOFF — Content → Systems — Day 02 emails
+# HANDOFF -- Content -> Systems -- Day 02 emails
 **From:** C   **To:** A   **Date:** 2026-11-28   **Branch:** content/day-02-emails
 
 ## What is done
@@ -53,7 +53,7 @@ Every task that crosses a boundary (art → code, content → code, code → QA)
 ## Contract changes
 | Field | Before | Now | Breaking? |
 |---|---|---|---|
-| `trueSender` | — | string | No (additive) |
+| `trueSender` | -- | string | No (additive) |
 
 ## Known issues / do not touch
 - `d2_e03` body text is placeholder, do not balance difficulty around it
@@ -65,16 +65,16 @@ Every task that crosses a boundary (art → code, content → code, code → QA)
 
 **Rule:** if it isn't in a handoff file, it didn't happen. Chat messages are ephemeral; the repo is not.
 
-## 3. Bug log discipline — `docs/90-bug-log.md`
+## 3. Bug log discipline -- `docs/90-bug-log.md`
 
 Every non-trivial bug gets an entry **before** the fix:
 
 ```
-### BUG-014 — Save file corrupts when app is backgrounded mid-shift
+### BUG-014 -- Save file corrupts when app is backgrounded mid-shift
 - Symptom / Repro / Root cause / Fix / Regression test / Prevention rule
 ```
 
-The **Prevention rule** line is the important one — it's how we stop repeating problems.
+The **Prevention rule** line is the important one -- it's how we stop repeating problems.
 Examples of prevention rules we'll accumulate:
 - "Never write directly to the save path; always write `.tmp` then `File.Replace`."
 - "Never `FindObjectOfType` in `Update`."
@@ -84,18 +84,18 @@ Examples of prevention rules we'll accumulate:
 ## 4. Definition of Done (per task)
 
 - [ ] Runs in-editor with **zero** console warnings introduced
-- [ ] Tested on a real Android device (or at minimum in Device Simulator at 1080×1920)
-- [ ] Works with save → quit → relaunch → resume
+- [ ] Tested on a real Android device (or at minimum in Device Simulator at 1080x1920)
+- [ ] Works with save -> quit -> relaunch -> resume
 - [ ] All user-facing strings externalised (no hardcoded English in prefabs/scripts)
-- [ ] Touch targets ≥ 48 dp, works one-handed
+- [ ] Touch targets >= 48 dp, works one-handed
 - [ ] Handoff file written if it crosses a boundary
 - [ ] Bug log updated if anything surprised you
 
 ## 5. Escalation
 
-1. Stuck > 30 min → post in the group with: what you expected, what happened, the console log.
-2. Disagreement on design → the open-questions doc decides; if it's not there, I decide and document it.
-3. Anything that touches *the game's teaching goal* (what the player learns) → escalate to the whole
+1. Stuck > 30 min -> post in the group with: what you expected, what happened, the console log.
+2. Disagreement on design -> the open-questions doc decides; if it's not there, I decide and document it.
+3. Anything that touches *the game's teaching goal* (what the player learns) -> escalate to the whole
    team, not a solo call.
 
 ## 6. Working with me (the agent)

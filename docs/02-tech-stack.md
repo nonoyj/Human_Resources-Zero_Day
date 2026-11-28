@@ -4,7 +4,7 @@
 
 | Item | Choice | Notes |
 |---|---|---|
-| Unity | **6.3 LTS — 6000.3.29f1** | Pin exactly. `ProjectSettings/ProjectVersion.txt` is committed. All 3 machines must match |
+| Unity | **6.3 LTS -- 6000.3.29f1** | Pin exactly. `ProjectSettings/ProjectVersion.txt` is committed. All 3 machines must match |
 | Modules | Android Build Support + SDK/NDK tools + OpenJDK (installed via Hub) | Verify with Dev C on Day 1 |
 | Render pipeline | **URP 2D** (Universal 2D template) | 2D Renderer, no post-processing beyond a bloom-less "scanline" overlay done in-shader |
 | Scripting backend | **IL2CPP**, **arm64 + armv7**, API 24 min / API 35 target | Mono only for fast local iteration if build times hurt |
@@ -14,7 +14,7 @@
 | Audio | `AudioManager` singleton + pooled `AudioSource` | No third-party audio middleware |
 | Save | JSON + `JsonUtility`, written atomically to `Application.persistentDataPath` | Version field for migrations |
 | DI/architecture | Lightweight: `ServiceLocator` + ScriptableObject configs. **No** heavy framework | Avoid over-engineering in 14 days |
-| Testing | Unity Test Framework — EditMode tests for the rule engine only | The rule engine is where bugs hide; UI is manual-tested |
+| Testing | Unity Test Framework -- EditMode tests for the rule engine only | The rule engine is where bugs hide; UI is manual-tested |
 
 ## Packages (`Packages/manifest.json`)
 
@@ -34,34 +34,34 @@ Add via Package Manager UI or `manifest.json`; **commit `manifest.json` + `packa
 
 ```
 Assets/
-├─ Art/
-│  ├─ Sprites/{UI,Characters,Applicants,Props,Documents}
-│  ├─ Backgrounds/
-│  ├─ Fonts/
-│  └─ Animations/
-├─ Audio/{SFX,Music,Ambience}
-├─ Prefabs/{Screens,Widgets,Applicants,Emails}
-├─ Scenes/
-│  ├─ 00_Boot.unity          (loading + save init)
-│  ├─ 01_Intro.unity         (animated story, skippable)
-│  ├─ 02_MainMenu.unity
-│  ├─ 03_CharacterCreate.unity
-│  ├─ 04_Desk.unity          (the game: review, stamps, inbox, manual)
-│  └─ 05_Ending.unity
-├─ Scripts/
-│  ├─ Core/        (GameManager, DayManager, SaveSystem, ServiceLocator, EventBus)
-│  ├─ Data/        (ScriptableObjects + DTOs that mirror the JSON)
-│  ├─ Rules/       (RuleEngine, rules/, Evidence)
-│  ├─ Content/     (ContentLoader, JSON schemas, validators)
-│  ├─ UI/          (screen controllers, animations, transitions)
-│  ├─ Audio/
-│  └─ Editor/      (build scripts, content validators, art import presets)
-├─ Settings/       (URP assets, InputActions, ScriptableObject configs)
-├─ Resources/      (JSON content — see note)
-└─ StreamingAssets/ (only if we need to hot-swap content without a rebuild)
++- Art/
+|  +- Sprites/{UI,Characters,Applicants,Props,Documents}
+|  +- Backgrounds/
+|  +- Fonts/
+|  +- Animations/
++- Audio/{SFX,Music,Ambience}
++- Prefabs/{Screens,Widgets,Applicants,Emails}
++- Scenes/
+|  +- 00_Boot.unity          (loading + save init)
+|  +- 01_Intro.unity         (animated story, skippable)
+|  +- 02_MainMenu.unity
+|  +- 03_CharacterCreate.unity
+|  +- 04_Desk.unity          (the game: review, stamps, inbox, manual)
+|  +- 05_Ending.unity
++- Scripts/
+|  +- Core/        (GameManager, DayManager, SaveSystem, ServiceLocator, EventBus)
+|  +- Data/        (ScriptableObjects + DTOs that mirror the JSON)
+|  +- Rules/       (RuleEngine, rules/, Evidence)
+|  +- Content/     (ContentLoader, JSON schemas, validators)
+|  +- UI/          (screen controllers, animations, transitions)
+|  +- Audio/
+|  +- Editor/      (build scripts, content validators, art import presets)
++- Settings/       (URP assets, InputActions, ScriptableObject configs)
++- Resources/      (JSON content -- see note)
++- StreamingAssets/ (only if we need to hot-swap content without a rebuild)
 ```
 
-**Content loading:** JSON lives in `Assets/StreamingAssets/content/` for v1 — it ships in the
+**Content loading:** JSON lives in `Assets/StreamingAssets/content/` for v1 -- it ships in the
 APK, can be edited without touching C#, and is readable with `UnityWebRequest` on Android
 (`Resources/` + `TextAsset` is the alternative; StreamingAssets is simpler for writers).
 Wrap it in a `ContentLoader` so we can swap later.
@@ -77,10 +77,10 @@ Wrap it in a `ContentLoader` so we can swap later.
 
 | Item | Spec |
 |---|---|
-| Base canvas | **480 × 270**, landscape, integer scaling only (Pixel Perfect Camera). See ADR-005 |
+| Base canvas | **480 x 270**, landscape, integer scaling only (Pixel Perfect Camera). See ADR-005 |
 | PPU | 16 |
-| Portraits | 96 × 96, 1px outline, 4-shade shading |
-| Applicant full-card | 384 × 216 (resume sheet) |
+| Portraits | 96 x 96, 1px outline, 4-shade shading |
+| Applicant full-card | 384 x 216 (resume sheet) |
 | Filtering | Point (no filter), compression **None**, Mip Maps **off** |
 | Colour space | **Gamma** for crisp pixel art (not Linear) |
 | Format | PNG, transparency, no alpha bleeding |
@@ -98,7 +98,7 @@ Wrap it in a `ContentLoader` so we can swap later.
 ```
 - **Rule:** AI tells must never be conveyed by colour alone (accessibility). Use shape/motion/text too.
 - Fonts: one monospace pixel font for the terminal UI (`Departure Mono` / `Pixel Operator Mono`
-  and one humanist pixel font for documents. Both must be licensed for commercial use — I'll
+  and one humanist pixel font for documents. Both must be licensed for commercial use -- I'll
   shortlist OFL fonts and generate fallback bitmap glyphs if needed.
 
 ## Data contracts (freeze these before coding)
@@ -159,7 +159,7 @@ Wrap it in a `ContentLoader` so we can swap later.
 }
 ```
 
-## The rule engine (the heart — get this right)
+## The rule engine (the heart -- get this right)
 
 ```
 RuleEngine.Evaluate(ApplicantRecord a, RuleContext ctx) -> List<Episode> 
@@ -174,14 +174,14 @@ RuleEngine.Evaluate(ApplicantRecord a, RuleContext ctx) -> List<Episode>
   - right call + right reason = full credit (teaches)
   - right call + wrong reason = credit, but the debrief says "for the wrong reason" (still learning-relevant)
   - wrong call = penalty, with the true evidence revealed at end of day
-- **Keep this pure C#, no UnityEngine dependencies** → EditMode-testable, and portable to a web
+- **Keep this pure C#, no UnityEngine dependencies** -> EditMode-testable, and portable to a web
   build if you want a playable browser prototype for playtests in week 1.
 
 ## Determinism & content generation
 
 - Every shift is seeded (`seed` in save) so levels replay identically for debugging.
 - Template pools per tell, so Day 4 isn't identical to Day 2 with different names.
-- Difficulty = number of concurrent tells, clarity of tells, and distractor noise — **not**
+- Difficulty = number of concurrent tells, clarity of tells, and distractor noise -- **not**
   faster timers or unfair ambiguity.
 
 ## Orientation & desk composition (ADR-005, ADR-007)
@@ -205,7 +205,7 @@ World layout on the 480x270 canvas:
 ```
 
 Design consequences:
-- Both halves are always visible at once — the player can watch the applicant while reading the
+- Both halves are always visible at once -- the player can watch the applicant while reading the
   document. This is the core of the fantasy and of the "observation" lesson.
 - Any zoom/inspect layer must be anchored to the **left** half so the applicant stays visible.
 - Safe-area insets: keep 24 px (at 480x270) clear on all sides for notch/cutout handling.
@@ -215,7 +215,7 @@ Design consequences:
 
 - [ ] **Landscape** (auto-rotate locked), Resizable window off, Render outside safe area off
 - [ ] Min API 24, Target API 35, IL2CPP, arm64+armv7
-- [ ] Scripting: .NET Standard 2.1, IL2CPP code generation: Faster (smaller builds) — switch to Faster runtime for release if perf needs it
+- [ ] Scripting: .NET Standard 2.1, IL2CPP code generation: Faster (smaller builds) -- switch to Faster runtime for release if perf needs it
 - [ ] Managed stripping: Low (avoid reflection surprises in JsonUtility)
 - [ ] Keystore created and stored in a password manager (never in the repo)
 - [ ] `bundleVersion 0.1.0`, `AndroidBundleVersionCode` incremented per build
@@ -237,6 +237,6 @@ HR-ZeroDay/                 <- git repo. Not a Unity project. No Assets/ here, s
 
 Why this changed: `ProjectSettings/` was being generated at the repo root (whatever folder the operator
 happened to be standing in), while `Assets/` was always in `unity/`. Hub rejects a folder with settings
-but no `Assets/` — "Please add a valid project" — so the project could never be opened at all.
+but no `Assets/` -- "Please add a valid project" -- so the project could never be opened at all.
 `scripts/Promote-UnityProject.ps1` makes `unity/` self-contained; `scripts/Adopt-UnityProject.ps1` is
 superseded by it except as the `-Source` copier.

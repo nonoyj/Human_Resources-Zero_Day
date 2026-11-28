@@ -1,11 +1,11 @@
-# HANDOFF — Agent → BE1 (with a content ask for BE2) — interaction layer
+# HANDOFF -- Agent -> BE1 (with a content ask for BE2) -- interaction layer
 
-**Date:** 2026-11-26, updated after merging current `main` · **Branch:**
-`arena/c1faebb9-human-resources-zero-day` · **Read first:** `docs/15-interaction-layer.md`
+**Date:** 2026-11-26, updated after merging current `main` - **Branch:**
+`arena/c1faebb9-human-resources-zero-day` - **Read first:** `docs/15-interaction-layer.md`
 
 The desk now has hands. The pure rules, Unity adapters, scene wiring and browser twin are in the
 repo, integrated with the 80-sprite art kit, composition L scale, day/night room, wear overlays and
-the paperwork flag rules. **No backend work is included** — the user owns that stream.
+the paperwork flag rules. **No backend work is included** -- the user owns that stream.
 
 ---
 
@@ -17,31 +17,31 @@ adopting the Unity project is to run the two .NET commands below.
 
 ## DONE (files)
 
-- `unity/Assets/Scripts/Game/Interaction/` — 11 new files:
+- `unity/Assets/Scripts/Game/Interaction/` -- 11 new files:
   `EvidenceMap`, `EvidenceLedger`, `HotspotHitTest`, `ToolBudget`, `DeskSession` (all pure C#),
   plus `HotspotInteractor`, `EvidencePresenter`, `DeskEvidenceOverlay`, `StampAnimator`,
   `DecisionInputController`, `DeskBootstrap` (Unity adapters).
 - `DeskSession` now owns the generated `Paperwork` for each applicant: flags are exposed for the
   letter UI, locked at the stamp, and their trust delta is folded into the decision.
-- `unity/Assets/Scripts/Core/Rules/ScoringService.cs` — **one deliberate frozen-API addition**:
+- `unity/Assets/Scripts/Core/Rules/ScoringService.cs` -- **one deliberate frozen-API addition**:
   `DecisionInput.PaperworkTrustDelta` (default 0) is added to `TrustDelta` in `Evaluate`.
   Existing callers/tests are unchanged. Please sign this off in review.
-- `unity/Assets/Scripts/Editor/HRZeroDayMenu.cs` — builds hotspots with `HotspotInteractor`,
+- `unity/Assets/Scripts/Editor/HRZeroDayMenu.cs` -- builds hotspots with `HotspotInteractor`,
   pads colliders, adds EventSystem + `Physics2DRaycaster`, ring/callout/stamp props and the bootstrap.
   It sits alongside `ArtKitPublishMenu.cs`; publish/import still come first.
-- `unity/Assets/Scripts/Game/Desk/DeskSceneBuilder.cs` — main's BUG-024 fix (nullable parent,
+- `unity/Assets/Scripts/Game/Desk/DeskSceneBuilder.cs` -- main's BUG-024 fix (nullable parent,
   layer lookup by repo path, `scaleFactor`) is preserved; no duplicate fix remains.
-- `tools/UnityStubs/UnityStubs.cs` — merged with main's stub work; added EventSystems, TextMesh,
+- `tools/UnityStubs/UnityStubs.cs` -- merged with main's stub work; added EventSystems, TextMesh,
   Quaternion, `Mathf.Max(float,float)`, built-in resources, etc. Duplicate `Mathf`/`SetActive`
   declarations from the two branches were removed.
-- `tools/CoreTests/` — 10 new interaction tests, including paperwork flag lock/trust.
-- `prototype/web/` — playable interaction twin: composition L scaling, L0/L1/L2 room, wear overlays,
+- `tools/CoreTests/` -- 10 new interaction tests, including paperwork flag lock/trust.
+- `prototype/web/` -- playable interaction twin: composition L scaling, L0/L1/L2 room, wear overlays,
   five paperwork flags, seeded fixtures from `prototype/generator_sim.py`, 9 dependency-free checks.
-- `docs/15-interaction-layer.md` + this file — architecture, fairness contract, risks, evidence.
+- `docs/15-interaction-layer.md` + this file -- architecture, fairness contract, risks, evidence.
 
 ## NEXT (BE1, in order)
 
-1. **Adopt the project the user already created** — `scripts/Adopt-UnityProject.ps1 -Source <temp>`;
+1. **Adopt the project the user already created** -- `scripts/Adopt-UnityProject.ps1 -Source <temp>`;
    see `docs/19-unity-project-setup.md` and `handoff/2026-11-26_fe-to-BE1_unity-project-created.md`.
    Do **not** create a second Unity project or overwrite `unity/Assets`.
 2. Run `dotnet build tools/UnityStubs/CompileCheck.csproj` and
@@ -53,7 +53,7 @@ adopting the Unity project is to run the two .NET commands below.
    tap opens the 2x ring, a face tap opens a callout; the letter tab offers five toggles; stamping
    shows the consequence and advances after `debriefSeconds`.
 5. Fill `DeskBootstrap.watchCopy`, `correctHeading`, `wrongHeading` from content when BE2 lands it.
-6. Build a throwaway APK before adding more UI — still the biggest schedule risk.
+6. Build a throwaway APK before adding more UI -- still the biggest schedule risk.
 
 ## CONTENT ASK FOR BE2
 
@@ -61,11 +61,11 @@ adopting the Unity project is to run the two .NET commands below.
 tool labels, the `VALID` result wording, three letter templates, the signature line and the five
 flag labels. Please move these into `content/manual/`, `content/ui/` and `content/letters/` with
 stable keys, then hand me the key list so BE1 can replace the inspector fields with a content lookup.
-Do not change the tell ids or flag ids — both are frozen in `TellCatalog` / `LetterFlags`.
+Do not change the tell ids or flag ids -- both are frozen in `TellCatalog` / `LetterFlags`.
 
 ## BLOCKED ON
 
-Unity project adoption, not creation → suggested default: run `Adopt-UnityProject.ps1` against the
+Unity project adoption, not creation -> suggested default: run `Adopt-UnityProject.ps1` against the
 project the user already made with 6000.3.29f1.
 
 ## RISK
@@ -97,5 +97,5 @@ $ curl http://127.0.0.1:8765/prototype/web/         -> HTTP 200
 
 ## DON'T TOUCH
 
-`Assets/Scripts/Core/**` except the reviewed `DecisionInput.PaperworkTrustDelta` addition ·
-`Assets/Art/**` and `Assets/Resources/**` (generated) · any backend directory (the user's stream).
+`Assets/Scripts/Core/**` except the reviewed `DecisionInput.PaperworkTrustDelta` addition -
+`Assets/Art/**` and `Assets/Resources/**` (generated) - any backend directory (the user's stream).

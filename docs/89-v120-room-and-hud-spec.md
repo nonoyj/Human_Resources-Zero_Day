@@ -1,7 +1,7 @@
-# 89 — THE ROOM PASS: what you asked for, and how each one will be built
+# 89 -- THE ROOM PASS: what you asked for, and how each one will be built
 
 **Written 2026-11-25, from the player's list.** Every item is checked against the code as it stands, so the
-spec is a plan and not a wish. **Nothing here is art that has been approved yet** — the art goes out, you look
+spec is a plan and not a wish. **Nothing here is art that has been approved yet** -- the art goes out, you look
 at it, you say yes.
 
 The one-line version: *the menu's room is the best-looking thing in the game, and it is currently a separate
@@ -14,40 +14,40 @@ person you are looking at rather than a sprite on a wall.
 
 | # | You asked | What it means in code | Verdict |
 |---|---|---|---|
-| 1 | menu look / art style / light effects for the whole game | one **shared palette + one light pass**, extracted out of `MenuView` so the desk renders through the same code | do it — it is the biggest single look win |
-| 2 | update the applicant with what we learned + research human features | rebuild the face from measured proportions (eye line at ½ head height, etc.), same 192×216 slot | do it |
+| 1 | menu look / art style / light effects for the whole game | one **shared palette + one light pass**, extracted out of `MenuView` so the desk renders through the same code | do it -- it is the biggest single look win |
+| 2 | update the applicant with what we learned + research human features | rebuild the face from measured proportions (eye line at 1/2 head height, etc.), same 192x216 slot | do it |
 | 3 | stack the monitor panel in front of the window to give the applicant room | re-lay `desk_layout.json`: monitor left (in front of the window), applicant centred-right | do it |
-| 4 | the lamp lights **upward**, the desk does not catch it | the lamp's light is currently a circle above the desk's front face; it must pool **on** the desk, and the paper under it must catch it | **you are right** — see §3 |
-| 5 | the main screen looks off; turn it on and off; when on, the keyboard / cup / mouse / table / monitor's sides light up, and shadows strengthen away from it | the screen is a light source in the menu and **not** in the desk. It needs a real on/off state and a directional light pass | do it — see §4 |
+| 4 | the lamp lights **upward**, the desk does not catch it | the lamp's light is currently a circle above the desk's front face; it must pool **on** the desk, and the paper under it must catch it | **you are right** -- see #3 |
+| 5 | the main screen looks off; turn it on and off; when on, the keyboard / cup / mouse / table / monitor's sides light up, and shadows strengthen away from it | the screen is a light source in the menu and **not** in the desk. It needs a real on/off state and a directional light pass | do it -- see #4 |
 | 6 | selected text should glow, contrasting with the selection glow; on mobile, **two taps to confirm** | selection glow + a confirm step (touch only) | do it |
 | 7 | lamp hover lights only the bottom; light the whole lamp and its surroundings | the hover currently paints 3 rows under the shade; it should warm the fixture and its pool | do it |
-| 8 | merge, push to GitHub, new instructions, update the backend's AI, check the backend | see §6 | do it |
-| 9 | deep research on game HUD | see §7 | done |
+| 8 | merge, push to GitHub, new instructions, update the backend's AI, check the backend | see #6 | do it |
+| 9 | deep research on game HUD | see #7 | done |
 
 ---
 
 ## 2. The one structural decision: ONE palette, TWO renderers
 
-**Today:** `art/kit` paints with 24 colours (`void, panel, line, linehi, text, warn, danger, synth …`) while the
-menu paints with 53 (`wall_0..3, floor_0..4, wood_0..4, teal_0..4, amber_0..4, cyan_0..2, scr_0..2 …`). The menu
+**Today:** `art/kit` paints with 24 colours (`void, panel, line, linehi, text, warn, danger, synth ...`) while the
+menu paints with 53 (`wall_0..3, floor_0..4, wood_0..4, teal_0..4, amber_0..4, cyan_0..2, scr_0..2 ...`). The menu
 gets its look from that second palette: **every material owns a 2-5 step ramp, and light only ever walks a
-surface one step up its own ramp** — never a colour wash. That is the entire difference between the menu and the
+surface one step up its own ramp** -- never a colour wash. That is the entire difference between the menu and the
 desk, and it is why the desk looks flat and the menu looks lit.
 
 **Plan:** port the ramp model to the desk without changing a single silhouette:
 
 1. `menu_palette.py` becomes `art_palette.py`, the one source. The old kit names become **aliases** onto the
    nearest ramp step, so nothing that already draws breaks (`panel -> wall_1`, `line -> wall_2`, `warn ->
-   amber_3`, …).
+   amber_3`, ...).
 2. `apply_palette_map.py` rewrites the desk PNGs colour-by-colour (24 colours in, ramp steps out). **Silhouettes
-   are untouched** — no resampling, no redraw — so `twin_desk.py --verify` still matches and the proportions
+   are untouched** -- no resampling, no redraw -- so `twin_desk.py --verify` still matches and the proportions
    gate stays honest.
-3. One light pass (`LightRig` in Core, shared) lights both the menu's 480×270 buffer and the desk's renderers.
+3. One light pass (`LightRig` in Core, shared) lights both the menu's 480x270 buffer and the desk's renderers.
    The desk's version works per-sprite-batch: a surface's ramp step is chosen by the light it is under, exactly
    as `MenuView.Light()` already does for the composite.
 
 **The gate:** every pixel of every desk PNG must be a palette step, and every step must be reachable from its
-ramp — the same two rules the menu art already passes. This is a mechanical change, which is the point: it is
+ramp -- the same two rules the menu art already passes. This is a mechanical change, which is the point: it is
 the *same* look applied by rule, not an artist's second pass.
 
 ---
@@ -55,15 +55,15 @@ the *same* look applied by rule, not an artist's second pass.
 ## 3. The lamp (your catch)
 
 **You are right, and here is the exact bug.** `MenuLayout.LampLight()` places the lamp's light at
-`(LampX+28, LampY+70)` with a radius of 108×122 — the centre sits **70 px down the sprite**, near the lamp's
+`(LampX+28, LampY+70)` with a radius of 108x122 -- the centre sits **70 px down the sprite**, near the lamp's
 *foot*, and the radius reaches **60 px above** the shade and only **52 px below** the foot. So the brightest
 part of the pool is the wall *behind* the lamp and the fixture's base, while the desk under the shade catches
 almost nothing. The paper under the lamp gets no light at all, because the pool is centred too low to reach it
 and the desk's front face is outside the menu's frame.
 
 **Fix:** the light's origin moves to the **shade's mouth** (the bulb is inside the shade, so the pool is centred
-under the shade and offset slightly toward the shade's overhang), the radius becomes asymmetric — long on the
-desk, short on the wall — and a second, dimmer **bounce** light is placed on the desk under the mouth so the
+under the shade and offset slightly toward the shade's overhang), the radius becomes asymmetric -- long on the
+desk, short on the wall -- and a second, dimmer **bounce** light is placed on the desk under the mouth so the
 paper, mug and keys catch a warm skirting. That is how a real desk lamp reads: a bright ellipse on the surface,
 a falloff up the wall, and a small lift where the light bounces off the paper.
 
@@ -75,7 +75,7 @@ a falloff up the wall, and a small lift where the light bounces off the paper.
 clock; nothing in the desk knows the monitor is on. The menu is the opposite: its monitor is the cold key and
 everything else is lit by it.
 
-**Fix — a 3-state screen, owned by rules and drawn by the room:**
+**Fix -- a 3-state screen, owned by rules and drawn by the room:**
 
 | state | when | what the room does |
 |---|---|---|
@@ -93,13 +93,13 @@ the layout JSON, not a per-frame computation, so it stays 16-bit.
 
 * **Selection glow.** The selected row's label gets a lit step of its own ink (one ramp step up, dithered at the
   glyph edges) so the words *glow* inside the bar instead of being cut out of it. The bar's fill steps **down**
-  one so the glow has somewhere to go — that is what makes the two contrasts read against each other.
+  one so the glow has somewhere to go -- that is what makes the two contrasts read against each other.
 * **Two taps on mobile.** Touch: the first tap on a row **previews** it (the glow), the second tap within
   1.5 s **confirms**. Mouse and keyboard keep one press (a mouse selects on the way in and clicks on the way
   down; asking twice would be a tax on desktop). The rule lives in Core so it is testable: `MenuConfirm`.
 * **The lamp's hover.** Instead of 3 rows of amber under the shade, hovering warms the whole fixture (shade,
   pole, base) one step, its pool on the desk one step, and the tops of everything inside the pool. Turning it
-  off removes all four — which is the demonstration you asked for.
+  off removes all four -- which is the demonstration you asked for.
 
 ---
 
@@ -109,9 +109,9 @@ the layout JSON, not a per-frame computation, so it stays 16-bit.
   force, so the safe order is: install the bundle (which adopts the history), then `Push.ps1`, then check the
   remote is fast-forward.
 * **New instructions.** `docs/80-COMMAND-BOOK.md` gets the v120 block; `AGENTS.md` (the file an agent reads
-  first) gets the round's new rules — the palette alias table, the lamp/screen light rig, and the "one renderer,
+  first) gets the round's new rules -- the palette alias table, the lamp/screen light rig, and the "one renderer,
   one light pass" line.
-* **The backend's "AI".** There is no model in `backend/` — it is FastAPI + SQLite with 22 contract tests, and
+* **The backend's "AI".** There is no model in `backend/` -- it is FastAPI + SQLite with 22 contract tests, and
   the game never needs it. What *is* owed there (from its own README): object storage under hash names, rate
   limits that are actually enforced (the table exists), a `DELETE /v1/devices/{key}` purge, and a Postgres
   placeholder switch. This round does the **rate limit** and the **purge**, because they are small and they are
@@ -128,11 +128,11 @@ From the current design literature (diegetic vs non-diegetic, HUD readability, s
    true always is quiet.
 3. **Shape before number.** A bar is read before a digit; numbers are for exact values the player must act on.
 4. **Stable anchoring.** Positions never move; only appearance animates.
-5. **Earn every pixel.** Anything that can appear only when relevant should fade in and out — our ALERTS panel
+5. **Earn every pixel.** Anything that can appear only when relevant should fade in and out -- our ALERTS panel
    is the model.
 6. **Survive the background.** Every line needs a scrim or a shadow, because the room behind it is both dark and
    busy. (This is why the HUD already draws a backing panel; it will now be a *ramp step*, not a grey rectangle.)
-7. **Safe zones.** 90 % title-safe inset for anything critical — matters on the 20:9 phone target.
+7. **Safe zones.** 90 % title-safe inset for anything critical -- matters on the 20:9 phone target.
 8. **Accessibility.** Reduced motion and no colour-only tells; the game already refuses colour-only tells in the
    tells themselves, and the reduce-motion path is M-5.
 
@@ -172,13 +172,13 @@ makes the desk and the menu look like the same game.
 
 ### 8.2 The room got wider, not the person
 
-Request C — "stack the monitor panel IN FRONT OF THE WINDOW so the applicant has room to be looked at" —
+Request C -- "stack the monitor panel IN FRONT OF THE WINDOW so the applicant has room to be looked at" --
 was built as `window_wide()` in `promote_composition_L.py`, not as a change to the applicant's scale:
 
 * the frame runs **x 168..472, y 8..152**: 88 px wider than v119, and its left edge meets the monitor's
-  right edge, so the monitor (draw order 0, background at −30) genuinely covers the window's left mullion;
+  right edge, so the monitor (draw order 0, background at -30) genuinely covers the window's left mullion;
 * the glass is three lit panes round a cross of mullions, and the **centre opening is deliberately empty**
-  — sky, city and frame only — a dark plate for the head and shoulders;
+  -- sky, city and frame only -- a dark plate for the head and shoulders;
 * the sill sits at y152, **54 px above the desk**, so the body runs from the head into the desk band and
   he reads as standing behind a desk that is in front of him;
 * the filing cabinet is **not drawn** any more: there is no honest wall left for it and a cabinet in the
@@ -200,13 +200,13 @@ collar painted on his neck) and a black `ink` chin line (it read as an outline, 
 
 ### 8.4 The lamp, quantified
 
-`MenuLayout.LampLight()` was centred at `(LampX+28, LampY+70)` — 70 px down a 122 px-tall sprite, which is
-its **foot** — with a symmetric 108×122 radius. The pool therefore lit the wall behind the fixture, and
+`MenuLayout.LampLight()` was centred at `(LampX+28, LampY+70)` -- 70 px down a 122 px-tall sprite, which is
+its **foot** -- with a symmetric 108x122 radius. The pool therefore lit the wall behind the fixture, and
 reached only ~52 px below the foot: the paper under the shade caught nothing. That is the inversion the
 player reported, and it was arithmetic, not taste.
 
 Now: origin at the shade's **mouth** (`LampY+96`), a tighter falloff (1.15) so the cone has an edge, and a
-second dimmer **bounce** source lying on the desk surface (`LampY+118`, 74×54). Both switch with the
+second dimmer **bounce** source lying on the desk surface (`LampY+118`, 74x54). Both switch with the
 fixture, which `IsLampLight` now tests for.
 
 ### 8.5 The tube is a light with three states
@@ -214,16 +214,16 @@ fixture, which `IsLampLight` now tests for.
 `ScreenLight.cs` (new) bakes the monitor's light into the room sprite once per state change:
 
 * **ON / IDLE (0.5 Hz phosphor breathe) / OFF**, derived from the game by `StateFor(ending, walk, summary,
-  menu)` — one function, so the desk, the walk, the ending and the menu cannot disagree;
+  menu)` -- one function, so the desk, the walk, the ending and the menu cannot disagree;
 * a CRT strike (three flickers) on the way in, 0.55 s to full, because a tube that snaps on reads as a
   sprite being enabled;
-* the pool is an ellipse **projected down onto the desk** (`cy = glass.Y + 104`) — the first attempt
+* the pool is an ellipse **projected down onto the desk** (`cy = glass.Y + 104`) -- the first attempt
   centred it on the glass and lit the wall, which is the *same bug as the lamp*, found the same way;
 * **shadows point away from the tube**: the desk to the right of each prop goes down its own ramp, the
   length scaling with the prop's height and the tube's level, and the prop's near-left face lifts.
 
-The ladder it walks is `PaletteLadder` (new): `material_N → material_N+1`, read from the **published**
-`palette.json` — not sorted by brightness. The first attempt sorted by luminance and lit a blue-grey into
+The ladder it walks is `PaletteLadder` (new): `material_N -> material_N+1`, read from the **published**
+`palette.json` -- not sorted by brightness. The first attempt sorted by luminance and lit a blue-grey into
 a cream; the authored names cannot make that mistake.
 
 `tools/comp/preview_screenlight.py` applies the same rule offline and prints the before/after sheet, so the
@@ -232,8 +232,8 @@ look can be reviewed without opening Unity.
 ### 8.6 Selection, two taps, and a hover that means something
 
 * the selected row's bar steps **down** to `void` and its label steps **up** with a dithered `cyan_2` halo
-  around each glyph — phosphor, not a drop shadow, because the glow is the same dither the room's light uses;
-* a touch tap **arms** a row (hot `cyan_2` fill, label cut out in `void` — the opposite contrast from the
+  around each glyph -- phosphor, not a drop shadow, because the glow is the same dither the room's light uses;
+* a touch tap **arms** a row (hot `cyan_2` fill, label cut out in `void` -- the opposite contrast from the
   selection, so "aiming" and "pressed" cannot be confused) and a second tap within 1.5 s confirms. Mouse and
   keyboard still decide in one press. `MenuLayout.ConfirmWindow(touch)` is the rule, `MenuView.ArmOrConfirm`
   is the state, `Desk_Bootstrap.MenuClick(x, y, touch)` is the wiring;

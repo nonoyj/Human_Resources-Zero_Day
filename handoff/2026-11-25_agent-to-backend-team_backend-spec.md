@@ -1,7 +1,7 @@
-# HANDOFF — Agent → **AI Backend Team**
+# HANDOFF -- Agent -> **AI Backend Team**
 
-**From:** Arena agent · **To:** the AI assisting the backend devs · **Date:** 2026-11-25
-**Status:** spec ready for review · **Read in full before writing code**
+**From:** Arena agent - **To:** the AI assisting the backend devs - **Date:** 2026-11-25
+**Status:** spec ready for review - **Read in full before writing code**
 
 ---
 
@@ -11,21 +11,21 @@
 no real-time service. So "backend" here means three narrow jobs, and it is critical you do not
 build more than this:
 
-1. **A read-only content delivery API** — so content (applicants, emails, attacks, field-manual
+1. **A read-only content delivery API** -- so content (applicants, emails, attacks, field-manual
    entries) can be tuned *after* the APK is installed, and so the "daily attack briefing" can be
    pushed to event devices without a rebuild.
-2. **A local run ledger sync** — anonymous telemetry needed for the educational evaluation
+2. **A local run ledger sync** -- anonymous telemetry needed for the educational evaluation
    (which tells players miss, where they fail) and for the event's leaderboard screen.
 3. **A tiny ops console** for us: flip a content pack live, see run counts, revoke a pack.
 
 **Explicitly out of scope:** accounts, auth beyond a device key, payments, cloud saves, chat,
 anything that personalises content per player, and any "AI detection service". The AI in the game
 is *authored content*; it never calls a model at runtime. If you find yourself designing a
-database of real people's resumes — stop, that breaks the privacy story and the game's message.
+database of real people's resumes -- stop, that breaks the privacy story and the game's message.
 
 ### The reason this matters to the game's thesis
 The game argues that AI systems become dangerous through *quiet, plausible, authorised access*.
-Your API is the in-world "NEXUS content server" — keep it least-privilege, signed, versioned and
+Your API is the in-world "NEXUS content server" -- keep it least-privilege, signed, versioned and
 auditable. The team will point at it during the event as an example of doing it right.
 
 ## 2. Constraints (non-negotiable)
@@ -33,34 +33,34 @@ auditable. The team will point at it during the event as an example of doing it 
 | Constraint | Value | Why |
 |---|---|---|
 | Client offline-first | Game is 100% playable with the server unreachable | Booth Wi-Fi will fail; judges will unplug the router |
-| Max sync payload | ≤ 256 KB per request, ≤ 5 requests per run | Players are on mobile data |
+| Max sync payload | <= 256 KB per request, <= 5 requests per run | Players are on mobile data |
 | Auth | Bearer **content key** (public, in the APK) + per-install **device key** for writes | No PII, no accounts |
 | PII | **Zero.** No names, no emails, no IP storage beyond a 24 h rate-limit counter | Ethics + GDPR/PDPA posture |
 | Determinism | Content packs are immutable and **hash-pinned**; client refuses to load a pack whose hash mismatches | Reproducible runs, anti-tamper |
-| Uptime need | Only during the event (± 1 week). No SLA after | Keeps cost near zero |
+| Uptime need | Only during the event (+/- 1 week). No SLA after | Keeps cost near zero |
 | Latency | p95 < 400 ms from PH/SG region | Feels instant on a booth phone |
 
 ## 3. Architecture (boring on purpose)
 
 ```
-        ┌──────────────────────────┐
-        │  Event devices (Android) │   client: Unity 6.3, offline JSON cache
-        └────────────┬─────────────┘
-                     │ HTTPS (content key + device key)
-        ┌────────────▼─────────────┐
-        │  API  — FastAPI (Python) │   or NestJS if the team prefers TS
-        │  stateless, 2 workers    │
-        └────┬──────────────┬──────┘
-             │              │
-   ┌─────────▼────┐  ┌──────▼──────────┐
-   │ PostgreSQL 16│  │ Object storage  │  content packs (*.json.zst, hash-named)
-   │ ledger+meta  │  │ (S3 / R2 / B2)  │
-   └──────────────┘  └─────────────────┘
-             │
-   ┌─────────▼──────────────────┐
-   │ Ops console (static HTML + │  flip packs, view counters, revoke
-   │  2 read-only endpoints)    │
-   └────────────────────────────┘
+        +--------------------------+
+        |  Event devices (Android) |   client: Unity 6.3, offline JSON cache
+        +------------+-------------+
+                     | HTTPS (content key + device key)
+        +------------v-------------+
+        |  API  -- FastAPI (Python) |   or NestJS if the team prefers TS
+        |  stateless, 2 workers    |
+        +----+--------------+------+
+             |              |
+   +---------v----+  +------v----------+
+   | PostgreSQL 16|  | Object storage  |  content packs (*.json.zst, hash-named)
+   | ledger+meta  |  | (S3 / R2 / B2)  |
+   +--------------+  +-----------------+
+             |
+   +---------v------------------+
+   | Ops console (static HTML + |  flip packs, view counters, revoke
+   |  2 read-only endpoints)    |
+   +----------------------------+
 ```
 
 **Recommendation: FastAPI + PostgreSQL + S3-compatible storage.** Python because the content
@@ -70,7 +70,7 @@ for a 2-week event. A single container + managed Postgres is correct.
 
 ## 4. API contract (freeze this; client is being written against it now)
 
-Base: `https://api.hrzeroday.example/v1` · All responses `application/json; charset=utf-8`
+Base: `https://api.hrzeroday.example/v1` - All responses `application/json; charset=utf-8`
 Errors: RFC 7807 `{ "type", "title", "status", "detail", "traceId" }`
 
 ### 4.1 `GET /content/manifest`
@@ -81,7 +81,7 @@ Headers: `Authorization: Bearer <contentKey>`
   "packs": [
     { "id": "core-applicants", "version": "1.4.0",
       "url": "https://cdn.../core-applicants-1.4.0.json.zst",
-      "sha256": "9f2c…", "bytes": 48211, "required": true,
+      "sha256": "9f2c...", "bytes": 48211, "required": true,
       "minClient": "0.1.0", "channels": ["demo"] }
   ],
   "generatedAt": "2026-11-25T04:00:00Z"
@@ -90,16 +90,16 @@ Headers: `Authorization: Bearer <contentKey>`
 - Client compares `version` + `sha256` with its cached copy; downloads only what changed.
 - `required: false` packs may be skipped if the client is low on space.
 
-### 4.2 `POST /runs` — start a run ledger
+### 4.2 `POST /runs` -- start a run ledger
 Body:
 ```json
 { "deviceKey": "uuid-v4", "runId": "uuid-v4", "seed": 882731,
   "build": "0.1.0-demo", "startedAt": "2026-11-25T05:00:00Z",
   "contentVersions": { "core-applicants": "1.4.0" } }
 ```
-`201` → `{ "accepted": true, "serverTime": "..." }`. Idempotent on `runId`.
+`201` -> `{ "accepted": true, "serverTime": "..." }`. Idempotent on `runId`.
 
-### 4.3 `POST /runs/{runId}/events` — batched, append-only
+### 4.3 `POST /runs/{runId}/events` -- batched, append-only
 ```json
 { "events": [
   { "t": "2026-11-25T05:03:12Z", "type": "decision",
@@ -107,8 +107,8 @@ Body:
     "decision": "approve", "reason": "SYNTHETIC_MEDIA",
     "evidenceSeen": ["portrait_asymmetry"], "toolUsed": "metadata_scan",
     "secondsOnCard": 41 },
-  { "t": "…", "type": "tool_used", "tool": "id_registry", "result": "VALID" },
-  { "t": "…", "type": "day_end", "day": 1, "quotaMet": true, "trust": 78 }
+  { "t": "...", "type": "tool_used", "tool": "id_registry", "result": "VALID" },
+  { "t": "...", "type": "day_end", "day": 1, "quotaMet": true, "trust": 78 }
 ] }
 ```
 `202` accepted. Server **must** reject payloads > 256 KB with `413` and unknown `type` with `422`
@@ -120,13 +120,13 @@ but still `202` the known ones (partial success is a field on the response:
 { "outcome": "survived", "daysCompleted": 5, "syntheticsHired": 1,
   "wrongfulRejections": 2, "finalTrust": 61, "taughtTells": ["exp_vs_grad"] }
 ```
-`200` → `{ "rank": 14, "totalRuns": 260 }` (rank is optional; client hides it if absent).
+`200` -> `{ "rank": 14, "totalRuns": 260 }` (rank is optional; client hides it if absent).
 
 ### 4.5 `GET /leaderboard?channel=demo&window=event`
-Read-only, top 50, **no names** — only `{ rank, survivedDays, syntheticsCaught, wrongfulRejections, runHash }`.
+Read-only, top 50, **no names** -- only `{ rank, survivedDays, syntheticsCaught, wrongfulRejections, runHash }`.
 The client displays these as badge-ID strings. Never accept a user-supplied display name (abuse vector).
 
-### 4.6 `GET /healthz` → `{ "ok": true, "db": "up", "content": "1.4.0" }`
+### 4.6 `GET /healthz` -> `{ "ok": true, "db": "up", "content": "1.4.0" }`
 
 ## 5. Data model (PostgreSQL)
 
@@ -181,15 +181,15 @@ Retention: `run_events` 180 days, `rate_limits` purge 24 h (cron), `runs` kept (
 
 ## 6. Five endpoints' worth of security you must actually implement
 
-1. **Content key is public — treat packs, not requests, as the trust boundary.** Sign each pack
+1. **Content key is public -- treat packs, not requests, as the trust boundary.** Sign each pack
    (`sha256` in the manifest) and have the client verify. A stolen content key must be worthless.
 2. **Rate limit** per `deviceKey` (60 req/10 min) and per IP (600 req/10 min, IP not persisted).
 3. **Body size cap** 256 KB, `Content-Type` enforced, JSON schema validation, no `eval`-ish parsing.
 4. **No PII in logs.** Redact headers; log `runId`/`traceId` only. Add a CI check that greps logs for
    email/phone patterns and fails the build.
 5. **Content review gate.** Publishing a pack runs `validate_pack.py` (schema + fairness invariants
-   I1–I8 lifted from `prototype/generator_sim.py`). A pack that produces an unprovable AI is
-   **rejected** — this is the product's integrity guarantee, not a nice-to-have.
+   I1-I8 lifted from `prototype/generator_sim.py`). A pack that produces an unprovable AI is
+   **rejected** -- this is the product's integrity guarantee, not a nice-to-have.
 
 ## 7. Deliverables & order (2 weeks, one backend person part-time)
 
@@ -198,32 +198,32 @@ Retention: `run_events` 180 days, `rate_limits` purge 24 h (cron), `runs` kept (
 | 1 | Repo `backend/` skeleton, Docker Compose (api + postgres + minio), `.env.example` | `docker compose up` gives `/healthz` 200 |
 | 2 | Migrations + `content_packs` + manifest endpoint serving a static pack from minio | Game's ContentLoader can fetch a pack by URL+hash |
 | 3 | `runs` + `run_events` + idempotency + partial-accept semantics | 1,000 synthetic events replay with no duplicates |
-| 4 | `validate_pack.py` (schema + I1–I8) wired into a `POST /admin/packs` publish path | Bad pack is refused with a readable reason |
+| 4 | `validate_pack.py` (schema + I1-I8) wired into a `POST /admin/packs` publish path | Bad pack is refused with a readable reason |
 | 5 | Rate limits, body caps, log redaction, CI PII grep | Load test 50 rps green |
 | 6 | Ops console (static page): pack list, revoke, run counters | Non-technical teammate can revoke a pack |
 | 7 | Deploy to a managed host in SG/PH region, HTTPS, daily backup + restore drill | Restore drill passes, documented |
-| 8 | **Load/soak**: 20 devices × 20 runs against staging | Zero 5xx, p95 < 400 ms |
+| 8 | **Load/soak**: 20 devices x 20 runs against staging | Zero 5xx, p95 < 400 ms |
 | 9 | Handoff to client: OpenAPI spec + Postman collection + `docs/backend-client-contract.md` | Dev A integrates in one sitting |
-| 10+ | On-call for the event; freeze content 48 h before | — |
+| 10+ | On-call for the event; freeze content 48 h before | -- |
 
 ## 8. Contract hygiene (how we avoid integration pain)
 
 - Publish **OpenAPI 3.1** at `/openapi.json` and commit the generated `openapi.yaml` to the repo.
 - **Version the contract**: additive fields only in `v1`; breaking changes go to `/v2`.
-- Commit a **`fixtures/`** folder with real request/response pairs — the client tests against fixtures,
+- Commit a **`fixtures/`** folder with real request/response pairs -- the client tests against fixtures,
   not against a running server, so the two teams never block each other.
 - The client must have a **`FakeBackend`** implementation behind the same interface so the game is
   never blocked by the backend. If the backend team slips, we ship with `FakeBackend` and note it.
-- Any change to §4 must arrive as a handoff file: `handoff/YYYY-MM-DD_backend-to-systems_api-change.md`.
+- Any change to #4 must arrive as a handoff file: `handoff/YYYY-MM-DD_backend-to-systems_api-change.md`.
 
 ## 9. Things you should push back on
 
-- If someone asks for **user accounts** or **cloud saves** → no, out of scope, ADR-004.
-- If someone asks the backend to **score** the player → no, scoring stays client-side and
+- If someone asks for **user accounts** or **cloud saves** -> no, out of scope, ADR-004.
+- If someone asks the backend to **score** the player -> no, scoring stays client-side and
   deterministic; the server only records.
-- If someone wants the server to **generate applicants at runtime** → no. Randomised generation is
+- If someone wants the server to **generate applicants at runtime** -> no. Randomised generation is
   client-side from a seed; otherwise the game stops working offline.
-- If someone wants **real resumes / real people's data** as fixtures → absolutely no. All fixture
+- If someone wants **real resumes / real people's data** as fixtures -> absolutely no. All fixture
   data is synthetic and clearly fictional (`docs/08-behaviour-model.md` has the naming pools).
 
 ## 10. Feedback format for your human
@@ -234,7 +234,7 @@ STATUS / DONE (files) / NEXT / BLOCKED ON + suggested default / RISK / EVIDENCE 
 
 Surface decisions the game team must ratify as ADRs (`docs/06-decisions.md`): hosting region and
 cost, telemetry retention, whether the leaderboard ships at all, and whether content packs may be
-updated during the event (I recommend: no — freeze 48 h before).
+updated during the event (I recommend: no -- freeze 48 h before).
 
 ## 11. Local dev quickstart you should write on day 1
 
@@ -251,11 +251,11 @@ curl -H "Authorization: Bearer dev-content-key" http://localhost:8000/v1/content
 ```
 
 ---
-*Repo is the source of truth. If this spec and the repo disagree, the repo wins — and tell me.*
+*Repo is the source of truth. If this spec and the repo disagree, the repo wins -- and tell me.*
 
 ---
 
-# ADDENDUM 1 — Analytics / research instrument (added 2026-11-25)
+# ADDENDUM 1 -- Analytics / research instrument (added 2026-11-25)
 
 The human has approved adding a **research analytics layer** (what players fail to identify, plus
 more). Full client-side spec: `docs/10-analytics-spec.md`. What changes for you:
@@ -266,7 +266,7 @@ more). Full client-side spec: `docs/10-analytics-spec.md`. What changes for you:
 |---|---|---|
 | `POST` | `/v1/runs/{runId}/events` | **extend the type allowlist** to: `app_open, consent, screen_enter, screen_exit, intro_skip, settings_change, app_quit, decision, email_action, hire, fire, day_end, manual_open, run_end, quiz_result` |
 | `GET` | `/v1/research/export?format=csv&from=&to=&minCell=5` | aggregated research export (one row per decision) |
-| `GET` | `/v1/research/tell-matrix` | miss matrix: `tellsPresent` × `tellsInspected` × `decision` |
+| `GET` | `/v1/research/tell-matrix` | miss matrix: `tellsPresent` x `tellsInspected` x `decision` |
 | `GET` | `/v1/research/funnel` | screen drop-off percentages (no per-device rows) |
 | `DELETE` | `/v1/devices/{deviceKey}` | opt-out purge (retroactive consent withdrawal) |
 
@@ -319,22 +319,22 @@ client's value and yours; if they disagree by > 1% across a batch, raise a data-
 ## A1.3 Privacy guardrails you must enforce in code
 
 1. Reject any event payload containing keys matching `name|email|phone|address|ip|free_?text|note`
-   → `422` with reason `pii_key_not_allowed`. This is the machine-checkable version of the promise.
+   -> `422` with reason `pii_key_not_allowed`. This is the machine-checkable version of the promise.
 2. `GET /research/export` must enforce `minCell >= 5` and refuse queries that would return < 5 rows
    in any group (return `409 insufficient_cell_size`).
-3. `run_hash` in exports = `substr(sha256(device_key || run_id), 1, 12)` — computed server-side, never
+3. `run_hash` in exports = `substr(sha256(device_key || run_id), 1, 12)` -- computed server-side, never
    exposing `device_key`.
 4. IP retention stays 24 h. Analytics adds **no** new identity surface.
-5. `DELETE /v1/devices/{deviceKey}` cascades: delete `runs` → `run_events`/`decisions`/`quiz_results`.
+5. `DELETE /v1/devices/{deviceKey}` cascades: delete `runs` -> `run_events`/`decisions`/`quiz_results`.
    Log the deletion (count only, no device key) for the audit trail.
 
 ## A1.4 Dashboards for the ops console (read-only, aggregate only)
 
 | Panel | Content | Research question |
 |---|---|---|
-| Quit funnel | % reaching day 1…5 / ending | RQ6 |
+| Quit funnel | % reaching day 1...5 / ending | RQ6 |
 | Recall by tell | bar chart, caught vs missed per tell id | RQ1 |
-| Miss matrix | heat table: present × inspected | RQ1 (didn't look vs looked & missed) |
+| Miss matrix | heat table: present x inspected | RQ1 (didn't look vs looked & missed) |
 | Over-suspicion by day | humans rejected / humans seen, per day | RQ2 |
 | Post-tool bias | approve-rate when a tool said VALID, truth=synthetic | RQ3 |
 | Learning curve | accuracy by day; quiz score per run index | RQ4 |
@@ -346,7 +346,7 @@ game's own ethics story. Researchers use the CSV export with `minCell` guarding.
 ## A1.5 Extra day of work
 
 Add 1 day to your plan (so 11 working days): Day 5 becomes *pack validator + analytics allowlist +
-PII rejection*, and the dashboards move to Day 8–9. The CSV export + `decisions` table are **P0**
+PII rejection*, and the dashboards move to Day 8-9. The CSV export + `decisions` table are **P0**
 (the event's research report depends on them); dashboards are **P1**.
 
 ## A1.6 Fallback that must exist regardless of you

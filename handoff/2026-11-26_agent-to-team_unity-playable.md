@@ -1,9 +1,9 @@
-# Handoff — Unity project is openable and Play mode starts the game
+# Handoff -- Unity project is openable and Play mode starts the game
 
-**From:** Agent → FE/BE1/whole team  
+**From:** Agent -> FE/BE1/whole team  
 **Date:** 2026-11-26  
 **Branch:** `arena/c1faebb9-human-resources-zero-day`  
-**Status:** actionable — verify in the real Unity Editor 6000.3.29f1
+**Status:** actionable -- verify in the real Unity Editor 6000.3.29f1
 
 ## What changed
 
@@ -19,7 +19,7 @@
 3. **Play mode self-boots.** `GameBoot` (RuntimeInitializeOnLoadMethod) builds the same gameplay
    scene from `Resources/desk_layout.json` if no `DeskBootstrap` exists in the loaded scene.
 4. **Shared runtime scene builder.** `DeskRuntimeScene` places hotspots, evidence overlay, stamp,
-   letter page, decision controller, bootstrap, input router — used by both editor menu and boot.
+   letter page, decision controller, bootstrap, input router -- used by both editor menu and boot.
 5. **Actual controls.** `GameInputRouter` uses the **new Input System** (mouse, touch, keyboard):
    click a hotspot; `L` letter; `1-5` flag/reason; `6` insufficient; `A` approve; `S` reject;
    `SPACE` continue; `R` restart after ending; `H` help; `X`/`Esc` close letter.
@@ -31,10 +31,10 @@
 
 ## What must be verified on the real machine
 
-- Open Hub → **Add project from disk** → `...\HR-ZeroDay\unity`, not the repo root.
+- Open Hub -> **Add project from disk** -> `...\HR-ZeroDay\unity`, not the repo root.
 - Console must be free of compile errors; `HR//0D` must appear in the menu bar.
-- Run **Setup Project (one click)**, press Play and complete: hotspot → letter flag → stamp →
-  debrief → day summary → next applicant. Press `R` after the ending.
+- Run **Setup Project (one click)**, press Play and complete: hotspot -> letter flag -> stamp ->
+  debrief -> day summary -> next applicant. Press `R` after the ending.
 - If Unity reports a missing package or import setting, copy the **first** Console error here and
   re-run `Promote-UnityProject.ps1 -Source <editor-generated project>`.
 
@@ -43,4 +43,4 @@
 - Save round-trip, Field Manual, dedicated art screens for day summary/endings, content strings,
   audio and an APK. See `docs/16-the-later-list.md`; nothing was silently removed from it.
 - This sandbox has no Unity Editor/.NET SDK; validation here was tree-sitter (53 files, 0 syntax
-  errors), art gates and 9/9 browser-twin checks — **not** a real compile or Play-mode proof.
+  errors), art gates and 9/9 browser-twin checks -- **not** a real compile or Play-mode proof.

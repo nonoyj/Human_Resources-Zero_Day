@@ -20,6 +20,14 @@
 //      that could not reach the paper, the mug or the keys. The pool's centre is derived from the desk
 //      surface now, and there is a TEST for it (LightingTests.TubePoolLandsOnTheDesk).
 //
+// v130: THE NUMBERS ARE NOT IN THIS FILE ANY MORE.
+//   The player asked for MORE THAN ONE light on both screens, so the geometry of every source moved into
+//   Core/Rules/LightRig.cs, where a headless test can switch each one and measure it. This component keeps
+//   its job -- own the captured surfaces, walk each pixel up its own material, dither the fraction -- and
+//   takes the geometry, the levels, the props and the shadow flank from `LightRig`. The constants below are
+//   ALIASES of the rig's, never copies: two copies of a light's position is exactly how the pool ended up on
+//   the wall in v120 while the tests passed.
+//
 // HOW IT WORKS, and why it is a CPU pass rather than a Light2D:
 //   The camera is orthographic and every sprite is point-filtered 16 px-per-unit pixel art. A URP 2D light
 //   with normal maps produces a soft blended gradient that fights the dither language the whole game is
@@ -33,6 +41,7 @@
 // TOP-DOWN. This file converts once, at the edges, and works in top-down rows internally. A gate exists for
 // this class of bug; the comment is here so the next person does not have to rediscover it.
 using System.Collections.Generic;
+using HRZeroDay.Core.Rules;
 using UnityEngine;
 
 namespace HRZeroDay.Game
@@ -56,16 +65,16 @@ namespace HRZeroDay.Game
         //      v129 re-measurement of the MENU's CRT (monitor_M is make_menu_room.crt at 200x143, glass
         //      20,9,175,116 in sprite px, anchored at canvas [256,84] -> top row 43):
         //      glass canvas rows 61..176, columns 276..451, so centre (364,118), half-size (88,58).
-        public const int GlassX = 364;
-        public const int GlassY = 118;
-        public const int GlassRx = 88;
+        public const int GlassX = LightRig.TubeGlassX;
+        public const int GlassY = LightRig.TubeGlassBottom - LightRig.GlassRy;   // 118: the glass's TOP
+        public const int GlassRx = LightRig.GlassRx;
         public const int GlassRy = 58;
         /// <summary>The row the desk surface starts on, top-down canvas rows (desk_layout.json: slab top 170).</summary>
-        public const int DeskRow = 170;
+        public const int DeskRow = LightRig.DeskRow;
         /// <summary>Where the pool's centre is: ON the desk in front of the tube, never on the wall.</summary>
-        public const int ProjectY = 205;
+        public const int ProjectY = LightRig.TubePoolY;
         /// <summary>The canvas: the same 480x270 every other system uses.</summary>
-        public const int CanvasW = 480, CanvasH = 270;
+        public const int CanvasW = LightRig.CanvasW, CanvasH = LightRig.CanvasH;
 
         public const float FadeSeconds = 0.55f;
         public const float FlickerSeconds = 0.18f;
@@ -117,6 +126,12 @@ namespace HRZeroDay.Game
         private float _flicker;
         private Dictionary<Color32, Color32> _up;
         private Dictionary<Color32, Color32> _down;
+
+        /// <summary>The lamp's state, pushed in by LampView. False = the desk's second practical is off.</summary>
+        public bool lampOn = true;
+        /// <summary>How much of the room's own light (window + floor bounce) is present, 0..1: the daylight
+        /// stages multiply this, so a night shift does not look like a noon one with a different tint.</summary>
+        public float roomLevel = 1f;
 
         public static ScreenLight Attach(Transform root)
         {
@@ -251,37 +266,44 @@ namespace HRZeroDay.Game
         public void Repaint()
         {
             if (_up == null || _parts.Count == 0) return;
+            // THE RIG IS REBUILT WHEN THE STATE CHANGES, not per pixel: five sources, one array.
+            // The tube's Level IS this component's fade, so the flicker and the pool cannot disagree.
+            bool tubeWants = Mathf.RoundToInt(_fade * LightRig.Levels) > 0;
+            var rig = LightRig.ForDesk(tubeWants, lampOn: lampOn, roomLevel: roomLevel);
+            var tube = rig.Find(LightKind.Tube);
+            if (tube != null) tube.Level = _fade;
             float level = _fade;
-            float rx = GlassRx * (1.30f + 0.75f * level);
-            float ry = GlassRy * (0.86f + 0.34f * level);
 
             for (int p = 0; p < _parts.Count; p++)
             {
                 var part = _parts[p];
                 if (!part.ok) continue;
                 System.Array.Copy(part.basePixels, part.litPixels, part.basePixels.Length);
-                if (level > 0.01f)
+                if (level > 0.01f || lampOn)
                 {
-                    // 1. the pool: an ellipse centred on the desk in front of the tube, with a falloff
+                    // 1. THE LIGHT, FROM THE RIG. Every source adds, then one clamp: the tube, the lamp, the
+                    //    window and the floor glow all land through the same two calls, so adding a sixth
+                    //    light is a change to LightRig and nothing here.
+                    //    A pixel on the WALL above the desk takes a third of what the desk takes -- the
+                    //    pool is projected onto the wood, never onto the wall behind it (the v120 report).
                     for (int y = 0; y < part.h; y++)
                     {
                         int canvasY = part.y0 + y;
                         bool onDesk = canvasY >= DeskRow;
-                        float dy = (canvasY - ProjectY) / ry;
                         for (int x = 0; x < part.w; x++)
                         {
                             int i = y * part.w + x;
                             if (part.litPixels[i].a == 0) continue;
-                            float dx = (part.x0 + x - GlassX) / rx;
-                            float r = Mathf.Sqrt(dx * dx + dy * dy);
-                            if (r >= 1f) continue;
-                            // the desk takes the light; the wall above it takes a third of it
-                            float amount = (1f - r) * (1f - r) * level * (onDesk ? 1f : 0.34f);
-                            Lift(part, i, amount);
+                            int cx2 = part.x0 + x;
+                            int n = rig.LightAt(cx2, canvasY);
+                            float frac = rig.FractionAt(cx2, canvasY);
+                            if (!onDesk) { n = n / 3; frac *= 0.34f; }
+                            if (n > 0) Lift(part, i, n);
+                            if (frac > 0.02f) Lift(part, i, frac);
                         }
                     }
-                    // 2. the shadows: the desk RIGHT of each prop goes down its ramp, away from the tube
-                    CastShadows(part, level);
+                    // 2. the shadows: a smear at each prop's foot, on the flank facing the glass
+                    CastShadows(part, rig);
                 }
                 // 3. and the surface itself is re-uploaded; its tint is never touched, because the light is
                 //    already IN the pixels above
@@ -289,72 +311,69 @@ namespace HRZeroDay.Game
             }
         }
 
-        private void CastShadows(Part part, float level)
+        /// <summary>
+        /// A shadow is a smear at the prop's FOOT, on the flank facing the lit screen -- not a bar up the
+        /// prop's side and not a wedge across the desk. `LightRig.ShadowSideAt` decides which flank; this
+        /// method only paints it down the pixel's own ramp. v129 ran the shadows LEFT because the monitor
+        /// used to be on the left; the rig's geometry is the only place that can be wrong now.
+        /// </summary>
+        private void CastShadows(Part part, LightRig rig)
         {
             for (int s = 0; s < Props.Length; s++)
             {
                 var prop = Props[s];
-                int length = Mathf.RoundToInt(prop.Height * 0.55f * level);
-                // THE MONITOR IS ON THE RIGHT NOW (composition N). Its shadows fall to the LEFT of each
-                // object. The old code always ran them right, which with the tube's new position put every
-                // shadow between the object and the light source -- physically impossible, and it read as
-                // grime on the wood rather than as shade.
-                int startX = prop.X - length;
-                for (int i = 0; i < length; i++)
+                int right = prop.X + prop.W - 1;
+                int bottom = prop.Top + prop.Height;
+                for (int row = bottom - LightRig.ContactBand; row <= bottom; row++)
                 {
-                    int canvasX = startX + i;
-                    float k = 1f - i / (float)Mathf.Max(1, length);
-                    if (k < 0.35f) continue;
-                    int px = canvasX - part.x0;
-                    if (px < 0 || px >= part.w) continue;
-                    for (int row = prop.Top; row < prop.Top + prop.Height; row++)
+                    int py = row - part.y0;
+                    if (py < 0 || py >= part.h) continue;
+                    for (int cx2 = prop.X; cx2 <= right; cx2++)
                     {
-                        int py = row - part.y0;
-                        if (py < 0 || py >= part.h) continue;
-                        if (k < 0.7f && ((canvasX + row) & 1) != 0) continue;   // dithered: never a hard wedge
+                        int px = cx2 - part.x0;
+                        if (px < 0 || px >= part.w) continue;
                         int idx = py * part.w + px;
                         if (part.litPixels[idx].a == 0) continue;
-                        Darken(part, idx, 1);
-                    }
-                }
-                // the prop's own near face -- the side that faces the glass -- catches the tube. The glass is
-                // to the RIGHT of the desk now, so the lit face is the right-hand edge, not the left one.
-                int faceX = prop.X + prop.W - 2 - part.x0;
-                for (int i = 0; i < 2; i++)
-                {
-                    int px = faceX + i;
-                    if (px < 0 || px >= part.w) continue;
-                    for (int row = prop.Top; row < prop.Top + prop.Height; row++)
-                    {
-                        int py = row - part.y0;
-                        if (py < 0 || py >= part.h) continue;
-                        int idx = py * part.w + px;
-                        if (part.litPixels[idx].a == 0) continue;
-                        Lift(part, idx, 0.85f * level);
+                        float k = rig.ShadowStrength(cx2, row, right, bottom, prop.Height);
+                        if (k <= 0f) continue;
+                        // the fraction of a step, dithered: a shadow never becomes a black bar
+                        if (k * 16f > Dither[cx2 & 3, row & 3]) Darken(part, idx, 1);
                     }
                 }
             }
         }
 
-        /// <summary>Walks one pixel UP its own material by `amount` (0..1, two steps maximum), dithering the fraction.</summary>
-        private void Lift(Part part, int i, float amount)
+        /// <summary>
+        /// Walks one pixel UP its own material by `steps`, and dithers a FRACTION of a step with the same 4x4
+        /// ordered matrix the art bakes with. Never a blend: the pixel lands on a palette step or it does not
+        /// move. `steps` is what LightRig.LightAt returned, so the number here is the rig's, not a guess.
+        /// </summary>
+        private void Lift(Part part, int i, int steps)
         {
-            if (amount <= 0.02f) return;
-            Color32 up;
-            if (!_up.TryGetValue(part.litPixels[i], out up)) return;      // an emitter, or a colour with no step
-            float scaled = amount * 2f;
-            float whole = Mathf.Floor(scaled);
-            float frac = scaled - whole;
-            int pat = (i % part.w & 1) + ((i / part.w & 1) << 1);
-            if (frac > 0.62f || (frac > 0.30f && pat < 2)) whole += 1f;
+            if (steps <= 0) return;
             Color32 c = part.litPixels[i];
-            for (int s = 0; s < (int)whole; s++)
+            Color32 up;
+            for (int s = 0; s < steps; s++)
             {
-                if (!_up.TryGetValue(c, out up)) break;
+                if (!_up.TryGetValue(c, out up)) break;     // an emitter, or a colour with no step: leave it
                 c = up;
             }
             part.litPixels[i] = c;
         }
+
+        private void Lift(Part part, int i, float fraction)
+        {
+            if (fraction <= 0.02f) return;
+            int x = i % part.w, y = i / part.w;
+            if (fraction * 16f <= Dither[x & 3, y & 3]) return;      // the 4x4 threshold, not a pair rule
+            Lift(part, i, 1);
+        }
+
+        /// <summary>The 4x4 ordered dither every generator and the menu's light already use.</summary>
+        private static readonly int[,] Dither =
+        {
+            { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 }
+        };
 
         /// <summary>Walks one pixel DOWN its own material: the shadow side of a form.</summary>
         private void Darken(Part part, int i, int steps)

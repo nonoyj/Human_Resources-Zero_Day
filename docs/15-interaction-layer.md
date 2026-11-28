@@ -1,7 +1,7 @@
-# Interaction layer — the first playable minute
+# Interaction layer -- the first playable minute
 
 **Status:** implemented 2026-11-26, rebased onto the current `main` (80-sprite kit, composition L,
-paperwork rules) · **Owner:** Agent (systems/art/docs) · **Consumers:** BE1 (Unity), BE2 (content)
+paperwork rules) - **Owner:** Agent (systems/art/docs) - **Consumers:** BE1 (Unity), BE2 (content)
 
 This page describes the hands-on layer that turns the finished desk art and pure gameplay core into
 a playable loop. It deliberately contains **no backend work**: the game stays offline-first and the
@@ -11,7 +11,7 @@ server is only a future content/telemetry sync.
 
 ## 1. What the player can now do
 
-1. The desk appears from `unity/Assets/Content/desk_layout.json` — monitor left, applicant right,
+1. The desk appears from `unity/Assets/Content/desk_layout.json` -- monitor left, applicant right,
    composition L at 480x270 with the applicant drawn at `scaleFactor 0.96` and the desk foreground
    sorting above him.
 2. Resume, cover letter and three verification tools are readable on the monitor. The cover letter

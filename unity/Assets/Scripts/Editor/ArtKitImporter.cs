@@ -149,7 +149,7 @@ namespace HRZeroDay.EditorTools
                 "desk/monitor_small", "desk/monitor_stand", "desk/document_small", "desk/desk_foreground",
                 "desk/monitor_M", "desk/monitor_stand_M", "desk/foreground_M", "backgrounds/office_M0",
                 "desk/props_coffee", "desk/props_keyboard", "desk/props_mouse", "desk/props_clipboard",
-                "desk/props_junk", "desk/props_papers", "desk/desk_slab_M",
+                "desk/props_junk", "desk/props_papers", "desk/desk_slab_M", "desk/lamp_M",
             };
             try
             {

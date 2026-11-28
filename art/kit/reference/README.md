@@ -1,4 +1,4 @@
-# art/kit/reference — review sheets, not game art
+# art/kit/reference -- review sheets, not game art
 
 Nothing in this folder is loaded by the game or read by any gate. It is here so a human can look at the
 current output without regenerating it.

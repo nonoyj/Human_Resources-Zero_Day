@@ -1,6 +1,6 @@
-# HANDOFF — Agent → Whole Team — Kickoff
+# HANDOFF -- Agent -> Whole Team -- Kickoff
 
-**Date:** 2026-11-25 · **Branch:** `main` · **Status:** open, needs answers
+**Date:** 2026-11-25 - **Branch:** `main` - **Status:** open, needs answers
 
 ## What is done
 - Repository skeleton, `.gitignore`, docs: roadmap, tech stack, title shortlist, collaboration protocol, bug log, backlog.
@@ -19,4 +19,4 @@
 - Produce the JSON content for Day 1 and Day 2 as the reference implementation.
 
 ## How to verify
-- Clone the workspace repo, read `README.md` → `docs/00-open-questions.md`. Nothing to run yet.
+- Clone the workspace repo, read `README.md` -> `docs/00-open-questions.md`. Nothing to run yet.

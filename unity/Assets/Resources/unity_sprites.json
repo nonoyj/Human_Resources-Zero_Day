@@ -19,7 +19,7 @@
     "ui": 18,
     "icons": 18,
     "stamps": 2,
-    "desk": 24,
+    "desk": 25,
     "backgrounds": 4,
     "menu": 8,
     "fx": 3,
@@ -35,7 +35,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "8a5c0c7f3a8e00df",
+      "sha256_16": "1b658868f39d4c31",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -92,7 +92,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "8e9bd08a025a2743",
+      "sha256_16": "9f9363dc33417b5c",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -149,7 +149,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "cbd7f0ec73aa43ef",
+      "sha256_16": "efd5d627e7b2515a",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -206,7 +206,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "e7867a822f83afa9",
+      "sha256_16": "fb486632b70f9add",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -263,7 +263,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "dcd54d1f8e160b96",
+      "sha256_16": "8c17d54e3c953f81",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -320,7 +320,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "7716116c97f38c01",
+      "sha256_16": "acf3971898af38b5",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -377,7 +377,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "bd7df5a6c57ace43",
+      "sha256_16": "1289297ea7a86733",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -434,7 +434,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "7b72c4333d671431",
+      "sha256_16": "deb6393a388347ee",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -491,7 +491,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "d9581e4e174be7b0",
+      "sha256_16": "9c73304af075bdb7",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -548,7 +548,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "904b02aa5bd518b1",
+      "sha256_16": "3ed03e23c70ccd1d",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -605,7 +605,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "a49ebe9cd4ac53ee",
+      "sha256_16": "511b42c1f5009cca",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -662,7 +662,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "411024fc779f172a",
+      "sha256_16": "b7f26b6a93c8e843",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -719,7 +719,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "762f530f8074f615",
+      "sha256_16": "2d49816592048777",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -776,7 +776,7 @@
       "ppu": 16,
       "spriteMode": "Multiple",
       "kind": "applicant",
-      "sha256_16": "0156e7200206924a",
+      "sha256_16": "739278f2da691210",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -863,7 +863,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "732acd5324393a83",
+      "sha256_16": "78eab95f94bd9d6b",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -882,7 +882,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "b572ecc03f2dceee",
+      "sha256_16": "a8faad4880b5b781",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -901,7 +901,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "78ac1297bdbeab21",
+      "sha256_16": "ee7294b68f643cbb",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -920,7 +920,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "7b21328e73ca4454",
+      "sha256_16": "675831177f33d772",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -939,7 +939,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "5042e21f2c2377ad",
+      "sha256_16": "aba497c7b0a81068",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -958,7 +958,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "7bb8c5f3354d2755",
+      "sha256_16": "525e809d5d051cb7",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -977,7 +977,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "9619e7389e4b7989",
+      "sha256_16": "a4d2b00b30f974a0",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -996,7 +996,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "026f782c1e51cc32",
+      "sha256_16": "63870651d461260d",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1015,7 +1015,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "8113c1916868d1e4",
+      "sha256_16": "4ec06937e3d4f695",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1034,7 +1034,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "4a73063a82dc2e57",
+      "sha256_16": "aa9c1181c0f76cea",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1053,7 +1053,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "2ab69be89502e402",
+      "sha256_16": "325f59607c81f441",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1072,7 +1072,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "5a080478806d7106",
+      "sha256_16": "bea70f94f324dcef",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1091,7 +1091,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "162290ee042d7128",
+      "sha256_16": "b8425b2cc3443233",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1110,7 +1110,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "portrait",
-      "sha256_16": "7ca865855141d6d3",
+      "sha256_16": "a62edf6b7e606b54",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -1978,7 +1978,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "desk",
-      "sha256_16": "d78c8e00d023f6f3",
+      "sha256_16": "350a91122f22d863",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2055,6 +2055,25 @@
       "spriteMode": "Single",
       "kind": "desk",
       "sha256_16": "4387dd1e99faf0fb",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/desk/lamp_M.png",
+      "assetPath": "Assets/Art/Kit/desk/lamp_M.png",
+      "width": 56,
+      "height": 132,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "510010dd6344972a",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2472,7 +2491,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "background",
-      "sha256_16": "7cca4f3cff194990",
+      "sha256_16": "a0bda79aa97a0a2b",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",

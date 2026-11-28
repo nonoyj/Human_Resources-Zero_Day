@@ -1,4 +1,4 @@
-# CHECKLIST — run this, in order, before every reply
+# CHECKLIST -- run this, in order, before every reply
 
 Tick each line. If one cannot be ticked, the reply is not ready.
 
@@ -7,8 +7,8 @@ Tick each line. If one cannot be ticked, the reply is not ready.
 - [ ] `orders/01-art-rules.md` re-read (menu = the standard, copy the function).
 - [ ] `orders/02-report-format.md` open while writing the reply.
 - [ ] `orders/03-unity-and-bundle.md` open if a bundle is being handed over.
-- [ ] `orders/04-IMPORTANT-MEMORY.md` — the player's own words, verbatim, this turn's instructions included.
-- [ ] `orders/05-phases.md` — know the phase, the phases left, and this phase's remaining steps.
+- [ ] `orders/04-IMPORTANT-MEMORY.md` -- the player's own words, verbatim, this turn's instructions included.
+- [ ] `orders/05-phases.md` -- know the phase, the phases left, and this phase's remaining steps.
 - [ ] The workspace is clean: no stale bundles, no scratch PNGs, no tool caches.
 
 ## B. While working
@@ -21,12 +21,12 @@ Tick each line. If one cannot be ticked, the reply is not ready.
 - [ ] If I changed something the menu uses, did I verify the menu is **byte-identical** afterwards?
 
 ## C. Before saying it works
-- [ ] `CoreTests` → `ALL TESTS PASSED`
-- [ ] `CompileCheck` → `0 Error(s)`
-- [ ] `Test-ArtPipeline.ps1` → `ART PIPELINE OK`
-- [ ] `publish_to_unity.py --verify` → sprite count + sha256 verified
+- [ ] `CoreTests` -> `ALL TESTS PASSED`
+- [ ] `CompileCheck` -> `0 Error(s)`
+- [ ] `Test-ArtPipeline.ps1` -> `ART PIPELINE OK`
+- [ ] `publish_to_unity.py --verify` -> sprite count + sha256 verified
 - [ ] `twin_desk.py --verify`
-- [ ] `verify_fresh_clone.py` → `PASS`
+- [ ] `verify_fresh_clone.py` -> `PASS`
 - [ ] The measured number for any light/position change is quoted in the reply.
 - [ ] Anything unverified is named as unverified.
 

@@ -13,7 +13,7 @@ even though nobody had touched them.
 
 ## What went wrong
 
-1. `.gitattributes` declared `*.png filter=lfs ...` — telling git "these files must be stored as LFS
+1. `.gitattributes` declared `*.png filter=lfs ...` -- telling git "these files must be stored as LFS
    pointers".
 2. The files were committed here (in the agent's sandbox) where the **LFS client is not installed**, so
    git stored the real PNG bytes instead of pointers. The history is therefore *not* LFS.
@@ -32,7 +32,7 @@ My fault: I mixed two incompatible states (filter declared / content not migrate
 
 | Factor | Reality here |
 |---|---|
-| Asset sizes | Pixel art PNGs: 5–80 KB. Concept mockups: 1–2 MB but only two. SFX: 20–200 KB. |
+| Asset sizes | Pixel art PNGs: 5-80 KB. Concept mockups: 1-2 MB but only two. SFX: 20-200 KB. |
 | Total art volume at ship | Estimated < 25 MB for the whole game |
 | Cost of LFS | Every teammate must install the client *before* cloning; GitHub free LFS is 1 GB storage / 1 GB per month bandwidth |
 | Benefit of LFS | None at this size |
@@ -69,4 +69,4 @@ git check-attr -a .\art\concepts\desk_concept_A.png
 # expected: binary: set / diff: unset / merge: unset / text: unset
 ```
 
-If `filter: lfs` appears there, your `.gitattributes` is stale — replace it from the repo.
+If `filter: lfs` appears there, your `.gitattributes` is stale -- replace it from the repo.

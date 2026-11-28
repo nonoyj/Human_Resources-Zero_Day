@@ -118,6 +118,26 @@ namespace HRZeroDay.Game
             var tube = ScreenLight.Attach(root);
             if (tube != null) tube.Bind(root, layout);
 
+            // ---- THE SECOND PRACTICAL (v130). The player asked for more light in the game's room and for the
+            // lamp to be testable. The fixture is a layer now (desk/lamp_M.png); this finds it and gives the
+            // driver something to switch. The clock's hands are the same idea for time instead of light.
+            var lamp = LampView.Attach(root);
+            var lampLayer = created.ContainsKey("lamp") ? created["lamp"] : null;
+            if (lampLayer != null)
+            {
+                var lr = lampLayer.GetComponent<SpriteRenderer>();
+                if (lr != null)
+                {
+                    lamp.GetComponent<SpriteRenderer>().sprite = lr.sprite;
+                    lamp.GetComponent<SpriteRenderer>().sortingOrder = lr.sortingOrder + 1;
+                    lr.enabled = false;                 // the view draws the lamp, lit or not, once
+                }
+                lampLayer.transform.position = lampLayer.transform.position;
+            }
+            var clock = RoomClockView.Attach(root);
+            var lightDriver = root.gameObject.GetComponent<DeskLightDriver>();
+            if (lightDriver != null) { lightDriver.clock = clock; lightDriver.lamp = lamp; }
+
             // the applicant gets the idle driver and the whole 4-frame strip
             if (created.ContainsKey("applicant"))
             {

@@ -45,23 +45,12 @@ namespace HRZeroDay.Game.Interaction
             v.Referral = a.referral;
             v.CoverLetterId = a.coverLetterId;
             v.PortraitId = a.portraitId;
-            v.SpriteKey = ArtKey(a.Archetype);
+            v.SpriteKey = Appearances.KeyFor(a);
             return v;
         }
 
-        private static string ArtKey(Archetype archetype)
-        {
-            switch (archetype)
-            {
-                case Archetype.HumanSolid: return "human_solid_a";
-                case Archetype.HumanNervous: return "human_nervous_a";
-                case Archetype.HumanBait: return "human_bait_a";
-                case Archetype.SyntheticPolished: return "synthetic_polished_a";
-                case Archetype.SyntheticCloned: return "synthetic_cloned_a";
-                case Archetype.SyntheticCollusion: return "synthetic_collusion_a";
-                default: return "human_solid_a";
-            }
-        }
+        // ArtKey(archetype) lived here and returned ONE file per archetype: six faces for 23 people.
+        // Appearances.KeyFor(a) is the same question asked of the PERSON (v130).
     }
 
     public sealed class DeskSession

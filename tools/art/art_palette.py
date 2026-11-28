@@ -171,7 +171,7 @@ def dry_run(path):
 # Colours that are allowed to stay exactly as they are, and why. An entry here is NOT an alias: the colour
 # keeps its own RGB, and the gate skips the distance test for it.
 KEPT_AS_IS = {
-    'paper':    'the letter stock is the game\'s reading surface -- it must stay warm cream (docs/15 §3)',
+    'paper':    'the letter stock is the game\'s reading surface -- it must stay warm cream (docs/15 #3)',
     'paperdim': 'the ruled lines / secondary stock on the same surface',
 }
 

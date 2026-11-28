@@ -1,5 +1,5 @@
 """
-Applicant generator simulation — reference implementation for the Unity port.
+Applicant generator simulation -- reference implementation for the Unity port.
 
 Purpose: prove that *randomised* applicants never produce an unfair run.
 Run it before every content/schema change. If any invariant fails, the Unity
@@ -205,7 +205,7 @@ class NameRegistry:
                 self.names.add(ident["name"])
                 self.ids.add(ident["id_no"])
                 return ident
-        raise RuntimeError("name pool exhausted — widen FIRST_NAMES/LAST_NAMES")
+        raise RuntimeError("name pool exhausted -- widen FIRST_NAMES/LAST_NAMES")
 
 
 def make_identity(rng: random.Random) -> dict:

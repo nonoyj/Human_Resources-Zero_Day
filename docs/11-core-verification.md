@@ -1,8 +1,8 @@
-# Core Verification — how to run the C# core tests without opening Unity
+# Core Verification -- how to run the C# core tests without opening Unity
 
 The gameplay core (`unity/Assets/Scripts/Core/**`) is **pure C#**: no `UnityEngine` references
 (`noEngineReferences: true` in its asmdef). That means it can be compiled and tested by a plain
-.NET console app — which is how it was verified before being handed over.
+.NET console app -- which is how it was verified before being handed over.
 
 ## Run it
 
@@ -54,7 +54,7 @@ C# file is the thing that ships.
 `GeneratorInvariantTests.cs` is written as plain C# with a tiny `Assert` helper so **one file** runs in
 two places:
 
-1. **Headless** via `tools/CoreTests` (above) — what the agent and CI use.
+1. **Headless** via `tools/CoreTests` (above) -- what the agent and CI use.
 2. **Unity Test Runner** via `Assets/Scripts/Tests/UnityTestAdapter.cs`, which wraps each method in an
    `[Test]` and calls `Assert.Fail` on exception.
 
@@ -64,7 +64,7 @@ When you add a test, add it to `RunAll()` as well so both paths pick it up.
 
 | Area | Tests |
 |---|---|
-| Generator invariants I1–I8 | 200 seeds, all five days, per-applicant |
+| Generator invariants I1-I8 | 200 seeds, all five days, per-applicant |
 | Determinism (I7) | same seed identical, different seed different |
 | Scoring | approve human, reject human (wrongful), correct reject for the right reason, correct reject for the wrong reason |
 | Run loop | 3 hired synthetics => `DefeatedPerfectEmployee` |

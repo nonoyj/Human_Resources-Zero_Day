@@ -169,6 +169,27 @@ try {
         } finally { Pop-Location }
     }
 
+    S 'the standing orders are intact -- 11 files, none gutted'
+        # The player: "Keep the repo in undeletable memory" and "make a undeletable what we learned list ...
+        # which you check from time to time". This cannot stop a person deleting a file; it makes the deletion
+        # fail the build in the same minute, so no round can ship with the instructions quietly missing.
+        Push-Location $repo
+        try {
+            & python tools/check_orders.py | Out-Host
+            if ($LASTEXITCODE -ne 0) { D 'the orders folder is missing or gutted' }
+            else { OK 'the standing orders are all present' }
+        } finally { Pop-Location }
+
+    S 'every tracked script, source, data and doc file is pure ASCII'
+        # BUG-027 (v130): PowerShell 5.1 reads a script in the ANSI codepage, so one UTF-8 arrow in one
+        # comment killed this very gate on Windows ("python.exe : Traceback"). ASCII, or it does not ship.
+        Push-Location $repo
+        try {
+            & python tools/check_ascii.py | Out-Host
+            if ($LASTEXITCODE -ne 0) { D 'non-ASCII characters in the tree -- PowerShell 5.1 will not parse them' }
+            else { OK 'the tree is ASCII, so it parses on the player box' }
+        } finally { Pop-Location }
+
     S 'stubs do not declare package-only namespaces'
         # A stub that invents a package namespace makes the local gate green while Unity refuses to
         # compile the asmdef and opens in Safe Mode. Rules: tools/UnityStubs/ASSEMBLY-RULES.md

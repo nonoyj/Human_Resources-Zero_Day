@@ -57,7 +57,7 @@ namespace HRZeroDay.Game.Interaction
         /// Has the player already stamped the person in the chair (v120)? The HUD uses this to stop printing
         /// its key prompts after the one decision of the interview: the keys are instructions, and an
         /// instruction that is still on screen after it has been followed is a pixel that has not earned
-        /// its place (docs/89 §7, rule 5).
+        /// its place (docs/89 #7, rule 5).
         /// </summary>
         public bool StampedToday
         {

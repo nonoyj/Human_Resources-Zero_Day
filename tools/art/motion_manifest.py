@@ -4,7 +4,7 @@ motion_manifest.py -- WHAT MOVES IN THE FRONT DOOR ROOM, AND HOW SLOW (v117, ADR
 
 Every animated thing in the room is declared here once: frame count, frame rate, whether it loops, and its
 budget. The Unity side reads this file rather than hard-coding timings, and `--check` enforces the rules from
-docs/17-front-door-round-two.md §4:
+docs/17-front-door-round-two.md #4:
 
   1. NOTHING ANIMATES FASTER THAN 12 FPS at 480x270. Above that it stops reading as motion and starts showing
      as noise.

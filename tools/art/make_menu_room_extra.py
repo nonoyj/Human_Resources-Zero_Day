@@ -12,7 +12,7 @@ specific frame, so this file draws that frame's parts:
     desk/server_rack.png     48x160  a tall cabinet at the far right, red/green drive LEDs
     fx/screen_halo.png      340x250  the cyan the monitor throws, drawn as a ring AROUND the case
 
-All palette-only (art bible §3): alpha 0 or 255, colours from PALETTE, no blending. Kept out of the desk
+All palette-only (art bible #3): alpha 0 or 255, colours from PALETTE, no blending. Kept out of the desk
 LAYER list on purpose -- this is the front door's own frame, composed by MenuView, not gameplay art.
 
     python tools/art/make_menu_room_extra.py

@@ -10,7 +10,7 @@
 //     a paragraph. The desk this game is set at has a letter tray, a stamp, a security board, a badge. The
 //     HUD should be those.
 //
-// WHAT IS AND IS NOT AN OBJECT (docs/89 §7, and the deep research in docs/89's source list)
+// WHAT IS AND IS NOT AN OBJECT (docs/89 #7, and the deep research in docs/89's source list)
 //     Objects: things the player can PRESS, plus the two readings a player looks at without pressing
 //     (the day and the subject count, and the security score -- which is a SHAPE first: a bar and a band,
 //     then a number). Text left as text: a name and a role. A name is a noun, not a button; making it

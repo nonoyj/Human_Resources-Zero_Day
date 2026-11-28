@@ -1,6 +1,6 @@
 # HANDOFF -- Agent -> Dev A (systems) -- Core game logic, verified
 
-**Date:** 2026-11-26 · **Branch to create:** `feat/core-integration` · **Status:** ready to integrate
+**Date:** 2026-11-26 - **Branch to create:** `feat/core-integration` - **Status:** ready to integrate
 
 ## What is done (and how it was verified)
 Pure-C# gameplay core, 10 files, ~1,490 lines, **compiled and tested with the .NET 8 SDK**:

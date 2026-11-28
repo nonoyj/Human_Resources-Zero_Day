@@ -1,4 +1,4 @@
-# incoming/ — put YOUR art and sound here
+# incoming/ -- put YOUR art and sound here
 
 Drop a file in here with the name of the asset it replaces, run **one** command, and the manifest, the
 Unity mirror, the import settings and the gates all update to match:
@@ -21,7 +21,7 @@ The folder mirrors `art/kit/`, so the same name lands in the same place:
 
 ## What it will refuse, and why that is a kindness
 
-- **A PNG of the wrong size.** Sprites are placed in pixels at 16 ppu. A 2× export is not "higher
+- **A PNG of the wrong size.** Sprites are placed in pixels at 16 ppu. A 2x export is not "higher
   resolution", it is twice as big on the desk. (Override: `--allow-any-size`.)
 - **A fully transparent PNG.** The most common export mistake; it replaces a working sprite with nothing.
 - **A WAV that is not 24 kHz mono 16-bit.** The mix levels are measured in that format, so anything else

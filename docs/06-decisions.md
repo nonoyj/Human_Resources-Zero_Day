@@ -1,19 +1,19 @@
 # Decision Record (ADR)
 
-Locked decisions, newest first. Change requires a new entry — never edit history.
+Locked decisions, newest first. Change requires a new entry -- never edit history.
 
 ---
 
-## ADR-006 — Detection = diegetic core + 3 limited-use verification tools
-**Date:** 2026-11-25 · **Status:** Accepted
+## ADR-006 -- Detection = diegetic core + 3 limited-use verification tools
+**Date:** 2026-11-25 - **Status:** Accepted
 
 The player never sees an "AI: yes/no" flag. All identification is inference from evidence across
-5 categories. On top of that, the player has a **VERITAS toolkit** — three checks, each with a
+5 categories. On top of that, the player has a **VERITAS toolkit** -- three checks, each with a
 daily budget and each *imperfect on purpose*:
 
 | Tool | Uses/day | What it does | How it can betray you |
 |---|---|---|---|
-| `ID REGISTRY` | 2 | Looks up an ID number in the national registry | The AI has been poisoning the registry — a synthetic may return "VALID" |
+| `ID REGISTRY` | 2 | Looks up an ID number in the national registry | The AI has been poisoning the registry -- a synthetic may return "VALID" |
 | `METADATA SCAN` | 2 | Reveals provenance marks on the submitted portrait | Clean metadata on a synthetic image that was re-captured via a real camera |
 | `REFERENCE CALL` | 1 | Contacts the listed referee | The referee is a human bait or an AI-run voice line |
 
@@ -26,55 +26,55 @@ corroboration tells you what's true."*
 
 ---
 
-## ADR-005 — Landscape orientation
-**Date:** 2026-11-25 · **Status:** Accepted
+## ADR-005 -- Landscape orientation
+**Date:** 2026-11-25 - **Status:** Accepted
 
 Landscape, locked. Consequences:
-- Base art canvas **480 × 270** (PPU 16, integer 4× on a 1080p phone). Matches the "desk terminal" fantasy.
+- Base art canvas **480 x 270** (PPU 16, integer 4x on a 1080p phone). Matches the "desk terminal" fantasy.
 - Two-column desk layout: left = document stack / inbox, right = verification tools + stamps + HUD.
 - All interactives inside the **safe area** (notch/camera cutout on the long edge in landscape).
 - Thumb-reach: primary actions (stamps) anchored bottom-right; back/back-out bottom-left; nothing
   interactive in the top 15% of the screen.
-- Event play: players will be handed a phone — landscape means two hands. Mitigated by large
+- Event play: players will be handed a phone -- landscape means two hands. Mitigated by large
   targets and a pause-anywhere save.
 
 ---
 
-## ADR-004 — Target: "product-quality build, demo-sized content"
-**Date:** 2026-11-25 · **Status:** Accepted (with a Day-6 gate)
+## ADR-004 -- Target: "product-quality build, demo-sized content"
+**Date:** 2026-11-25 - **Status:** Accepted (with a Day-6 gate)
 
 You chose *finished product-quality*. I'll hold us to that bar for **quality**, but content volume
 must stay demo-sized or the quality bar eats the deadline. Definition:
 
-**In scope (must ship):** 5 playable days · ~21 applicants · 12 emails/events · 5 ending screens ·
-full intro sequence · menu + settings + character creation · local save/resume · zero known P0/P1 ·
-60 fps on a mid-range phone · sound complete.
+**In scope (must ship):** 5 playable days - ~21 applicants - 12 emails/events - 5 ending screens -
+full intro sequence - menu + settings + character creation - local save/resume - zero known P0/P1 -
+60 fps on a mid-range phone - sound complete.
 
 **Not "product" in the store sense, and that's deliberate:** no app-store listing, no analytics,
 no cloud, no localization beyond English, no achievements, no endless mode, no tutorial video.
 
-**The gate — Day 6, after the vertical slice:** if the slice isn't solid, we cut in this order:
-(1) Day-5 composite content → 4 days, (2) REFERENCE CALL tool, (3) animated intro → static
-storybook with fades, (4) applicant count 4→3 per day. We never cut responsiveness, save safety,
-or the debrief screens — those *are* the product.
+**The gate -- Day 6, after the vertical slice:** if the slice isn't solid, we cut in this order:
+(1) Day-5 composite content -> 4 days, (2) REFERENCE CALL tool, (3) animated intro -> static
+storybook with fades, (4) applicant count 4->3 per day. We never cut responsiveness, save safety,
+or the debrief screens -- those *are* the product.
 
 ---
 
-## ADR-003 — Three hired AIs = defeat, with visible corruption
-**Date:** 2026-11-25 · **Status:** Accepted · supersedes the "1 AI = loss" option
+## ADR-003 -- Three hired AIs = defeat, with visible corruption
+**Date:** 2026-11-25 - **Status:** Accepted - supersedes the "1 AI = loss" option
 
 - **1 hired AI:** warning beat (+1 anomaly in the office, a colleague email hints at odd access logs)
-- **2 hired AIs:** visible damage — corrupted UI elements, a data-loss event, trust drop
-- **3 hired AIs:** game over → *The Perfect Employee* ending
+- **2 hired AIs:** visible damage -- corrupted UI elements, a data-loss event, trust drop
+- **3 hired AIs:** game over -> *The Perfect Employee* ending
 
-Visible corruption is implemented as a `CorruptionLevel` (0–3) that drives background variant,
+Visible corruption is implemented as a `CorruptionLevel` (0-3) that drives background variant,
 glitch overlay intensity, audio interference, and an occasional 1-line story beat. One integer,
 huge narrative payoff.
 
 ---
 
-## ADR-002 — Team profile: capable coders who need guides, and speed matters
-**Date:** 2026-11-25 · **Status:** Accepted
+## ADR-002 -- Team profile: capable coders who need guides, and speed matters
+**Date:** 2026-11-25 - **Status:** Accepted
 
 All three can code and navigate a codebase; none needs hand-holding on syntax. What they need is
 **structure and pre-made decisions**, not tutorials.
@@ -88,20 +88,20 @@ Therefore:
 
 ---
 
-## ADR-001 — Local git repo here; remote is the team's
-**Date:** 2026-11-25 · **Status:** Accepted, remote URL pending
+## ADR-001 -- Local git repo here; remote is the team's
+**Date:** 2026-11-25 - **Status:** Accepted, remote URL pending
 
 The GitHub connector isn't available in this session, so I keep a real git repo in this workspace
 with reviewable commits. When you paste the remote URL I'll produce the exact PowerShell to
-attach and push (including LFS init). Until then nothing is blocked — the repo works standalone.
+attach and push (including LFS init). Until then nothing is blocked -- the repo works standalone.
 
 ---
 
 ## Still open (needs you)
 
 1. **GitHub remote URL** (you said you'd paste it).
-2. **Event date + how long each playtester gets at the booth** — drives session length and intro budget.
-3. **Is there actually a backend/server in this project** ("communicate with the backend group") —
+2. **Event date + how long each playtester gets at the booth** -- drives session length and intro budget.
+3. **Is there actually a backend/server in this project** ("communicate with the backend group") --
    or is "backend" your team's internal name for the systems team? This determines whether I write
    a network layer at all. My assumption: **no server**.
 4. **Do you have a name for the studio/team?** Needed for the icon, splash, and credits.
@@ -109,8 +109,8 @@ attach and push (including LFS init). Until then nothing is blocked — the repo
 
 ---
 
-## ADR-007 — Desk composition: monitor left, applicant right
-**Date:** 2026-11-25 · **Status:** Accepted
+## ADR-007 -- Desk composition: monitor left, applicant right
+**Date:** 2026-11-25 - **Status:** Accepted
 
 The interview is a physical scene, not a paperwork metaphor: **the monitor occupies the left half**
 of the screen (resume, ID, cover letter, metadata, tools, stamps, reason dropdown) and **the
@@ -123,12 +123,12 @@ Consequences:
 - Any inspect/zoom overlay anchors left so the applicant is never hidden.
 - "Reduce motion" and colour-blind settings must not remove any tell (they only change presentation).
 
-## ADR-008 — Randomised runs with proven fairness
-**Date:** 2026-11-25 · **Status:** Accepted
+## ADR-008 -- Randomised runs with proven fairness
+**Date:** 2026-11-25 - **Status:** Accepted
 
 Applicants, identities, tells, distractors, emails and attack events are generated per run from a
 single seed. No campaign is authored by hand, though content (names, wording pools, emails) is.
-Fairness invariants I1–I8 (`docs/07-randomization-spec.md`) are enforced in code and EditMode tests,
+Fairness invariants I1-I8 (`docs/07-randomization-spec.md`) are enforced in code and EditMode tests,
 and are already validated by `prototype/generator_sim.py` (0 violations / 1,000 runs).
 
 Consequences:
@@ -136,8 +136,8 @@ Consequences:
 - Determinism is a feature: same seed = same run (QA, debugging, replay).
 - Content tuning happens through weights/pools, never by hardcoding a fixed applicant.
 
-## ADR-009 — The intro is spoken by DISPATCH, and the slot is silent until the voice exists
-**Date:** 2026-11-27 · **Status:** Accepted (player decision)
+## ADR-009 -- The intro is spoken by DISPATCH, and the slot is silent until the voice exists
+**Date:** 2026-11-27 - **Status:** Accepted (player decision)
 
 DISPATCH narrates the intro beats as a **radio voice**, not silent text. The voice is produced by the
 backend/content side (BE2), one clip per beat.
@@ -149,20 +149,20 @@ Consequences:
   it keeps a missing/mis-signed clip a silent degrade rather than a crash.
 - A beat's `hold` becomes a MINIMUM when audio is present: the card waits for the clip to finish (capped).
   Radio pacing is the writer's job, so the file must not cut a line off mid-sentence.
-- The intro no longer needs a separate "skip" affordance to be bearable — but skip stays (X/ESC), because
+- The intro no longer needs a separate "skip" affordance to be bearable -- but skip stays (X/ESC), because
   a voice on first launch is exactly what returning players want to skip.
 - Audio pass is therefore two things, in this order: (1) the spoken intro, (2) the room bed + cues.
 
-## ADR-010 — The game starts itself; R is replay, not the way in
-**Date:** 2026-11-27 · **Status:** Accepted (observed behaviour, confirmed by the player)
+## ADR-010 -- The game starts itself; R is replay, not the way in
+**Date:** 2026-11-27 - **Status:** Accepted (observed behaviour, confirmed by the player)
 
 Earlier builds required pressing **R** to begin a run. That is gone: `GameBoot` builds the desk and the
 first shift starts on its own (`DeskBootstrap.Start`), and **R** now means "start a new run" (it re-shows
 the intro, because a new run is a new first minute). Nothing in the shipping path waits for a keypress, and
 no doc should imply otherwise.
 
-## ADR-011 — A voiced intro gets 32 seconds; a silent one keeps 25
-**Date:** 2026-11-27 · **Status:** Accepted (player decision, docs/87 W-1)
+## ADR-011 -- A voiced intro gets 32 seconds; a silent one keeps 25
+**Date:** 2026-11-27 - **Status:** Accepted (player decision, docs/87 W-1)
 
 At 150 wpm plus breath the five shipped intro beats come to **~30.5 s**. The intro's own budget was 25 s, so
 the first time DISPATCH's voice was recorded, the last line would have been cut by a rule nobody would have
@@ -177,16 +177,16 @@ Consequences:
   because this is exactly the kind of number that gets quietly changed later.
 - The intro stays skippable (X/ESC) and once per profile, which is why 32 s is not a burden.
 
-## ADR-012 — The Security Rating: one number, visible during a shift, explained by a popup
-**Date:** 2026-11-27 · **Status:** Accepted (player decision, docs/88 Q1–Q4)
+## ADR-012 -- The Security Rating: one number, visible during a shift, explained by a popup
+**Date:** 2026-11-27 - **Status:** Accepted (player decision, docs/88 Q1-Q4)
 
-The company has **one number, 0–100, starting at 70**, banded `STABLE` (70+) / `SHAKY` (40–69) /
+The company has **one number, 0-100, starting at 70**, banded `STABLE` (70+) / `SHAKY` (40-69) /
 `BREACHED` (<40), built from **trust 60 % + corruption 30 % + synthetics hired 10 %**. It is visible **during
 a shift**, and clicking ALERTS opens a popup that shows how the number is made. It can rise as well as fall.
 
 Consequences:
 - **The scale is anchored.** A healthy company (full trust, corruption 0, no synthetics) reads exactly 70;
-  catastrophic reads 0. Without the anchor, "start at 70" and "60/30/10" contradict each other — a fresh run
+  catastrophic reads 0. Without the anchor, "start at 70" and "60/30/10" contradict each other -- a fresh run
   computes 100, the HUD opens on a perfect score, and there is nowhere to go but down. The first test written
   for this caught exactly that.
 - `Breakdown()` scales and anchors identically to `Compute()`, so the three contributions on the popup always
@@ -194,11 +194,11 @@ Consequences:
 - Four alert kinds only: **a synthetic was hired** (loudest), **two mismatches on one file**, **a verification
   contradicted the application**, **corruption rose a level**. Fact outranks inference: a double mismatch is
   severity 1, a verified lie is severity 2.
-- Alert lines are **upper case**, because they are painted with the 5×7 atlas. The atlas gate caught sentence
+- Alert lines are **upper case**, because they are painted with the 5x7 atlas. The atlas gate caught sentence
   case on the first pass.
 
-## ADR-013 — The inbox arrives as an event, not as a screen you open
-**Date:** 2026-11-27 · **Status:** Accepted (player decision, docs/88 Q11)
+## ADR-013 -- The inbox arrives as an event, not as a screen you open
+**Date:** 2026-11-27 - **Status:** Accepted (player decision, docs/88 Q11)
 
 Mail does not sit in a menu waiting to be read. **The system triggers an inbox event randomly**, and the
 player reads it when it happens. This changes the shape of the email feature from "a screen" to "an
@@ -206,12 +206,12 @@ interruption with a decision in it", which is a better fit for a game about a de
 
 Consequences:
 - An email event **interrupts** the desk (never mid-stamp: the trigger is checked between applicants).
-- Because it interrupts, it must be **skippable/deferrable** — no player should lose a shift's rhythm to a
+- Because it interrupts, it must be **skippable/deferrable** -- no player should lose a shift's rhythm to a
   random mail. Deferring is itself a choice (see ADR-014: ignoring is a decision with a cost).
 - The 8 written emails stay valid; what changes is *when* they arrive.
 
-## ADR-014 — An email decision changes the company, not a counter
-**Date:** 2026-11-27 · **Status:** Accepted (player decision, docs/88 Q12)
+## ADR-014 -- An email decision changes the company, not a counter
+**Date:** 2026-11-27 - **Status:** Accepted (player decision, docs/88 Q12)
 
 Refusing / granting / ignoring an email must **not** merely nudge tomorrow's corruption. Each choice has a
 **consequence on the company**: refusing a genuine employee's access request loses you a colleague (a named
@@ -220,14 +220,14 @@ never free. The wrong choice must be felt as a story beat, not as a number.
 
 Consequences:
 - Every email needs **three outcomes**, each with: a company effect, a security-rating effect, and **one line
-  of consequence** the next morning. That is a content cost (8 emails × 3 outcomes) and a rules table.
+  of consequence** the next morning. That is a content cost (8 emails x 3 outcomes) and a rules table.
 - The consequence must be **visible**: a person who no longer appears, a name in the day summary, an alert.
 - This makes the email system a *source* of day events rather than a parallel feature.
 
-## ADR-015 — "From an AI" is a real third category
-**Date:** 2026-11-27 · **Status:** Accepted (player decision, docs/88 Q13)
+## ADR-015 -- "From an AI" is a real third category
+**Date:** 2026-11-27 - **Status:** Accepted (player decision, docs/88 Q13)
 
-Emails are **legit / attack / from an AI**. The AI category is not a writing style — it is mechanically
+Emails are **legit / attack / from an AI**. The AI category is not a writing style -- it is mechanically
 different, and it is what ties the inbox to the game's core question ("is this a person?").
 
 Consequences:
@@ -320,7 +320,7 @@ background with an aesthetic view of the city in the night with a server on the 
 the glass, so the composition is a gate and not an eyeball. MenuView renders into a 236x144 texture placed
 at the glass rect; the game keeps one code path for painting (MonitorScreenRaster + the 5x7 atlas).
 
-## ADR-019 — The front door is a specific room the player described (2026-11-28, v115)
+## ADR-019 -- The front door is a specific room the player described (2026-11-28, v115)
 
 **Context.** ADR-017 put the door in a room but composed it from gameplay sprites, and v114 replaced that
 with a concept frame built from wall labels and an ID-card widget. The player rejected both and reset the
@@ -333,7 +333,7 @@ server; tiled floor with black outlines. Dark and eerie, cyan, pixel, in the reg
 Neighbor*.
 
 **Decision.**
-1. **The menu is drawn inside the monitor**, on its glass, in the 5×7 atlas. No overlay ever prints on the
+1. **The menu is drawn inside the monitor**, on its glass, in the 5x7 atlas. No overlay ever prints on the
    room: a second layer over the door is a defect (v113).
 2. **The room is six generated sprites**, not a hand-drawn scene: `menu/shell`, `menu/window`,
    `menu/monitor_stack`, `menu/server`, `menu/crt`, `menu/desk`. They are palette-gated like the rest of the
@@ -347,17 +347,17 @@ Neighbor*.
 5. **The composition is gate-checked, not eyeballed.** `make_menu_composite.py --check` fails on any sprite
    off the frame, any overlap between the back-wall pieces, or any menu line that does not fit the glass;
    `CheckTheRoomHasEveryPieceFromTheBrief` asserts the furniture relationships (monitor on the desk, table
-   and server on the floor, window clear of the monitor, table → window → server left to right).
+   and server on the floor, window clear of the monitor, table -> window -> server left to right).
 6. **The room is still.** No flicker, no city movement, no steam animation yet: a room that moves behind a
    menu that does not is worse than a still room. Motion is recorded for the P5 art pass.
 
 **Consequences.** The v114 concept elements (wall monitor bank, ID card widget, wall labels) are gone by
-order and must not come back. The title is 2× (206 px) because a 3× title is 309 px and no glass that fits
-a 480×270 room holds it; the brief's "old monitor" is answered with a chunky case, not a small one. The
+order and must not come back. The title is 2x (206 px) because a 3x title is 309 px and no glass that fits
+a 480x270 room holds it; the brief's "old monitor" is answered with a chunky case, not a small one. The
 `menu/` folder is in the sprite manifest and the publish prune list, so the sprites reach Unity through the
 same pipeline as everything else.
 
-## ADR-020 — The monitor is an object, and the frame has a film of dust on it (2026-11-28, v116)
+## ADR-020 -- The monitor is an object, and the frame has a film of dust on it (2026-11-28, v116)
 
 **Context.** After installing v115 the player reported one defect and gave three directions: *"the text is
 offscreen"*, *"make the monitor more dominant and what I asked is an old/retro monitor look, the same with the
@@ -367,19 +367,19 @@ window a little wider"*.
 **Decision.**
 1. **A CRT is drawn as the object, not as a "retro" filter**: deep case with feet, thick bottom bezel, cut
    corners on case and tube, a shadow side, a rim darker than the middle, moulded seam, vents, badge, knobs,
-   LED, screws. The desk monitor grows to 252×186 with 224×148 of tube; the six back-wall screens are drawn
+   LED, screws. The desk monitor grows to 252x186 with 224x148 of tube; the six back-wall screens are drawn
    in the same language at a third of the size.
 2. **Type is measured against the TUBE (`TubeInset`), never the glass rect.** A CRT's picture is smaller
    than its tube; a line that fits the rect can sit on the curve, which is what "offscreen" meant. Every
    line, row and footer is inside `TextX/TextY/TextW/TextH`, and a test asserts it.
-3. **The dust is clumped, dark-only, hash-placed and deterministic.** 2×2 blocks; only on
-   `void`/`panel`/`panel2`; a Wang hash per block (never a radius threshold, never `(x*A ^ y*B) & 15` — both
+3. **The dust is clumped, dark-only, hash-placed and deterministic.** 2x2 blocks; only on
+   `void`/`panel`/`panel2`; a Wang hash per block (never a radius threshold, never `(x*A ^ y*B) & 15` -- both
    are periodic and both were tried and rejected this round); 0.4% of blocks in the middle of the frame,
    3% at the corners. It never touches a screen or the glass.
 4. **The cyan fade is directional**: 58 px sideways, 74 px down onto the desk. An equal reach on every side
    drew a dome over the wall.
 5. **The window is 96 px wide and its city is two layers** (far = one value off the sky with no detail, near
-   = `void` with lit windows) — atmospheric perspective, which is what makes it read as a city behind glass
+   = `void` with lit windows) -- atmospheric perspective, which is what makes it read as a city behind glass
    instead of wallpaper.
 
 **Consequences.** `make_menu_composite.py --check` still gates geometry, but the geometry gate only covers the
@@ -411,7 +411,7 @@ composite's geometry gate before it can ship, and a change to the tracking of th
 same function the game draws with. The palette is a single published JSON, generated, with the legacy keys
 preserved.
 
-## ADR-022 — the glow is a layer of STRENGTH, not a colour (v119)
+## ADR-022 -- the glow is a layer of STRENGTH, not a colour (v119)
 
 **Context.** The player's note was one sentence long: *"the darkness is good enough, only glow is missing."*
 The v118 room was lit by a pass that lifts a surface one step up its own material ramp; there was no
@@ -420,17 +420,17 @@ arithmetically invisible.
 
 **Decision.** The glow ships as **one sprite the size of the canvas** (`menu/glow.png`), baked by
 `make_menu_room.py` from a distance transform of the room's real emitters (the glazing, the lit tubes, the
-mouth of the lamp). Its pixels do not mean colour, they mean **strength**: cold 0–3, warm 4–7.
+mouth of the lamp). Its pixels do not mean colour, they mean **strength**: cold 0-3, warm 4-7.
 
 * The runtime lifts the surface under a glow pixel that many steps up that surface's *own* ramp.
-* When the ramp runs out, the leftover strength becomes a **dithered tint** — that fraction of pixels take the
+* When the ramp runs out, the leftover strength becomes a **dithered tint** -- that fraction of pixels take the
   glow's colour. This is the 16-bit way to fake a colour outside the palette.
-* The top band of each temperature is **emissive** and painted as-is: the 1–2 px hot rim.
+* The top band of each temperature is **emissive** and painted as-is: the 1-2 px hot rim.
 * **Warm wins** wherever the lamp is nearer, keeping the lamp the only warm thing in the frame.
 * The glow runs **after** the light pass and **after** the vignette, so a corner cannot eat a halo, and it
   never touches the tube (the player is reading it) or the fixtures (a housing is not a surface).
 
-The palette gained two honest lit steps to make this possible: `wall_3` and `floor_3`, at 0.29 and 0.10 value —
+The palette gained two honest lit steps to make this possible: `wall_3` and `floor_3`, at 0.29 and 0.10 value --
 both under the 0.62 non-emissive ceiling. **A glow needs somewhere to go.**
 
 **Rejected alternatives.**
@@ -446,11 +446,11 @@ both under the 0.62 non-emissive ceiling. **A glow needs somewhere to go.**
 **Consequences.** Any future emitter must be added to `_emitters()` or its light will not exist, and any new
 material that a halo lands on needs a lit step at the top of its ramp or the glow on it is limited to a dither.
 
-## ADR-023 — the menu is pointer-first, and one selection at a time (v119)
+## ADR-023 -- the menu is pointer-first, and one selection at a time (v119)
 
 **Context.** The player asked whether the menu could be more interactive.
 
-**Decision.** The front door is interactable through the same 480×270 canvas every hit test in the game uses
+**Decision.** The front door is interactable through the same 480x270 canvas every hit test in the game uses
 (`MenuLayout.RowAt`, `StackCellAt`, `InLamp`, `InKeyboard`), and **hover moves the selection** rather than
 drawing a second highlight. There is exactly one selected row at any moment, whether it was chosen by a key or
 by the pointer; a hovered-but-unselected row is drawn as a *preview* (cyan edge, white text, no fill).

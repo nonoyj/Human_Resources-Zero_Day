@@ -53,14 +53,30 @@ PALETTE = {
     'synth': (0x7b, 0x61, 0xff), 'synthdim': (0xb3, 0x9d, 0xff), 'ok': (0x6e, 0xe7, 0xc8),
     'paperdim': (0x8a, 0x6d, 0x3b), 'paper': (0xf2, 0xe8, 0xd5), 'ink': (0x2a, 0x21, 0x18),
 }
+# v130: the SKIN ramp lives in menu_palette (the file the room was lit against), so the applicant generator
+# reads it from there instead of carrying its own. One palette, one author -- `art_palette.py` already imports
+# menu_palette under the same arrangement, and this is the last copy that disagreed with it.
+try:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from menu_palette import PALETTE as _MENU_PALETTE
+    for _k in ('skin_0', 'skin_1', 'skin_2', 'skin_3',
+               'hair_0', 'hair_1', 'hair_2', 'hair_3'):
+        PALETTE[_k] = _MENU_PALETTE[_k]
+except Exception as _e:                                   # noqa: BLE001
+    raise SystemExit('make_applicants: the skin ramp must come from menu_palette (%s)' % _e)
+
 PALETTE_SET = set(PALETTE.values())
 
 # v9: (light, mid, dark) for hands/collars/cuffs, ALWAYS warm. The old list had two families built from
 # 'muted'/'linehi'/'line' -- those are cold blue UI colours, and they made grey-blue people.
+# SKIN TRIPLES (v130). Each entry is (shadow, mid, lit) and every step is taken from the `skin` ramp in
+# menu_palette -- the ramp the room was lit against -- never from `paper`/`warn`/`orange`, which are a sheet of
+# paper (0.33), a warning light (0.55) and a signal orange (0.60). Those three were 35-50% brighter than any
+# lit face in the approved room, so the cast read as cut-outs in a real room. Values here run 0.115 -> 0.42.
 SKIN = [
-    ('paper', 'warn', 'orange'), ('warn', 'orange', 'paperdim'),
-    ('orange', 'paperdim', 'ink'), ('paperdim', 'orange', 'ink'),
-    ('warn', 'paperdim', 'ink'), ('paper', 'orange', 'paperdim'),
+    ('skin_0', 'skin_2', 'skin_3'), ('skin_1', 'skin_2', 'skin_3'),
+    ('skin_1', 'skin_3', 'skin_3'), ('skin_0', 'skin_1', 'skin_2'),
+    ('skin_1', 'skin_2', 'skin_3'), ('skin_2', 'skin_3', 'skin_3'),
 ]
 HAIR = ['ink', 'paperdim', 'line', 'panel2', 'linehi', 'ink']        # v9: natural only, see note above
 HAIR_HI = {'ink': 'line', 'paperdim': 'linehi', 'line': 'linehi',
@@ -88,8 +104,12 @@ class Applicant:
         self.artifacts = set(artifacts)
         self.skin_light, self.skin_mid, self.skin_dark = SKIN[s % len(SKIN)]
         # v9: hair is a RAMP, not a single key. Dark-warm for most, grey for older applicants.
-        self.hair_ramp = 'hair_grey' if (s % 9 == 4) else ('hair_brown' if (s % 3 == 1) else 'hair_black')
-        self.hair = ('panel2' if self.hair_ramp == 'hair_grey' else 'ink')
+        # v130: ONE hair ramp, and black/brown/grey are three PLACES on it (steps 1, 2, 3) instead of three
+        # colour names that resolved to a UI navy. `hair_grey` used to be a separate ramp; it was a cool
+        # ramp for a warm material, and the greys came out blue.
+        self.hair_ramp = 'hair'
+        self.hair_step = 3 if (s % 9 == 4) else (2 if s % 3 == 1 else 1)
+        self.hair = 'hair_%d' % self.hair_step
         self.outfit = OUTFIT[(s // 7) % len(OUTFIT)]
         self.accent = ACCENT[(s // 11) % len(ACCENT)]
         self.hair_style = (s // 5) % 6        # crop, side, bun, long, hijab, beanie
@@ -123,7 +143,11 @@ class Applicant:
         self.build_idx  = (s // 2) % 4             # narrow / average / heavy / very heavy
         self.hand_size  = 4 + (s % 3)              # knuckle span in px
         # three skin families, chosen per seed: light, warm mid, deep. Painted as ramps, not flat fills.
-        self.skin_ramp  = ('skin_light', 'skin_mid', 'skin_light', 'skin_deep')[(s // 3) % 4]
+        # v130: the ramp name must be one `painterly.RAMPS` knows. This used to read
+        # ('skin_light','skin_mid','skin_light','skin_deep'), four names that exist in NO ramp table --
+        # every `P.ramp(...)` call silently fell back to the ramp's darkest step, which is why the applied
+        # light and the jaw contour were invisible on every applicant ever shipped.
+        self.skin_ramp  = 'skin'
         # ---- v9: female proportions. Same identity machinery, different anatomy.
         if self.female:
             self.build_idx = max(0, self.build_idx - 1)     # narrower shoulders
@@ -463,15 +487,15 @@ class Applicant:
                 for k in range(-r, r + 1):
                     exx = ex + side * (1 + k // 2)
                     P.put(exx, ear_y + dy, _tone_key(tone, exx, ear_y + dy))
-            P.put(ex + side, ear_y + 2, 'paperdim')                     # the fold: one darker step
+            P.put(ex + side, ear_y + 2, P.ramp('skin', 1))                     # the fold: one darker step
 
         if 'ear' in A:
             # ARTIFACT: one perfectly rectangular slab, uniform colour, spanning hairline to
             # jaw -- no fold, no taper, and it grows straight out of the hair.
             hwid = head_half(ear_y)
-            P.rect(cx - hwid - 4, head_top + 12, cx - hwid, head_bot - 12, P.ramp('skin_mid', 2))
-            P.rect(cx - hwid - 4, head_top + 12, cx - hwid - 4, head_bot - 12, P.ramp('skin_light', 3))
-            P.rect(cx - hwid - 4, head_top + 12, cx - hwid, head_top + 12, P.ramp('skin_light', 3))
+            P.rect(cx - hwid - 4, head_top + 12, cx - hwid, head_bot - 12, P.ramp('skin', 2))
+            P.rect(cx - hwid - 4, head_top + 12, cx - hwid - 4, head_bot - 12, P.ramp('skin', 3))
+            P.rect(cx - hwid - 4, head_top + 12, cx - hwid, head_top + 12, P.ramp('skin', 3))
 
         # ears, sitting on the skull curve rather than bolted to a rectangle
         # ---------------- neck (v5: a tapered cylinder with a contact shadow, not a block)
@@ -512,9 +536,9 @@ class Applicant:
             # ARTIFACT: one perfectly rectangular slab, uniform colour, spanning hairline to
             # jaw -- no fold, no shadow, no taper, and it grows straight out of the hair.
             hwid = head_half(ear_y)
-            P.rect(cx - hwid - 4, head_top + 12, cx - hwid, head_bot - 12, P.ramp('skin_mid', 2))
-            P.rect(cx - hwid - 4, head_top + 12, cx - hwid - 4, head_bot - 12, P.ramp('skin_light', 3))
-            P.rect(cx - hwid - 4, head_top + 12, cx - hwid, head_top + 12, P.ramp('skin_light', 3))
+            P.rect(cx - hwid - 4, head_top + 12, cx - hwid, head_bot - 12, P.ramp('skin', 2))
+            P.rect(cx - hwid - 4, head_top + 12, cx - hwid - 4, head_bot - 12, P.ramp('skin', 3))
+            P.rect(cx - hwid - 4, head_top + 12, cx - hwid, head_top + 12, P.ramp('skin', 3))
 
         # ---------------- hair (v10: SIMPLE)
         # The player asked for simple hair twice, and they are right: every extra strand I added was a
@@ -522,9 +546,9 @@ class Applicant:
         # darker band at the roots, and a soft edge -- nothing above the silhouette, nothing poking out.
         st = self.hair_style
         hairline = cranium_cy - int(hw * 0.30)               # where the forehead stops
-        hair_mass = P.ramp(self.hair_ramp, 2)
-        hair_deep = P.ramp(self.hair_ramp, 1)
-        hair_edge = P.ramp(self.hair_ramp, 3)                # 1 px of light where the light hits
+        hair_mass = P.ramp(self.hair_ramp, self.hair_step)
+        hair_deep = P.ramp(self.hair_ramp, max(0, self.hair_step - 1))
+        hair_edge = P.ramp(self.hair_ramp, min(3, self.hair_step + 1))   # 1 px of light where the light hits
 
         if st == 4:                                          # headscarf: cloth, frames the face
             face_top = hairline + 3
@@ -629,7 +653,7 @@ class Applicant:
             for k in range(-4, 5):
                 h = 2 if abs(k) < 3 else 1
                 for d in range(h):
-                    P.put(bx + k, eye_y - 6 - lift - d + self.brow // 2, self.hair if d == 0 else P.ramp('hair_mid', 1))
+                    P.put(bx + k, eye_y - 6 - lift - d + self.brow // 2, self.hair if d == 0 else P.ramp('hair', 1))
         # nose (v11, flat): a 2 px nostril line, not a shadowed side. A nose at this size needs two
         # marks, not modelling -- the modelling was the part that read as a stain on the cheek.
         P.put(cx - 1, eye_y + 12, P.ramp(self.skin_ramp, 1))
@@ -829,13 +853,24 @@ TONES = ('dark', 'tan', 'warm', 'light')
 
 
 def _tone_key(tone, x, y):
+    # FOUR TONES, FOUR DIFFERENT FAMILIES (v130). This mapping used to send 'light' straight to `paper`
+    # (242,232,213 -- almost white) and 'warm' to `warn`, which at 1x made a face that was orange on one half
+    # and olive on the other. Two of the four tones were outside what a face can be, which is why the player
+    # saw "varieties" as a cast of cartoon masks.
+    #
+    # The rule the research in orders/06 states: a ramp is a run of ADJACENT steps, and the mid tone must be
+    # the one that reads as skin. The four tones are now four steps along ONE warm ramp family (skin), chosen
+    # so they differ in VALUE (1, 2, 3, 4 of 5) more than in hue -- value is the hierarchy, hue is the flavour.
+    # No tone ever uses a colour brighter than skin_3, and no tone dithers against a cool colour.
     if tone == 'dark':
-        return 'paperdim'
-    if tone == 'light':
-        return 'paper'
+        return 'skin_1'
+    if tone == 'tan':
+        return 'skin_2'
     if tone == 'warm':
-        return 'warn' if (x + y) & 1 else 'orange'      # the dither: reads as one mid tone at 1x
-    return 'orange'
+        return 'skin_2' if (x + y) & 1 else 'skin_3'    # the dither: two ADJACENT steps, reads as one mid tone
+    if tone == 'light':
+        return 'skin_3'
+    return 'skin_2'
 
 
 def build_frame(state: Applicant, frame: int) -> Image.Image:

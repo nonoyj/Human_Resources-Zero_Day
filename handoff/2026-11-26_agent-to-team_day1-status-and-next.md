@@ -1,11 +1,11 @@
-# HANDOFF — what we built today, where we stand, what's next
+# HANDOFF -- what we built today, where we stand, what's next
 
 **Date:** 2026-11-26 (end of day 1 of build)
-**Author:** Agent (Arena) → **BE1, BE2, and Dev A (frontend)**
-**Repo:** https://github.com/nonoyj/Human_Resources-Zero_Day · owner `nonoyj`, yours is `June0904`
-**Game:** HUMAN RESOURCES: ZERO DAY · Unity 6.3 LTS **6000.3.29f1** · Android · demo in 14 days
+**Author:** Agent (Arena) -> **BE1, BE2, and Dev A (frontend)**
+**Repo:** https://github.com/nonoyj/Human_Resources-Zero_Day - owner `nonoyj`, yours is `June0904`
+**Game:** HUMAN RESOURCES: ZERO DAY - Unity 6.3 LTS **6000.3.29f1** - Android - demo in 14 days
 
-Read this first, then jump to **your** section. Everything below was run and verified in a sandbox —
+Read this first, then jump to **your** section. Everything below was run and verified in a sandbox --
 the numbers are from actual command output, not estimates.
 
 ---
@@ -17,14 +17,14 @@ the numbers are from actual command output, not estimates.
 | Game design & rules | **Locked** | 5 days, 12 events, 5 endings, 3 hired AIs = defeat, offline-first |
 | Gameplay core (pure C#) | **Done and tested** | 15/15 tests, 2,000-seed soak = 46,000 applicants, 0 invariant violations |
 | Art kit v2 | **Done, 73 sprites** | palette-gated, no partial alpha, `--check` passes |
-| Art → Unity bridge | **Done** | manifest + byte-identical publish + auto-importer + scene builder, 6 new tests |
+| Art -> Unity bridge | **Done** | manifest + byte-identical publish + auto-importer + scene builder, 6 new tests |
 | Offline twin renderer | **Done** | draws the desk from the same JSON Unity reads; caught 2 real bugs |
 | Unity-facing C# | **Type-checks without Unity** | `tools/UnityStubs` build: 0 errors |
 | Unit tests, total | **21 passing** | 15 core + 6 data-bridge |
-| Unity project itself | **Not created yet** | `ProjectSettings/`, `Packages/`, `.unity` scene, `.meta` — **BE1 task 1** |
-| Interaction layer (hotspots → evidence → decide) | **Not started, spec'd** | next agent task, see §5 |
+| Unity project itself | **Not created yet** | `ProjectSettings/`, `Packages/`, `.unity` scene, `.meta` -- **BE1 task 1** |
+| Interaction layer (hotspots -> evidence -> decide) | **Not started, spec'd** | next agent task, see #5 |
 | Content (JSON), server, audio | **Not started, spec'd** | BE2 tasks; contracts already written |
-| Repo on GitHub | **Live, out of date** | see §2 — one push needed |
+| Repo on GitHub | **Live, out of date** | see #2 -- one push needed |
 
 **One-line status:** the game's *brain* (rules, fairness, scoring, save) and its *face* (73 sprites,
 desk layout, import pipeline) are finished and provably correct. What is missing is the *body*: the
@@ -32,7 +32,7 @@ Unity project, and the hands-on interaction that turns a desk scene into a playa
 
 ---
 
-## 2. ⚠ Read this before you touch anything (repo state)
+## 2. ! Read this before you touch anything (repo state)
 
 The GitHub repo currently holds a **stale snapshot**. The commit `dc55e59` that is on `origin/main`
 does **not** contain:
@@ -40,31 +40,31 @@ does **not** contain:
 - `scripts/Connect-Remote.ps1` (the push helper)
 - the bundle fixes (`Apply-Bundle.ps1` / `Build-Bundle.ps1` rewrites)
 - `scripts/Fix-Repo.ps1` (the rescue script)
-- the BUG-017…023 entries and the pipeline guide `docs/14-art-to-unity-pipeline.md`
+- the BUG-017...023 entries and the pipeline guide `docs/14-art-to-unity-pipeline.md`
 
 The working copy on the user's PC has *newer files on an older `.git`*. That mismatch is a **transport
-bug, now fixed** (BUG-019/021/022/023) — it is *not* lost work. Nothing is missing from disk, and
+bug, now fixed** (BUG-019/021/022/023) -- it is *not* lost work. Nothing is missing from disk, and
 nothing needs to be re-written.
 
 **The user will fix it tomorrow morning with one command** (`Fix-Repo.ps1` reads the bundle zip
 directly, rebuilds `.git`, and proves `working tree clean -- files match HEAD exactly`). After that
 push, `git clone` gives you everything.
 
-**Do not start from `git clone` of the GitHub repo today — it is one day behind.**
+**Do not start from `git clone` of the GitHub repo today -- it is one day behind.**
 Wait for the user's "push done" message, or ask them for `HR-ZeroDay-bundle-v31.zip` (6.49 MB).
 
 ---
 
 ## 3. What exists in the repo right now (so you don't rebuild it)
 
-### 3.1 Gameplay core — `unity/Assets/Scripts/Core/**` (10 files, pure C#, zero Unity references)
+### 3.1 Gameplay core -- `unity/Assets/Scripts/Core/**` (10 files, pure C#, zero Unity references)
 
 This is the design made executable. Do not "improve" it without reading `docs/07-randomization-spec.md`.
 
 | File | Responsibility |
 |---|---|
 | `Rng.cs` | deterministic `xoshiro`-style RNG, seeded per run |
-| `Generator.cs` | 14 applicant archetypes, human/synthetic/bait, guarantee I1–I8 |
+| `Generator.cs` | 14 applicant archetypes, human/synthetic/bait, guarantee I1-I8 |
 | `TellCatalog.cs` | 9 AI artifacts; every synthetic has a reachable tell |
 | `Scoring.cs` | correct approve / wrongful rejection / correct reject (right or wrong reason) |
 | `ShiftState.cs` | 5-day shift, strike handling, **3 hired AIs = defeat** |
@@ -72,16 +72,16 @@ This is the design made executable. Do not "improve" it without reading `docs/07
 | `ContentPack.cs` | content packs, hash-pinned |
 
 Rules that are already enforced by tests (they must stay true):
-`I1` synthetic always has a reachable tell · `I2` no duplicate identities in a run ·
-`I3` factual tells are actually true · `I4` exact synthetic count per day ·
-`I5` humans never carry hard tells · `I7` same seed → same run, different seed → different run ·
+`I1` synthetic always has a reachable tell - `I2` no duplicate identities in a run -
+`I3` factual tells are actually true - `I4` exact synthetic count per day -
+`I5` humans never carry hard tells - `I7` same seed -> same run, different seed -> different run -
 `I8` soak stability.
 
-### 3.2 Art — `art/kit/` (73 sprites, all generated by `tools/art/*.py`)
+### 3.2 Art -- `art/kit/` (73 sprites, all generated by `tools/art/*.py`)
 
-- 14 applicant archetypes (192×216) as **4-frame strips**: `<name>_{neutral,breathe,breathe_fidget,blink}`
+- 14 applicant archetypes (192x216) as **4-frame strips**: `<name>_{neutral,breathe,breathe_fidget,blink}`
 - 14 portraits, 18 UI pieces (9-slice, 8 px border), 18 icons, 2 stamps, 4 desk props, 3 backgrounds
-- 7 reference sheets in `art/kit/reference/` — including **`twin_desk_human_solid_a_f0_L0.png`**, which is
+- 7 reference sheets in `art/kit/reference/` -- including **`twin_desk_human_solid_a_f0_L0.png`**, which is
   the engine-accurate desk render (monitor left, applicant right, hotspot boxes outlined)
 
 ### 3.3 The bridge (this is what the last day was for)
@@ -98,7 +98,7 @@ tools/comp/twin_desk.py            ->  offline render from that same JSON
 `publish_to_unity.py --verify` fails if one byte differs (tested by corrupting a PNG on purpose).
 
 Unity Editor menus (already written, in `unity/Assets/Scripts/Editor/`):
-`HR//0D > Build Desk Scene` · `Import Art Kit` · `Verify Art Import` · `Pipeline Self-Check`.
+`HR//0D > Build Desk Scene` - `Import Art Kit` - `Verify Art Import` - `Pipeline Self-Check`.
 
 `Import Art Kit` applies, per sprite: PPU 16, Point filter, no compression, Full Rect, no mipmaps,
 Clamp, alpha-is-transparency, 9-slice 8 px for UI, and slices the 14 strips into 4 named frames.
@@ -116,21 +116,21 @@ bugs that would otherwise have appeared on the first project open (see BUG-018).
 
 ---
 
-## 4. BE1 (Systems) — your queue, in order
+## 4. BE1 (Systems) -- your queue, in order
 
 **Your task 1 blocks everyone.** Do it first, tomorrow morning.
 
-1. **Create the Unity project skeleton** (`docs/NEXT-STEPS.md` §"BE1 task 1" has the exact commands):
-   Hub → New project → **Universal 2D** → 6000.3.29f1 → create *outside* the repo → copy
-   `ProjectSettings/` + `Packages/` into `unity/` → commit. **Do not overwrite `unity/Assets`.**
+1. **Create the Unity project skeleton** (`docs/NEXT-STEPS.md` #"BE1 task 1" has the exact commands):
+   Hub -> New project -> **Universal 2D** -> 6000.3.29f1 -> create *outside* the repo -> copy
+   `ProjectSettings/` + `Packages/` into `unity/` -> commit. **Do not overwrite `unity/Assets`.**
 2. Open the project once (Unity generates `.meta` files) and **commit the `.meta` files**.
-3. `HR//0D > Import Art Kit` → expect `art kit import: 73 sprites checked, N updated, 14 sliced strips`.
-4. `HR//0D > Verify Art Import` → expect `art import PASS`.
-5. `HR//0D > Build Desk Scene` → creates `Assets/Scenes/Desk.unity`; press Play: applicant breathes at
+3. `HR//0D > Import Art Kit` -> expect `art kit import: 73 sprites checked, N updated, 14 sliced strips`.
+4. `HR//0D > Verify Art Import` -> expect `art import PASS`.
+5. `HR//0D > Build Desk Scene` -> creates `Assets/Scenes/Desk.unity`; press Play: applicant breathes at
    4 fps, monitor on the left.
-6. **Input System + URP 2D settings**: landscape lock, safe-area UI canvas, 480×270 reference resolution.
-7. **Save/load wiring**: `SaveSystem` → `Application.persistentDataPath`; verify resume after force-quit.
-8. Then the Android build skeleton: IL2CPP, API 24/35, arm64+armv7 — *prove it installs on a phone
+6. **Input System + URP 2D settings**: landscape lock, safe-area UI canvas, 480x270 reference resolution.
+7. **Save/load wiring**: `SaveSystem` -> `Application.persistentDataPath`; verify resume after force-quit.
+8. Then the Android build skeleton: IL2CPP, API 24/35, arm64+armv7 -- *prove it installs on a phone
    before anyone writes more UI.*
 
 Read `handoff/2026-11-26_agent-to-BE1_systems-tasks.md` for the full list and the "NEW" section about
@@ -139,26 +139,26 @@ the art bridge. Rules you must not break: never hand-edit `Unity/Assets/Art/Kit/
 
 ---
 
-## 5. BE2 (Server, content, audio, build) — your queue
+## 5. BE2 (Server, content, audio, build) -- your queue
 
 Unchanged and still correct: `handoff/2026-11-26_agent-to-BE2_content-server-audio-tasks.md`.
 
 Priority for tomorrow, in this order (content unblocks everyone, the server does not):
 
-1. `content/schema/applicant.json`, `email.json`, `warning.json`, `manual.json` — **schemas first**,
+1. `content/schema/applicant.json`, `email.json`, `warning.json`, `manual.json` -- **schemas first**,
    because the client will consume them.
-2. `content/days/day_01..05.json` — counts and pools per day (values are in `docs/07-randomization-spec.md`).
-3. `content/emails/` — 12 templates **each with a legitimate twin**. This is the heart of the game.
-4. `content/manual/` — the 9 artifact entries + 12 tells (wording is already drafted in
-   `docs/07-randomization-spec.md` §5).
+2. `content/days/day_01..05.json` -- counts and pools per day (values are in `docs/07-randomization-spec.md`).
+3. `content/emails/` -- 12 templates **each with a legitimate twin**. This is the heart of the game.
+4. `content/manual/` -- the 9 artifact entries + 12 tells (wording is already drafted in
+   `docs/07-randomization-spec.md` #5).
 5. Server work after that; the game is offline-first, so the server can never block play.
 
-Audio (yours, one track): 6 SFX only — stamp approve, stamp reject, tell-found tick, day-end stinger,
-UI click, phone buzz. `docs/13-team-plan.md` §4 has the spec.
+Audio (yours, one track): 6 SFX only -- stamp approve, stamp reject, tell-found tick, day-end stinger,
+UI click, phone buzz. `docs/13-team-plan.md` #4 has the spec.
 
 ---
 
-## 6. What *I* (the agent) do next — the interaction layer
+## 6. What *I* (the agent) do next -- the interaction layer
 
 Locked decisions from the user today:
 **magnifier ring for body tells** (hands, badge, shadow, ear, seam) and **callout text for face tells**
@@ -168,14 +168,14 @@ Files I will add next (all compilable against `tools/UnityStubs`, so BE1 can pul
 
 | New file | Purpose |
 |---|---|
-| `Game/Desk/HotspotInteractor.cs` | pointer/touch → raycast against `Hotspots/HS_<artifact>` → raises an event |
-| `Game/Desk/EvidencePresenter.cs` | magnifier ring (2× region zoom) for body tells, callout text for face tells |
+| `Game/Desk/HotspotInteractor.cs` | pointer/touch -> raycast against `Hotspots/HS_<artifact>` -> raises an event |
+| `Game/Desk/EvidencePresenter.cs` | magnifier ring (2x region zoom) for body tells, callout text for face tells |
 | `Game/Desk/DecisionInput.cs` | APPROVE / REJECT with reason; emits to `Scoring` |
 | `Game/Desk/StampAnimator.cs` | APPROVE / REJECT stamp sprite animation |
-| `Game/Evidence/EvidenceLedger.cs` | what the player has actually found — feeds the manual and the tell counter |
+| `Game/Evidence/EvidenceLedger.cs` | what the player has actually found -- feeds the manual and the tell counter |
 
-Definition of the first playable minute: desk appears → player taps three hotspots → one magnifier ring
-and two callouts reveal real tells → player stamps REJECT with reason → shown the consequence → next applicant.
+Definition of the first playable minute: desk appears -> player taps three hotspots -> one magnifier ring
+and two callouts reveal real tells -> player stamps REJECT with reason -> shown the consequence -> next applicant.
 
 ---
 
@@ -184,7 +184,7 @@ and two callouts reveal real tells → player stamps REJECT with reason → show
 **Good:**
 - The two hardest technical risks are retired: *"will the art look right in the engine?"* (twin renderer +
   byte-identical publish) and *"is the fairness system actually fair?"* (46,000-applicant soak).
-- The pipeline is now provable without Unity — three commands, ~20 seconds, no install needed.
+- The pipeline is now provable without Unity -- three commands, ~20 seconds, no install needed.
 - Every bug found today is written down in `docs/90-bug-log.md` with a prevention rule, so the next
   person does not repeat it.
 
@@ -197,25 +197,25 @@ and two callouts reveal real tells → player stamps REJECT with reason → show
   guides, but it is the thing to fix first.
 
 **Risk register (ranked):**
-1. **Unity project not created** — blocks every visual task. *BE1, tomorrow, first thing.*
-2. **No playable loop** — the demo is judged on the first 60 seconds. *Me, next turn.*
-3. **Content volume** — 12 events × 5 days of hand-written JSON is large for one person. *BE2 starts content first.*
-4. **Android build never attempted** — smells like a day-1 failure mode; do a throwaway APK install
+1. **Unity project not created** -- blocks every visual task. *BE1, tomorrow, first thing.*
+2. **No playable loop** -- the demo is judged on the first 60 seconds. *Me, next turn.*
+3. **Content volume** -- 12 events x 5 days of hand-written JSON is large for one person. *BE2 starts content first.*
+4. **Android build never attempted** -- smells like a day-1 failure mode; do a throwaway APK install
    *before* the UI grows.
-5. **Repo discipline** — the stale-push incident proves we need the "three commands before every commit"
+5. **Repo discipline** -- the stale-push incident proves we need the "three commands before every commit"
    habit, enforced by `Test-ArtPipeline.ps1`.
 
 ---
 
 ## 8. Reading order for a new backend dev
 
-1. `README.md` — what the game is
+1. `README.md` -- what the game is
 2. **this file**
-3. `docs/07-randomization-spec.md` — the rules (fairness invariants I1–I8)
-4. `docs/14-art-to-unity-pipeline.md` — how art reaches the engine
-5. `docs/13-team-plan.md` — who owns what
-6. `docs/90-bug-log.md` — the 23 mistakes already paid for (skim the *prevention rule* lines)
-7. `handoff/2026-11-26_agent-to-BE1_systems-tasks.md` or `..._BE2_...` — your queue
+3. `docs/07-randomization-spec.md` -- the rules (fairness invariants I1-I8)
+4. `docs/14-art-to-unity-pipeline.md` -- how art reaches the engine
+5. `docs/13-team-plan.md` -- who owns what
+6. `docs/90-bug-log.md` -- the 23 mistakes already paid for (skim the *prevention rule* lines)
+7. `handoff/2026-11-26_agent-to-BE1_systems-tasks.md` or `..._BE2_...` -- your queue
 
 ## 9. How to verify your own work before you commit (non-negotiable)
 
@@ -233,6 +233,6 @@ If you already have failures you don't understand: `.\scripts\Fix-Repo.ps1 -Bund
 
 ## 10. Open questions the user still needs to answer (not blocking your work)
 
-1. First playable target date — is "desk + 3 interactions + stamp" acceptable as the day-3 milestone?
+1. First playable target date -- is "desk + 3 interactions + stamp" acceptable as the day-3 milestone?
 2. Field Manual in-game only, or also a printable one-pager for the demo table?
 3. Do we keep the working title font treatment from `art/kit/reference/composition_preview.png`?

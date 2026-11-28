@@ -1,4 +1,4 @@
-# ORDER 03 — UNITY, THE BUNDLE, AND WHAT RUNS WHERE
+# ORDER 03 -- UNITY, THE BUNDLE, AND WHAT RUNS WHERE
 
 ## Source of truth
 
@@ -31,20 +31,20 @@ data, not the engine. **Never** call it "in-engine". The in-engine proof is the 
 ## The offline light preview
 
 `tools/comp/preview_screenlight.py` applies the same rule `ScreenLight.cs` applies and prints a measured
-delta. It must read `art/kit/palette.json` (the menu's table) — reading `make_art_kit.PALETTE` gave it an empty
+delta. It must read `art/kit/palette.json` (the menu's table) -- reading `make_art_kit.PALETTE` gave it an empty
 ramp table and it reported "no change" while agreeing with a wrong `ScreenLight`. If the two disagree, the
 **rule** is wrong, not the picture.
 
 ## The bundle
 
 - Built by `/tmp/build_zip.py` (version string at the top). The zip is **git-ignored** (`*.zip`) but must exist
-  in the repo for the player's script — check it is committed before handing it over.
+  in the repo for the player's script -- check it is committed before handing it over.
 - Naming: `HR-ZeroDay-bundle-vNNN.zip`, sha256 quoted in the reply.
 - The workspace must not accumulate stale bundles: delete the previous one when the new one is built.
 
-## Day/night cycle (PENDING — do not forget)
+## Day/night cycle (PENDING -- do not forget)
 
 `RoomLighting` exists and tints every sprite by the shift clock; the three room paintings (`office_L0/L1/L2`)
 are the stages. It is **not** built for the new `office_M0` room yet, and `ScreenLight` currently lights a
-single fixed state. When the art pass closes, the cycle is the next thing that must be brought forward — see
+single fixed state. When the art pass closes, the cycle is the next thing that must be brought forward -- see
 `orders/05-phases.md`.

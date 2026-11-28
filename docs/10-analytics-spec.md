@@ -1,10 +1,10 @@
-# Analytics & Research Instrument — Specification
+# Analytics & Research Instrument -- Specification
 
 **Purpose:** the game is an awareness tool, so it must also *produce evidence* about how
 non-experts fail at AI/phishing detection. This spec defines what we record, what we derive, and
 what we deliberately refuse to collect.
 
-Owner: Dev A (client instrumentation) + backend team (storage/export) · Research lead: whoever
+Owner: Dev A (client instrumentation) + backend team (storage/export) - Research lead: whoever
 writes the event report.
 
 ---
@@ -22,13 +22,13 @@ writes the event report.
 
 **Publishable output:** "In a sample of N players over 5 shifts, portrait-level synthetic tells were
 caught 84% of the time while document arithmetic contradictions were caught 51%; false-rejection
-rate rose 2.3× under time pressure; players who used the ID Registry *first* were 12 pp more likely
-to accept a poisoned 'VALID' result." — that is the shape of the report this instrumentation must
+rate rose 2.3x under time pressure; players who used the ID Registry *first* were 12 pp more likely
+to accept a poisoned 'VALID' result." -- that is the shape of the report this instrumentation must
 make possible.
 
 ---
 
-## 2. Privacy & ethics (non-negotiable — read before adding any field)
+## 2. Privacy & ethics (non-negotiable -- read before adding any field)
 
 1. **No PII. Ever.** No names, emails, IPs (beyond a 24 h rate-limit counter), device models, or
    location. Identity is a random `deviceKey` UUID generated at first launch.
@@ -45,17 +45,17 @@ make possible.
 Consent copy (use verbatim):
 
 > **HELP US STUDY THIS**
-> This game is also research. If you allow it, we record what you decided and what you inspected —
+> This game is also research. If you allow it, we record what you decided and what you inspected --
 > never your name, your device, or anything that identifies you. It helps us learn which scams
 > people fall for.
 > `[ SHARE ]`   `[ DON'T SHARE ]`
 
 ---
 
-## 3. Event taxonomy (client → `POST /runs/{runId}/events`)
+## 3. Event taxonomy (client -> `POST /runs/{runId}/events`)
 
 All events share: `t` (ISO-8601 UTC), `type`, `runId`, `day`, plus the fields below.
-Payload budget: ≤ 256 KB per batch, ≤ 5 batches per run (batch on day-end and on app background).
+Payload budget: <= 256 KB per batch, <= 5 batches per run (batch on day-end and on app background).
 
 ### 3.1 Session & flow
 
@@ -64,12 +64,12 @@ Payload budget: ≤ 256 KB per batch, ≤ 5 batches per run (batch on day-end an
 | `app_open` | `build`, `firstLaunch`, `contentVersions`, `consent` | funnel start, version tracking |
 | `consent` | `granted` (bool) | ethics audit |
 | `screen_enter` | `screen` (`intro`,`menu`,`chargen`,`desk`,`manual`,`inbox`,`summary`,`ending`) | RQ6 drop-off |
-| `screen_exit` | `screen`, `dwellMs` | RQ6 — screens clicked through vs read |
+| `screen_exit` | `screen`, `dwellMs` | RQ6 -- screens clicked through vs read |
 | `intro_skip` | `atMs` | is the intro too long? |
 | `settings_change` | `key`, `from`, `to` | accessibility adoption (reduce motion, colour-blind, text speed) |
 | `app_quit` | `reason` (`home`,`kill`,`crash`,`pause`) | crash-free rate, drop-off point |
 
-### 3.2 The core instrument — one record per decision
+### 3.2 The core instrument -- one record per decision
 
 ```jsonc
 {
@@ -122,7 +122,7 @@ This single record answers RQ1, RQ2, RQ3, RQ5 and most of RQ4. Treat it as the p
   "seed": 882731, "contentVersions": {"core-applicants":"1.4.0"} }
 ```
 
-### 3.5 The learning-transfer probe (new — this is what makes it research, not telemetry)
+### 3.5 The learning-transfer probe (new -- this is what makes it research, not telemetry)
 
 After the run ends, 4 questions, ~20 seconds, shown once per device (skippable):
 
@@ -134,7 +134,7 @@ After the run ends, 4 questions, ~20 seconds, shown once per device (skippable):
 | Q4 | Rank: which 2 of 5 statements are AI tells? | discrimination |
 
 Emit `{ "type":"quiz_result", "item":1, "correct":true, "msShown":4300 }` each.
-**This is the evidence that the game teaches** — RQ4 cannot be answered without it.
+**This is the evidence that the game teaches** -- RQ4 cannot be answered without it.
 
 ---
 
@@ -143,14 +143,14 @@ Emit `{ "type":"quiz_result", "item":1, "correct":true, "msShown":4300 }` each.
 | Metric | Definition | Answers |
 |---|---|---|
 | **Recall by tell** | caught synthetics / synthetics where tell was `tellsPresent` | RQ1 |
-| **Miss matrix** | `tellsPresent` × `tellsInspected` × `decision` | RQ1 — *didn't look* vs *looked and still missed* |
+| **Miss matrix** | `tellsPresent` x `tellsInspected` x `decision` | RQ1 -- *didn't look* vs *looked and still missed* |
 | **Over-suspicion index** | humans rejected / humans seen | RQ2 |
-| **Over-suspicion slope** | OSI(day5) − OSI(day1); also OSI vs `secondsOnCard` | RQ2 |
+| **Over-suspicion slope** | OSI(day5) - OSI(day1); also OSI vs `secondsOnCard` | RQ2 |
 | **Reason accuracy** | correct rejects with correct reason / correct rejects | teaches "right for the wrong reason" |
 | **Tool reliance index** | tools used per applicant; accuracy split by `result` of the tool | RQ3 |
-| **Post-tool bias** | P(approve \| tool said VALID, truth = synthetic) − P(approve \| no tool) | RQ3 — the killer stat |
+| **Post-tool bias** | P(approve \| tool said VALID, truth = synthetic) - P(approve \| no tool) | RQ3 -- the killer stat |
 | **Evidence coverage** | `tellsInspected` / `tellsPresent` before stamping | RQ1 |
-| **Speed–accuracy** | `secondsOnCard` quartiles vs correctness, split by ground truth | RQ2/RQ3 |
+| **Speed-accuracy** | `secondsOnCard` quartiles vs correctness, split by ground truth | RQ2/RQ3 |
 | **Distractor cost** | wrongful rejections where `distractorsPresent` and `!distractorResolved` | RQ5 |
 | **Learning curve** | accuracy by day index; and across successive runs | RQ4 |
 | **Confidence calibration** | correctness at confidence 1/2/3 (Brier-style) | overconfidence |
@@ -165,10 +165,10 @@ Emit `{ "type":"quiz_result", "item":1, "correct":true, "msShown":4300 }` each.
 ```
 AnalyticsService (singleton, boot scene)
   .Track(AnalyticsEvent e)         // never throws, never blocks gameplay
-  ├─ buffer in memory, flush to persistentQueue.jsonl every 15 s or on screen change
-  ├─ outbox: batches of <=64 events, sent by IBackend.SendEventsAsync
-  ├─ dropped after 30 days offline (documented, not silent)
-  └─ hard cap 5 MB of local queue (oldest evicted, counted)
+  +- buffer in memory, flush to persistentQueue.jsonl every 15 s or on screen change
+  +- outbox: batches of <=64 events, sent by IBackend.SendEventsAsync
+  +- dropped after 30 days offline (documented, not silent)
+  +- hard cap 5 MB of local queue (oldest evicted, counted)
 ```
 
 Rules:
@@ -186,17 +186,17 @@ Rules:
 - `Analytics_DoesNotThrow_WhenBackendFails`
 - `Queue_PersistsAcrossRestart`
 - `OptOut_StopsUploads_ButKeepsLocalDebrief`
-- `NoPii_InPayload` (assert the payload contains no name/email patterns — mirror of the backend CI grep)
+- `NoPii_InPayload` (assert the payload contains no name/email patterns -- mirror of the backend CI grep)
 - `EventSchemaVersion_IsPresent`
 
 ---
 
 ## 6. What the backend must add to the earlier spec
 
-1. `POST /runs/{id}/events` already accepts arbitrary `type` + `payload` — extend the **allowlist** to
-   the types in §3 and reject unknowns (`422` per-item, partial accept).
-2. `GET /research/export?format=csv&from=&to=&minCell=5` — aggregated, anonymity-guarded export.
-3. `GET /research/tell-matrix` — the miss matrix as JSON, for the dashboards.
+1. `POST /runs/{id}/events` already accepts arbitrary `type` + `payload` -- extend the **allowlist** to
+   the types in #3 and reject unknowns (`422` per-item, partial accept).
+2. `GET /research/export?format=csv&from=&to=&minCell=5` -- aggregated, anonymity-guarded export.
+3. `GET /research/tell-matrix` -- the miss matrix as JSON, for the dashboards.
 4. Retention: raw events 180 days; aggregates kept indefinitely.
 5. Ops console: a single page with (a) quit funnel, (b) recall by tell, (c) over-suspicion by day,
    (d) post-tool bias. Read-only; no per-player drill-down (deliberate: prevents re-identification).
@@ -205,7 +205,7 @@ Rules:
 `run_hash,day,archetype,ground_truth,decision,reason,confidence,tells_present,tells_inspected,
 surfaces_opened,tools_used,seconds_on_card,distractors_present,distractor_resolved,correct`
 
-`run_hash` = first 12 chars of SHA-256 of the `deviceKey`+`runId` — lets a researcher follow one run
+`run_hash` = first 12 chars of SHA-256 of the `deviceKey`+`runId` -- lets a researcher follow one run
 without being able to invert it to a person.
 
 ---
@@ -228,7 +228,7 @@ without being able to invert it to a person.
 If time runs short, ship in this order and stop:
 1. `decision` events (with `tellsPresent`/`tellsInspected`/`toolsUsed`/`secondsOnCard`)
 2. `run_end` + `day_end`
-3. local JSONL export button in Settings (*"Export my play data"* → share sheet) — works with **zero**
+3. local JSONL export button in Settings (*"Export my play data"* -> share sheet) -- works with **zero**
    backend, so research can happen even if the server is down
 4. `quiz_result`
 

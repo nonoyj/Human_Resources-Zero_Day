@@ -39,6 +39,14 @@ namespace HRZeroDay.Core.Data
         public string coverLetterId;
         public string portraitId;
 
+        /// <summary>
+        /// WHICH SPRITE THIS PERSON IS (v130). Empty in older saves and older content files, in which case
+        /// Appearances.Pick fills it from the archetype. Stored rather than derived so a resume shows the same
+        /// face it showed before the quit -- a person who changes face between sessions is a bug the player
+        /// will read as a tell.
+        /// </summary>
+        public string spriteKey;
+
         public Archetype Archetype { get { return (Archetype)archetypeRaw; } }
         public GroundTruth Truth { get { return (GroundTruth)groundTruthRaw; } }
         public bool IsSynthetic { get { return Truth == GroundTruth.Synthetic; } }

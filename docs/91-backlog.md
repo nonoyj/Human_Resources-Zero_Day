@@ -3,16 +3,16 @@
 Anything not in `01-roadmap-14-days.md` lands here. No exceptions. Adding to this file is
 cheap; adding to the build is not.
 
-## v127 OPEN — the player's own list, in order
+## v127 OPEN -- the player's own list, in order
 
 - **P. In-game art rebuild.** DONE this round for the room, the desk, the props, the junk and the applicant
   (`office_M0`, `desk_slab_M`, `foreground_M`, `monitor_M`, `monitor_stand_M`, `props_{coffee,keyboard,mouse,
   clipboard,papers,junk}`, `bust_M` + the 4-cell strip). Composition N is wired in `Content/desk_layout.json`
   as 13 layers. **Still open:** the OTHER applicant archetypes (bait, nervous, synthetic) still use the old
-  generator and the old off-palette skin — only `human_solid_a` was rebuilt.
+  generator and the old off-palette skin -- only `human_solid_a` was rebuilt.
 - **Q. HUD as objects.** Idle desk, letter, debrief, summary, ending: done and tested. Still to do: the ALERTS
   popup drawn as objects (it still prints the Core panel's lines), and the object layer's `screens/` variant.
-  **Unconfirmed on screen** — the player has not yet reported seeing it.
+  **Unconfirmed on screen** -- the player has not yet reported seeing it.
 - **O2/T. Lamp & monitor light.** MEASURED this round and fixed at the root (BUG-014): the desk now lifts
   **+16.0/255** between tube off and on and the wall does not move. The MENU's lamp still needs the same
   measurement re-run against the player's own build before either is called closed.
@@ -27,7 +27,7 @@ cheap; adding to the build is not.
 - The layout's anchors are **y-UP from the canvas bottom**; compositing a sprite top-down needs
   `y = 270 - anchorY - spriteH`.
 - `bust_M_192x216.png` is the applicant LAYER (one frame); `app_human_solid_a_192x216.png` is the 4-cell strip
-  the animator crops. They are different files on purpose — see `DeskSceneBuilder.LoadFrames`.
+  the animator crops. They are different files on purpose -- see `DeskSceneBuilder.LoadFrames`.
 
 ## v126 (superseded by v127)
 

@@ -1,6 +1,6 @@
-# Bundle workflow — how to take an update
+# Bundle workflow -- how to take an update
 
-**Status:** current (2026-11-25, bundle v77) · **Read this instead of guessing.** The old version of this
+**Status:** current (2026-11-25, bundle v77) - **Read this instead of guessing.** The old version of this
 page was four paragraphs of history and one wrong command, which is how the player ended up running
 `.\scripts\Open-Game.ps1` before the file existed.
 
@@ -24,7 +24,7 @@ cd $env:USERPROFILE\HR-ZeroDay
 ```
 
 `Open-Game.ps1` ships *inside* the bundle, so it does not exist until the apply has run. Running it first
-gives `The term '.\scripts\Open-Game.ps1' is not recognized` — that is not a broken script, it is the
+gives `The term '.\scripts\Open-Game.ps1' is not recognized` -- that is not a broken script, it is the
 wrong order.
 
 You do **not** need to close Unity any more. The apply retries the `.git` swap instead of failing on a
@@ -42,7 +42,7 @@ and Play logged `sprite not found at Resources/Art/Kit/...` on any machine that 
 scripts. The runtime mirror is committed now, so a clone is self-sufficient.
 
 The `HR//0D` menu (note: **two** slashes, `HR//0D`, not `HR`) is needed **only** when the PNGs themselves
-changed — it reimports the art kit and rewrites the scene:
+changed -- it reimports the art kit and rewrites the scene:
 
 | Menu item | When you actually need it |
 |---|---|

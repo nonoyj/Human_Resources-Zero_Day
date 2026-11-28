@@ -99,6 +99,12 @@ RAMPS = {
     'skin':  [(16, .58, .115), (22, .60, .200), (28, .55, .290), (34, .44, .420)],
     # the one cold note on a face: the rim the window puts down his temple and shoulder
     'skinrim': [(206, .40, .230), (196, .34, .300), (188, .26, .440)],
+    # HAIR (v130). The applicant generator has drawn hair from `void`/`ink`/`panel2` -- the room's darkest
+    # UI colours -- since v9, so every head in the game wore a black helmet and the four hair colours the
+    # player asked for were a comment, not a picture. Hair is a material: a short warm-dark ramp that starts
+    # one step above the deepest shadow and ends at a value a cold key can still read, so black, brown and
+    # grey are three PLACES on it rather than three colours pulled from the UI sheet.
+    'hair':  [(14, .40, .100), (22, .32, .170), (30, .24, .255), (216, .12, .350)],
     # the coffee cup: cream ceramic. value-separated from the desk at every step it can touch
     'cup':   [(34, .22, .255), (41, .18, .355), (50, .12, .465)],
     # paper: warm off-white, two steps darker than the cup and four degrees cooler

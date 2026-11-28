@@ -1,4 +1,4 @@
-# Team Plan (revised) — 1 frontend, 2 backend, audio by backend
+# Team Plan (revised) -- 1 frontend, 2 backend, audio by backend
 
 **Confirmed 2026-11-25:** the human is the **frontend dev**; the other two are **backend devs**; one of
 them will also **produce the audio**. This document replaces the A/B/C split in
@@ -10,14 +10,14 @@ them will also **produce the audio**. This document replaces the A/B/C split in
 
 | Role | Person | Owns (exclusive write rights) | Does NOT touch |
 |---|---|---|---|
-| **FE — Frontend / UI** | **you** | `unity/Assets/Scenes`, `unity/Assets/Prefabs`, `unity/Assets/Scripts/UI`, animations, transitions, input, audio *playback*, settings screens, all `art/` usage | core logic in `Scripts/Core` (read-only), server |
-| **BE1 — Systems** | backend dev 1 | `unity/ProjectSettings`, `unity/Packages`, `unity/Assets/Scripts/{Core,Data,Rules,Content,Analytics}` integration, `SaveSystem`, `ContentLoader`, `GameManager`, `00_Boot`, EditMode test wrapper | scenes/prefabs (yours), visual design |
-| **BE2 — Server, content & audio** | backend dev 2 | `backend/`, `content/`, `unity/Assets/StreamingAssets/content`, `unity/Assets/Audio`, Android build + QA | `Scripts/Core`, scenes |
+| **FE -- Frontend / UI** | **you** | `unity/Assets/Scenes`, `unity/Assets/Prefabs`, `unity/Assets/Scripts/UI`, animations, transitions, input, audio *playback*, settings screens, all `art/` usage | core logic in `Scripts/Core` (read-only), server |
+| **BE1 -- Systems** | backend dev 1 | `unity/ProjectSettings`, `unity/Packages`, `unity/Assets/Scripts/{Core,Data,Rules,Content,Analytics}` integration, `SaveSystem`, `ContentLoader`, `GameManager`, `00_Boot`, EditMode test wrapper | scenes/prefabs (yours), visual design |
+| **BE2 -- Server, content & audio** | backend dev 2 | `backend/`, `content/`, `unity/Assets/StreamingAssets/content`, `unity/Assets/Audio`, Android build + QA | `Scripts/Core`, scenes |
 
 Rule unchanged: **one owner per file/scene.** Cross-boundary work is requested via a handoff file in
 `handoff/`, never by editing someone else's files.
 
-## 2. State of play — are we using Unity yet?
+## 2. State of play -- are we using Unity yet?
 
 **Correct: no Unity project exists yet.** What is in the repo is:
 
@@ -28,13 +28,13 @@ unity/Assets/Scripts/**/*.asmdef    <- assembly definitions
 ```
 
 There is **no** `ProjectSettings/`, **no** `Packages/`, **no** `.unity` scene. Unity cannot open a bare
-`Assets/` folder — a project needs those two folders. That is deliberate: **BE1's first task is to create
+`Assets/` folder -- a project needs those two folders. That is deliberate: **BE1's first task is to create
 the project**, because doing it wrong costs a day of merge pain.
 
-### BE1's first task — create the Unity project (SUPERSEDED: FE did it; see `docs/19`)
+### BE1's first task -- create the Unity project (SUPERSEDED: FE did it; see `docs/19`)
 
 > **2026-11-26:** the user created the project so the week would not be blocked. This section is kept for
-> reference only — the live steps are in `docs/19-unity-project-setup.md`, and BE1's replaced task 1 is
+> reference only -- the live steps are in `docs/19-unity-project-setup.md`, and BE1's replaced task 1 is
 > in `handoff/2026-11-26_fe-to-BE1_unity-project-created.md`.
 
 ```powershell
@@ -48,7 +48,7 @@ Remove-Item $src -Recurse -Force        # the temp project is disposable
 
 # 3. open the real thing
 #    Unity Hub > Add > Add project from disk > C:\users\user\HR-ZeroDay\unity
-#    Editor must be 6000.3.29f1 (Hub will refuse a mismatch — that is the protection working)
+#    Editor must be 6000.3.29f1 (Hub will refuse a mismatch -- that is the protection working)
 ```
 
 Then commit:
@@ -64,41 +64,41 @@ Verify before committing: `git status` must not list `Library/`, and `ProjectVer
 
 ## 3. Work left for the two backend devs (so they are not idle)
 
-### BE1 — Systems (10 tasks, in order)
+### BE1 -- Systems (10 tasks, in order)
 
-1. ~~Create the Unity project skeleton~~ — **DONE by FE on 2026-11-26** (`docs/19-unity-project-setup.md`).
+1. ~~Create the Unity project skeleton~~ -- **DONE by FE on 2026-11-26** (`docs/19-unity-project-setup.md`).
    Do **not** create a second one. Adopt the repo instead: see
    `handoff/2026-11-26_fe-to-BE1_unity-project-created.md`.
 2. Drop in `UnityTestAdapter.cs` from `handoff/2026-11-26_agent-to-devA_core-handoff.md`; open Test Runner
-   → EditMode → 15 green.
-3. `SaveSystem`: atomic write (`tmp` → `File.Replace`), autosave on every transition, corrupt-file
+   -> EditMode -> 15 green.
+3. `SaveSystem`: atomic write (`tmp` -> `File.Replace`), autosave on every transition, corrupt-file
    recovery, `Application.persistentDataPath`, version migration via `SaveData.Migrate()`.
 4. `ContentLoader`: read `StreamingAssets/content/*.json` on Android via `UnityWebRequest`, cache, verify
    `sha256`; `IBackend` interface + `FakeBackend` implementation first.
-5. `AnalyticsService`: memory buffer → `JSONL` outbox → `IBackend`; never throws; opt-out respected;
+5. `AnalyticsService`: memory buffer -> `JSONL` outbox -> `IBackend`; never throws; opt-out respected;
    *"Export my play data"* share-sheet button.
 6. `GameManager` (persistent singleton): owns `ShiftController`, survives scene loads, wires save/load.
 7. `00_Boot` scene: load save, decide intro vs menu, then hand off to FE's scenes.
 8. `RuleEngine` presentation glue: expose `tellsPresent` as inspectable hotspots + tool results;
    never reveal ground truth.
-9. EditMode tests for save/analytics (the 6 listed in `docs/10-analytics-spec.md` §5).
+9. EditMode tests for save/analytics (the 6 listed in `docs/10-analytics-spec.md` #5).
 10. Profile: applicant layer < 1.5 ms CPU, 60 fps on a mid-range device.
 
-### BE2 — Server, content, audio (10 tasks)
+### BE2 -- Server, content, audio (10 tasks)
 
 1. `backend/` skeleton: FastAPI + Docker Compose (api + postgres + minio) with `/healthz` returning 200.
 2. Migrations: `content_packs`, `runs`, `run_events`, `decisions`, `quiz_results`, `rate_limits`.
 3. `GET /v1/content/manifest` + signed immutable packs (hash-pinned).
 4. `POST /v1/runs`, `/events` (partial accept), `/finish`.
-5. `validate_pack.py` — fairness invariants I1–I8 on publish, refusing bad packs.
+5. `validate_pack.py` -- fairness invariants I1-I8 on publish, refusing bad packs.
 6. Research endpoints: `/research/export` (CSV, `minCell>=5`), `/tell-matrix`, `/funnel`.
 7. Rate limits, PII-key rejection, opt-out purge, log redaction.
 8. Content JSON: 5 day plans, 12 email/attack templates, cover letters (human/bait/synthetic),
    Field Manual entries (5 days + 12 tells), dialogue pools, 5 ending texts, intro script.
-9. **Audio** (see §4): SFX set + 2 music loops + ambience, delivered per the naming contract.
+9. **Audio** (see #4): SFX set + 2 music loops + ambience, delivered per the naming contract.
 10. Android build + QA matrix: signed APK, 3 device profiles, save/quit/resume, offline, low storage.
 
-## 4. Audio — ownership contract (BE2 produces, FE plays)
+## 4. Audio -- ownership contract (BE2 produces, FE plays)
 
 BE2 owns the files and their format; FE owns *when they play*. This split only works if the names are
 frozen up front.
@@ -114,13 +114,13 @@ frozen up front.
 | `sfx_error.ogg` | SFX | 0.4 s | invalid action, wrong reason |
 | `sfx_alarm.ogg` | SFX | 1.5 s | corruption level rise |
 | `sfx_inbox.ogg` | SFX | 0.5 s | new email |
-| `music_desk_calm.ogg` | music | 60 s loop | days 1–2 |
-| `music_desk_tense.ogg` | music | 60 s loop | days 4–5, corruption ≥1 |
+| `music_desk_calm.ogg` | music | 60 s loop | days 1-2 |
+| `music_desk_tense.ogg` | music | 60 s loop | days 4-5, corruption >=1 |
 | `amb_office.ogg` | ambience | 30 s loop | all desk scenes |
 | `amb_crt.ogg` | ambience | 10 s loop | tool/monitor close-ups |
 
-Rules: **OGG Vorbis**, 44.1 kHz, mono for SFX / stereo for music, SFX peak ≤ −3 dBFS, music ≤ −14 LUFS,
-no leading silence, seamless loops (music/ambience). Total audio budget **≤ 12 MB**.
+Rules: **OGG Vorbis**, 44.1 kHz, mono for SFX / stereo for music, SFX peak <= -3 dBFS, music <= -14 LUFS,
+no leading silence, seamless loops (music/ambience). Total audio budget **<= 12 MB**.
 
 **FE's obligation:** every sound must be reachable through one `AudioManager` with `PlaySfx(id)` /
 `PlayMusic(id)`, volume groups for Music/SFX/Master, mute on app pause, and honour the accessibility
@@ -154,10 +154,10 @@ single most important coordination point of week 1.
 
 | Days | You (FE) | BE1 (systems) | BE2 (server/content/audio) |
 |---|---|---|---|
-| 1–2 | Menu + settings + character creation with placeholder art | Unity project, adapter, stubs, `SaveSystem` | FastAPI skeleton, content schemas started, SFX list |
-| 3–6 | **Desk screen**: monitor-left / applicant-right, stamps, reason dropdown, transitions | `ContentLoader`, `GameManager`, `00_Boot`, analytics | Manifest + runs endpoints, day-1 content, first SFX |
-| 7–11 | Inbox, Field Manual, day summary, endings, intro animation, corruption overlay | tool glue, EditMode tests, perf pass | remaining content, audio delivery, research endpoints |
-| 12–14 | polish + device testing with BE2 | bug fixes, save hardening | Android build, QA matrix, event kit |
+| 1-2 | Menu + settings + character creation with placeholder art | Unity project, adapter, stubs, `SaveSystem` | FastAPI skeleton, content schemas started, SFX list |
+| 3-6 | **Desk screen**: monitor-left / applicant-right, stamps, reason dropdown, transitions | `ContentLoader`, `GameManager`, `00_Boot`, analytics | Manifest + runs endpoints, day-1 content, first SFX |
+| 7-11 | Inbox, Field Manual, day summary, endings, intro animation, corruption overlay | tool glue, EditMode tests, perf pass | remaining content, audio delivery, research endpoints |
+| 12-14 | polish + device testing with BE2 | bug fixes, save hardening | Android build, QA matrix, event kit |
 
-Day-6 gate unchanged: if the vertical slice is not solid, cut Day-5 composite content → Reference Call
-tool → animated intro → applicants 4→3 per day. Never cut save safety, responsiveness, debrief screens.
+Day-6 gate unchanged: if the vertical slice is not solid, cut Day-5 composite content -> Reference Call
+tool -> animated intro -> applicants 4->3 per day. Never cut save safety, responsiveness, debrief screens.

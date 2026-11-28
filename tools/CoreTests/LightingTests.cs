@@ -209,7 +209,7 @@ namespace HRZeroDay.Tests
         }
 
         /// <summary>
-        /// Request G / docs/89 §7: "prefer shape/bar over raw number". The security score is five cells and
+        /// Request G / docs/89 #7: "prefer shape/bar over raw number". The security score is five cells and
         /// then the digits, and the two must agree at every boundary -- a bar that says 3 while the digits
         /// say 59 is worse than no bar at all.
         /// </summary>

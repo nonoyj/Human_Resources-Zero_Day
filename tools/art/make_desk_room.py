@@ -240,11 +240,20 @@ def desk_slab_sprite():
                 continue
             cold = ((x - (MON_X0 + MON_W // 2)) / 150.0) ** 2 + ((y - 14) / 30.0) ** 2
             win = ((x - 90) / 130.0) ** 2 + ((y - 10) / 34.0) ** 2
+            # v130: the LAMP is a second practical in this room now, so its warm pool lands on the wood at
+            # the right end -- small, warm, and one step up the wood's own ramp (the menu's exact idiom).
+            warm = ((x - (LAMP_X + 28)) / 54.0) ** 2 + ((y - 16) / 26.0) ** 2
             t = M.BAYER4[y & 3][x & 3]
             if cold < 1.0 and t < (1.0 - cold) * 9.0:
                 p = img.getpixel((x, y))[:3]
                 if p == PALETTE['wood_1']:
                     img.putpixel((x, y), rgba('wood_2'))
+            elif warm < 1.0 and t < (1.0 - warm) * 8.0:
+                p = img.getpixel((x, y))[:3]
+                if p == PALETTE['wood_1']:
+                    img.putpixel((x, y), rgba('wood_2'))
+                elif p == PALETTE['wood_2'] and t < 4:
+                    img.putpixel((x, y), rgba('wood_3'))
             elif win < 1.0 and t < (1.0 - win) * 6.0:
                 p = img.getpixel((x, y))[:3]
                 if p == PALETTE['wood_1']:
@@ -269,6 +278,83 @@ def window():
     specular. The only difference is scale.
     """
     return M.window(WIN_X1 - WIN_X0, WIN_Y1 - WIN_Y0)
+
+
+# ===================================================================================== the lamp
+LAMP_X = 420            # the desk's right end, in front of the tube's right edge (the tube ends at 456)
+LAMP_TOP_ROW = 44       # the shade's top; its base lands on row 175, i.e. ON the wood (170..213)
+
+
+def lamp():
+    """
+    THE WARM PRACTICAL, in the game's room (v130). The player asked for more light in the in-game look, and
+    the honest way to add a light to a room is to add a LAMP to it -- not to brighten the pixels.
+
+    It is make_menu_room.lamp() CALLED, not redrawn: the same shade, the same brass stem, the same amber
+    bulb, the same wall pool on its own alpha ramp. The only change is where it stands: on the desk's right
+    end, so the warm side of the frame is the same side in both rooms.
+
+    It is its own layer rather than part of the room painting because a thing that stands ON the desk must
+    be drawn ABOVE the desk band (the v128 rule, applied in the other direction), and the room painting is
+    behind everything.
+    """
+    return M.lamp()
+
+
+# ===================================================================================== wall clock
+CLOCK_X, CLOCK_Y = 388, 22          # top-left of the 30x30 face: on the wall, right of the window and clear
+CLOCK_SIZE = 30                     # of the tube's own top edge (the tube starts at row 43)
+
+
+def wall_clock():
+    """
+    THE WALL CLOCK (v130, the player's instruction: "a clock on the wall that tells the player what time it
+    is").
+
+    WHY IT IS A SPRITE AND NOT TEXT
+        The player also said, twice, that the HUD "should not be displayed as text but rather as clickable
+        objects". A floating number in a corner would be a fourth readout. A clock on the wall is FURNITURE:
+        it sits in the room, it is lit by the same window as everything else, and it tells the time the way a
+        clock on a wall tells the time -- at a glance, from across the room.
+
+    THE FACE, in the menu's materials
+        * a rim in steel_2 with a steel_1 inner bevel and a void drop down and right (the window is up and
+          left, so every drop in this room goes down and right -- the same rule every other object obeys);
+        * a dial in paper_0 (the same cream as the letter, because it IS paper) with four ticks;
+        * the window's specular on the rim's upper left, dithered so it never reads as a drawn line;
+        * a screw at the top where it hangs.
+
+    THE HANDS ARE PAINTED AT THE SHIFT'S OPENING, 08:40. The clock is not redrawn every minute:
+    RoomClockView rotates these hands about the face's centre, one whole pixel at a time.
+    """
+    n = CLOCK_SIZE
+    img = Image.new('RGBA', (n, n), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    c = n // 2
+
+    d.ellipse([1, 2, n - 1, n], fill=rgba('void'))
+    d.ellipse([1, 1, n - 2, n - 2], fill=rgba('steel_3') if 'steel_3' in PALETTE else rgba('wall_3'))
+    d.ellipse([2, 2, n - 3, n - 3], fill=rgba('steel_2'))
+    d.ellipse([4, 4, n - 5, n - 5], fill=rgba('paper_2'))   # the dial is the one bright thing on that wall
+    for (tx, ty, tw, th) in ((c, 5, 1, 2), (n - 7, c, 2, 1), (c, n - 7, 1, 2), (5, c, 2, 1)):
+        d.rectangle([tx, ty, tx + tw - 1, ty + th - 1], fill=rgba('steel_0'))
+    for (x, y) in ((5, 6), (6, 5), (6, 6), (7, 5), (5, 7)):
+        img.putpixel((x, y), rgba('white'))
+    for (x, y) in ((c - 1, 2), (c, 2), (c - 1, 3), (c, 3)):
+        img.putpixel((x, y), rgba('steel_0'))
+
+    def hand(angle_deg, length, key):
+        rad = math.radians(angle_deg - 90.0)
+        for i in range(1, length + 1):
+            x = c + int(round(math.cos(rad) * i))
+            y = c + int(round(math.sin(rad) * i))
+            if 0 <= x < n and 0 <= y < n:
+                img.putpixel((x, y), rgba(key))
+
+    hand(360.0 * (8.0 + 40.0 / 60.0) / 12.0, 6, 'void')        # hour hand: 8:40
+    hand(360.0 * (40.0 / 60.0), 9, 'void')                     # minute hand: 40 past
+    img.putpixel((c, c), rgba('void'))
+    return img
 
 
 # ===================================================================================== the monitor
@@ -425,6 +511,43 @@ def room():
 
     win = window()
     img.alpha_composite(win, (WIN_X0, WIN_Y0))
+
+    # ---- THE LAMP'S LIGHT is painted into the wall here (its own sprite is a LAYER now -- see `lamp()`),
+    # because the wall is what the room owns. The fixture itself would be covered by the desk layer if it
+    # lived in this painting, which is the "a prop belongs in the surface's layer" rule pointed the other way:
+    # a thing that stands ON the desk is drawn WITH the desk's band, above it.
+    lamp_img = M.lamp()
+    lamp_x = 420
+    lamp_y = DESK_ROW - lamp_img.height + 6
+
+    # ---- THE WALL CLOCK (v130)
+    img.alpha_composite(wall_clock(), (CLOCK_X, CLOCK_Y))
+
+    # ---- THE LIGHT THE TWO NEW SOURCES ACTUALLY THROW. Painted here, on the wall that receives them, in the
+    # menu's own two-step idiom: a warm band up the wall behind the lamp's shade, and the cold spill the
+    # window already lays down the left side. No glow without a named emitter -- both are named above.
+    lay = img.load()
+    bayer = M.BAYER4
+    lam_cx, lam_cy = lamp_x + lamp_img.width // 2, lamp_y + 44   # the shade, not the base
+    for y in range(0, 180):
+        for x in range(0, W):
+            p = lay[x, y]
+            if p[3] == 0:
+                continue
+            # warm: the lamp's pool on the wall, centred on its shade
+            dx = (x - lam_cx) / 46.0
+            dy = (y - lam_cy) / 40.0
+            r = math.sqrt(dx * dx + dy * dy)
+            t = bayer[y & 3][x & 3]
+            if r < 1.0:
+                if p[:3] == PALETTE['wall_2'] and t < (1.0 - r) * 10.0:
+                    lay[x, y] = rgba('wall_3')
+                elif p[:3] == PALETTE['wall_1'] and t < (1.0 - r) * 7.0:
+                    lay[x, y] = rgba('wall_2')
+            # warm rim on the shade's own side of the wall: one step, adjacent to it only
+            if 0 <= x - lam_cx <= 26 and abs(y - lam_cy) < 16 and t < 4:
+                if p[:3] == PALETTE['wall_2']:
+                    lay[x, y] = rgba('wall_3')
     return img
 
 
@@ -435,6 +558,7 @@ def main():
         'desk/monitor_M.png': monitor(),
         'desk/desk_slab_M.png': desk_slab_sprite(),
         'desk/foreground_M.png': foreground(),
+        'desk/lamp_M.png': lamp(),
     }
     bad = palette_gate(pieces)
     print('%s: %d off-palette pixels across %d sprites'

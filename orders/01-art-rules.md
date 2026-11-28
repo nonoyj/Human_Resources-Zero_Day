@@ -1,4 +1,4 @@
-# ORDER 01 — ART RULES
+# ORDER 01 -- ART RULES
 
 ## The ruling
 
@@ -34,10 +34,10 @@ Everything else is copied.
   line is `DESK_ROW`. A prop whose base is drawn along the *front* lip is the "sitting on the edge of the
   table" bug.
 - **A prop belongs in the surface's layer.** Separating props into their own sprites costs the contact shadow,
-  the shared light and the shared perspective — which is *precisely* what "does not look like it is ON the
+  the shared light and the shared perspective -- which is *precisely* what "does not look like it is ON the
   table" describes.
 - Props are ordered left to right the way the player reads the desk. Current order, as instructed:
-  **coffee, forms, keyboard, mouse** — the coffee swapped with the keyboard and mouse, because the monitor is
+  **coffee, forms, keyboard, mouse** -- the coffee swapped with the keyboard and mouse, because the monitor is
   on the right and the keyboard belongs under it.
 
 ## Subjects

@@ -46,6 +46,7 @@ internal static class Program
         lines.AddRange(SecurityTests.RunAll());        // the company's one number, and its four alerts
         lines.AddRange(MenuTests.RunAll());            // the front door, and the consent it has to ask for
         lines.AddRange(HudTests.RunAll());       // the HUD as objects: geometry, states, hits
+        lines.AddRange(LightRigTests.RunAll()); // v130: several lights, stepped light, cast shadows
         foreach (var line in lines)
         {
             Console.WriteLine(line);

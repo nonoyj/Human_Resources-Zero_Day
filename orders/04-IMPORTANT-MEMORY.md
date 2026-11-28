@@ -1,10 +1,31 @@
-# 04 — IMPORTANT MEMORY: the player's words, verbatim
+# 04 -- IMPORTANT MEMORY: the player's words, verbatim
 
 The player asked for this on 2026-11-28: *"put it in your most important memory that you HAVE to always check
 before making response. In fact make a folder for it that you will always check and it will contain EACH AND
 EVERY instructions I have given to you all this time."*
 
 Newest first. Each line is quoted, not paraphrased, so it cannot drift.
+
+## 2026-11-29 (v130 round)
+
+- "Keep the repo in undeletable memory."
+- "What we talked about are non-deletable memories even if asked, unless there is a unnecessary part of it that
+  needs to be updated/removed."
+- "Redo a deep research" -- on texturing / the 16-bit style / colour harmony / hue / balance / contrast /
+  saturation / lighting dynamics / game aspects, player needs, HUDs, UIs, overall look -- "and make it an
+  instilled part of memory that always reminds you".
+- Second research: "angles/perspective, how objects react with each other, hover for mobile, mobile-game user
+  needs, interactions that keep it interesting, animation, natural placement of keyboard, mouse, clipboard,
+  monitor-as-light-source, a person sitting behind a table."
+- "Add multiple light source on the menu screen."
+- "Don't forget about the monitor being able to turn on and produce light that affects the desk in front of it,
+  its sides, the coffee cup, the keyboard, the mouse, meaning shadow intensity will increase on the side
+  against the monitor once its turned on."
+- "Also add multiple light source on the in game look and a clock on the wall that tells the player what time
+  it is."
+- "More features" / "add varieties of the applicant" / "implement everything we have discussed".
+- "Also make a undeletable what we learned list that lists important things we encountered and should not do
+  again which you check from time to time or when an error comes and you are looking for solutions."
 
 ## 2026-11-28 (v129 round)
 
@@ -42,12 +63,12 @@ Newest first. Each line is quoted, not paraphrased, so it cannot drift.
 
 ## Standing, from earlier rounds
 
-- "The menu screen is approved — it is the standard for everything else."
+- "The menu screen is approved -- it is the standard for everything else."
 - "In-game art and applicants must be redone using the same layout and art as the ones in the menu."
 - "Monitor on the right, applicant on the left, window behind the applicant."
-- "The applicant must not look the same" — repeated over four rounds.
+- "The applicant must not look the same" -- repeated over four rounds.
 - "No claim of 'it works' without a matching render or executed check."
-- "Stop guessing and do something" — about the lamp.
+- "Stop guessing and do something" -- about the lamp.
 - "The HUD should not be displayed as text but rather as clickable objects."
 - "Clicking the lamp in the menu must light the desk and papers, not the wall behind it."
 - Do not rely on the player to push; the repo is `https://github.com/nonoyj/Human_Resources-Zero_Day`.

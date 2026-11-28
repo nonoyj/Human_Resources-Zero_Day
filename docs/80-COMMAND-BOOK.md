@@ -1,4 +1,4 @@
-# 80 — THE COMMAND BOOK
+# 80 -- THE COMMAND BOOK
 
 **The one page with every command, in the order you actually run them.** Written 2026-11-27 because the
 player said it plainly: *"Always refer to our handouts and files here where we have stated every command
@@ -7,7 +7,7 @@ not here, it does not exist; if this page and a chat message disagree, **this pa
 
 Two rules for keeping it honest:
 
-1. **Every reply from me ends with the block from § 2.** No exceptions, even when the answer is "nothing".
+1. **Every reply from me ends with the block from # 2.** No exceptions, even when the answer is "nothing".
 2. **When this page changes, the reply says so** (one line, in section A).
 
 `.\scripts\Where-Am-I.ps1` prints this page's contents plus the live state of your copy, so you never have
@@ -52,7 +52,7 @@ run `python tools/art/write_unity_metas.py` from the repo root and re-open the p
 
 > **Never paste the zip name inline** (v119.3). The chat renders `HR-ZeroDay-bundle-vNN.zip` as a markdown
 > link, PowerShell then receives `\.\http://...` and `Expand-Archive` fails with "not a valid file system
-> path". Put the name in a variable first — the block below does — or type it by hand.
+> path". Put the name in a variable first -- the block below does -- or type it by hand.
 
 ```powershell
 # 1) install this round's bundle (the zip is in Downloads)
@@ -75,16 +75,16 @@ cd $env:USERPROFILE\HR-ZeroDay
 
 **`Where-Am-I` from anywhere, once:** run `.\scripts\Install-Helpers.ps1` in the repo (it writes a tiny
 launcher into `%USERPROFILE%\bin`, which is on your user PATH, and it needs no admin rights). After that,
-`Where-Am-I` works in any window. There is no `Pin-ToQuickAccess.ps1` — I invented that command once and
+`Where-Am-I` works in any window. There is no `Pin-ToQuickAccess.ps1` -- I invented that command once and
 it cost you a round; the command book is the only place commands are allowed to come from.
 
 **Why those two lines are there (v103, rewritten v104).** Two plain commands, on purpose: the first version
-of this was a single .NET one-liner and the player — correctly — would not call it a PowerShell command.
+of this was a single .NET one-liner and the player -- correctly -- would not call it a PowerShell command.
 `Expand-Archive` and `Copy-Item` are things everyone already knows. `hr0d-vNN` is scratch space; each round
 overwrites it, and you can delete it whenever. `Apply-Bundle.ps1` in Downloads is not part of any bundle, so it
 can only be as new as the last time you refreshed it. v102 shipped a fix for Unity's stray files and your
 very next apply ran the *old* launcher: it warned `working tree not clean (105 entries)` and then printed
-`bootstrap refreshed (the next apply uses this version)` — i.e. the fix arrived one apply too late. These
+`bootstrap refreshed (the next apply uses this version)` -- i.e. the fix arrived one apply too late. These
 lines close that hole from the outside; from v103 on the script also closes it from the inside, by
 replacing itself from the zip and re-running before it touches anything.
 
@@ -115,7 +115,7 @@ Three possible endings, and what each means:
 question, not a step to skip.
 
 **Order matters on a bundle-installed copy:** push first, update from a bundle second. `Apply-Bundle -Clean`
-rewrites `main` to the bundle's history, so a push *after* an update would need a force — and the script
+rewrites `main` to the bundle's history, so a push *after* an update would need a force -- and the script
 will refuse.
 
 ### The team's side
@@ -148,7 +148,7 @@ git switch -c feature/menu
 start "" "$env:USERPROFILE\HR-ZeroDay\unity"
 ```
 
-Hub → **Add** → **Add project from disk** → `C:\Users\<you>\HR-ZeroDay\unity` → editor **`6000.3.29f1`**
+Hub -> **Add** -> **Add project from disk** -> `C:\Users\<you>\HR-ZeroDay\unity` -> editor **`6000.3.29f1`**
 (Unity 6.3 LTS, Android Build Support ticked). Opening the repo root is the classic mistake: there is no
 `ProjectSettings\` there, so Hub either refuses or creates a second project.
 
@@ -162,7 +162,7 @@ The `HR//0D` menu (**two** slashes) is only for when the art PNGs themselves cha
 | `HR//0D > Build Desk Scene` | `Assets/Scenes/Desk.unity` is missing or broken |
 | `HR//0D > Reload Art Kit (open editor)` | reimport art under a running editor |
 
-**Replaying after any update = Stop, then Play.** Editing while in Play mode is thrown away by Unity —
+**Replaying after any update = Stop, then Play.** Editing while in Play mode is thrown away by Unity --
 that is what makes people think the editor must be closed. It does not.
 
 ---
@@ -188,7 +188,7 @@ directory while you ran the commit.
 ### 4a. If `dotnet` is missing on this machine (v119)
 
 The sandbox's build box had **no C# compiler at all** until v119, which is how an uncompilable v118 shipped.
-If `dotnet` is not found, install it once — it takes about a minute:
+If `dotnet` is not found, install it once -- it takes about a minute:
 
 ```powershell
 curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 8.0 --install-dir $HOME/.dotnet --no-path
@@ -245,7 +245,7 @@ python tools\comp\preview_callout.py           # the read-out panel over an appl
 
 ## 6. Save file, when something looks stuck
 
-**Where it is** — `Application.persistentDataPath` on Windows is
+**Where it is** -- `Application.persistentDataPath` on Windows is
 `%USERPROFILE%\AppData\LocalLow\<CompanyName>\<ProductName>\`, and this project sets
 `companyName: NONOYJ`, `productName: HUMAN RESOURCES ZERO DAY`, so:
 
@@ -264,7 +264,7 @@ Remove-Item -LiteralPath (Join-Path $env:USERPROFILE 'AppData\LocalLow\NONOYJ\HU
 ```
 
 **The `IOException at hr0d_save.json` warning on Stop** is a known open bug (D-5): the run is already
-saved after every decision, so nothing is lost — but it should not print. If you see it at any OTHER time
+saved after every decision, so nothing is lost -- but it should not print. If you see it at any OTHER time
 (mid-shift, while playing), that is new and important: paste the full Console line.
 
 ---
@@ -280,7 +280,7 @@ saved after every decision, so nothing is lost — but it should not print. If y
 | apply fails on `.git` | a process holds it | `Apply-Bundle` retries; else close Unity and re-run |
 | Game view is black | art not published to Resources | `HR//0D > Setup Project (one click)` |
 | `Build-Bundle refuses a dirty tree` | uncommitted changes | `.\scripts\Push.ps1 -Message "..."` first |
-| `still nested: art\art` etc. | the nesting check asks git now, not the filesystem (fixed in v90) | if seen again, the BUNDLE really is nested — tell the agent |
+| `still nested: art\art` etc. | the nesting check asks git now, not the filesystem (fixed in v90) | if seen again, the BUNDLE really is nested -- tell the agent |
 | `working tree not clean (474 entries)` right after an apply | `-Clean` now forces the tree to the bundle's commit (fixed in v90) | `git reset --hard` then `git clean -fd` |
 | `cannot be loaded because running scripts is disabled` | PowerShell execution policy on a fresh machine | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` then answer **Y**, re-run the script |
 
@@ -301,12 +301,12 @@ git reset --hard
 git clean -fd
 ```
 
-`git clean -fd` deletes untracked files — that is the point, and it never touches `Library\` or `Temp\`
+`git clean -fd` deletes untracked files -- that is the point, and it never touches `Library\` or `Temp\`
 because those are ignored, not untracked. **Commit anything you want to keep first.**
 
 ---
 
 ## 9. Things that are deliberately absent
 
-Google Docs handoffs (markdown in `handoff/` only) · Git LFS · force-pushing without
-`-ReplaceRemoteHistory` · closing Unity to apply a bundle · storing a credential inside the repo.
+Google Docs handoffs (markdown in `handoff/` only) - Git LFS - force-pushing without
+`-ReplaceRemoteHistory` - closing Unity to apply a bundle - storing a credential inside the repo.

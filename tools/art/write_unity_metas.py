@@ -116,6 +116,9 @@ READABLE = (
     'Art/Kit/desk/props_desk_M.png',
     # monitor_M was redrawn 200x143 from the menu's CRT (v128)
     'Art/Kit/desk/monitor_M.png',
+    # the lamp (v130): a second light source standing on the desk. The tube's pass walks every static layer
+    # of the layout, so a lamp in the layout must be readable or the pass silently skips it.
+    'Art/Kit/desk/lamp_M.png',
 )
 
 

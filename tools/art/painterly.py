@@ -14,7 +14,7 @@ WHY THIS MODULE EXISTS (2026-11-26)
       4. FORM, NOT SILHOUETTE -- a head is an egg (wider at the crown, tapered at the jaw), a neck is a
          cylinder, a shoulder is a ball. Blocks with corners read as puppets.
 
-    Palette rule (art bible §4, unchanged): every pixel written here is an existing palette entry or a
+    Palette rule (art bible #4, unchanged): every pixel written here is an existing palette entry or a
     50% dither of two existing entries. No new colours are introduced, so the palette gate still passes.
 """
 from __future__ import annotations
@@ -22,6 +22,11 @@ from __future__ import annotations
 
 # --------------------------------------------------------------------------- ramps
 # Ordered dark -> light. Each is 3-4 existing palette entries of one hue family.
+# v130: the ramp names on the LEFT are historical. Rendering moved to the single material palette
+# (`menu_palette`, imported by `art_palette`) in v120, and nothing should read these any more -- the applicant
+# generator used `P.ramp('skin_mid', 2)` for years and every call silently fell back to step 0, because the
+# Ramps table it consulted was this one while the palette it wrote into was the other one. The table is kept
+# so no old code path crashes; `art_palette.ramp_keys()` is the only legitimate source of ramp names.
 RAMPS = {
     # ------------------------------------------------------------------ SKIN (v9, rewritten)
     # THE BUG THIS FIXES: the old ramps mixed a warm tone with 'panel2'/'line' (navy UI colours) as their
@@ -96,8 +101,22 @@ class Painter:
                     self.put(x, y, key_b)
 
     def ramp(self, key_ramp, step):
-        """'skin_mid' + step -> a palette key, clamped to the ramp."""
-        r = RAMPS[key_ramp]
+        """'skin' + step -> a palette key, clamped to the ramp.
+
+        v130: resolution order is the MATERIAL palette first (`skin_0..3`, `hair_0..3`, ... via art_palette),
+        then the legacy table above. The painter writes into the material palette, so the legacy table can
+        only ever produce a wrong answer; it is the fallback, not the path.
+        """
+        try:
+            import art_palette
+            keys = art_palette.ramp_keys(key_ramp)
+            if keys:
+                return keys[max(0, min(len(keys) - 1, step))]
+        except Exception:                               # noqa: BLE001  (no Pillow / no palette -> legacy)
+            pass
+        if key_ramp in RAMPS:
+            pass
+        r = RAMPS.get(key_ramp) or RAMPS['skin_light']
         i = max(0, min(len(r) - 1, step))
         if r[i] not in self.palette:
             return r[0]
