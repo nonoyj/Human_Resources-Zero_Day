@@ -128,7 +128,11 @@ RAMPS = {
     # logged a warning per frame. A material list that the code can index past is not a material list. Four
     # steps, so every key HudRules names exists -- and the brightest step is EMISSIVE, which is what a pad
     # that is telling you to press it should be.
-    'cyan':  [(196, .62, .285), (189, .64, .440), (181, .52, .620), (173, .42, .820)],
+    # v130.4, BUG-039: steps 0..2 are BYTE-FOR-BYTE what they were before. The fix was an EXTENSION, not a
+    # re-authoring -- moving cyan_1/cyan_2 (which the first attempt did) broke two legacy aliases by 76 and
+    # 92 units against a 64 limit, because `ok` and `signaldim` point at those steps. Add at the top of the
+    # ramp, never in the middle of it.
+    'cyan':  [(194, .62, .285), (187, .66, .480), (180, .48, .760), (173, .38, .905)],
 }
 
 # What the code calls each step. The sprite generators and MenuView.cs both use these names, so a
