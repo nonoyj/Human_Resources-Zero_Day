@@ -25,11 +25,11 @@ Step "checking the bundle"
 if (-not (Test-Path -LiteralPath $zip)) { Die "bundle not found: $zip  (put the v129 zip in Downloads, or edit `$zip)" }
 # The zip carries THIS file, so it cannot carry its own final hash -- that is why there is no hardcoded
 # checksum here. What it checks instead is the thing a bad download actually looks like: a short file.
-# The delivery quoted a sha256; this prints the one it found, so you can compare without trusting me.
+# The delivery message quotes a sha256; this prints the one it found, so the two can be compared.
 $size = (Get-Item -LiteralPath $zip).Length
 if ($size -lt 15MB) { Die "the zip is only $([int]($size/1MB)) MB -- a full v129 bundle is ~17 MB, re-download it" }
 $got = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
-Ok "size $([math]::Round($size/1MB,1)) MB, sha256 $($got.Substring(0,16))... (the delivery quoted 53D744007718E279)"
+Ok "size $([math]::Round($size/1MB,1)) MB, sha256 $got"
 
 # ---------------------------------------------------------------- 1. extract beside the repo
 Step "extracting to $stage"
