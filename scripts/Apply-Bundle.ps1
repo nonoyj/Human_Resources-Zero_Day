@@ -379,6 +379,51 @@ try {
         $copied++
     }
     OK "$copied top-level items"
+
+    # ---------------------------------------------------------------------------------------------
+    # BUG-070: THE APPLY MUST NOT LEAVE A DIRTY TREE.
+    #
+    # .gitattributes says `* text=auto eol=lf`, so git stores LF and compares against LF. But this copy
+    # step writes bytes straight out of the zip with Copy-Item -- git's line-ending filter never runs --
+    # so a zip packed on a host that has CRLF in the working tree (Windows: PowerShell's Copy-Item in
+    # Build-Bundle preserves them) lands CRLF files in a repository that expects LF. `git status` then
+    # reports every one of them as modified, Where-Am-I says "copy them or stash them", and Build-Bundle
+    # refuses to run on a tree that is, in fact, exactly the commit it names.
+    #
+    # The fix is normalisation by the owner of the bytes, not by git: after copying, ask git which files
+    # it believes differ and rewrite those that differ ONLY in line endings. A real edit is left alone.
+    S "normalising line endings (git expects LF)"
+    $changed = @(Git @('-C', $WorkingCopy, 'diff', '--name-only') -Quiet) |
+               Where-Object { $_ -and $_.Trim() }
+    $fixed = 0
+    $realEdits = @()
+    foreach ($rel in $changed) {
+        $rel = $rel.Trim()
+        $full = Join-Path $WorkingCopy ($rel -replace '/', '\')
+        if (-not (Test-Path -LiteralPath $full)) { continue }
+        # binary files are excluded from the check on purpose: a PNG that "differs" is a real change
+        if ($rel -match '\.(png|jpg|jpeg|wav|mp3|ogg|ttf|dll|so|zip|bundle|ico)$') { $realEdits += $rel; continue }
+        try {
+            $bytes = [System.IO.File]::ReadAllBytes($full)
+            if ($bytes.Length -gt 8388608) { $realEdits += $rel; continue }   # 8 MB: not a source file
+            $text = [System.Text.Encoding]::UTF8.GetString($bytes)
+            $norm = $text -replace "`r`n", "`n"
+            if ($norm -ne $text) {
+                [System.IO.File]::WriteAllBytes($full, [System.Text.Encoding]::UTF8.GetBytes($norm))
+                $fixed++
+            } else {
+                $realEdits += $rel
+            }
+        } catch {
+            $realEdits += $rel
+        }
+    }
+    if ($fixed -gt 0) { OK "$fixed file(s) had CRLF line endings and were converted to LF" }
+    if ($realEdits.Count -gt 0) {
+        W "$($realEdits.Count) file(s) genuinely differ from HEAD:"
+        $realEdits | Select-Object -First 8 | ForEach-Object { Write-Host "    $_" }
+        W "  That is either an edit you made, or a bundle packed from a dirty tree. The apply has not touched them."
+    } elseif ($fixed -eq 0) { OK 'already LF -- nothing to convert' }
     # Keep the copy of THIS script beside the bundle current. The operator runs .\Apply-Bundle.ps1
     # from Downloads, which no bundle ever overwrites -- so a bug fixed in the script would never
     # reach them (that is exactly how BUG-032 survived a release). Self-heal on every apply.

@@ -1410,3 +1410,28 @@ arc over the frame, not a vignette.
 **Fix:** everything on the desk moved right (coffee 274, keyboard 292, mouse 390, forms 412). A prop that is
 completely hidden is a prop that does not exist, and the composite's geometry gate only checks the back wall
 — this was caught by looking at the render.
+
+## BUG-070 -- v116 install: the apply left six scripts "modified", so the tree looked dirty (2026-11-28)
+
+**Reported:** by the player, in the output of the v116 apply: `working tree not clean (6 entries)` listing
+`scripts/Adopt-UnityProject.ps1`, `Build-Bundle.ps1`, `Connect-Remote.ps1`, `Fix-Repo.ps1`,
+`Setup-DevEnvironment.ps1`, `Update-FromBundle.ps1`.
+
+**Cause.** Not the scripts' content. `.gitattributes` says `* text=auto eol=lf`, so git stores LF and compares
+against LF — but those six tracked files had **CRLF in the working tree**, and `Apply-Bundle` writes the zip's
+bytes straight to disk with `Copy-Item`, which never runs git's line-ending filter. On the receiving machine
+`git status` therefore reported six files as modified on a copy that was byte-for-byte the commit the bundle
+named. Every downstream tool believed it: `Where-Am-I` said "copy them or stash them", `Build-Bundle` refused
+to run, and the next bundle would have been packed from a tree that only *looked* dirty.
+
+**Fix, in three places so it cannot come back:**
+1. **The six files are repaired** (`CRLF -> LF`), so this round's bundle is clean by construction.
+2. **`Build-Bundle.ps1` now owns the invariant**: before packing it normalises every tracked text file to LF
+   and reports how many it converted. The packer no longer trusts the host's working tree.
+3. **`Apply-Bundle.ps1` normalises on the way in**: after copying, it asks git which files differ, rewrites
+   those that differ *only* in line endings, and **leaves a genuine edit alone** — reporting it instead of
+   silently reverting. Binary extensions are skipped on purpose: a PNG that differs is a real change.
+
+**What the player must do:** nothing beyond installing v117. The repair commit is inside the bundle's history,
+so the apply lands a clean tree. If `Where-Am-I` still reports a dirty tree after v117, the files listed are
+then genuine local edits, and the apply now says so in those words.

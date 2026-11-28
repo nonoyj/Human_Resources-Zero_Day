@@ -112,6 +112,35 @@ $branchFileTmp = Join-Path ([System.IO.Path]::GetTempPath()) ("hr0d-branch-" + [
 Set-Content -LiteralPath $branchFileTmp -Value $branchName -NoNewline -Encoding ascii
 OK "branch recorded: $branchName"
 
+# ---------------------------------------------------------------------------------------------
+# BUG-070: pack LF, not whatever the working tree happens to hold.
+#
+# The zip is extracted and copied by Apply-Bundle with Copy-Item, which means git's `eol=lf` filter
+# never runs on the receiving machine. If this host has CRLF in the working tree, the apply lands CRLF
+# files in a repository that expects LF and `git status` calls them all modified -- a dirty tree on a
+# copy that is byte-for-byte the commit in the bundle.
+#
+# The tracked tree should already be LF (it is, after BUG-070's repair), but this makes the PACKER the
+# owner of the invariant rather than trusting the host: text files are read, normalised and written at
+# the granularity of a single line, joined with LF.
+$textExt = @('.ps1', '.psm1', '.md', '.cs', '.json', '.txt', '.yml', '.yaml', '.py', '.sh', '.xml',
+             '.asmdef', '.meta', '.gitignore', '.gitattributes', '.cfg', '.ini', '.csv')
+S "normalising line endings for the zip"
+$lfs = 0
+foreach ($f in $files) {
+    if ($skipExt -contains ([System.IO.Path]::GetExtension($f.Name).ToLower())) { continue }
+    if ($textExt -notcontains $f.Extension.ToLower()) { continue }
+    if ($f.Length -gt 8388608) { continue }
+    $raw = [System.IO.File]::ReadAllBytes($f.FullName)
+    if (-not ($raw -contains 13)) { continue }        # no CR anywhere: already LF
+    $text = [System.Text.Encoding]::UTF8.GetString($raw)
+    if ($text.Contains([char]0)) { continue }         # NUL: not text, leave it alone
+    $text = $text -replace "`r`n", "`n"
+    [System.IO.File]::WriteAllBytes($f.FullName, [System.Text.Encoding]::UTF8.GetBytes($text))
+    $lfs++
+}
+if ($lfs -gt 0) { OK "$lfs text file(s) normalised to LF before packing" } else { OK 'tree was already LF' }
+
 S "writing $zip"
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [System.IO.Compression.ZipFile]::Open($zip, 'Create')

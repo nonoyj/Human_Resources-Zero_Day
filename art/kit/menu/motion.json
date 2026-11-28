@@ -1,0 +1,83 @@
+{
+  "room_hz": 60,
+  "max_fps": 12,
+  "layers": [
+    {
+      "name": "wall_screens",
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "where": "the six monitors on the table",
+      "notes": "cybersecurity readouts; each screen runs its own 4-state cycle, offset so they never sync"
+    },
+    {
+      "name": "wall_flicker",
+      "frames": 3,
+      "fps": 8,
+      "loop": true,
+      "where": "the same six monitors",
+      "notes": "a 3-step brightness flicker; the room is old, the screens are older"
+    },
+    {
+      "name": "breach",
+      "frames": 3,
+      "fps": 8,
+      "loop": false,
+      "beat_min": 6.0,
+      "beat_max": 14.0,
+      "hold": 1.2,
+      "where": "ONE of the six monitors, chosen at random",
+      "notes": "red flood + SYS.ROOT text. Never all six: an alarm everywhere is weather, not a warning"
+    },
+    {
+      "name": "main_screen",
+      "frames": 6,
+      "fps": 4,
+      "loop": true,
+      "where": "the monitor the menu lives in",
+      "notes": "cursor blink, a status tick on the bezel, and a scanline that rolls every 40 frames"
+    },
+    {
+      "name": "menu_idle",
+      "frames": 2,
+      "fps": 1,
+      "loop": true,
+      "room_light": false,
+      "where": "the menu rows themselves",
+      "notes": "the selected pill pulses one step; no movement of the text, ever. This is UI, not room light"
+    },
+    {
+      "name": "smoke",
+      "frames": 6,
+      "fps": 8,
+      "loop": true,
+      "where": "the coffee cup",
+      "notes": "three strands, phase-shifted; thickens for 10 px then breaks up. Slower reads as a candle"
+    },
+    {
+      "name": "dust_motes",
+      "frames": 4,
+      "fps": 12,
+      "loop": true,
+      "where": "the whole room",
+      "notes": "24 two-pixel motes drifting down-left, alpha 60-140; the only thing at the fps ceiling"
+    },
+    {
+      "name": "room_glow",
+      "frames": 4,
+      "fps": 2,
+      "loop": true,
+      "where": "the cyan light on the desk and wall",
+      "notes": "the light itself breathes, one slow cycle every 2 s. Nothing in the ROOM moves slower"
+    },
+    {
+      "name": "window_life",
+      "frames": 4,
+      "fps": 2,
+      "loop": true,
+      "room_light": false,
+      "where": "the city outside",
+      "notes": "a lit window switches off and on; one aircraft light blinks. Two changes at 2 fps, no more"
+    }
+  ]
+}
