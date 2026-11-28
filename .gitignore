@@ -148,3 +148,4 @@ backend/.pytest_cache/
 # caches. .dotnet and .cache held 1.4 GB between them.
 .cache/
 .dotnet/
+.npm/
