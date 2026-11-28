@@ -125,14 +125,24 @@ namespace UnityEngine
     {
         public byte r, g, b, a;
         public Color32(byte r, byte g, byte b, byte a) { this.r = r; this.g = g; this.b = b; this.a = a; }
-        // Unity's Color32 IS comparable: it implements IEquatable and == / !=. The stub did not, so any
-        // `if (a == b)` on a colour compiled here and would have failed in the player's editor.
-        public static bool operator ==(Color32 x, Color32 y) { return x.r == y.r && x.g == y.g && x.b == y.b && x.a == y.a; }
-        public static bool operator !=(Color32 x, Color32 y) { return !(x == y); }
-        public override bool Equals(object o) { return o is Color32 && this == (Color32)o; }
+        // NO `==` OPERATOR, ON PURPOSE. Unity's Color32 does not define one (it implements IEquatable and
+        // Equals, but never the operator -- see the Unity issue tracker, still open). v119 shipped a stub
+        // that DID define ==, so `if (glass == on)` compiled here and broke the player's editor with
+        // CS0019. A stub that is more permissive than the engine is worse than no stub: it makes the gate
+        // lie. Use Same(), below, everywhere a colour has to be compared.
+        public override bool Equals(object o) { return o is Color32 && Color32Util.Same(this, (Color32)o); }
         public override int GetHashCode() { return r | (g << 8) | (b << 16) | (a << 24); }
         public override string ToString() { return "RGBA(" + r + ", " + g + ", " + b + ", " + a + ")"; }
     }
+    /// <summary>Component-wise colour comparison. Unity has no `==` on Color32; this is the honest stand-in.</summary>
+    public static class Color32Util
+    {
+        public static bool Same(Color32 x, Color32 y)
+        {
+            return x.r == y.r && x.g == y.g && x.b == y.b && x.a == y.a;
+        }
+    }
+
     public struct Color
     {
         public float r, g, b, a;

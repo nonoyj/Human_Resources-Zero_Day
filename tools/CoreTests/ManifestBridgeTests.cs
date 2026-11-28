@@ -20,6 +20,7 @@ namespace HRZeroDay.Tests
 
         public static IEnumerable<string> RunAll()
         {
+            yield return CheckTheStubsDoNotInventEngineApi();
             yield return CheckSpriteEntryIsSerializable();
             yield return CheckFrameNamesMatchThePathBuiltByTheImporter();
             yield return CheckFrameRectsStayInsideTheStrip();
@@ -288,5 +289,52 @@ namespace HRZeroDay.Tests
             }
             return list.Count == 0 ? null : list;
         }
+
+        /// <summary>
+        /// THE STUB MUST NOT BE MORE PERMISSIVE THAN UNITY (v119.3, BUG-080).
+        ///
+        /// v119 shipped `if (glass == on)` on two Color32 values. It compiled here and broke the player's
+        /// editor with CS0019 -- because this project's stub had invented `operator ==` on Color32, which
+        /// Unity does not define. The gate was lying in the most expensive direction: green here, red there.
+        ///
+        /// This check reads the stub source and fails if the engine types declare members Unity does not
+        /// have. It is a short list of the traps already paid for, not a general audit.
+        /// </summary>
+        private static string CheckTheStubsDoNotInventEngineApi()
+        {
+            const string path = "tools/UnityStubs/UnityStubs.cs";
+            if (!File.Exists(path)) return "FAIL  the stub source is not where this check expects it";
+            var stub = File.ReadAllText(path);
+
+            // Color32: Unity defines IEquatable and Equals, but never == / !=  (issue tracker, still open).
+            var from = stub.IndexOf("public struct Color32", StringComparison.Ordinal);
+            if (from < 0) return "FAIL  the Color32 stub is missing entirely";
+            var to = stub.IndexOf("public struct Color", from, StringComparison.Ordinal);
+            if (to < 0) to = from + 600;
+            var color32 = stub.Substring(from, to - from);
+            if (color32.Contains("operator ==") || color32.Contains("operator !="))
+                return "FAIL  the Color32 stub invents an == operator; Unity has none, so a colour comparison "
+                     + "compiles here and fails in the player's editor (CS0019)";
+
+            // ...and the honest stand-in has to exist, or the rule has no way to be followed
+            if (!stub.Contains("Color32Util") || !stub.Contains("public static bool Same("))
+                return "FAIL  Color32Util.Same is the stand-in for colour equality and it is missing";
+
+            // a couple of types that are CLASSES in Unity and would break inheritance if stubbed as structs
+            if (!stub.Contains("public class Sprite")) return "FAIL  the stub lost its Sprite declaration";
+            if (!stub.Contains("public class TextAsset")) return "FAIL  the stub lost its TextAsset declaration";
+
+            // and the warning that Unity shows must not be silenced here (v119's unused field, CS0414)
+            var csproj = File.ReadAllText("tools/UnityStubs/CompileCheck.csproj");
+            // only the NoWarn LIST matters -- the file also NAMES CS0414 in a comment explaining why it is
+            // no longer silenced, and a substring test would fail on its own documentation
+            foreach (var line in csproj.Split('\n'))
+                if (line.Contains("<NoWarn>") && line.Contains("CS0414"))
+                    return "FAIL  CS0414 is suppressed in the gate; Unity shows it, so the gate would report "
+                         + "a clean build for a file the player's editor flags";
+
+            return "PASS  the headless stubs declare only members Unity really has (no invented operators)";
+        }
+
     }
 }

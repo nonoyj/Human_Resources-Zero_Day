@@ -8,7 +8,12 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <AssemblyName>HRZeroDay.CompileCheck</AssemblyName>
-    <NoWarn>CS0168;CS0219;CS8632;CS0649;CS0414</NoWarn>
+    <!-- CS0414 (field assigned but never used) is a WARNING IN THE PLAYER'S EDITOR, so it must be a
+         warning here too: v119 shipped a MenuView with an unused `_hoverDirty` that Unity flagged on the
+         same screen as the compile error. Silencing a warning the editor shows makes the gate lie about a
+         clean build. CS0649 (JSON fields never assigned) is genuinely expected for deserialised content and
+         stays off. -->
+    <NoWarn>CS0168;CS0219;CS8632;CS0649</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="UnityStubs.cs" />

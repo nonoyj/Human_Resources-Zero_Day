@@ -1583,3 +1583,48 @@ top edge in `wood` so they read as a different material from the floor they stan
 
 **Also this round:** the back wall gained a panel grid (96 px vertical joints with a lit bevel, a dado rail at
 y=108, both fading with distance) -- "define the wall and separate it with lines", done as architecture.
+
+## BUG-080 -- the stub invented an operator Unity does not have, so the gate said "green" (2026-11-30)
+
+**Reported by the player's editor:**
+`MenuView.cs(731,25): error CS0019: Operator '==' cannot be applied to operands of type 'Color32' and 'Color32'`
+and `MenuView.cs(501,22): warning CS0414: The field 'MenuView._hoverDirty' is assigned but its value is never used`.
+
+**Cause.** In v119 this gate failed with CS0019 on the same kind of comparison, and the fix was to *add*
+`operator ==` to the stub's `Color32`. Unity's `Color32` has **no `==` operator** (it implements IEquatable and
+`Equals`; the operator request has been open since 2017 and was never added). So the stub was made *more
+permissive than the engine*: `if (glass == on)` compiled here and broke the player's editor. That is the worst
+direction for a gate to be wrong in. The unused `_hoverDirty` was a warning the editor shows and this project
+suppressed with `NoWarn CS0414`.
+
+**Fix.**
+* the stub's `==`/`!=` are **removed**, and `Color32Util.Same(a, b)` is the honest stand-in;
+* the one comparison in `MenuView` is now a channel test with a comment saying why;
+* `CS0414` is **removed from `NoWarn`** — a warning the editor shows must be a warning here;
+* `_hoverDirty` is gone (it never had a reader);
+* a new rule test, `CheckTheStubsDoNotInventEngineApi`, reads the stub source and the csproj and fails if
+  `Color32` regains an operator, if the `Same` stand-in disappears, if a Unity *class* is stubbed as a
+  struct, or if CS0414 is silenced again.
+
+**The general rule, now written down:** a stub may be INCOMPLETE (that fails the build here and is caught),
+but it may never be MORE PERMISSIVE than the engine (that passes here and fails for the player).
+
+## BUG-081 -- a non-Clean apply left the previous version's deleted files behind (2026-11-30)
+
+**Reported:** after installing over v118, the apply ended `[warn] working tree not clean (7 entries)`, listing
+seven superseded reference stills (`menu_2x.png`, `menu_composite_*`, `menu_v115_*`, `menu_v118_*`).
+
+**Cause.** The history adopt is a `reset --mixed`: it moves HEAD and leaves the working tree and index alone.
+The file copy then writes the new tree on top, but nothing removes files the new commit **deleted**. Git had
+never seen them go, so they came back as *untracked* — and the existing sweep only cleaned `unity/`, by design
+(so a note the player wrote in the repo survives). `-Clean` fixed it by brute force (`reset --hard` + `clean
+-fd`), but the plain apply had no path to it.
+
+A second, older defect was found next to it: `$bundleHead` was nulled just before the file copy, so the
+`-Clean` branch always saw `$null` and always fell back to the blanket reset. The targeted reset that branch
+was written for had never once run.
+
+**Fix.** `Apply-Bundle.ps1` now records the pre-adopt HEAD, and after the copy removes exactly the paths that
+the old commit tracked and the new one does not (`git diff --diff-filter=D <old> <new>`). Files the player
+wrote are untracked in both commits, so they are never touched. `$bundleHead` is restored from
+`$script:bundleHead` after the copy so both the new sweep and the `-Clean` branch use the real target.

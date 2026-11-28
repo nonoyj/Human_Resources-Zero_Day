@@ -36,15 +36,20 @@ from the bundle's history, so a push after an install needs a force, and `Push.p
 
 ## 2. The block every reply ends with (copy-paste)
 
+> **Never paste the zip name inline** (v119.3). The chat renders `HR-ZeroDay-bundle-vNN.zip` as a markdown
+> link, PowerShell then receives `\.\http://...` and `Expand-Archive` fails with "not a valid file system
+> path". Put the name in a variable first — the block below does — or type it by hand.
+
 ```powershell
 # 1) install this round's bundle (the zip is in Downloads)
 cd $env:USERPROFILE\Downloads
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 # the launcher in Downloads is never overwritten by a bundle, so take this round's copy out of the zip
 # FIRST -- otherwise you run last round's installer (that is exactly what cost you the v102 apply)
-Expand-Archive -LiteralPath .\HR-ZeroDay-bundle-vNN.zip -DestinationPath .\hr0d-vNN -Force
-Copy-Item .\hr0d-vNN\Apply-Bundle.ps1 .\Apply-Bundle.ps1 -Force
-.\Apply-Bundle.ps1 -BundlePath .\HR-ZeroDay-bundle-vNN.zip
+$z = 'HR-ZeroDay-bundle-vNN.zip'          # <-- in a variable, so nothing can linkify it
+Expand-Archive -LiteralPath ".\$z" -DestinationPath '.\hr0d-vNN' -Force
+Copy-Item '.\hr0d-vNN\Apply-Bundle.ps1' '.\Apply-Bundle.ps1' -Force
+.\Apply-Bundle.ps1 -BundlePath ".\$z"
 
 # 2) get the repo back on its feet and set the upstream branch (first push only needs the message once)
 cd $env:USERPROFILE\HR-ZeroDay

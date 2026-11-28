@@ -215,6 +215,14 @@ try {
     # overwritten wholesale, so keeping an older .git guarantees a dirty tree (BUG-019).
     # The history ships as history.bundle -- a single file git verifies itself. Copying a .git
     # folder recursively is what silently broke on Windows (BUG-021).
+    # The commit the working copy was on BEFORE the history was swapped. Needed after the adopt: the file
+    # copy leaves the OLD version's files on disk as untracked, and (BUG-080) the sweep below only looked
+    # under unity/, so seven superseded reference stills survived an apply and made the tree read dirty.
+    $preAdoptHead = ''
+    if (Test-Path -LiteralPath (Join-Path $WorkingCopy '.git')) {
+        $preAdoptHead = (Git @('-C', $WorkingCopy, 'rev-parse', 'HEAD') -Quiet | Out-String).Trim()
+    }
+
     if (-not $NoGit) {
         S "adopting the bundle's git history"
         # BUG-032: the transport files sit at the ZIP ROOT (or inside the project for v45+).
@@ -450,6 +458,43 @@ try {
     # left in the repo survives. Ignored paths (Library/, Temp/, Logs/) are untouched: `git clean` removes
     # untracked AND not-ignored files, which is exactly the set that makes the tree look dirty.
     # ---------------------------------------------------------------------------------------------
+    # $bundleHead is nulled just before the copy above (it is only used to gate the copy), and
+    # $script:bundleHead is what the adopt block left behind. Restore it here so BOTH this sweep and the
+    # -Clean branch below know which commit the tree is supposed to match. (Until v119.3 the -Clean branch
+    # always saw $null and fell back to a blanket `reset --hard` + `clean -fd`, which is why it worked but
+    # also why a non-Clean apply had no way to drop stale files at all.)
+    if (-not $bundleHead -and $script:bundleHead) { $bundleHead = $script:bundleHead }
+
+    # ---------------------------------------------------------------------------------------------
+    # FILES THE NEW VERSION DELETED (v119.3, BUG-080).
+    #
+    # An apply replaces the bundle's files but does NOT remove the previous version's. Git never knew they
+    # were gone -- the adopt is a `reset --mixed`, which moves HEAD and leaves the index and the tree alone --
+    # so every file the new commit dropped came back as UNTRACKED: "working tree not clean (7 entries)" on a
+    # copy that had only ever been installed over. The sweep below handles what UNITY leaves behind; this
+    # handles what WE left behind, which is the install's own business and must not depend on -Clean.
+    #
+    # It is deliberately targeted: only paths that the pre-adopt commit TRACKED and the new commit does not.
+    # A note the player wrote is untracked in BOTH, so it is never touched.
+    # ---------------------------------------------------------------------------------------------
+    if ($preAdoptHead -and $bundleHead -and ($preAdoptHead -ne $bundleHead)) {
+        $gone = @((Git @('-C', $WorkingCopy, 'diff', '--name-only', '--diff-filter=D',
+                          $preAdoptHead, $bundleHead) -Quiet) -split "`n" |
+                  Where-Object { $_ -and $_.Trim() })
+        $removed = 0
+        foreach ($rel in $gone) {
+            $rel = $rel.Trim()
+            if (-not $rel) { continue }
+            $full = Join-Path $WorkingCopy $rel
+            if (Test-Path -LiteralPath $full) {
+                Remove-Item -LiteralPath $full -Force -ErrorAction SilentlyContinue
+                $removed++
+            }
+        }
+        if ($removed -gt 0) { OK "removed $removed file(s) the new version no longer ships" }
+        elseif ($gone.Count -gt 0) { OK 'nothing stale to remove -- the old tree was already current' }
+    }
+
     $unityDir = Join-Path $WorkingCopy 'unity'
     if (Test-Path -LiteralPath $unityDir) {
         $before = @((Git @('-C', $WorkingCopy, 'status', '--porcelain', '--', 'unity') -Quiet) -split "`n" |

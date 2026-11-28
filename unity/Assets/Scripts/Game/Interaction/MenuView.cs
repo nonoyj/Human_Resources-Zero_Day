@@ -470,7 +470,7 @@ namespace HRZeroDay.Game.Interaction
             bool kb = MenuLayout.InKeyboard(x, y);
             if (row == _hoverRow && cell == _hoverCell && lamp == _hoverLamp && kb == _hoverKeyboard) return;
             _hoverRow = row; _hoverCell = cell; _hoverLamp = lamp; _hoverKeyboard = kb;
-            if (row >= 0 && row != _index) { _index = row; _hoverDirty = true; }
+            if (row >= 0 && row != _index) _index = row;
             Paint();
         }
 
@@ -498,7 +498,6 @@ namespace HRZeroDay.Game.Interaction
         }
 
         private float _keyboardHint;
-        private bool _hoverDirty;
         private bool _lampOn = true;
         private float _bootReveal;
 
@@ -721,14 +720,18 @@ namespace HRZeroDay.Game.Interaction
                     }
                 }
 
-                // the readout: two lines of cybersecurity text at 20-28 px wide, painted as bars. A
-                // paragraph at this size is noise; "AUTH 0X4F2 / HANDSHAKE" is a machine reporting.
-                // HOVER (v119): the tube under the pointer brightens a step and its LED goes white -- the
-                // cluster is six machines, and pointing at one should make it feel looked-at.
-                if (n == _hoverCell)
+                // HOVER (v119): the tube under the pointer brightens a step -- the cluster is six machines,
+                // and pointing at one should make it feel looked-at. This runs BEFORE the readout so the
+                // text stays on top of it.
+                //
+                // Unity has NO `==` on Color32. v119 wrote `if (glass == on)` and it compiled only because
+                // this project's headless stub had invented the operator; the player's editor rejected it
+                // with CS0019. Compare channels, and only when the tube is actually lit.
+                if (n == _hoverCell && !breached && flick < 3)
                 {
-                    glass = breached ? red : (flick == 3 ? dim : on);
-                    if (glass == on) { for (int y = sy; y < sy + sh; y++) for (int x = sx; x < sx + sw; x++) if (x >= 0 && x < W && y >= 0 && y < H) buf[y * W + x] = beam_dither; }
+                    for (int y = sy; y < sy + sh; y++)
+                        for (int x = sx; x < sx + sw; x++)
+                            if (x >= 0 && x < W && y >= 0 && y < H) buf[y * W + x] = beam_dither;
                 }
 
                 var lines = readouts[n % readouts.Length];
