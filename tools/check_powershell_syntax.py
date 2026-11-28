@@ -253,3 +253,16 @@ def main(argv):
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
+
+# The repo-root Apply-Bundle.ps1 is a COPY of scripts/Apply-Bundle.ps1 that Build-Bundle.ps1 writes into the
+# zip root (the launcher the player runs from Downloads). One generator, one file: if the two ever drift, the
+# player's launcher is older than the code it installs -- which is what produced "this copy of the installer
+# was out of date -- it updated itself and re-ran" in the v130.2 apply. Checked here so it cannot be forgotten
+# by the agent, and in Test-Scripts.ps1 so it cannot be forgotten on the player's machine either.
+_root = os.path.join(ROOT, 'Apply-Bundle.ps1')
+_src  = os.path.join(ROOT, 'scripts', 'Apply-Bundle.ps1')
+if os.path.exists(_root) and os.path.exists(_src):
+    if open(_root, 'rb').read() != open(_src, 'rb').read():
+        print('FAIL: Apply-Bundle.ps1 at the repo root differs from scripts/Apply-Bundle.ps1')
+        print('      the root copy is generated -- run: cp scripts/Apply-Bundle.ps1 Apply-Bundle.ps1')
+        sys.exit(1)

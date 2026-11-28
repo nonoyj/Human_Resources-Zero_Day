@@ -38,6 +38,11 @@
     .\Apply-Bundle.ps1 -BundlePath C:\Users\User\Downloads\HR-ZeroDay-bundle-v12.zip
 #>
 [CmdletBinding()]
+# 0 = applied and the tree matches HEAD
+# 2 = applied, but the working tree does NOT match HEAD (see the [warn] block -- it is a real problem, and it
+#     must not be reported as a healthy install: v130.2 ended with "[ok] working tree clean" and still came
+#     back as exit 1, which is a message that contradicts its own output)
+# 1 = did not apply
 param(
     [Parameter(Mandatory = $true)][string]$BundlePath,
     [string]$WorkingCopy = (Join-Path $(if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }) 'HR-ZeroDay'),
@@ -563,7 +568,7 @@ try {
   or run this script from OUTSIDE the repo (e.g. from Downloads) with -Clean.
 "@ -ForegroundColor Yellow
                 Set-Location $PSScriptRoot | Out-Null
-                exit 1
+                exit 2
             }
             else { OK "working tree clean -- files match HEAD exactly" }
         }

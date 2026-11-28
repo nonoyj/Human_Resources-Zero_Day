@@ -61,8 +61,20 @@ Ok (Get-ChildItem -LiteralPath $stage | Measure-Object).Count.ToString() + ' ent
 Step "applying to $repo"
 if (-not (Test-Path -LiteralPath $repo)) { New-Item -ItemType Directory -Path $repo | Out-Null }
 & (Join-Path $stage 'Apply-Bundle.ps1') -BundlePath $zip -WorkingCopy $repo -Clean
-if ($LASTEXITCODE -ne 0) { Die "Apply-Bundle returned $LASTEXITCODE" }
+$applyExit = $LASTEXITCODE
+# Apply-Bundle returns 2 for "applied, but the tree does not match HEAD". That is a warning with a next step,
+# never a crash -- and it prints its own explanation. Anything else non-zero is a real failure.
+if ($applyExit -eq 2) { Write-Host "`n  [warn] applied, but the working tree does not match HEAD -- read the [warn] block above" -ForegroundColor Yellow }
+elseif ($applyExit -ne 0) { Die "Apply-Bundle returned $applyExit (1 = it did not apply; see the [FAIL] line above)" }
+else { Ok "applied -- working tree matches HEAD" }
 Ok 'applied'
+
+# PowerShell 7 is used by two of the gates. Under Windows PowerShell 5.1 there is no 'pwsh' on PATH unless the
+# player installed it -- and the last round's Test-Scripts.ps1 turned that into a red FAIL that looked like a
+# code failure. Name it here, in the log, before the gates run, so the log says what it is.
+if (-not (Get-Command pwsh -ErrorAction SilentlyContinue)) {
+    Write-Host '  [note] pwsh 7 is not installed; the gates that need it will say so and skip, not fail' -ForegroundColor Yellow
+}
 
 # ---------------------------------------------------------------- 3. push (no force, ever)
 Step "pushing to GitHub"

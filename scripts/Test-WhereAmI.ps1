@@ -35,6 +35,14 @@ function S  ($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
 function OK ($m) { Write-Host "  [ok]   $m" -ForegroundColor Green }
 function D  ($m) { Write-Host "  [FAIL] $m" -ForegroundColor Red; exit 1 }
 
+# The subject is run as a CHILD process, because half the bugs this test exists for are about what happens
+# when a script is not the host (streams, exit codes, $LASTEXITCODE). On a machine with only Windows
+# PowerShell 5.1 there is no 'pwsh' on PATH; powershell.exe is the same language and reports the same way.
+$shellExe = (Get-Command pwsh -ErrorAction SilentlyContinue)
+if ($shellExe) { $shellExe = $shellExe.Source }
+elseif (Get-Command powershell -ErrorAction SilentlyContinue) { $shellExe = (Get-Command powershell).Source }
+else { Write-Host '  [skip] no PowerShell executable to spawn Where-Am-I with' -ForegroundColor Yellow; exit 0 }
+
 $repo = Split-Path -Parent $PSScriptRoot
 $subject = Join-Path $PSScriptRoot 'Where-Am-I.ps1'
 if (-not (Test-Path -LiteralPath $subject)) { D "no Where-Am-I.ps1 next to this test" }
@@ -67,7 +75,7 @@ function New-Bare {
 function Run-Case {
     param([string]$Name, [string]$Dir, [string]$Expect)
     if (-not $Dir -or -not (Test-Path -LiteralPath $Dir)) { D "test bug: no directory for case '$Name'" }
-    $out = & pwsh -NoProfile -File $subject -RepoRoot $Dir 2>&1
+    $out = & $shellExe -NoProfile -ExecutionPolicy Bypass -File $subject -RepoRoot $Dir 2>&1
     $text = ($out | Out-String)
     $exit = $LASTEXITCODE
     $finished = $text.Contains($marker)

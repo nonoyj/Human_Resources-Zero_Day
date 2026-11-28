@@ -16,6 +16,13 @@ param([switch]$RunVerify, [switch]$SkipWhereAmI)
 
 $ErrorActionPreference = 'Stop'
 $failed = 0
+
+# BUG-035 (v130.3): this gate shells out to `pwsh`, which is PowerShell 7. On a machine that has only the
+# Windows PowerShell 5.1 that ships with Windows -- i.e. the player's -- every line above passes and then the
+# gate dies with "The term 'pwsh' is not recognized". A gate that cannot run must SAY SO and skip; it must
+# never turn a healthy repo into a red result that looks like a code failure.
+$pwsh = Get-Command pwsh -ErrorAction SilentlyContinue
+if (-not $pwsh) { Write-Host "  [skip] pwsh (PowerShell 7) is not installed -- the two run-it-for-real tests below are skipped, the parse checks above still ran" -ForegroundColor Yellow }
 $files = Get-ChildItem -Path (Join-Path (Split-Path -Parent $PSScriptRoot) 'scripts') -Filter *.ps1
 # The bootstrap at the REPO ROOT is the one that ships to Downloads and the one that bit us twice
 # (BUG-032..037). It is not under scripts\, so it was never linted. It is now.
@@ -63,12 +70,19 @@ if (-not $SkipWhereAmI) {
     $wa = Join-Path $PSScriptRoot 'Test-WhereAmI.ps1'
     if (Test-Path -LiteralPath $wa) {
         Write-Host "`n==> running Test-WhereAmI.ps1 (seven repository states)" -ForegroundColor Cyan
-        & pwsh -NoProfile -File $wa
-        if ($LASTEXITCODE -ne 0) {
-            $failed++
-            Write-Host 'FAIL  Where-Am-I does not survive every repository state' -ForegroundColor Red
+        if (-not $pwsh) {
+            # 5.1 can run it too -- it is the same language. Only run it if we have SOME PowerShell that can
+            # be spawned; the current host cannot spawn itself as 'pwsh' on 5.1.
+            Write-Host '  [skip] Where-Am-I state test needs pwsh 7 (or run it by hand: .\scripts\Test-WhereAmI.ps1)' -ForegroundColor Yellow
         }
-        else { Write-Host 'PASS  Where-Am-I survives every repository state' -ForegroundColor Green }
+        else {
+            & $pwsh.Source -NoProfile -File $wa
+            if ($LASTEXITCODE -ne 0) {
+                $failed++
+                Write-Host 'FAIL  Where-Am-I does not survive every repository state' -ForegroundColor Red
+            }
+            else { Write-Host 'PASS  Where-Am-I survives every repository state' -ForegroundColor Green }
+        }
     }
 }
 
