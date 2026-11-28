@@ -21,7 +21,12 @@
 //   * `text` <= TextChars (90) per beat, ASCII only -- it is painted with the game's 5x7 atlas, which has
 //     no lowercase descenders and no glyphs outside the atlas. A beat that breaks this is DROPPED with a
 //     reason, never silently truncated in the middle of a word.
-//   * `hold` seconds, 0.5..8. Omitted -> DefaultHold. The whole intro is capped at MaxTotalSeconds.
+//   * `hold` seconds, 0.5..8. Omitted -> DefaultHold.
+//   * The whole intro is capped at MaxTotalSecondsSilent (25 s) when it is text only, and at
+//     MaxTotalSecondsVoiced (32 s) once a beat carries an `audio` clip -- DECIDED by the player 2026-11-27
+//     (docs/87 W-1). The placeholder beats come to ~30.5 s spoken at 150 wpm, so a 25 s cap would have cut
+//     audio that BE2 had already recorded. A beat's `hold` is a MINIMUM when it has audio: the card waits
+//     for the clip, up to AudioMaxHold.
 //   * `speaker` optional, <= 12 chars, same atlas.
 //
 //   Missing file, empty beats, or every beat dropped => the intro is SKIPPED and the desk starts. The
@@ -38,6 +43,13 @@ namespace HRZeroDay.Core.Rules
         public string Speaker;
         public string Text;
         public float Hold;
+
+        /// <summary>
+        /// Optional clip for this beat (v107 layout: Resources/Content/intro/&lt;file&gt;.wav, or a URL served by
+        /// the content server once object storage exists). Null = the beat is text only, which is the
+        /// shipping state until BE2 records DISPATCH.
+        /// </summary>
+        public string Audio;
     }
 
     /// <summary>A parsed intro script, or a reason why there is nothing to show.</summary>
@@ -50,6 +62,23 @@ namespace HRZeroDay.Core.Rules
         public string Problem;
 
         public bool HasBeats { get { return Beats != null && Beats.Count > 0; } }
+
+        /// <summary>True when any beat has a clip -- which is what raises the cap to MaxTotalSecondsVoiced.</summary>
+        public bool HasAudio
+        {
+            get
+            {
+                if (Beats == null) return false;
+                foreach (var b in Beats) if (b != null && !string.IsNullOrEmpty(b.Audio)) return true;
+                return false;
+            }
+        }
+
+        /// <summary>The cap that applies to this script.</summary>
+        public float CapSeconds
+        {
+            get { return HasAudio ? IntroScriptRules.MaxTotalSecondsVoiced : IntroScriptRules.MaxTotalSecondsSilent; }
+        }
         public float TotalSeconds
         {
             get { float t = 0f; foreach (var b in Beats) t += b.Hold; return t; }
@@ -71,8 +100,24 @@ namespace HRZeroDay.Core.Rules
         public const float MinHold = 0.5f;
         public const float MaxHold = 8f;
         public const float DefaultHold = 2.4f;
-        /// <summary>The whole intro, enforced. The brief's budget is "intro <= 25 s" (master brief, booth time).</summary>
-        public const float MaxTotalSeconds = 25f;
+        /// <summary>
+        /// Text-only intro cap. The brief's budget was "intro <= 25 s" (master brief, booth time), and reading
+        /// 61 words on a card at a comfortable pace fits inside it.
+        /// </summary>
+        public const float MaxTotalSecondsSilent = 25f;
+
+        /// <summary>
+        /// Voiced intro cap (player decision, 2026-11-27, docs/87 W-1). 150 wpm plus ~0.35 s of breath per
+        /// sentence puts the five shipped beats at ~30.5 s; 32 s leaves margin. Still skippable, still once
+        /// per profile.
+        /// </summary>
+        public const float MaxTotalSecondsVoiced = 32f;
+
+        /// <summary>Kept for callers that predate the voiced rule: the silent cap.</summary>
+        public const float MaxTotalSeconds = MaxTotalSecondsSilent;
+
+        /// <summary>A voiced beat may hold this long even though text beats cap at MaxHold.</summary>
+        public const float AudioMaxHold = 12f;
 
         /// <summary>
         /// Turns raw beats into a showable script. Never throws, never returns null. Every beat that cannot
@@ -118,14 +163,24 @@ namespace HRZeroDay.Core.Rules
                 if (hold < MinHold) hold = MinHold;
                 if (hold > MaxHold) hold = MaxHold;
 
-                script.Beats.Add(new IntroBeat { Speaker = speaker, Text = text, Hold = hold });
+                script.Beats.Add(new IntroBeat { Speaker = speaker, Text = text, Hold = hold, Audio = b.Audio });
             }
 
             // the total cap: drop from the END, because the intro's first beat is the one that sets the room
-            while (script.TotalSeconds > MaxTotalSeconds && script.Beats.Count > MinBeats)
+            // WHICH CAP (player decision 2026-11-27): a voiced intro gets 32 s, a silent one 25 s. Deciding
+            // this from the beats means the same file can be written silent today and voiced tomorrow without
+            // losing a line -- the cap follows the clips.
+            float cap = script.HasAudio ? MaxTotalSecondsVoiced : MaxTotalSecondsSilent;
+            float holdCap = script.HasAudio ? AudioMaxHold : MaxHold;
+            foreach (var b in script.Beats)
+                if (b.Hold > holdCap) b.Hold = holdCap;
+
+            while (script.TotalSeconds > cap && script.Beats.Count > MinBeats)
             {
                 script.Beats.RemoveAt(script.Beats.Count - 1);
-                reasons.Add("the intro ran past " + MaxTotalSeconds + " s -- the last beat was dropped");
+                reasons.Add("the intro ran past " + cap + " s" +
+                            (script.HasAudio ? " (voiced cap)" : " (silent cap)") +
+                            " -- the last beat was dropped");
             }
 
             if (script.Beats.Count == 0)

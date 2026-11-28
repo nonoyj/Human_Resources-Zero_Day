@@ -46,7 +46,7 @@ namespace HRZeroDay.Game.Interaction
             foreach (var b in file.beats)
             {
                 if (b == null) continue;
-                raw.Add(new IntroBeat { Speaker = b.speaker, Text = b.text, Hold = b.hold });
+                raw.Add(new IntroBeat { Speaker = b.speaker, Text = b.text, Hold = b.hold, Audio = b.audio });
             }
 
             var script = IntroScriptRules.Validate(file.id, file.version, raw);
@@ -73,6 +73,9 @@ namespace HRZeroDay.Game.Interaction
             public string speaker;
             public string text;
             public float hold;
+            // Optional from v107: a clip for this beat. Its presence is what raises the intro cap from 25 s to
+            // 32 s (docs/87 W-1), and it is why a beat with audio holds for the length of the clip.
+            public string audio;
         }
     }
 }

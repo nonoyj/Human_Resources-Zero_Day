@@ -48,9 +48,9 @@ breath per sentence:
   skippable (X/ESC) and shown once per profile, so 30 s is not a burden.
 - **(b) Cut to four beats** and let the story carry the rest.
 
-My recommendation is **(a)**, with the rule: *silent ≤ 25 s, voiced ≤ 32 s, and `hold` never less than the
-clip's length.* It is recorded here as **W-1** and needs your yes/no before BE2 records anything — otherwise
-they will record 30 s of audio for a player who gets 25.
+**DECIDED 2026-11-27: option (a).** `IntroScriptRules` now enforces *silent ≤ 25 s, voiced ≤ 32 s*, with a
+voiced beat holding for the length of its clip (cap 12 s). It is implemented and tested (153 checks), and
+recorded as ADR-011. BE2 can record to 32 s.
 
 ## 3. Narration budgets — the seconds you asked for
 

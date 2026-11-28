@@ -20,6 +20,7 @@ namespace HRZeroDay.Tests
             yield return CheckBadBeatsAreDroppedNotCut();
             yield return CheckTheIntroCannotRunLong();
             yield return CheckTheLineIsOneBlockOfPaintedText();
+            yield return CheckAVoicedIntroGetsMoreTime();
         }
 
         private static void True(bool condition, string message)
@@ -152,5 +153,51 @@ namespace HRZeroDay.Tests
                  hard.Count == 2, "a 70-char word vanished from the wrap");
             return "PASS  a beat becomes one wrapped, paintable block with its speaker in front";
         }
-    }
+
+        /// <summary>
+        /// THE 32-SECOND RULE (player decision 2026-11-27, docs/87 W-1). The five shipped beats come to ~30.5 s
+        /// spoken at 150 wpm, so the caption's own 25 s budget would have cut audio BE2 had already recorded.
+        /// A voiced intro therefore gets 32 s; a silent one keeps 25 s; the cap follows the clips, so the same
+        /// file can be written silent today and voiced tomorrow.
+        /// </summary>
+        private static string CheckAVoicedIntroGetsMoreTime()
+        {
+            // 30.5 s of spoken story: silent, it is cut; voiced, it survives whole.
+            var beats = new List<IntroBeat>();
+            for (int i = 0; i < 5; i++)
+                beats.Add(new IntroBeat { Text = "BEAT " + (i + 1) + ".", Hold = 6.1f, Speaker = "DISPATCH" });
+
+            var silent = IntroScriptRules.Validate("x", 1, new List<IntroBeat>(beats));
+            True(silent.TotalSeconds <= IntroScriptRules.MaxTotalSecondsSilent,
+                 "a silent 30.5 s intro was not cut to the 25 s cap: " + silent.TotalSeconds);
+            True(silent.Beats.Count < 5, "the silent cap kept all five beats");
+
+            var voicedBeats = new List<IntroBeat>();
+            for (int i = 0; i < 5; i++)
+                voicedBeats.Add(new IntroBeat
+                {
+                    Text = "BEAT " + (i + 1) + ".",
+                    Hold = 6.1f,
+                    Speaker = "DISPATCH",
+                    Audio = "Content/intro/intro_01_beat" + (i + 1)
+                });
+            var voiced = IntroScriptRules.Validate("x", 1, voicedBeats);
+            True(voiced.HasAudio, "a script with clips does not report HasAudio");
+            True(voiced.Beats.Count == 5,
+                 "the voiced cap dropped a beat it had time for (" + voiced.TotalSeconds + " s)");
+            True(voiced.TotalSeconds <= IntroScriptRules.MaxTotalSecondsVoiced,
+                 "the voiced intro ran " + voiced.TotalSeconds + " s, over the 32 s cap");
+
+            // the cap is chosen from the beats, and the two caps are 25 / 32 as decided
+            True(Math.Abs(IntroScriptRules.MaxTotalSecondsSilent - 25f) < 0.001f, "the silent cap moved");
+            True(Math.Abs(IntroScriptRules.MaxTotalSecondsVoiced - 32f) < 0.001f, "the voiced cap moved");
+            True(IntroScriptRules.MaxTotalSecondsVoiced > IntroScriptRules.MaxTotalSecondsSilent,
+                 "the voiced cap is not larger than the silent one");
+
+            // a silent script of the same length still uses the silent cap
+            True(Math.Abs(silent.CapSeconds - IntroScriptRules.MaxTotalSecondsSilent) < 0.001f,
+                 "a silent script reported the voiced cap");
+            return "PASS  a voiced intro gets 32 s and keeps its beats; a silent one is still cut at 25 s";
+        }
+}
 }

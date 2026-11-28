@@ -160,3 +160,19 @@ Earlier builds required pressing **R** to begin a run. That is gone: `GameBoot` 
 first shift starts on its own (`DeskBootstrap.Start`), and **R** now means "start a new run" (it re-shows
 the intro, because a new run is a new first minute). Nothing in the shipping path waits for a keypress, and
 no doc should imply otherwise.
+
+## ADR-011 — A voiced intro gets 32 seconds; a silent one keeps 25
+**Date:** 2026-11-27 · **Status:** Accepted (player decision, docs/87 W-1)
+
+At 150 wpm plus breath the five shipped intro beats come to **~30.5 s**. The intro's own budget was 25 s, so
+the first time DISPATCH's voice was recorded, the last line would have been cut by a rule nobody would have
+noticed until a playtest. The player chose to raise the cap rather than cut a beat.
+
+Consequences:
+- `IntroScriptRules.MaxTotalSecondsVoiced = 32`, `MaxTotalSecondsSilent = 25`. **The cap is chosen from the
+  beats**: any beat carrying an `audio` clip switches the script to the voiced cap, so the same JSON can be
+  written silent today and voiced tomorrow without losing a line.
+- A voiced beat's `hold` is a *minimum*: the card waits for the clip, capped at `AudioMaxHold = 12 s`.
+- Covered by a test (*"a voiced intro gets 32 s and keeps its beats; a silent one is still cut at 25 s"*),
+  because this is exactly the kind of number that gets quietly changed later.
+- The intro stays skippable (X/ESC) and once per profile, which is why 32 s is not a burden.
