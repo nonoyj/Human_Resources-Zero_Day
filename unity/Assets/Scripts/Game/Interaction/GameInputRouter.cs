@@ -195,13 +195,37 @@ namespace HRZeroDay.Game.Interaction
             // have been; the desk behind it is untouched while the walk is up.
             if (bootstrap != null && bootstrap.ShowingSweep) { bootstrap.SweepAdvance(); return; }
 
-            if (bootstrap == null || bootstrap.LetterOpen || bootstrap.ShowDebrief ||
-                bootstrap.ShowDaySummary || bootstrap.ShowEnding || bootstrap.ShowingSweep) return;
+            if (bootstrap == null || bootstrap.ShowingSweep) return;
+            if (bootstrap.ShowingMenu || bootstrap.ShowingIntro) return;
 
             int w = Mathf.Max(1, Screen.width), h = Mathf.Max(1, Screen.height);
             var canvas = new PixelRect(0f, 0f, ReferenceWidth, ReferenceHeight);
             var point = HotspotHitTest.ScreenToCanvasNdc(
                 new PixelPoint((float)screenPoint.x / w, (float)screenPoint.y / h), canvas);
+            // HotspotHitTest returns canvas px with y UP; HudRules.Rects are top-down, like the page art.
+            int hx = Mathf.RoundToInt(point.X);
+            int hy = Mathf.RoundToInt(ReferenceHeight - point.Y);
+
+            // THE HUD IS ON TOP OF THE ROOM (v126). It used to be prose, so a click anywhere went to the
+            // desk. Now it is a rack of objects, and a press on APPROVE must not also land on the applicant
+            // standing behind it -- an approve that inspects a body part is a way to lose a shift by
+            // accident. The objects get the click first, and if one takes it, the desk never sees it.
+            //
+            // The exception is the LETTER's own page: while a letter is open the page covers the middle of
+            // the screen and its own gestures (page turns) live on the page, but the flag tabs and the stamp
+            // pads are the letter's edge and must stay live. HudRules already decides which objects exist in
+            // that state, so there is nothing to special-case here.
+            if (bootstrap.HudObjects != null && !bootstrap.HudObjects.IsEmpty && bootstrap.HudObjects.Click(hx, hy))
+                return;
+
+            // Whatever the object layer did NOT take: the letter page and the three full-screen states own
+            // the rest of the screen, and the desk behind them is inert. This used to be one long `return`
+            // that also turned off the hotspots; it is now after the objects, so a flag tab and a stamp pad
+            // still work while the page is open -- which is the whole gesture of the letter.
+            if (bootstrap.LetterOpen || bootstrap.ShowDebrief ||
+                bootstrap.ShowDaySummary || bootstrap.ShowEnding) return;
+
+            if (bootstrap.HudObjects != null && !bootstrap.HudObjects.IsEmpty) bootstrap.HudObjects.Hover(hx, hy);
 
             var best = FindAt(screenPoint);
             // hover: brighten the bracket under the mouse, so a desktop player can see the target before
@@ -262,6 +286,19 @@ namespace HRZeroDay.Game.Interaction
         /// <summary>Hover without a click: same target search, no side effects beyond the bracket.</summary>
         private void UpdateHoverOnly(Vector2 screenPoint)
         {
+            // THE HUD OBJECTS HOVER TOO (v126). A clickable plate that does not change when the pointer is
+            // over it is a plate a player will not believe is clickable, so hover has to reach the object
+            // layer as well as the desk hotspots. It is fed the same canvas point the click path computes.
+            if (bootstrap != null && bootstrap.HudObjects != null && !bootstrap.HudObjects.IsEmpty)
+            {
+                int w = Mathf.Max(1, Screen.width), h = Mathf.Max(1, Screen.height);
+                var canvas = new PixelRect(0f, 0f, ReferenceWidth, ReferenceHeight);
+                var point = HotspotHitTest.ScreenToCanvasNdc(
+                    new PixelPoint((float)screenPoint.x / w, (float)screenPoint.y / h), canvas);
+                bootstrap.HudObjects.Hover(Mathf.RoundToInt(point.X),
+                                            Mathf.RoundToInt(ReferenceHeight - point.Y));
+            }
+
             if (bootstrap == null || bootstrap.LetterOpen || bootstrap.ShowDebrief ||
                 bootstrap.ShowDaySummary || bootstrap.ShowEnding || bootstrap.ShowingSweep)
             {

@@ -14,31 +14,24 @@ namespace HRZeroDay.Game.Interaction
 {
     public sealed class GameHud : MonoBehaviour
     {
-        private const int LineCount = 16;
-        // "Text now is too big" (player, 2026-11-26). characterSize 0.26 with a 0.52 unit line step is a
-        // 1.7 glyph box; 0.19 with 0.36 is a 1.2 box -- the same 5x7 feel as the CRT, and it leaves the
-        // room readable behind it. These two numbers move together: the step must stay ~1.9 x the size or
-        // the lines collide, and the backing panel is sized from both.
-        private const float Step = 0.36f;
-        // TextMesh spacing is in the font's em, NOT world units: the visible line pitch is
-        // characterSize * 1.7 (Unity's textLineHeight) * Step. At 0.19 / 0.36 that is 0.116 units, i.e.
-        // ~1.9 screen px on a 1080-tall Game view. The old code moved each line by a flat 0.36 units --
-        // 23x too far -- so the block ran off the bottom of the screen after five lines and the next
-        // screen's copy landed on top of this one. That is the "text opens way too big" report.
-        private const float LinePitchEm = 1.7f;
-        // One unit per character column, in em. 0.55 keeps the widest HUD line (50 chars) under 9 of the
-        // 30 units the canvas is wide, while still reading as a card in the top-left.
-        private const float ColumnEm = 0.55f;
-        private const float WrapCharsPerUnit = 8.5f;
-
+        // ---- WHAT THIS CLASS IS NOW (v126)
+        // It used to draw the play HUD as sixteen lines of TextMesh prose in the corner, including the key
+        // legend "[L] LETTER  [1-5] FLAGS  [A] APPROVE  [S] REJECT  [TAB] ALERTS". The player's report was
+        // exactly right: "It should not be displayed as text but rather as clickable objects."
+        //
+        // So the prose is gone. The objects live in Core/Rules/HudRules (geometry, states, hit tests, all
+        // tested headlessly) and are painted by GameHudObjects (one 480x270 layer, palette-gated glyphs).
+        // What is left here are the two things that DO have to be text, because they are prose and not
+        // affordances:
+        //
+        //   * the AFTER-HOURS WALK's receipt line  -- it is a sentence the shift writes about the player;
+        //   * the ENDING's verdict                -- likewise, and it is the last thing the game says.
+        //
+        // ...plus the binding/refresh plumbing DeskBootstrap already calls. Nothing else.
         private DeskBootstrap _game;
         private TextMesh _text;
-        private TextMesh _corner;
         private bool _bound;
         private SpriteRenderer _panel;
-
-        private static readonly Color Ink = new Color(42f / 255f, 33f / 255f, 24f / 255f, 1f);
-        private static readonly Color PaperWhite = new Color(230f / 255f, 241f / 255f, 255f / 255f, 1f);
 
         public static GameHud Attach(DeskBootstrap game)
         {
@@ -57,9 +50,6 @@ namespace HRZeroDay.Game.Interaction
 
         private void Awake()
         {
-            // Dark backing so white HUD text stays readable where it crosses the light monitor
-            // glass (day summary / debrief). Sized to the visible lines each frame; hidden while
-            // the letter is open, where the paper is light and the HUD switches to dark ink.
             var panelGo = new GameObject("HudPanel");
             panelGo.transform.SetParent(transform, false);
             _panel = panelGo.AddComponent<SpriteRenderer>();
@@ -68,13 +58,10 @@ namespace HRZeroDay.Game.Interaction
             tex.Apply(false, true);
             _panel.sprite = Sprite.Create(tex, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f), 1f);
             _panel.color = new Color(0.02f, 0.03f, 0.05f, 0.78f);
-            _panel.sortingOrder = 219;   // just below the text (220), above the desk art
+            _panel.sortingOrder = 219;
             panelGo.SetActive(false);
 
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            // ONE TextMesh for the whole block. Sixteen TextMeshes positioned by hand is how the block
-            // ended up 23x too tall; a single mesh wraps its own lines at the same pitch, so the layout is
-            // whatever Unity decided it is, and the panel behind it can be measured from the reported size.
             var go = new GameObject("Text");
             go.transform.SetParent(transform, false);
             _text = go.AddComponent<TextMesh>();
@@ -82,305 +69,85 @@ namespace HRZeroDay.Game.Interaction
             _text.characterSize = 0.19f;
             _text.anchor = TextAnchor.UpperLeft;
             _text.alignment = TextAlignment.Left;
-            // TextMesh is a Component, not a Renderer -- the order goes on its MeshRenderer.
-            DeskRuntimeScene.SetTextMeshSorting(_text, 220);   // above the letter page and the CRT
+            DeskRuntimeScene.SetTextMeshSorting(_text, 220);
             _text.text = string.Empty;
-
-            // ---- THE SECURITY CORNER (v120, docs/89 §7 rule 1: the centre belongs to the play)
-            // The score used to sit in the top-left block as another line of prose. A score belongs in a
-            // CORNER, and it belongs as a SHAPE first: `SECURITY ▮▮▮▯▯ 62` is read in one glance, where
-            // `SECURITY 62 STABLE` has to be parsed. The word stays, because a number alone does not say
-            // which way is good -- but it is the last thing on the line, not the first.
-            var cornerGo = new GameObject("SecurityCorner");
-            cornerGo.transform.SetParent(transform, false);
-            _corner = cornerGo.AddComponent<TextMesh>();
-            _corner.font = font;
-            _corner.characterSize = 0.17f;
-            _corner.anchor = TextAnchor.UpperRight;
-            _corner.alignment = TextAlignment.Right;
-            DeskRuntimeScene.SetTextMeshSorting(_corner, 220);
-            _corner.text = string.Empty;
         }
 
         /// <summary>
-        /// Forces the very next frame to show the current state. Needed when a screen change happens
-        /// OUTSIDE Update -- ending the after-hours walk is the case: without this the summary would
-        /// appear one frame late, after the walk's page has already gone.
+        /// Forces the very next frame to show the current state. The object layer repaints itself from the
+        /// live run every frame, so this only matters for the prose lines below -- but it stays because
+        /// DeskBootstrap calls it at every screen change and a no-op is cheaper than an audit.
         /// </summary>
         public void RefreshNow()
         {
             if (!_bound || _game == null || _game.Session == null) return;
-            Push(BuildLines());
+            Push(ProseLines());
         }
 
         private void Update()
         {
             if (!_bound || _game == null || _game.Session == null) return;
-            Push(BuildLines());
+            Push(ProseLines());
         }
 
         /// <summary>
-        /// Draws a set of lines: position, ink, backing panel. Split out of Update so a caller that
-        /// changes screens between frames (the walk ending) can repaint immediately instead of waiting
-        /// for the next Update and showing the wrong thing for one frame.
+        /// The ONLY lines the HUD still prints, and both are prose about the run: the walk's receipt (shown
+        /// on the day summary) and the ending's verdict. Everything else on this screen is an object now.
         /// </summary>
-        private void Push(System.Collections.Generic.List<string> lines)
-        {
-            if (_text == null) return;
-            bool letter = _game.LetterOpen;
-            // The walk draws its own page and its own key strip. The desk HUD stays out of it.
-            bool walking = _game.ShowingSweep;
-            // The intro is a full-screen card with its own prompt; the desk HUD must not print through it.
-            bool intro = _game.ShowingIntro;
-            // BUG-066 (v114): the front door is a full-screen ROOM, and the desk HUD was printing through
-            // it -- "HUMAN RESOURCES // ZERO DAY / DAY 25 / TRUST 65" over the menu, which is exactly what
-            // the player saw on the first play of v113. Every full-screen screen must be listed here, or
-            // the desk writes on top of it.
-            bool atMenu = _game.ShowingMenu;
-            // ...but the ALERTS popup is the player's OWN request and outranks the hiding rule: a player who
-            // presses TAB at the desk must see the panel, and one who presses it behind a full-screen screen
-            // must not (the screen owns the keys -- see GameInputRouter).
-            if (!_game.AlertsOpen) intro = intro || atMenu;
-
-            // Letter mode: LetterView already shows the letter itself, so the HUD shows ONLY the
-            // flags, in dark ink, in the blank middle of the page (below the body, above the
-            // prompt) instead of duplicating the letter in white over cream paper.
-            Color ink = letter ? Ink : PaperWhite;
-            _text.color = ink;
-
-            var text = new StringBuilder();
-            int maxLen = 0;
-            if (!walking && !intro)
-            {
-                int shown = 0;
-                for (int i = 0; i < lines.Count && shown < LineCount; i++, shown++)
-                {
-                    var line = lines[i] ?? string.Empty;
-                    text.Append(line).Append('\n');
-                    if (line.Length > maxLen) maxLen = line.Length;
-                }
-            }
-            _text.text = text.ToString();
-
-            // The block is pinned to the top-left of the canvas and grows DOWN, in canvas px.
-            if (letter) _text.transform.localPosition = new Vector3(0.5f, 8.6f, -2f);
-            else _text.transform.localPosition = new Vector3(0.45f, 16.25f, -2f);
-
-            // ---- the corner: the same three facts that decide whether it shows at all
-            if (_corner != null)
-            {
-                bool showCorner = !letter && !walking && !intro && !_game.ShowEnding && _game.Session != null;
-                _corner.gameObject.SetActive(showCorner);
-                if (showCorner)
-                {
-                    int score = SecurityRules.Compute(_game.Session.Trust, _game.Session.CorruptionLevel,
-                                                      _game.Session.Shift.SyntheticsHired);
-                    _corner.text = SecurityRules.CornerLine(score);
-                    // bottom-right of the 90% title-safe inset (docs/89 §7 rule 7): a phone with a notch or a
-                    // rounded corner must not be able to eat the one number that says you are losing.
-                    _corner.transform.localPosition = new Vector3(9.35f, -8.35f, -2f);
-                }
-            }
-
-            if (_panel != null)
-            {
-                bool show = !letter && !walking && !intro && maxLen > 0;
-                _panel.gameObject.SetActive(show);
-                if (!show) return;
-
-                // Size the backing from the block's real proportions. The characterSize is per glyph, so
-                // the whole block is (longest line x ColumnEm) em wide and (lines x 1.7) em tall.
-                float lineHeight = _text.characterSize * LinePitchEm;
-                float w = 0.5f + maxLen * _text.characterSize * ColumnEm;
-                float h = 0.3f + text.ToString().Split('\n').Length * lineHeight;
-                w = Mathf.Clamp(w, 4f, 14f);
-                h = Mathf.Clamp(h, 0.6f, 8f);
-                // panel pivot is the centre: place its centre at (left + w/2, top - h/2) of the block
-                float left = _text.transform.localPosition.x - 0.15f;
-                float top = _text.transform.localPosition.y + 0.05f;
-                _panel.transform.localPosition = new Vector3(left + w * 0.5f, top - h * 0.5f, -2.1f);
-                _panel.transform.localScale = new Vector3(w, h, 1f);
-            }
-        }
-
-        private System.Collections.Generic.List<string> BuildLines()
+        private System.Collections.Generic.List<string> ProseLines()
         {
             var result = new System.Collections.Generic.List<string>();
-            var s = _game.Session;
+            if (_game == null || _game.Session == null) return result;
+            if (_game.ShowingMenu || _game.ShowingIntro || _game.ShowingSweep) return result;
+
+            if (_game.ShowDaySummary && !string.IsNullOrEmpty(_game.SweepLine))
+            {
+                var d = _game.LastDay;
+                if (d != null) result.Add("DAY " + d.Day + " CLOSED   " + d.Approved + " IN   " + d.Rejected + " OUT");
+                result.Add(_game.SweepLine);
+                return result;
+            }
 
             if (_game.ShowEnding)
             {
-                // THE RUN, NOT THE LAST DAY (v101). This screen used to show the shift's live counters,
-                // which after a defeat read as if the run had barely started. The ledger knows the days
-                // that actually closed, so the ending says what the player did -- and the verdict is a
-                // sentence built from those numbers, not a mood.
                 var ledger = _game.Ledger;
-                Add(result, "HUMAN RESOURCES // ZERO DAY");
-                Add(result, OutcomeCopy(s.Shift.Outcome));
-                Add(result, "");
                 if (ledger != null && ledger.Count > 0)
                 {
-                    Add(result, "DAYS " + ledger.Count + "/5   QUOTAS MET " + ledger.QuotasMet + "/" + ledger.Count);
-                    Add(result, "HIRED " + ledger.Approved + "  REJECTED " + ledger.Rejected +
-                                "  SYNTHETICS IN " + ledger.Hired + "  CAUGHT " + ledger.Caught);
-                    Add(result, "TRUST " + ledger.TrustAtStart + " -> " + ledger.TrustAtEnd +
-                                "   CORRECT CALLS " + ledger.Correct + "/" + ledger.Decisions);
-                    Add(result, "BY DAY  " + ledger.CorrectByDay());
-                    Add(result, "");
-                    Add(result, Wrap(ledger.Verdict(), 62));
+                    result.Add(OutcomeCopy(_game.Session.Shift.Outcome));
+                    result.Add("DAYS " + ledger.Count + "/5   QUOTAS MET " + ledger.QuotasMet + "/" + ledger.Count);
+                    result.Add("CALLS " + ledger.Correct + "/" + ledger.Decisions + "   SYNTHETICS IN " + ledger.Hired);
+                    foreach (var line in Wrap(ledger.Verdict(), 58).Split('\n')) result.Add(line);
                 }
-                else
-                {
-                    Add(result, "TRUST " + s.Trust + "   SYNTHETICS HIRED " + s.Shift.SyntheticsHired);
-                    Add(result, "");
-                    Add(result, "The building keeps your file. It does not forget.");
-                }
-                Add(result, "");
-                Add(result, "[R] START A NEW RUN");
-                return result;
-            }
-
-            if (_game.ShowDaySummary)
-            {
-                // ---- THE SUMMARY ARRIVES (v119.7, P5's last item). Four beats, 0.22 s apart: the verdict
-                // word, then the numbers, then the arc line, then the prompt. The clock and the beat
-                // arithmetic live in Core (RunLedger.SummaryBeatsShown) so the view cannot invent a timeline,
-                // and the whole thing is skipped by any input (see DeskBootstrap.continue/Next), because a
-                // player who is ready should never be made to wait for an animation.
-                int beats = RunLedger.SummaryBeatsShown(_game.SummaryElapsed);
-                bool settled = RunLedger.SummaryReady(_game.SummaryElapsed);
-                var d = _game.LastDay;
-                Add(result, "DAY " + (d == null ? s.Day : d.Day) + " CLOSED");
-                if (beats < 2) return result;
-                Add(result, "");
-                Add(result, d == null ? string.Empty :
-                    "APPROVED " + d.Approved + "   REJECTED " + d.Rejected + "   QUOTA " + (d.QuotaMet ? "MET" : "MISSED"));
-                Add(result, d == null ? string.Empty :
-                    "WRONGFUL REJECTIONS " + d.WrongfulRejections + "   SYNTHETICS CAUGHT " + d.SyntheticsCaught);
-                Add(result, "TRUST " + s.Trust + "   CORRUPTION " + s.CorruptionLevel);
-                Add(result, "");
-                // The walk's receipt, when one happened. It is the only place the day's own damage is
-                // stated in plain words -- the counters above are numbers, this is the office.
-                if (!string.IsNullOrEmpty(_game.SweepLine)) { Add(result, _game.SweepLine); Add(result, ""); }
-                if (d != null) Add(result, Wrap(d.HintLine, 62));
-                Add(result, "");
-                // WHERE THIS DAY SITS (v101). "DAY 3 OF 5" plus one honest line about the state of the
-                // run, so the player always knows whether they are near the end or near the edge.
-                if (beats < 3) return result;
-                if (_game.Ledger != null)
-                    Add(result, _game.Ledger.ArcLine(d == null ? s.Day : d.Day));
-                if (!settled) return result;
-                Add(result, "");
-                bool last = s.Finished || (d != null && d.Day >= RunLedger.ArcLength);
-                Add(result, last ? "[SPACE] CLOSE THE FILE" : "[SPACE] NEXT DAY");
-                return result;
-            }
-
-            if (_game.ShowDebrief)
-            {
-                var r = _game.LastDecision;
-                Add(result, "DECISION RECORDED");
-                Add(result, r == null ? string.Empty : (r.IsCorrect ? "The record checks out." : "The record does not check out."));
-                Add(result, "");
-                if (r != null) Add(result, Wrap(r.DebriefLine, 62));
-                Add(result, "");
-                Add(result, "TRUST " + s.Trust + (r == null ? string.Empty : "   (" + Signed(r.TrustDelta) + ")"));
-                Add(result, "");
-                Add(result, _game.autoAdvance ? "NEXT APPLICANT IN " + Mathf.CeilToInt(Mathf.Max(0f, _game.DebriefLeft)) : "[SPACE] CONTINUE");
-                return result;
-            }
-
-            if (_game.LetterOpen && s.Paperwork != null)
-            {
-                // Flags only: LetterView renders title/body/signature/prompt in dark ink on paper.
-                // Duplicating the letter here in white text over cream paper made both unreadable.
-                var p = s.Paperwork;
-                Add(result, "FLAG WHAT IS WRONG (1-5):");
-                var flags = p.flags;
-                for (int i = 0; i < flags.Count && i < 5; i++)
-                {
-                    string mark = p.flagged.Contains(flags[i].id) ? "[X]" : "[ ]";
-                    Add(result, (i + 1) + " " + mark + " " + flags[i].label);
-                }
-                return result;
-            }
-
-            // ---- THE ALERTS POPUP (v119.6, docs/87 v110). It REPLACES the shift block while it is up: a
-            // popup that draws over the HUD is two panels fighting for the same corner, and the panel is what
-            // the player asked for by pressing the key. Every number in it comes from SecurityPanel (Core),
-            // which is also what the tests read.
-            // (ALERTS popup — see below. It replaces the shift block, not the whole HUD: the panel is the
-            // answer to a key the player pressed, and it draws what Core computed, never its own arithmetic.)
-            if (_game.AlertsOpen)
-            {
-                var panel = _game.SecurityPanelModel();
-                Add(result, "COMPANY SECURITY");
-                Add(result, "");
-                foreach (var line in panel.Lines()) Add(result, line);
-                Add(result, "");
-                Add(result, "[ESC] CLOSE");
-                return result;
-            }
-
-            var v = s.Current;
-            // Compact by design: the full dossier lives in the letter. Keeping only the identity
-            // line here stops the HUD covering the monitor and the applicant across the table.
-            //
-            // v119.6: the shift line now carries the two counters the team asked for (docs/87 A1/A3), both
-            // DERIVED -- the day is the shift's own day, and SECURITY is SecurityRules.Compute over the live
-            // trust / corruption / hires, so it can never drift from the popup's headline.
-            // ---- THE HUD EARNED ITS PIXELS (v120, docs/89 §7)
-            // The block used to be SEVEN lines, five of which never changed: two counters, an identity line,
-            // a prompt and two key strips. Eight pixels of the corner, permanently, in a game whose whole
-            // subject is a person's face. Rule 5 of the research ("anything that can appear only when
-            // relevant should fade in and out") and rule 3 ("shape before number") are the two that apply
-            // here, so:
-            //
-            //   * the TITLE is gone. It is on the front door, on the letter and on the ending; the player
-            //     knows the name of the game they are playing.
-            //   * the shift block is THREE facts, and the security score moved to the bottom-RIGHT corner
-            //     (where a score belongs) -- see SecurityCorner() below.
-            //   * the identity line is a SUBJECT index and a name, no id number: the id is on the letter.
-            //   * the key prompts are ONE line, and only while the player has not yet stamped anything.
-            Add(result, "DAY " + s.Day + "/5   SUBJECT " + (s.Shift.CurrentIndex + 1) + "/" + s.Shift.Today.Count);
-            Add(result, (v.FullName ?? "APPLICANT") + " / " + (v.Role ?? "OPEN ROLE"));
-            Add(result, "TRUST " + s.Trust + "   HIRED " + s.Shift.SyntheticsHired + "/" + ShiftController.HireLimitForDefeat);
-            if (!_game.StampedToday)
-            {
-                Add(result, "");
-                Add(result, "[L] LETTER   [1-5] FLAGS   [A] APPROVE   [S] REJECT   [TAB] ALERTS");
-                Add(result, "CLICK THE PERSON TO INSPECT");
-            }
-            if (_game.HelpVisible)
-            {
-                Add(result, "");
-                Add(result, "HELP: the letter is read once; the stamp locks it for good.");
-                Add(result, "Right flags pay trust, wrong flags cost it. No truth is shown.");
             }
             return result;
         }
 
-        /// <summary>Plain names for the artifact ids, so the HUD never shows a key like 'straight_badge'.</summary>
-        private static string ArtifactName(string artifact)
+        private void Push(System.Collections.Generic.List<string> lines)
         {
-            switch (artifact)
+            if (_text == null) return;
+            var text = new System.Text.StringBuilder();
+            int maxLen = 0;
+            foreach (var line in lines)
             {
-                case "mirror": return "eyes and cheeks";
-                case "no_blink": return "the eyes (hold still)";
-                case "ear": return "the near ear";
-                case "seam": return "the hairline";
-                case "glasses_merge": return "the glasses arms";
-                case "skin_band": return "jaw and neck";
-                case "hands": return "the hands";
-                case "straight_badge": return "lanyard and badge";
-                case "shadow": return "the shadow";
-                default: return artifact.Replace('_', ' ');
+                var l = line ?? string.Empty;
+                text.Append(l).Append('\n');
+                if (l.Length > maxLen) maxLen = l.Length;
             }
-        }
+            _text.text = text.ToString();
+            // prose sits in the middle band, where the objects deliberately do not go
+            _text.transform.localPosition = new Vector3(0.5f, 8.6f, -2f);
 
-        private static void Add(System.Collections.Generic.List<string> lines, string text)
-        {
-            lines.Add(text ?? string.Empty);
+            if (_panel != null)
+            {
+                bool show = maxLen > 0;
+                _panel.gameObject.SetActive(show);
+                if (!show) return;
+                float lineHeight = _text.characterSize * 1.7f;
+                float h = 0.3f + lines.Count * lineHeight;
+                float w = 0.5f + maxLen * _text.characterSize * 0.55f;
+                _panel.transform.localPosition = new Vector3(0.5f + w * 0.5f, 8.6f - h * 0.5f, -2.1f);
+                _panel.transform.localScale = new Vector3(w, h, 1f);
+            }
         }
 
         private static string Signed(int value)

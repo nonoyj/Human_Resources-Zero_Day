@@ -975,13 +975,24 @@ namespace HRZeroDay.Game.Interaction
                 // glowing label); CONFIRMED is the row a touch has pressed once (a hot fill with the label cut
                 // out). The two contrasts are deliberately opposite: one is light AROUND dark text, the other
                 // is dark text IN light -- which is how a player tells "aiming" from "pressed" at a glance.
-                var pill = MenuLayout.Row(i, armed ? "cyan_2" : (rows[i].Selected ? "void" : (hovered ? "void" : "void")),
-                                          (armed || rows[i].Selected) ? "void" : (hovered ? "white" : "paper_2"));
+                // ---- THE FILL AND THE INK ARE ONE DECISION (v126).
+                // v120 left the SELECTED row painting `void` on `void` -- a black label on a black bar, so the
+                // most important row on the screen was invisible and all the player could see of it was the
+                // glow halo around nothing. It read as "the text is distorted", and honestly it looked like
+                // static. The three states are now stated once, here:
+                //   ARMED     cyan fill, `void` label          (light AROUND dark text = "pressed")
+                //   SELECTED  void fill, `white` label + halo   (dark text lit from inside = "this one")
+                //   IDLE      void fill, `paper_2`; hovered adds a 1 px cyan edge and a `white` label
+                string fill;
+                string ink;
+                if (armed) { fill = "cyan_2"; ink = "void"; }
+                else if (rows[i].Selected) { fill = "void"; ink = "white"; }
+                else { fill = "void"; ink = hovered ? "white" : "paper_2"; }
+                var pill = MenuLayout.Row(i, fill, ink);
                 DrawPill(buf, pill, rows[i].Selected || armed);
                 // the hover case: draw the row's edge in the tube's cyan, one pixel, no fill. A hovered row
                 // is a PREVIEW of the selection, so it gets the selection's colour and none of its weight.
                 if (hovered && !armed) HoverEdge(buf, pill);
-                string ink = (armed || rows[i].Selected) ? "void" : (hovered ? "white" : "paper_2");
                 CentreIn(buf, rows[i].Label, pill, ink);
                 // THE SELECTION GLOWS (v120): the selected row's own label steps UP its ink ramp and is
                 // dithered at the glyph edges, so the words read as lit from inside the bar rather than cut
@@ -1240,7 +1251,7 @@ namespace HRZeroDay.Game.Interaction
                     {
                         // only the ring: a cell that is itself inked is drawn by the label, not by the halo
                         bool inside = gx >= 0 && gx < MenuLayout.GlyphW && gy >= 0 && gy < MenuLayout.GlyphH;
-                        if (inside && _glyphs.InkAt(ch, gx, gy)) continue;
+                        if (inside && InkTopDown(ch, gx, gy)) continue;
                         if (!inside && !AdjacentInk(ch, gx, gy)) continue;
                         int x = penX + gx, y = top + gy;
                         if (x < pill.X + 1 || x >= pill.X + pill.W - 1) continue;
@@ -1255,11 +1266,11 @@ namespace HRZeroDay.Game.Interaction
         /// <summary>Is a neighbouring cell inside the glyph box inked? Used to draw a 1 px ring only.</summary>
         private bool AdjacentInk(char ch, int gx, int gy)
         {
-            if (gx >= 0 && gx < MenuLayout.GlyphW && gy >= 0 && gy < MenuLayout.GlyphH) return _glyphs.InkAt(ch, gx, gy);
+            if (gx >= 0 && gx < MenuLayout.GlyphW && gy >= 0 && gy < MenuLayout.GlyphH) return InkTopDown(ch, gx, gy);
             int x0 = gx < 0 ? 0 : (gx >= MenuLayout.GlyphW ? MenuLayout.GlyphW - 1 : gx);
             int y0 = gy < 0 ? 0 : (gy >= MenuLayout.GlyphH ? MenuLayout.GlyphH - 1 : gy);
             // a corner of the ring only counts if the diagonal's two neighbours are both in the box
-            return _glyphs.InkAt(ch, x0, y0);
+            return InkTopDown(ch, x0, y0);
         }
 
         /// <summary>One pixel of the tube's cyan around a hovered row: the preview of the selection.</summary>
@@ -1332,7 +1343,10 @@ namespace HRZeroDay.Game.Interaction
         {
             int width = MenuLayout.LineWidth(text, scale);
             int left = MenuLayout.TextX + (MenuLayout.TextW - width) / 2;
-            DrawScaled(buf, text, left, top, ink, scale, MenuLayout.TitleGap, MenuLayout.TitleBleed);
+            // v126: the title no longer bled a column to fake weight. At 2x a bleed is a 2 px shear on ONE
+            // side of every letter -- that is the "distorted" the player could see but not name. Weight comes
+            // from the scale and the tight gap; anything else is a dent.
+            DrawScaled(buf, text, left, top, ink, scale, MenuLayout.TitleGap, 0);
         }
 
         private void Centre(Color32[] buf, string text, int top, string ink, int scale)
@@ -1372,11 +1386,22 @@ namespace HRZeroDay.Game.Interaction
         {
             Color32 colour = Ink(ink, new Color32(230, 241, 255, 255));
             int cellW = MenuLayout.GlyphW + gap;
+            int penX = left;
             for (int ci = 0; ci < text.Length; ci++)
             {
                 char ch = text[ci];
-                if (ch == ' ') continue;
-                int penX = left + ci * cellW * scale;
+                // THE GAP BELONGS IN THE PEN, NOT IN THE ADVANCE (v126). The old line was
+                //     penX = left + ci * (GlyphW + gap) * scale
+                // which spaces glyphs correctly at 1x and WRONGLY at 2x: the gap was multiplied by the scale
+                // while the glyph was rounded down, so a 2 px gap became 4 and a 5 px glyph stayed 10 -- the
+                // title came out with visible rivers between letters and its last letter landed off the tube,
+                // which is the "text is distorted" report. The pen now advances by the glyph's real width and
+                // adds the gap AFTER, unscaled, which is the only reading that survives both scales.
+                if (ch == ' ')
+                {
+                    penX += cellW * scale;
+                    continue;
+                }
                 for (int gy = 0; gy < MenuLayout.GlyphH * scale; gy++)
                 {
                     int ty = top + gy;
@@ -1389,12 +1414,36 @@ namespace HRZeroDay.Game.Interaction
                         // the bleed column repeats the glyph's rightmost ink column, which thickens it
                         int srcX = gx / scale;
                         if (srcX >= MenuLayout.GlyphW) srcX = MenuLayout.GlyphW - 1;
-                        if (!_glyphs.InkAt(ch, srcX, gy / scale)) continue;
+                        // THE ATLAS IS INDEXED FROM THE TOP. A glyph source that answers bottom-up draws every
+                        // letter upside down -- and a mirrored glyph at 1x still reads as "a letter", which is
+                        // why this survived: at 2x it reads as noise. One place decides, so nobody else has to.
+                        if (!InkTopDown(ch, srcX, gy / scale)) continue;
                         buf[ty * W + tx] = colour;
                     }
                 }
+                penX += MenuLayout.GlyphW * scale + gap * scale;
             }
         }
+
+        /// <summary>
+        /// True when the glyph has ink at (gx, gy) with gy counted DOWN from the glyph's top, whichever way
+        /// round the underlying source stores its rows. `_glyphs` is allowed to be either: the atlas is a PNG
+        /// (top-down) but a source that was built from a Texture2D is bottom-up, and getting this wrong is a
+        /// silent upside-down title rather than an exception.
+        /// </summary>
+        private bool InkTopDown(char ch, int gx, int gy)
+        {
+            if (_glyphs == null) return false;
+            if (!_glyphFlipped.HasValue)
+            {
+                // probe: the top-left cell of 'L' is inked top-down and empty bottom-up, for every font
+                bool top = _glyphs.InkAt('L', 0, 0);
+                bool bottom = _glyphs.InkAt('L', 0, _glyphs.CellH - 1);
+                _glyphFlipped = bottom && !top;
+            }
+            return _glyphs.InkAt(ch, gx, _glyphFlipped.Value ? _glyphs.CellH - 1 - gy : gy);
+        }
+        private bool? _glyphFlipped;
 
         /// <summary>
         /// The tube's picture area, not the flat glass rect. A CRT's corners are cut, so a glyph that fits

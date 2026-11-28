@@ -29,6 +29,13 @@ namespace HRZeroDay.Game.Interaction
         public DecisionInputController Decision { get; private set; }
         public LetterView Letter { get; private set; }
         public GameHud Hud { get; private set; }
+        /// <summary>
+        /// THE HUD AS OBJECTS (v126). The plates, plaques, flag tabs and stamp pads the player presses. It
+        /// is a separate component from GameHud because the two do different jobs: GameHud prints the two
+        /// prose lines (the walk's receipt, the ending's verdict), GameHudObjects paints and hit-tests the
+        /// clickable layer. Keeping them apart is what lets the object layer be tested headlessly.
+        /// </summary>
+        public GameHudObjects HudObjects { get; private set; }
         public SweepView Walk { get; private set; }
         public IntroView Intro { get; private set; }
         public HRZeroDay.Game.Audio.GameAudio Sound { get; private set; }
@@ -111,6 +118,7 @@ namespace HRZeroDay.Game.Interaction
             Letter = GetComponentInChildren<LetterView>(true);
             Decision = GetComponentInChildren<DecisionInputController>();
             Hud = GetComponentInChildren<GameHud>(true);
+            HudObjects = GetComponentInChildren<GameHudObjects>(true);
 
             Save = resumeSavedRun ? SaveSystem.Read() : null;
             if (Save != null)
@@ -157,6 +165,8 @@ namespace HRZeroDay.Game.Interaction
 
             if (Hud == null) Hud = GameHud.Attach(this);
             else Hud.Bind(this);
+            if (HudObjects == null) HudObjects = GameHudObjects.Attach(this);
+            else HudObjects.Bind(this);
             if (string.IsNullOrEmpty(watchCopy)) watchCopy = "HOLD STILL. THE TELL IS SMALL.";
             if (string.IsNullOrEmpty(correctHeading)) correctHeading = "DECISION RECORDED";
             if (string.IsNullOrEmpty(wrongHeading)) wrongHeading = "DECISION RECORDED";

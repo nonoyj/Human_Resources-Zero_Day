@@ -26,6 +26,14 @@ public static class RenderDump
         Resources.Loader = path => LoadPng(Path.Combine(root, path + ".png"));
         try
         {
+            // ---- THE HUD AS OBJECTS (v126). A layout nobody has looked at is a layout nobody can defend:
+            // the plates, tabs and pads are 12..24 px, so "does it fit" is not a question arithmetic can
+            // answer. This renders the real HudRules model through the real ObjectPlate on the real palette,
+            // which is the same pixels Unity will upload -- and it catches the two failures that matter:
+            // an object in the applicant's face, and a plate whose palette key is missing (magenta).
+            if (args.Length > 2 && args[2].StartsWith("hud"))
+                return DumpHud(args[2], outPath);
+
             var view = new MenuView();
             var fld = typeof(MenuView).GetField("_glyphs", BindingFlags.Instance | BindingFlags.NonPublic);
             fld.SetValue(view, HRZeroDay.Game.MonitorScreenView.Load(
@@ -63,6 +71,52 @@ public static class RenderDump
             return 0;
         }
         finally { Resources.Loader = mpLoader; }
+    }
+
+    /// <summary>
+    /// "hud" -- the idle desk. "hudletter" -- the letter open, three flags set, the pointer on APPROVE.
+    /// Both are painted onto the menu room, because a HUD is judged against what it sits on.
+    /// </summary>
+    private static int DumpHud(string mode, string outPath)
+    {
+        var palette = HRZeroDay.Game.MonitorScreenView.PaletteCached;
+        var glyphs = HRZeroDay.Game.MonitorScreenView.Load("fonts/monitor_font_5x7", palette);
+        if (palette == null || palette.Count == 0) { Console.WriteLine("no palette"); return 4; }
+        if (glyphs == null) { Console.WriteLine("no glyphs"); return 5; }
+
+        var m = new HudModel
+        {
+            Day = 2, DayCount = 5, Subject = 2, SubjectCount = 4,
+            Name = "MIRA VOSS", Role = "OPEN ROLE",
+            Trust = 62, Security = 62, Hired = 1, HireLimit = 3,
+            LetterAvailable = true
+        };
+        if (mode == "hudletter")
+        {
+            m.LetterOpen = true;
+            m.Flagged = new[] { true, false, true, false, true };
+            m.Hovered = HudId.Approve;
+        }
+        var objs = HudRules.Objects(m);
+        var buf = new Color32[480 * 270];
+
+        // the room behind it, so the player's eye has something to judge the contrast against
+        var view = new MenuView();
+        var fld = typeof(MenuView).GetField("_glyphs", BindingFlags.Instance | BindingFlags.NonPublic);
+        fld.SetValue(view, glyphs);
+        var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        typeof(MenuView).GetMethod("BuildRoom", flags).Invoke(view, null);
+        var room = typeof(MenuView).GetField("_room", flags).GetValue(view) as Color32[];
+        if (room != null) Array.Copy(room, buf, Math.Min(room.Length, buf.Length));
+
+        int painted = HRZeroDay.Game.Desk.ObjectPlate.DrawHud(buf, 480, 270, m, objs, palette, glyphs);
+
+        Console.WriteLine("objects: " + objs.Count + ", painted px: " + painted);
+        foreach (var o in objs)
+            Console.WriteLine("  " + o.Id + " " + o.X + "," + o.Y + " " + o.W + "x" + o.H + " [" + o.Label + "] " + o.State);
+        Write(buf, 480, 270, outPath);
+        Console.WriteLine("wrote " + outPath);
+        return 0;
     }
 
     private static Texture2D LoadPng(string file)

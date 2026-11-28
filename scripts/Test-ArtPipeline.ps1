@@ -91,8 +91,17 @@ try {
     & python tools/art/make_wear_overlays.py --check
     if ($LASTEXITCODE -ne 0) { D 'wear overlay check failed' } else { OK 'wear overlays palette clean' }
 
-    if (-not $SkipCompile) {
-        S 'art bible is present and referenced'
+    # ---------------------------------------------------------------------------------------------
+    # AN `if (-not $SkipCompile)` SAT HERE WITH AN OPEN BRACE AND NO CLOSING ONE UNTIL v126, and it had been there
+    # since before v119.7. PowerShell parses the WHOLE file before it runs a line, so this was not a gate
+    # that skipped some checks -- it was a gate that never ran a single check on the machine that matters,
+    # while reporting "The Try statement is missing its Catch or Finally block" at the END of the file,
+    # 300 lines away from the typo. Two rounds of "the gate is green" were really "the gate did not load".
+    # The checks below are unconditional: they are cheap, and they are the ones that matter.
+    # .\scripts\Test-ArtPipeline.ps1 now validates this file's SYNTAX before running it, so a typo like
+    # this one reports the line it is on.
+    # ---------------------------------------------------------------------------------------------
+    S 'art bible is present and referenced'
     if (-not (Test-Path (Join-Path $repo 'docs\15-art-bible.md'))) { D 'docs/15-art-bible.md missing' }
     else { OK 'docs/15-art-bible.md present' }
 
@@ -136,7 +145,8 @@ try {
     if ($stray) { D ("unexpected study script(s): " + ($stray.Name -join ', ')) }
     else { OK 'study outputs come from twin_desk.py' }
 
-    S 'Unity scripts type-check (stubs, no Unity install needed)'
+    if (-not $SkipCompile) {
+        S 'Unity scripts type-check (stubs, no Unity install needed)'
         Push-Location (Join-Path $repo 'tools\UnityStubs')
         try {
             & dotnet build -v q --nologo | Out-Host
@@ -144,6 +154,7 @@ try {
         } finally { Pop-Location }
     }
 
+    if (-not $SkipCompile) {
     S 'the game''s own rule suite runs (CoreTests)'
         # v119: this suite existed since v100 and had NEVER been executed, because there was no C# compiler
         # in the build box. The first run found two assertions that could never pass, a stale published

@@ -116,7 +116,7 @@ namespace HRZeroDay.Game
             while (lines.Count < wanted) lines.Add(new MonitorScreen.LineSpec(string.Empty, "text"));
 
             lines.Add(new MonitorScreen.LineSpec(
-                flagPrompt ?? "> FLAG WHAT IS WRONG        X BACK TO DESK", "warn"));
+                flagPrompt ?? "> FLAG WHAT IS WRONG", "warn"));
 
             if (pageCount > 1)
                 lines.Add(new MonitorScreen.LineSpec("< PREV    > NEXT    PAGE " + page + "/" + pageCount, "muted"));
@@ -244,7 +244,7 @@ namespace HRZeroDay.Game
             {
                 applicant = paper.applicant,
                 pages = LetterPaginator.Paginate(paper.title, paper.body, paper.signature,
-                                                 "> FLAG WHAT IS WRONG        X BACK TO DESK"),
+                                                 "> FLAG WHAT IS WRONG"),
                 flags = paper.flags,
                 flagged = paper.flagged
             };

@@ -265,45 +265,35 @@ namespace HRZeroDay.Core.Rules
             return new LightSource(WindowX + 44, WindowY + 60, 116, 128, 1.95, 1);
         }
 
-        /// <summary>
-        /// WARM light: the lamp. It is the only warm source in the frame (rule 1).
-        ///
-        /// THE LAMP'S POOL WAS UPSIDE DOWN (v120, the player's catch). The light used to sit at
-        /// (LampX+28, LampY+70) -- 70 px down the sprite, which is the lamp's FOOT -- with a 108x122 radius.
-        /// That put the brightest part of the pool on the WALL behind the fixture and on the base, and reached
-        /// only 52 px below the foot, so the desk under the shade caught almost nothing and the paper under it
-        /// caught nothing at all. A player standing in front of the picture reads that as light shining
-        /// UPWARD, which is exactly what was reported.
-        ///
-        /// The bulb is INSIDE the shade, so the pool is centred under the shade's mouth and offset toward the
-        /// shade's overhang; the radius is asymmetric -- long downward onto the desk, short upward onto the
-        /// wall -- and a second, dimmer BOUNCE source sits on the desk surface itself, which is what makes the
-        /// paper, the mug and the keys pick up a warm skirting instead of stopping dead at the pool's edge.
-        /// </summary>
         public static LightSource LampLight()
         {
-            // WHERE THE BULB IS, exactly. The shade spans the sprite's rows 20..96 (LampY is 62, so 82..158)
-            // and its MOUTH is its bottom row: LampY + 96 = 158.
-            //
-            // THE FIRST v120 ATTEMPT PUT THE POOL BELOW THE FLOOR. It anchored the cone at `mouth + 14` = 172
-            // and the bounce at `LampY + 118` = 180 -- but the desk surface starts at row 150, so both centres
-            // were in the FLOOR BAND (150..270), under the desk's front face. A player clicking the lamp saw
-            // the wall behind it warm and the wood in front of it stay dead, which is the same complaint as
-            // before in the other direction: the light was still not where the light goes. The numbers are
-            // derived from DeskY now and cannot drift back below it.
-            return new LightSource(LampX + 26, LampY + 96, 104, 62, 1.15, 1);
+            // THE CONE, from the bulb (v126, third placement, and the first one taken from the artwork).
+            // menu/lamp.png is 56x132 at anchor (422,62); its SHADE is sprite rows 8..28, so the bulb's mouth
+            // is canvas row 88 and the desk surface is canvas row 150 -- the bulb hangs 62 px ABOVE the wood.
+            // Both earlier placements centred the pool at rows 158/172, which is inside the desk band but on
+            // the lamp's own stem and base: the cone lit the fixture and the wall behind it and left the wood
+            // and the paper dark. Now the CONE is only the light leaving the shade -- narrow (rx 46) and short
+            // (ry 62), rows 68..192, x 398..490 -- and the wide pool on the desk is its own source below.
+            return new LightSource(LampX + 22, LampY + 56, 52, 50, 1.30, 1);
         }
 
         /// <summary>
-        /// THE BOUNCE (v120, second attempt). Light that lands on the desk comes back off it, and at this size
-        /// the visible result is that the paper and the mug standing in the pool are lit from below-behind
-        /// instead of sitting dark inside a bright oval. It lies ON the surface -- a wide, shallow ellipse
-        /// centred inside the desk band -- and it is a step weaker than the cone, because it is the same lamp
-        /// seen twice, not a second lamp.
+        /// THE POOL ON THE DESK (v126). What a player calls "the lamp lighting the desk" is not the cone at
+        /// all -- it is the flat ellipse of light lying ON the surface. The old bounce was 118x26 centred at
+        /// (LampX+20, DeskY+34) = (442,184): it covered x 324..560 and stopped dead at the lamp, so the mug
+        /// (x272) and the keyboard (x300..390) sat outside it while the wall took 31% of the lift. This one is
+        /// centred between the lamp and the keyboard (384) and 160 px wide, so the MUG at x269 is not merely
+        /// "inside the ellipse" but genuinely lit.
+        ///
+        /// THE FALLOFF IS 0.5, NOT 2.0, and that is the whole fix. Light adds up as (1 - r)^Falloff, so a
+        /// squared falloff is a spike: at the mug r was 0.97 and the lift was 0.0006 -- nominally inside the
+        /// pool, measurably black. A pool of light lying on a table is a PLATEAU with a soft edge, not a
+        /// Gaussian, so the exponent is low and the edge is where the dither does the work. ry 30 still keeps
+        /// it on the wood (rows 146..206) and off the front face below; it never reaches the tube.
         /// </summary>
         public static LightSource LampBounceLight()
         {
-            return new LightSource(LampX + 20, DeskY + 34, 118, 26, 2.10, 1);
+            return new LightSource(LampX - 38, DeskY + 26, 160, 30, 0.50, 1);
         }
 
         /// <summary>True when this light IS the lamp's -- so the front door can switch it off.</summary>

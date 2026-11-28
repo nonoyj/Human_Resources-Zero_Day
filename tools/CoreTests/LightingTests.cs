@@ -30,6 +30,7 @@ namespace HRZeroDay.Tests
             yield return Check("security_is_a_shape_before_a_number", SecurityIsAShapeBeforeANumber);
             yield return Check("the_tube_lights_every_static_surface", TheTubeLightsEveryStaticSurface);
             yield return Check("the_tube_lights_the_desk_not_the_floor", TheTubeLightsTheDeskNotTheFloor);
+            yield return Check("the_menu_lamp_lights_the_desk_objects", TheMenuLampLightsTheDeskObjects);
         }
 
         private static string Check(string name, Func<string> body)
@@ -48,15 +49,46 @@ namespace HRZeroDay.Tests
         /// </summary>
         private static string LampPoolIsUnderTheShade()
         {
-            var lamp = MenuLayout.LampLight();
-            int mouth = MenuLayout.LampY + 96;
-            True(lamp.Y >= mouth, "the lamp's light is centred above the shade's mouth -- it lights the wall");
-            True(lamp.Y + lamp.Ry > MenuLayout.DeskY,
-                 "the lamp's pool stops " + (MenuLayout.DeskY - (lamp.Y + lamp.Ry)) + " px short of the desk");
-            // and it must not be a fog: the old one had falloff 1.45 and reached ~60 px up the wall
-            True(lamp.Y - lamp.Ry < mouth + 40, "the lamp's pool reaches 40+ px above the shade -- it is a fog");
-            True(lamp.Strength <= MenuLayout.MaxLift, "the lamp adds more than MaxLift steps");
-            return "PASS  the lamp's pool hangs under its shade and reaches the desk";
+            // v126 SPLIT THE LAMP IN TWO. Before this, one ellipse had to be both "the cone leaving the
+            // shade" and "the pool lying on the desk", so it failed one of them whichever way it was placed:
+            // aimed at the desk it lit the lamp's own foot, aimed at the shade it left the desk dark. The cone
+            // is now the light leaving the shade -- it must hang BELOW the bulb (sprite rows 8..28, so the
+            // mouth is LampY+28) and must not reach the desk, because the desk's own pool does that.
+            var cone = MenuLayout.LampLight();
+            var pool = MenuLayout.LampBounceLight();
+            int mouth = MenuLayout.LampY + 28;
+            True(cone.Y > mouth, "the cone is centred above the bulb's mouth -- it lights the wall");
+            True(cone.Y - cone.Ry >= MenuLayout.LampY,
+                 "the cone reaches above the shade's top -- it is a fog, not a cone");
+            True(cone.Strength <= MenuLayout.MaxLift, "the cone adds more than MaxLift steps");
+            True(pool.Y + pool.Ry > MenuLayout.DeskY,
+                 "the pool never reaches the desk surface -- nothing on the wood can light");
+            True(pool.Strength <= MenuLayout.MaxLift, "the pool adds more than MaxLift steps");
+            return "PASS  the cone hangs under the shade and the pool lies on the desk";
+        }
+
+        private static string TheMenuLampLightsTheDeskObjects()
+        {
+            var cone = MenuLayout.LampLight();
+            var pool = MenuLayout.LampBounceLight();
+            // the mug is the leftmost lit object the player points at, the document stack the rightmost
+            int mug = 269, docs = 479;   // measured in desk.png: mug x269..294, papers to x479
+            True(pool.X - pool.Rx <= mug,
+                 "the lamp's pool starts at x" + (pool.X - pool.Rx) + " -- it misses the mug at x" + mug);
+            True(pool.X + pool.Rx >= docs,
+                 "the lamp's pool ends at x" + (pool.X + pool.Rx) + " -- it misses the papers at x" + docs);
+            // it must lie on the wood, not under the desk's front face
+            True(pool.Y - pool.Ry < MenuLayout.DeskY + 40,
+                 "the lamp's pool is centred below the desk surface -- it is lighting the front face");
+            True(pool.Y + pool.Ry <= MenuLayout.DeskY + 60,
+                 "the lamp's pool runs off the desk onto the front face");
+            // the cone must stay near the fixture: a cone that reaches the middle of the desk is a fog
+            True(cone.Rx < 60 && cone.Ry < 80, "the lamp's cone is as wide as the desk -- it is a fog, not a cone");
+            // and the object pool must cover more of the desk than the wall pool does
+            True(pool.Rx * pool.Ry > cone.Rx * cone.Ry * 1.2,
+                 "the pool on the desk is not bigger than the cone on the wall");
+            return "PASS  the lamp's pool spans x" + (pool.X - pool.Rx) + ".." + (pool.X + pool.Rx) +
+                   " on the desk surface, covering the mug and the papers";
         }
 
         private static string LampBounceSwitchesWithTheLamp()

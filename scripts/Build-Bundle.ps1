@@ -65,6 +65,24 @@ if ($st) {
 }
 OK "working tree clean"
 
+# THE GATE MUST LOAD (v126). A bundle shipped in v119.7..v125.1 carried an art gate that PowerShell refused
+# to parse, so it never ran and every "ART PIPELINE OK" in those rounds was about a file no interpreter had
+# accepted. Parse every .ps1 with PowerShell's own parser before a zip is built; a script that cannot be
+# loaded is not a script. For the gate itself this check is the difference between a gate and a decoration.
+S "parsing every PowerShell script (a file that cannot load cannot run)"
+$psErrs = 0
+foreach ($f in @(Get-ChildItem -Path (Join-Path $root 'scripts') -Filter *.ps1 -File) +
+                 @(Get-ChildItem -Path $root -Filter *.ps1 -File)) {
+    $e = $null; $t = $null
+    $null = [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$t, [ref]$e)
+    if ($e -and $e.Count) {
+        foreach ($x in $e) { Write-Host ("  [FAIL] {0}:{1}  {2}" -f $f.Name, $x.Extent.StartLineNumber, $x.Message) -ForegroundColor Red }
+        $psErrs += $x.Count
+    }
+}
+if ($psErrs -gt 0) { D "$psErrs PowerShell parse error(s) -- not bundling" }
+OK "every .ps1 parses"
+
 $tracked = ((& git -C $root ls-files) 2>$null)
 if (-not $tracked) { D "git ls-files returned nothing" }
 $files, $skipped = @(), @()

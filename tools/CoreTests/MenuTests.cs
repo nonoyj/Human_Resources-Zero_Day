@@ -389,14 +389,27 @@ namespace HRZeroDay.Tests
             // The light's origin must be at the shade's MOUTH, and the pool must reach further down the
             // canvas than up it. The old source sat at the lamp's FOOT with a symmetric radius, so the wall
             // behind the fixture was the brightest thing in the pool and the desk under it caught nothing.
+            // ---- THE LAMP SHINES DOWN (v120; rewritten in v126 when the lamp became TWO sources) ----------
+            // The old assertion -- "the cone's centre is below the sprite's midpoint" -- was written when one
+            // ellipse had to be both the light leaving the shade and the pool on the desk. v126 split them,
+            // because that one ellipse could not be both: placed low it lit the lamp's own foot, placed high
+            // it lit the wall. So the assertions are now about the two things the player actually sees:
+            //   * the CONE hangs under the bulb, does not reach up over the shade, and is narrow;
+            //   * the POOL lies on the desk surface, is wider than it is tall, and reaches the mug to the
+            //     lamp's left and the papers to its right.
             var cone = MenuLayout.LampLight();
-            True(cone.Y > MenuLayout.LampY + MenuLayout.LampH / 2,
-                 "the lamp's light is centred above the shade -- it would light the wall and not the desk");
-            True(cone.Y + cone.Ry > MenuLayout.DeskY, "the lamp's pool does not reach the desk");
-            True(MenuLayout.LampBounceLight().Y > cone.Y,
-                 "the bounce light is not below the cone (it must lie on the desk surface)");
-            True(MenuLayout.LampBounceLight().Ry < cone.Ry,
-                 "the bounce is as big as the lamp itself -- a bounce is a skirting, not a second lamp");
+            var pool = MenuLayout.LampBounceLight();
+            int bulbMouth = MenuLayout.LampY + 28;              // the shade is sprite rows 8..28
+            True(cone.Y > bulbMouth, "the cone's centre is above the bulb's mouth -- it lights the wall");
+            True(cone.Y - cone.Ry >= MenuLayout.LampY,
+                 "the cone reaches above the shade's own top -- it is a fog, not a cone");
+            True(cone.Rx < 60, "the cone is as wide as the desk");
+            True(pool.Y > cone.Y, "the pool is not below the cone -- it must lie on the desk surface");
+            True(pool.Rx > cone.Rx, "the pool on the desk is narrower than the cone -- it is a spot, not a pool");
+            True(pool.Y + pool.Ry > MenuLayout.DeskY && pool.Y - pool.Ry < MenuLayout.DeskY + 60,
+                 "the pool does not lie on the desk band");
+            True(pool.X - pool.Rx <= 269, "the pool misses the mug at x269");
+            True(pool.X + pool.Rx >= 479, "the pool misses the papers at x479");
             // and it is the SAME lamp: switching the fixture off takes both away
             True(MenuLayout.IsLampLight(cone) && MenuLayout.IsLampLight(MenuLayout.LampBounceLight()),
                  "the bounce does not switch with the lamp -- turning it off would leave a warm pool");

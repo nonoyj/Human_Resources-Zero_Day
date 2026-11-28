@@ -45,6 +45,7 @@ internal static class Program
         lines.AddRange(AudioTests.RunAll());           // the mix: what the game sounds like, as numbers
         lines.AddRange(SecurityTests.RunAll());        // the company's one number, and its four alerts
         lines.AddRange(MenuTests.RunAll());            // the front door, and the consent it has to ask for
+        lines.AddRange(HudTests.RunAll());       // the HUD as objects: geometry, states, hits
         foreach (var line in lines)
         {
             Console.WriteLine(line);
