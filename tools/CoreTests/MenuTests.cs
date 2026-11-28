@@ -522,8 +522,14 @@ namespace HRZeroDay.Tests
                      "the tube below the last row resolves to a row");
             }
             // the props: each hit box must be inside the canvas and over the thing it names
-            True(MenuLayout.StackCellAt(340, 100) >= 0, "the monitor cluster is not clickable");
-            True(MenuLayout.StackCellAt(MenuLayout.StackX - 4, 100) < 0, "the wall left of the cluster is clickable");
+            // v119.1: the cluster moved right of the monitor (366+), so the hit test follows it
+            True(MenuLayout.StackCellAt(MenuLayout.StackX + 8, MenuLayout.StackY + 10) >= 0,
+                 "the monitor cluster is not clickable");
+            True(MenuLayout.StackCellAt(MenuLayout.StackX - 4, MenuLayout.StackY + 10) < 0,
+                 "the wall left of the cluster is clickable");
+            // and the cluster must clear the monitor's case, or its hard edge slices a screen in half
+            True(MenuLayout.StackX >= MenuLayout.CrtX + MenuLayout.CrtW,
+                 "the monitor cluster starts under the monitor's case");
             True(MenuLayout.InLamp(MenuLayout.LampX + 28, MenuLayout.LampY + 80), "the lamp is not clickable");
             True(MenuLayout.InKeyboard(340, 196), "the keyboard is not clickable");
             True(!MenuLayout.InLamp(MenuLayout.LampX + 28, MenuLayout.FloorY + 40), "the lamp's hit box reaches the floor");
@@ -555,10 +561,15 @@ namespace HRZeroDay.Tests
                     True(v >= lastCold, "the cold glow ramp is not increasing in value at step " + i);
                     lastCold = v;
                 }
-                else
+                else if (i < MenuLayout.GlowEmissive)
                 {
                     True(v >= lastWarm, "the warm glow ramp is not increasing in value at step " + i);
                     lastWarm = v;
+                }
+                else
+                {
+                    True(v > 0.5, "an emissive glow step is not bright enough to be a specular: "
+                         + MenuLayout.GlowRamp[i]);
                 }
             }
             // the warm ramp must actually be WARM, and the cold one cold: this is the two-temperature rule

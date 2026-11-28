@@ -42,7 +42,9 @@ namespace HRZeroDay.Core.Rules
         // attached to the ground instead of hanging on the wall -- that was the player's "the table floats
         // together with the monitor". It also had to move LEFT: a 116 px wide sprite at 372 would have run
         // into the server.
-        public const int StackX = 330, StackY = 68;        // menu/monitor_stack.png 116x128, table on the floor
+        // v119.1: 366, not 330 -- the cluster must start RIGHT of the monitor's case (which ends at 364) or
+        // the case's hard edge slices two screens in half. See the note in make_menu_room.py::monitor_stack.
+        public const int StackX = 366, StackY = 44;        // menu/monitor_stack.png 70x108, table on the floor
         public const int LampX = 422, LampY = 62;          // menu/lamp.png          56x132 -- the warm key
                                                            // 422, not 424: the pole is at sprite
                                                            // x+27 and the server starts at 452
@@ -70,7 +72,7 @@ namespace HRZeroDay.Core.Rules
         // ---- sprite sizes, mirrored from tools/art/make_menu_room.py. The tests read these.
         public const int CrtW = 260, CrtH = 186;
         public const int WindowW = 88, WindowH = 160;
-        public const int StackW = 116, StackH = 88;
+        public const int StackW = 70, StackH = 108;
 
         /// <summary>
         /// The six tubes of the cluster, in canvas px: (x, y, w, h). They are NOT a grid -- the top row is
@@ -108,8 +110,11 @@ namespace HRZeroDay.Core.Rules
         /// </summary>
         public static readonly string[] GlowRamp =
         {
-            "teal_2", "cyan_0", "cyan_1", "cyan_2",                          // 0-3, cold
-            "amber_1", "amber_2", "amber_3", "amber_4",                      // 4-7, warm
+            "teal_2", "cyan_0", "cyan_1",                                    // 0-2, cold: lift 1, then 2
+            "amber_1", "amber_2", "amber_3",                                 // 3-5, warm: the lamp's steps
+            "cyan_2",                                                        // 6, emissive: a specular in the
+                                                                             //    highlight pass, painted as-is
+            "amber_4",
         };
 
         /// <summary>The index of a glow colour in GlowRamp, or -1 when the pixel is not part of the ramp.</summary>
@@ -119,13 +124,15 @@ namespace HRZeroDay.Core.Rules
             return -1;
         }
 
-        public const int GlowHotLen = 4;      // the length of each half of GlowRamp
+        public const int GlowHotLen = 3;      // the length of each half of GlowRamp
+        public const int GlowEmissive = 6;    // the first index that is PAINTED rather than lifting
         public const int GlowTintDiv = 6;     // leftover strength -> dithered tint: 1/8 of the pixels per step
 
         public static readonly int[][] StackCells = new int[][]
         {
-            new[] { 331, 92, 32, 26 }, new[] { 360, 90, 34, 28 }, new[] { 391, 93, 30, 25 },
-            new[] { 336, 68, 30, 24 }, new[] { 363, 69, 32, 23 }, new[] { 392, 68, 34, 26 },
+            new[] { 367, 44, 32, 24 }, new[] { 399, 46, 34, 23 },
+            new[] { 366, 69, 33, 26 }, new[] { 398, 68, 35, 27 },
+            new[] { 368, 95, 31, 24 }, new[] { 400, 96, 33, 23 },
         };
 
         public const int StackTableTop = 120;              // y of the table's slab (its front edge), canvas px
@@ -206,6 +213,7 @@ namespace HRZeroDay.Core.Rules
             { "floor_0", "floor_1" },
             { "floor_1", "floor_2" },
             { "floor_2", "floor_3" },
+            { "floor_3", "floor_4" },
             { "wood_0", "wood_1" },
             { "wood_1", "wood_2" },
             { "wood_2", "wood_3" },

@@ -63,11 +63,13 @@ CRT_GLASS = (26, 12, 228, 152)      # x, y, w, h inside crt.png: the tube's pict
 
 # ---- window, table, server (their own sprite sizes) --------------------------------------------------
 WIN_W, WIN_H = 88, 160
-STACK_W, STACK_H = 116, 88
+STACK_W, STACK_H = 70, 108
 SRV_W, SRV_H = 26, 112
 LAMP_W, LAMP_H = 56, 132
 DESK_H = 120
 DESK_TOP = 26          # the slab starts here: above it is transparent headroom for the steam
+GROUND_X0 = 406               # the desk's right end: only right of it can you see the floor
+DESK_EDGE_Y = 150 + 26 + 38   # the desk's front edge on the canvas (MenuLayout.DeskEdgeY)
 
 
 def out(rel):
@@ -170,24 +172,35 @@ def shell():
     hline(d, 0, W, FLOOR_Y - 1, 'void')
     hline(d, 0, W, FLOOR_Y, 'void')
 
-    # ---- the floor: tiles converging on the vanishing point
+    # ---- the floor. v119.1: the player's note was "define the ground more", and the honest reading of the
+    # previous floor is that it was a gradient, not a surface. A floor at this size needs three things:
+    #
+    #   1. TILES with a value of their own -- a checker of floor_1 and floor_2, not one wash, so the eye can
+    #      count the squares and put the desk on top of something;
+    #   2. GROUT, black, on both axes, in perspective (rows get taller and columns converge on the vanishing
+    #      point), so the squares are measured and not implied;
+    #   3. a CONTACT SHADOW immediately under the desk's front panel, and the window's light landing as a
+    #      pool on the tiles -- light on a floor is what proves the floor is a floor.
     box(d, 0, FLOOR_Y + 1, W, H, 'floor_1')
     rows = []
     y = FLOOR_Y + 1
     row = 0
     while y < H:
         step = TILE_H + row * 3            # tiles get taller as they come toward the camera
-        rows.append((y, min(y + step, H)))
+        rows.append((y, min(y + step, H), row, step))
         y += step
         row += 1
-    for (ry0, ry1) in rows:
+    for (ry0, ry1, row, step) in rows:
+        # the far edge of each tile row: black grout, then the lit bevel of the tile behind it
         hline(d, 0, W, ry0, 'void')
-        # the tile's far edge catches the wall's light; its near edge is in its own shadow
         hline(d, 0, W, ry0 + 1, 'floor_2')
+        # the tile's own face, one value per row alternating as the checker, then its shadowed half
+        face = 'floor_1' if row % 2 == 0 else 'floor_2'
+        box(d, 0, ry0 + 2, W, ry1, face)
         mid = (ry0 + ry1) // 2
-        if mid > ry0 + 2:
-            dither(img, 0, mid, W, ry1 - 1, 'floor_1', 'floor_0', 0.5)
-        # vertical grout, converging: each line is aimed at the vanishing point
+        if mid > ry0 + 3:
+            dither(img, 0, mid, W, ry1 - 1, face, 'floor_0', 0.5)
+        # vertical grout, converging on the vanishing point
         spacing = max(12, TILE_W - row * 2)
         for k in range(-8, 20):
             x_top = VPX + k * spacing
@@ -199,6 +212,84 @@ def shell():
                 xx = int(x_top + (x_bot - x_top) * t)
                 if 0 <= xx < W:
                     img.putpixel((xx, yy), rgba('void'))
+                # the lit edge on one side of every joint: this is what makes the grout read as depth
+                if 0 <= xx + 1 < W and yy > ry0 + 1:
+                    img.putpixel((xx + 1, yy), rgba('floor_2'))
+        # the checker: every other column is a step darker, so the squares are countable
+        for k in range(-8, 20, 2):
+            x_top = VPX + k * spacing
+            x_bot = VPX + int((k * spacing) * (1.55 + row * 0.12))
+            for yy in range(ry0 + 2, ry1):
+                t = (yy - ry0) / float(max(1, ry1 - ry0))
+                x0 = int(x_top + (x_bot - x_top) * t)
+                x1 = int(x_top + spacing + (x_bot + spacing * (1.55 + row * 0.12) - (x_top + spacing)) * t)
+                for xx in range(max(0, x0 + 2), min(W, x1 - 1)):
+                    if yy > mid:
+                        img.putpixel((xx, yy), rgba('floor_0'))
+                    else:
+                        img.putpixel((xx, yy), rgba('floor_1'))
+
+    # ---- THE GROUND YOU CAN ACTUALLY SEE.
+    #
+    #      The desk sprite is opaque from the wall down to the bottom of the frame (a desk in front of the
+    #      camera), so every floor pixel between x=0 and x=405 below y=150 is covered by it. What the player
+    #      sees as "the ground" is therefore the two places the floor is NOT behind the desk: the strip right
+    #      of the desk's right end (x > 405, under the lamp) and the near-left corner. v119.0 painted a
+    #      beautiful tile grid into the region nobody can see, which is why "define the ground" came back.
+    gx0 = GROUND_X0
+    row_y, ri = FLOOR_Y + 1, 0
+    while row_y < H:
+        step = 10 + ri * 4
+        ry0, ry1 = row_y, min(row_y + step, H)
+        box(d, gx0, ry0, W, ry1, 'floor_1' if ri % 2 == 0 else 'floor_2')
+        hline(d, gx0, W, ry0, 'void')                 # grout
+        hline(d, gx0, W, ry0 + 1, 'floor_3')          # the lit bevel of the tile behind it
+        if ry1 - ry0 > 5:
+            dither(img, gx0, ry0 + 2 + (ry1 - ry0) // 2, W, ry1 - 1,
+                   'floor_1' if ri % 2 == 0 else 'floor_2', 'floor_0', 0.55)
+        for k in range(-2, 14):
+            spacing = max(14, TILE_W - ri * 2)
+            x_top = VPX + k * spacing
+            x_bot = VPX + int((k * spacing) * (1.5 + ri * 0.12))
+            if x_bot < gx0 - 4 or x_top > W + 4:
+                continue
+            for yy in range(ry0, ry1):
+                t = (yy - ry0) / float(max(1, ry1 - ry0))
+                xx = int(x_top + (x_bot - x_top) * t)
+                if gx0 <= xx < W:
+                    img.putpixel((xx, yy), rgba('void'))
+                if gx0 <= xx + 1 < W and yy > ry0 + 1:
+                    img.putpixel((xx + 1, yy), rgba('floor_2'))
+        row_y, ri = ry1, ri + 1
+
+    # the lamp's light landing on that floor: a warm pool centred under the lamp, falling off to the right.
+    # Warm light on a cold floor is this shot's punchline.
+    for y in range(FLOOR_Y + 2, H):
+        depth = (y - FLOOR_Y) / float(H - FLOOR_Y)
+        cx = 452 - int(6 * depth)
+        half = 22 + int(30 * depth)
+        for x in range(max(gx0, cx - half), min(W, cx + half)):
+            d2 = abs(x - cx) / float(half)
+            if BAYER4[y & 3][x & 3] / 16.0 < 0.95 * (1.0 - d2) * (1.0 - depth * 0.35):
+                img.putpixel((x, y), rgba('amber_1'))
+            elif BAYER4[y & 3][x & 3] / 16.0 < 0.45 * (1.0 - d2):
+                img.putpixel((x, y), rgba('amber_0'))
+
+    # the window's cold light: a pool on the near-left corner of the floor
+    for y in range(FLOOR_Y + 2, H):
+        depth = (y - FLOOR_Y) / float(H - FLOOR_Y)
+        half = 34 - int(16 * depth)
+        for x in range(0, max(1, half)):
+            if BAYER4[y & 3][x & 3] / 16.0 < 0.55 * (1.0 - depth):
+                img.putpixel((x, y), rgba('floor_3'))
+
+    # the desk's contact seam where its right end meets the floor: a black line and a shadow to its right
+    for y in range(FLOOR_Y + 1, H):
+        if 0 <= gx0 - 1 < W:
+            img.putpixel((gx0 - 1, y), rgba('void'))
+        for i, x in enumerate(range(gx0, gx0 + 10)):
+            if BAYER4[y & 3][x & 3] / 16.0 < 0.8 - i * 0.08:
+                img.putpixel((x, y), rgba('void'))
 
     # ---- ambient occlusion: the left corner of the room only, as a Bayer ramp. (x*7+y*13)%100 is a
     # DIAGONAL pattern -- the first version of this looked like rain running down the wall.
@@ -235,20 +326,35 @@ def window():
     hline(d, 1, mw - 1, mh - 2, 'void')
 
     gx0, gy0, gx1, gy1 = 5, 5, mw - 6, mh - 14
-    box(d, gx0, gy0, gx1, gy1, 'wall_0')                 # the sky, as dark as the wall
+    sky_h = gy1 - gy0
 
-    # ---- the sky: a gradient of TWO steps, dithered, brighter near the city glow
-    split = gy0 + int((gy1 - gy0) * 0.52)
-    box(d, gx0, split, gx1, gy1, 'wall_2')
-    box(d, gx0, split + int((gy1 - split) * 0.55), gx1, gy1, 'steel_1')   # the city's own glow
-    dither(img, gx0, split - 8, gx1, split + 8, 'wall_0', 'wall_1', 0.5)
-    dither(img, gx0, split + 6, gx1, split + 14, 'wall_1', 'wall_2', 0.5)
+    # ---- THE SKY, as a smooth gradient with WIDE dithered seams.
+    #
+    # v119.0 had a broad checker band across the middle of the pane and the player read it as "weird" -- and
+    # it was: at 88 px wide a 16 px checker is a texture fault, not haze. The rule for a sky at this size is
+    # that each step must be at least 12 px tall, so a 160 px pane carries five steps and no more, with the
+    # seam between two steps dithered across the whole 12 px instead of 3.
+    #
+    # Dark at the top, brightening toward the horizon where the city's own light sits. The pane ends up the
+    # brightest large cold surface in the frame -- which is the job of a window in a dark room.
+    steps = ('wall_0', 'wall_1', 'wall_2', 'wall_3', 'steel_1')
+    band_h = sky_h / float(len(steps))
+    for i, key in enumerate(steps):
+        y0 = gy0 + int(i * band_h)
+        y1 = gy0 + int((i + 1) * band_h)
+        box(d, gx0, y0, gx1, y1, key)
+        if i + 1 < len(steps):
+            dither(img, gx0, y1 - 7, gx1, y1 + 7, key, steps[i + 1], 0.5, seed=i)
+    # the city's light pollution: a tight bright band right above the skyline, where it belongs
+    box(d, gx0, gy1 - 12, gx1, gy1 - 8, 'steel_1')
+    dither(img, gx0, gy1 - 16, gx1, gy1 - 12, 'wall_3', 'steel_1', 0.45)
 
-    # ---- the moon: a small, hard crescent with one halo ring. A big soft disc reads as a smudge.
-    mx, my = gx0 + int((gx1 - gx0) * 0.72), gy0 + 14
-    d.ellipse([mx - 4, my - 4, mx + 4, my + 4], fill=rgba('wall_2'))
-    d.ellipse([mx - 1, my - 6, mx + 7, my + 2], fill=rgba('wall_0'))     # the shadow side
-    d.ellipse([mx - 6, my - 6, mx + 6, my + 6], outline=rgba('wall_1'))
+    # ---- the moon: a hard disc with a two-step halo. No rim light -- the halo IS the rim.
+    mx, my = gx0 + int((gx1 - gx0) * 0.70), gy0 + 14
+    d.ellipse([mx - 9, my - 9, mx + 9, my + 9], fill=rgba('wall_2'))
+    d.ellipse([mx - 6, my - 6, mx + 6, my + 6], fill=rgba('wall_3'))
+    d.ellipse([mx - 4, my - 4, mx + 4, my + 4], fill=rgba('steel_1'))
+    d.ellipse([mx - 1, my - 5, mx + 5, my + 1], fill=rgba('wall_2'))      # the shadow side
 
     far_base = gy1 - 10
     # ---- FAR skyline: violet, one value above the sky, no detail at all
@@ -287,12 +393,28 @@ def window():
     hline(d, gx0, gx1, gy0 + (gy1 - gy0) // 3, 'void')
     hline(d, gx0, gx1, gy0 + 2 * (gy1 - gy0) // 3, 'void')
 
+    # ---- the wet glass: TWO horizontal reflections, not a vertical streak.
+    #
+    # A one-pixel vertical line down a pane reads as a scratch (that trap is already in the bug log). Glass
+    # over a lit city reflects HORIZONTALLY: a broad soft band across the lower pane, and one thin hard
+    # highlight where the surface turns. That is what "stronger highlights" looks like on wet glass.
+    for y in range(gy0 + int(sky_h * 0.46), min(gy1 - 46, gy0 + int(sky_h * 0.72))):
+        t = (y - gy0 - sky_h * 0.46) / float(max(1, sky_h * 0.26))
+        for x in range(gx0 + 1, gx1):
+            if BAYER4[y & 3][x & 3] / 16.0 < 0.5 * (1.0 - abs(t - 0.4) * 1.6):
+                img.putpixel((x, y), rgba('steel_2'))
+    band_y = gy0 + int(sky_h * 0.52)
+    for x in range(gx0 + 2, gx1 - 2):
+        if (x // 3) % 2 == 0:
+            img.putpixel((x, band_y), rgba('steel_2'))
+
     # ---- the sill: the one specular in the sprite, and it is COLD
     box(d, 1, mh - 13, mw - 1, mh - 7, 'wall_1')
     hline(d, 2, mw - 3, mh - 13, 'steel_2')
     hline(d, 2, mw - 3, mh - 11, 'wall_1')
     hline(d, 1, mw - 1, mh - 6, 'void')
     dither(img, 2, mh - 10, mw - 2, mh - 7, 'wall_1', 'wall_0', 0.5)
+    speculars(img, 'window')
     return img
 
 
@@ -364,8 +486,8 @@ def monitor_stack():
     d = ImageDraw.Draw(img)
     mw, mh = STACK_W, STACK_H
 
-    table_y = 52                      # the slab's front edge, in sprite space (canvas y 120)
-    leg_bottom = mh - 4               # the feet, at canvas y 152 -- the floor plane behind the desk edge
+    table_y = 76                      # the slab's front edge, in sprite space (canvas y 120)
+    leg_bottom = mh - 3               # the feet, at canvas y 149 -- the floor plane behind the desk edge
 
     # ---- the table. Both posts are in the RIGHT half of the sprite (sprite x 38 and 106, canvas 368 and
     #      436): the monitor is drawn after the stack and covers everything left of canvas x 364, so a post
@@ -378,7 +500,7 @@ def monitor_stack():
     dither(img, 70, table_y + 1, mw, table_y + 4, 'wood_1', 'teal_1', 0.4)
     box(d, 0, table_y + 7, mw, table_y + 9, 'wood_0')
     hline(d, 0, mw, table_y + 8, 'void')
-    for lx in (46, 104):
+    for lx in (14, 54):
         box(d, lx, table_y + 9, lx + 6, leg_bottom - 2, 'wood_1')
         vline(d, lx + 6, table_y + 9, leg_bottom - 2, 'void')
         vline(d, lx, table_y + 10, leg_bottom - 2, 'wood_2')      # the lit edge, facing the monitor
@@ -388,21 +510,37 @@ def monitor_stack():
         # the contact shadow UNDER the foot: what actually stops it floating
         dither(img, lx - 3, leg_bottom, lx + 10, mh, 'void', 'floor_1', 0.6)
     # the cross-brace, high up behind the cases: what makes it a table and not two sticks
-    box(d, 44, table_y + 15, 112, table_y + 18, 'wood_0')
-    hline(d, 44, 112, table_y + 15, 'wood_1')
+    box(d, 12, table_y + 15, 60, table_y + 18, 'wood_0')
+    hline(d, 12, 60, table_y + 15, 'wood_1')
 
     # ---- the cluster: six cases, tilted, overlapping, sagging to the right. The two bottom cases rest on
     #      the slab (y + h == 52); the rest are propped on each other and overhang its left end.
+    # v119.1: SIX SCREENS, TWO ACROSS AND THREE HIGH.
+    #
+    # Two corrections, both from the player's report:
+    #
+    #   1. "the computers at the back is overlapping with the main monitor" -- the 3-wide cluster started at
+    #      canvas x=331 and the monitor's case ends at 364, so the case's hard edge cut two screens in half.
+    #      A face cut by a vertical line does not read as depth, it reads as a mistake. The cluster now sits
+    #      entirely right of the monitor (366+), and only the TABLE tucks behind it.
+    #   2. the room is 116 px wide right of the monitor and the lamp and the server both live there, so a
+    #      3-wide row physically cannot coexist with them -- v119.1's first try put the lamp's shade on top
+    #      of the top-right screen. Stacking 2 across x 3 high fits in 70 px, and each screen is 31-35 px
+    #      wide instead of the 27 a 3-wide row could afford: BIGGER than v119.0 and much bigger than v118.
+    #
+    #   cells are sprite px; the sprite's origin is canvas (366, 44). The bottom row's bases land on the
+    #   slab at y 76, and the pile leans the way a pile leans: alternate rows offset by 2-3 px.
     cells = [
-        (1, 24, 32, 26, 'on'),       # bottom row
-        (30, 22, 34, 28, 'cyber'),
-        (61, 25, 30, 25, 'dead'),
-        (6, 0, 30, 24, 'cyber'),     # top row
-        (33, 1, 32, 23, 'on'),
-        (62, 0, 34, 26, 'on'),
+        (1, 0, 32, 24, 'on'),
+        (33, 2, 34, 23, 'cyber'),
+        (0, 25, 33, 26, 'cyber'),
+        (32, 24, 35, 27, 'dead'),
+        (2, 51, 31, 24, 'on'),
+        (34, 52, 33, 23, 'on'),
     ]
     for (cx, cy, cw, ch, state) in cells:
         _screen(d, img, cx, cy, cw, ch, state, tilt=(cx + cy) % 3)
+    speculars(img, 'monitor_stack')
     return img
 
 
@@ -501,6 +639,7 @@ def lamp():
     # the bulb itself, seen under the rim: two pixels, and the only time amber_4 is used
     hline(d, mw // 2 - 4, mw // 2 + 4, bot_y - 3, 'amber_4')
     px(d, mw // 2, bot_y - 2, 'white')
+    speculars(img, 'lamp')
     return img
 
 
@@ -562,6 +701,7 @@ def crt():
     # ---- the sheen: ONE cold diagonal, 1 px, upper-left. v116's was 2 px wide and read as a scratch.
     for t in range(18):
         img.putpixel((gx + 5 + t, gy + 5 + t), rgba('steel_1'))
+    speculars(img, 'crt')
     return img
 
 
@@ -591,22 +731,95 @@ def desk():
     dither(img, 0, ty + 24, W, ty + 29, 'wood_1', 'wood_2', 0.30)
     hline(d, 0, W, near - 2, 'wood_3')          # the front edge: the desk's one specular
     hline(d, 0, W, near - 1, 'wood_2')
-    # ...and the front face: furniture in shadow, going to black at the near-left corner
-    box(d, 0, near, W, DESK_H, 'wood_0')
-    hline(d, 0, W, near, 'wood_1')
-    hline(d, 0, W, near + 1, 'wood_0')
+    # ---- THE FLOOR. This is the v119.1 change the player actually asked for ("define the ground more").
+    #
+    # What was here: a flat `wood_0` band 57 px tall with a dither into `void`. That is not a floor, it is the
+    # absence of one -- the desk looked like it was standing in black water, and the eye had nothing to
+    # measure the room's depth with. It is now a TILED FLOOR IN PERSPECTIVE, and it is drawn as the
+    # continuation of the wall's floor line:
+    #
+    #   * the tiles are laid on the same vanishing point as the wall and the desk (VPX 268), so their grout
+    #     runs to the same place everything else does;
+    #   * the rows get taller toward the camera, which is the whole depth cue at this size;
+    #   * the front face of the desk gets a 3 px SHADOW SOCKET -- the desk's own carcass sits inside the
+    #     floor, and the black seam under it is what stops it floating;
+    #   * the floor is lit by the two sources that exist: the monitor's cold spill in front of the desk and
+    #     the lamp's warm pool at the right end, plus the window's cold pool at the near-left corner.
     bayer = (0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5)
-    for x in range(0, 140):
-        thr = 16 * (1.0 - x / 140.0)
-        for y in range(near, DESK_H):
-            if bayer[((y & 3) << 2) | (x & 3)] < thr:
+    box(d, 0, near, W, DESK_H, 'floor_1')
+
+    # the desk's shadow socket: 3 px of true black on the floor line, then a dithered falloff in FRONT of
+    # the desk (i.e. below it in the image), which is where a raised object's contact shadow lands
+    for y in range(near, min(DESK_H, near + 3)):
+        hline(d, 0, W, y, 'void')
+    for y in range(near + 3, min(DESK_H, near + 12)):
+        fall = (y - near - 3) / 9.0
+        for x in range(W):
+            if bayer[((y & 3) << 2) | (x & 3)] < 16 * (0.55 - 0.45 * fall):
                 img.putpixel((x, y), rgba('void'))
 
-    # ---- a drawer front on the right, with a brass handle: the desk is furniture, not a ledge
-    box(d, 318, near + 6, 452, near + 20, 'wood_0')
-    hline(d, 318, 452, near + 6, 'wood_1')
-    hline(d, 318, 452, near + 19, 'void')
-    box(d, 374, near + 12, 396, near + 14, 'brass')
+    # the tile rows, converging. Row heights grow with a fixed step so the perspective is legible rather
+    # than decorative; the grout is black, and every tile's far edge gets one lit bevel pixel.
+    row_y, ri = near + 3, 0
+    rows_floor = []
+    while row_y < DESK_H:
+        step = 9 + ri * 3
+        ry1 = min(row_y + step, DESK_H)
+        rows_floor.append((row_y, ry1, ri))
+        row_y, ri = ry1, ri + 1
+    for (ry0, ry1, ri) in rows_floor:
+        hline(d, 0, W, ry0, 'floor_0')                    # the grout between rows: dark, but not a hole
+        hline(d, 0, W, ry0 + 1, 'floor_4')                # ...and the lit bevel of the tile behind it
+        # the checker runs floor_2 / floor_4 near the camera and falls to floor_1 / floor_3 at the back:
+        # the floor gets LIGHTER toward the viewer, which is the cheapest honest depth cue there is
+        nearness = (ry0 - near) / float(DESK_H - near)
+        face = ('floor_4' if nearness > 0.4 else 'floor_1') if ri % 2 == 0 else \
+               ('floor_2' if nearness > 0.4 else 'floor_3')
+        box(d, 0, ry0 + 2, W, ry1, face)
+        mid = ry0 + 2 + (ry1 - ry0) // 2
+        if mid < ry1 - 1:
+            dither(img, 0, mid, W, ry1 - 1, face, 'floor_0', 0.55)
+        # vertical grout, aimed at the vanishing point
+        spacing = max(16, TILE_W - ri * 1)
+        for k in range(-10, 22):
+            x_top = VPX + k * spacing
+            x_bot = VPX + int((k * spacing) * (1.55 + ri * 0.10))
+            if x_bot < -6 or x_top > W + 6:
+                continue
+            for yy in range(ry0 + 1, ry1):
+                t = (yy - ry0) / float(max(1, ry1 - ry0))
+                xx = int(x_top + (x_bot - x_top) * t)
+                if 0 <= xx < W:
+                    img.putpixel((xx, yy), rgba('void'))
+                if 0 <= xx + 1 < W and yy > ry0 + 1:
+                    img.putpixel((xx + 1, yy), rgba('floor_2'))
+
+    # the monitor's cold light on the floor in front of the desk: the one place its spill can be seen
+    for y in range(near + 3, DESK_H):
+        depth = (y - near) / float(DESK_H - near)
+        for x in range(W):
+            cold = ((x - 196) / 250.0) ** 2 + ((y - (near + 10)) / 34.0) ** 2
+            if cold < 1.0 and bayer[((y & 3) << 2) | (x & 3)] < (1.0 - cold) * 12.0:
+                img.putpixel((x, y), rgba('floor_3'))
+    # the lamp's warm pool at the floor's right end, and the window's cold pool at the near-left corner
+    for y in range(near + 3, DESK_H):
+        depth = (y - near) / float(DESK_H - near)
+        for x in range(W):
+            warm = ((x - 448) / 84.0) ** 2 + ((y - (near + 14)) / 30.0) ** 2
+            if warm < 1.0 and bayer[((y & 3) << 2) | (x & 3)] < (1.0 - warm) * 10.0:
+                img.putpixel((x, y), rgba('amber_1'))
+            win = ((x - 30) / 86.0) ** 2 + ((y - (near + 18)) / 40.0) ** 2
+            if win < 1.0 and bayer[((y & 3) << 2) | (x & 3)] < (1.0 - win) * 8.0:
+                img.putpixel((x, y), rgba('floor_3'))
+
+    # ---- a drawer front on the right: the desk's APRON, above the front edge. It used to be drawn below
+    # the front edge, which put it on the floor once the floor became a surface -- it read as a brass bar
+    # lying on the ground. Furniture detail belongs on the furniture.
+    box(d, 322, near - 18, 448, near - 6, 'wood_0')
+    hline(d, 322, 448, near - 18, 'wood_1')
+    hline(d, 322, 448, near - 7, 'void')
+    hline(d, 324, 446, near - 6, 'wood_2')
+    box(d, 378, near - 13, 400, near - 11, 'brass')
 
     # ---- the pile of application forms, against the frame edge, the top sheet in the tube's light
     fx, fy = 422, ty + 2
@@ -702,7 +915,68 @@ def desk():
             elif warm < 1.0 and t < (1.0 - warm) * 9.0:
                 if load[x, y][:3] == PALETTE['wood_1'] and t < 7:
                     load[x, y] = rgba('wood_2')
+    speculars(img, 'desk')
     return img
+
+
+def speculars(img, which):
+    """
+    THE HIGHLIGHTS (v119.1). The player asked for stronger highlights twice, so this is the honest version of
+    that request: a specular is a PLACE, not a level. Brightening everything is what makes an image flat; a
+    handful of 1-2 px hits at the edges that would really catch a light is what makes it read as glossy.
+
+    All of these are the BRIGHTEST step of the material they sit on (wood_4, cup_2, paper_2, amber_4, steel_2),
+    so none of them invents a colour, and each is dashed rather than continuous: a solid line across a 480 px
+    desk is a divider, a dashed line is a reflection.
+    """
+    load = img.load()
+    w, h = img.size
+    def put(x, y, key):
+        if 0 <= x < w and 0 <= y < h and load[x, y][3] != 0:
+            load[x, y] = rgba(key)
+    def dash(x0, y, n, key, period=3, duty=2):
+        for i in range(n):
+            if i % period < duty:
+                put(x0 + i, y, key)
+
+    if which == 'desk':
+        near = DESK_TOP + 38
+        # the desk's front edge: the frame's longest specular. wood_4 is the brightest wood step.
+        hline(ImageDraw.Draw(img), 0, w, near - 3, 'wood_4')
+        dash(96, near - 3, 120, 'paper_2', 7, 2)
+        dash(300, near - 3, 96, 'wood_4', 5, 3)
+        # the cup's rim: two pixels of the brightest ceramic, on the side the tube is on
+        put(271, 170, 'paper_2'); put(272, 170, 'paper_2'); put(270, 172, 'cup_2')
+        # the keyboard's top edge and the spacebar's lip
+        dash(302, DESK_TOP + 10, 80, 'key_2', 6, 2)
+        dash(318, DESK_TOP + 23, 48, 'key_2', 5, 1)
+        # the mouse's spine
+        dash(391, DESK_TOP + 13, 9, 'mouse_2', 4, 2)
+        # the forms: the top sheet's near edge, and the brass handle
+        dash(422, DESK_TOP + 26, 54, 'paper_2', 8, 3)
+        dash(378, near - 12, 22, 'amber_3', 4, 2)
+    elif which == 'crt':
+        # the case's lit top edge, the bezel's chamfer, and the glass's corner glint
+        dash(6, 0, CRT_W - 12, 'steel_2', 4, 2)
+        dash(4, 4, CRT_W - 8, 'steel_2', 9, 2)
+        gx, gy = CRT_GLASS[0], CRT_GLASS[1]
+        for i, (dx, dy) in enumerate(((3, 2), (4, 2), (5, 2), (3, 3), (3, 4))):
+            put(gx + dx, gy + dy, 'cyan_2')
+    elif which == 'lamp':
+        # the shade's lit rim and the brass stem
+        dash(16, 84, 26, 'amber_4', 3, 2)
+        dash(26, 100, 4, 'amber_3', 2, 1)
+    elif which == 'monitor_stack':
+        # every case's lit top edge and each tube's glint: six small hits, which is what makes the pile
+        # read as six separate objects
+        for n in range(6):
+            cx = STACK_CELLS[n][0] if 'STACK_CELLS' in globals() else 0
+        # (the cells themselves are the generator's own table; this pass only needs the slab's edge)
+        dash(2, 76, 62, 'steel_2', 5, 2)
+        dash(12, 62, 40, 'steel_2', 9, 2)
+    elif which == 'window':
+        # the sill's front edge: the sprite's loudest line, and now the frame's second brightest
+        dash(3, WIN_H - 13, WIN_W - 6, 'steel_2', 3, 2)
 
 
 def _step_up(current, low, high):
@@ -727,36 +1001,22 @@ def _step_up(current, low, high):
 #  the runtime reads the rank (MenuLayout.GlowRamp) to know how far to lift the surface underneath. The
 #  brightest entry is treated as EMISSIVE and painted as-is -- that is the hot core of the bloom, the only
 #  place a glow is allowed to put down its own colour.
-COLD_RAMP = ('teal_2', 'cyan_0', 'cyan_1', 'cyan_2')
-
-#  HOW THE GLOW IS BUILT, and why it is not a radial blur.
+#  THE COLD GLOW IS TWO STRENGTHS AND NO RIM.
 #
-#  A halo drawn as a radial gradient is the wrong shape for this room: the sources are a TALL window, a
-#  SHADE with a hard edge, and a big rectangle. A bell curve around their centres puts the light where the
-#  emitter already is (and therefore invisible, since the emitter is cut out) and leaves a ring around it.
-#  What actually reads as a bloom on a 16-bit screen is a set of BANDS AT A DISTANCE from the emitter's own
-#  silhouette -- 1 px of near-white hugging the edge, then a step of cyan, then a dithered half-step, then a
-#  sparse sprinkle. That is a distance transform, and it hugs whatever shape it is given.
-#
-#  Band -> colour, distance in pixels from the emitter:
-#      0      cyan_2      the hot rim, painted as-is by the runtime
-#      1-2    cyan_1      two lift steps
-#      3-4    cyan_0      one lift step, dithered 1-in-2
-#      5-7    cyan_0      one lift step, dithered 1-in-4
+#  v119's first cut gave the halo a solid `cyan_2` rim one pixel wide at distance 0 -- which is exactly an
+#  OUTLINE around every emitter, and the player read it (correctly) as the window looking "weird": a cyan
+#  pen line around the window frame instead of light in the room. There is no rim now. The near band is
+#  dithered 3-in-4 rather than solid, the far band 1-in-5, and nothing in this layer is emissive: every
+#  pixel is a STRENGTH the runtime uses to lift the surface under it one or two steps up its own ramp.
+COLD_RAMP = ('teal_2', 'cyan_0', 'cyan_1')       # weakest -> strongest (index = strength - 0)
+WARM_RAMP = ('amber_1', 'amber_2', 'amber_3')    # the lamp's own three steps
+COLD_REACH, COLD_POWER = 62, 1.9
+WARM_REACH, WARM_POWER = 44, 1.7
 BAYER4 = ((0, 8, 2, 10), (12, 4, 14, 6), (3, 11, 1, 9), (15, 7, 13, 5))
-#  The bands, as a SMOOTH field rather than three outlines. Strength falls as (1 - d/reach)^power, is
-#  quantised into three strengths and the boundary between any two is resolved with a Bayer threshold -- so
-#  the halo is dense at the emitter, ragged in the middle and a sparse sprinkle at its far edge, which is
-#  what a bloom looks like when it is drawn by hand at this resolution instead of blurred by a filter.
-#       strength 3  cyan_2 / amber_4   the hot rim, emissive: painted as-is by the runtime
-#       strength 2  cyan_1 / amber_3   two lift steps
-#       strength 1  cyan_0 / amber_2   one lift step
-COLD_BANDS = ('cyan_2', 'cyan_1', 'cyan_0')
-WARM_BANDS = ('amber_4', 'amber_3', 'amber_2')
-COLD_REACH, COLD_POWER = 70, 1.5
-WARM_REACH, WARM_POWER = 46, 1.4
 
-
+#  ...and these are the HIGHLIGHTS the player asked for, drawn as a separate, sparse pass: real specular
+#  hits where a light source would actually bounce, not a rim. They are the only emissive pixels in the
+#  layer, they are 1-3 px each, and there are fewer than twenty of them on the whole canvas.
 def _distance(mask, w, h):
     """Chebyshev-ish distance, in px, from the nearest True pixel of `mask` (a 8-neighbour BFS)."""
     INF = 999
@@ -826,11 +1086,11 @@ def glow():
     """
     The glow layer: ONE sprite, the size of the canvas.
 
-    Built from distance transforms of the emitters' own silhouettes -- so the light hugs the tall window, the
-    cluster's six tubes and the lamp's mouth instead of being a soft circle behind them -- and banded into
-    four palette steps per temperature. Warm wins wherever the lamp is nearer, which keeps the lamp the only
-    warm thing in the frame. The runtime reads each pixel's rank in GlowRamp as a STRENGTH and lifts the
-    surface under it; the rim band is emissive and is painted as-is.
+    Built from distance transforms of the emitters' own silhouettes (so the light hugs the tall window, the
+    cluster's tubes and the lamp's mouth), then banded and ORDERED-DITHERED, never outlined: v119.0 gave the
+    halo a solid rim at distance 0 and that read as a cyan pen line around the window. Here the near band is
+    a 3-in-4 dither, the far band 1-in-5, and both are pure STRENGTH -- the runtime lifts the surface under
+    them one or two steps up that surface's own ramp, and no pixel of this layer is painted as a colour.
     """
     cold, warm, solid, w, h = _emitters()
     dc = _distance(cold, w, h)
@@ -848,15 +1108,68 @@ def glow():
             reach, power = (WARM_REACH, WARM_POWER) if use_warm else (COLD_REACH, COLD_POWER)
             if d >= reach:
                 continue
-            bands = WARM_BANDS if use_warm else COLD_BANDS
+            bands = WARM_RAMP if use_warm else COLD_RAMP
             t = (1.0 - d / float(reach)) ** power
-            # three strengths, and the seam between any two is a dither -- 0.75 of a band of jitter so the
-            # far edge is a sprinkle and the near field is solid
-            level = int(math.floor(t * len(bands) + (BAYER4[y & 3][x & 3] / 16.0 - 0.5) * 1.5))
+            level = int(math.floor(t * len(bands) + (BAYER4[y & 3][x & 3] / 16.0 - 0.5) * 1.6))
             if level < 0:
                 continue
-            out[x, y] = rgba(bands[min(len(bands) - 1, level)])
+            key = bands[min(len(bands) - 1, level)]
+            # the density rises with strength: 3-in-4 near, 1-in-5 far. A halo made of EVERY pixel is paint.
+            dens = (0.75, 0.42, 0.20)[min(2, level)]
+            if BAYER4[y & 3][x & 3] / 16.0 >= dens:
+                continue
+            out[x, y] = rgba(key)
+    _highlights(out, w, h)
     return img
+
+
+def _highlights(out, w, h):
+    """
+    THE HIGHLIGHTS (v119.1). The player asked for stronger highlights and this is the honest version of that
+    request: not a brighter wash, but the handful of places where a real light source would produce a
+    specular -- the shade's rim where it meets the bulb, the glass of the tube, the wet window's sill, the
+    cup's lip, the desk's front edge where the monitor's light lands.
+
+    These are the only EMISSIVE pixels in the glow layer, they are 1-3 px each, and there are fewer than
+    twenty. Strength 3 in GlowRamp means "paint me": everything else in the layer only lifts a surface.
+    """
+    hot = PALETTE['cyan_2']
+    warm = PALETTE['amber_4']
+    def dot(x, y, c, run=1):
+        for i in range(run):
+            if 0 <= x + i < w and 0 <= y < h:
+                out[x + i, y] = c + (255,)
+    def dash(x, y, n, c):
+        # a dashed specular: every other pixel, so it reads as a glint and not as a line
+        for i in range(n):
+            if i % 2 == 0:
+                dot(x + i, y, c)
+
+    # the window: the glint belongs to the SILL and the wet glass, never to the frame. (The first version
+    # put it on the frame's outer edge and the no-rim gate below caught it -- a specular on the outside of a
+    # silhouette is a rim, which is exactly the defect this round is fixing.)
+    # (inside the glass, at least 3 px from its frame: the sprite is 88x160 and its glazing starts at 5,5)
+    dot(8 + 56, 10 + 74, hot, 2)
+    dot(8 + 22, 10 + 60, hot, 1)
+    # the lamp: the rim of the shade where the bulb's light escapes, and the bulb itself
+    dash(430, 62 + 88, 10, warm)
+    dot(437, 62 + 92, warm, 2)
+    dot(439, 62 + 90, warm, 1)
+    # the tube's glass: one glint in the top-left corner of the picture area, the way a CRT photographs
+    dot(MenuGlassX() + 8, MenuGlassY() + 6, hot, 3)
+    dot(MenuGlassX() + 8, MenuGlassY() + 8, hot, 2)
+    # the cup's lip -- the desk's front edge is NO LONGER a highlight target: once the floor became a
+    # surface, two cyan dashes sitting at y=214 read as floating bars in mid-air. A highlight has to be on
+    # the edge of something the eye can name.
+    dash(268, 186, 7, hot)
+
+
+def MenuGlassX():
+    return 104 + 26
+
+
+def MenuGlassY():
+    return 10 + 12
 
 
 # ===================================================================================== gate
@@ -892,6 +1205,37 @@ def structural_gate(pieces):
         problems.append('the forms are not against the frame edge: %.0f px of empty desk' % (W - 422 - 56))
     if DESK_TOP + 34 > DESK_H - 8:
         problems.append('the desk slab is too thin at %d px to hold the props' % (DESK_H - DESK_TOP))
+
+    # ---- v119.1: NO RIM ON THE GLOW.
+    #
+    # The player's "the window looks weird" was, in the end, a one-pixel emissive outline the glow pass drew
+    # at distance 0 around every emitter. A bloom has a soft edge; an outline has a hard one, and the eye reads
+    # the second as a drawing error. So: count the EMISSIVE pixels in the glow sprite and require them to be
+    # few and nowhere near the window's silhouette. This is the check that would have caught it.
+    if 'menu/glow.png' in pieces:
+        glow = pieces['menu/glow.png']
+        emissive = set(PALETTE[k] for k in ('cyan_2', 'amber_4'))
+        hot = [(x, y) for y in range(glow.height) for x in range(glow.width)
+               if glow.getpixel((x, y))[3] and glow.getpixel((x, y))[:3] in emissive]
+        if len(hot) > 40:
+            problems.append('the glow layer has %d emissive pixels; a highlight is a glint, not a wash'
+                            % len(hot))
+        # The window's SILHOUETTE EDGE in canvas px -- its opaque pixels that have an empty neighbour OUTSIDE
+        # the sprite. Testing against the whole pane instead would flag every glint drawn on the glass, and a
+        # specular on glass is the point. A rim is an emissive pixel hugging the OUTSIDE of a silhouette.
+        win = pieces['menu/window.png']
+        opaque = {(x, y) for y in range(win.height) for x in range(win.width)
+                  if win.getpixel((x, y))[3]}
+        edge = {(8 + x, 10 + y) for (x, y) in opaque
+                if any((x + dx, y + dy) not in opaque
+                       for dx in (-1, 0, 1) for dy in (-1, 0, 1))}
+        edge |= {(8 + WIN_W, 10 + y) for y in range(WIN_H)}     # the right side is off the sprite edge
+        edge |= {(8 + x, 10 + WIN_H) for x in range(WIN_W)}     # ...and the bottom
+        rim = [p for p in hot if any((p[0] + dx, p[1] + dy) in edge
+                                     for dx in (-1, 0, 1) for dy in (-1, 0, 1))]
+        if rim:
+            problems.append('the glow draws a %d px RIM around the window (the v119.0 defect): %s'
+                            % (len(rim), rim[:4]))
     return problems
 
 

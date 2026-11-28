@@ -182,3 +182,118 @@ overlapped by 2 px, so the bottom of every row resolved to the row above) and
 3. **Look under the table** — the legs are interrupted by the desk at the floor plane.
 4. **Watch the cluster** — six tubes on six different beats, one of them flooding red every 14–26 s.
 5. **Click a wall screen** — nothing yet; it brightens on hover only (the readout itself is on a timer).
+
+
+---
+
+# v119.1 — the correction round (player report on v119.0)
+
+> "I did not export it because there are things wrong with the recent update. Define the ground more. The
+> computers at the back is overlapping with the main monitor. The glows look wrong. I like the monitor and
+> table look just need to define the ground more. I want the last edit on window look, right now it looks
+> weird. I want you to make the highlights stronger."
+
+v119.0 was **not** exported, so it is treated as a draft. Every one of those five notes is a real defect and
+each is listed below with its cause. Nothing about v118's *composition* was re-litigated: the monitor, the
+desk, the rows and the type are the ones the player approved.
+
+## 10. "The glow looks wrong" / "the window looks weird" — the same bug
+
+The window **sprite had not changed** (byte-identical to v118 — that was checked first, with a hash). The
+weirdness was the glow pass, which for v119.0 had:
+
+* a **solid `cyan_2` rim at distance 0** around every emitter, which is literally a one-pixel outline — a cyan
+  pen line around the window frame; and
+* a **fallback "dithered tint"** that painted the glow's own colour onto surfaces with no headroom left. The
+  wall around the window was already at the top of its ramp, so it got speckled with cyan.
+
+Both are gone. The rules now are:
+
+1. **No rim, ever.** The cold ramp has no emissive step; the near band is a 3-in-4 dither and the far band
+   1-in-5, so the halo has a soft edge.
+2. **A glow pixel adds light or adds nothing.** If the surface under it has no next step up its own ramp, the
+   pixel does nothing. It never paints its own colour.
+3. Emissive pixels exist **only** in a new `_highlights()` pass: fewer than twenty 1–2 px speculars, each on an
+   edge that would really catch a light, each on the *inside* of a silhouette.
+
+A gate now enforces (3): it counts the glow layer's emissive pixels and fails if any of them sits on the
+window's silhouette edge. **It caught three of my own first attempts**, which is the point.
+
+## 11. "Define the ground more" — there was no floor
+
+The desk sprite's front panel was a flat `wood_0` band from the wall down to the bottom of the frame, so the
+bottom 57 px of the picture was *furniture*, and the "floor" the eye was asked to stand the desk on did not
+exist. That panel is now a **tiled floor in perspective**:
+
+* tiles converge on the same vanishing point (268) as the wall and the desk;
+* rows get taller toward the camera, and the checker climbs a step (`floor_2`/`floor_4` near, `floor_1`/`floor_3`
+  far) so the floor gets lighter toward the viewer;
+* black grout with a one-pixel lit bevel on the far edge of every tile — the joint is what reads as depth;
+* a 3 px **shadow socket** under the desk, then a dithered falloff in front of it, so the desk sits *in* the
+  floor instead of floating on it;
+* the monitor's cold spill lands as a pool in front of the desk, the lamp's warm pool at the right end, and the
+  window's cold pool at the near-left corner.
+
+The palette needed one more step for this: the floor ramp spanned value 0.022–0.100, i.e. the entire floor
+lived inside 2–10% luma and every surface there was the same near-black. `floor_4` (0.145) was added — still
+dark, still violet, and enough separation for a checker and a grout line to be readable. Gate: 71% of steps
+still dark.
+
+## 12. "The computers at the back is overlapping with the main monitor"
+
+Exactly true, and the cause was arithmetic: the cluster started at canvas **x = 331** and the monitor's case
+ends at **x = 364**, so the case's hard vertical edge cut two screens clean in half. A face cut by a vertical
+line does not read as depth; it reads as a mistake.
+
+Two constraints had to be solved together:
+
+* the cluster must start right of the monitor (366+); and
+* the room is only ~116 px wide there, and the lamp and the server both live in it — a 3-wide row physically
+  cannot coexist with them (the first v119.1 attempt put the lamp's shade on top of the top-right screen).
+
+**Solution: two across, three high.** 70 × 108 px, which makes each screen **31–35 px wide** — bigger than
+v119.0's 27 and much bigger than v118's 22 — and leaves clear air for the lamp at x 422. The table's posts stay
+visible (x 380 and 420), the feet meet the floor plane, and only the table tucks behind the monitor, which is
+the overlap that reads as *layering* because the table is a thin slab.
+
+The readout painter, the hover hit test and the twin renderer all read `MenuLayout.StackCells`, so a click on a
+screen and the screen that lights up still cannot disagree.
+
+## 13. "I want the last edit on window look"
+
+The sprite was not the problem, but two things in it were worth fixing while there:
+
+* a **broad checker band** across the middle of the pane (the old "city glow") — at 88 px wide a 16 px checker
+  is a texture fault, not haze. Replaced with a graded sky of five ≥12 px steps whose seams are dithered across
+  14 px, plus a tight three-row light-pollution band right above the skyline where it belongs.
+* **no light inside the glass** — the pane was three steps of near-black. It now ends on `steel_1` at the
+  horizon, has a moon with a two-step halo, and two **horizontal** wet-glass reflections (a vertical one-pixel
+  line reads as a scratch; that trap is already in the bug log).
+
+Frame, bars and sill unchanged.
+
+## 14. "Make the highlights stronger"
+
+Interpreted as speculars, not exposure — brightening everything is what made v116 flat in the first place. A
+new `speculars()` pass puts the **brightest step of each material** on the edges that would really catch light:
+
+| surface | highlight |
+|---|---|
+| desk front edge | `wood_4` line + two dashed `paper_2` runs at the light's reach |
+| cup rim, keyboard top, spacebar, mouse spine | 1–2 px each |
+| application forms, brass handle | dashed `paper_2`, `amber_3` |
+| CRT case | lit top edge, bezel chamfer, one glass corner glint |
+| cluster | each case's top edge + the table slab's bevel |
+| lamp | the shade's lit rim, the brass stem |
+| window | the sill's front edge (inside the frame) |
+
+All dashed rather than continuous, all palette steps, none of them inventing a colour.
+
+## 15. Gates (all green)
+
+`Build succeeded` · `ALL TESTS PASSED` · 99 sprites palette-conformant · menu frame fits · 11 ramps / 71% dark ·
+3 structural checks incl. **the new no-rim gate** · 10 layers ≤12 fps · manifest and metas current.
+
+One test had to change with the art, and it was the right change: `the monitor cluster is clickable` now probes
+`StackX + 8` instead of a hard-coded 340, **and** asserts `StackX >= CrtX + CrtW` — i.e. the no-overlap rule the
+player reported is now a test, not a drawing habit.

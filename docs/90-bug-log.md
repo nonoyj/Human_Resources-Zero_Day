@@ -1531,3 +1531,38 @@ asserting against an empty dictionary and passing.
 `Resources.Load<TextAsset>` reads the actual `unity/Assets/Resources` folder. With that in place the glow test
 immediately found a genuinely stale `palette.json` (71 colours, missing both v119 lit steps) -- see BUG-074's
 lesson, which it turns out was applied to the writer but not to the published file.
+
+## BUG-078 -- the glow drew an outline around every emitter, and the floor was furniture (2026-11-30)
+
+**Reported (v119.0 not exported):** *"the glows look wrong"*, *"I want the last edit on window look, right now
+it looks weird"*, *"define the ground more"*, *"the computers at the back is overlapping with the main monitor"*.
+
+**Cause 1 -- the rim.** The glow pass's cold ramp had an emissive top band and a solid `cyan_2` at distance 0,
+which is a one-pixel OUTLINE around every emitter. The player read it as the window looking wrong; the window
+sprite was in fact byte-identical to v118 (verified by hash before any repaint). A bloom has a soft edge; an
+outline has a hard one.
+
+**Cause 2 -- the tint.** Where a glow pixel landed on a surface with no next step up its own ramp, the
+runtime fell back to a "dithered tint" that painted the glow's own colour. The wall around the window is
+already at the top of its ramp, so it got cyan speckles.
+
+**Fix.** No emissive step in the cold ramp at all (near band 3-in-4 dither, far band 1-in-5); a glow pixel that
+finds no headroom now adds **nothing**; and the only emissive pixels in the layer are a new `_highlights()`
+pass of <20 one- and two-pixel speculars, each on the inside of a silhouette. Gate: `make_menu_room.py
+--check` counts the emissive pixels and fails if any of them touches the window's silhouette edge. It caught
+three of my own attempts at the sill glint -- the check is the reason the fix is real.
+
+**Cause 3 -- no floor.** `desk.png`'s front panel was a flat `wood_0` band from the wall to the bottom of the
+frame. The bottom 57 px of the picture was furniture and the floor did not exist, which is exactly what
+"define the ground more" means. The panel is now a tiled floor in perspective (grout, lit bevels, a checker
+that lightens toward the viewer, a shadow socket under the desk, and the three lights' pools).
+
+**Cause 4 -- the overlap.** The cluster began at canvas x=331 and the monitor's case ends at 364, so its hard
+edge sliced two screens in half. Fixed structurally: 2 across x 3 high at x=366, which also made every screen
+31-35 px wide instead of 27. `MenuTests` now asserts `StackX >= CrtX + CrtW`, so the rule cannot be broken by a
+later drawing change.
+
+**The palette lesson, again.** Both the floor and the glow were blocked by the same thing: **no headroom**.
+The floor's whole ramp spanned value 0.022-0.100 and the wall was already topped out, so nothing could be
+lit. `floor_4` (0.145) and `wall_3` (0.29) exist so that light has somewhere to land. A ramp with no lit step
+cannot show light, only tint.

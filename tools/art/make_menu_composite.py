@@ -33,7 +33,7 @@ W, H = 480, 270
 # These MUST equal unity/Assets/Scripts/Core/Rules/MenuLayout.cs. check() asserts it against the sprite
 # sizes and the palette, so a stale number here fails the gate instead of quietly painting the room wrong.
 WIN_X, WIN_Y = 8, 10
-STACK_X, STACK_Y = 330, 68
+STACK_X, STACK_Y = 366, 44
 LAMP_X, LAMP_Y = 422, 62
 SRV_X, SRV_Y = 452, 80
 CRT_X, CRT_Y = 104, 10
@@ -74,11 +74,12 @@ RAMPS = [
 
 # the cluster: (x, y, w, h) in canvas px, mirrored from MenuLayout.StackCells
 STACK_CELLS = [
-    (331, 92, 32, 26), (360, 90, 34, 28), (391, 93, 30, 25),
-    (336, 68, 30, 24), (363, 69, 32, 23), (392, 68, 34, 26),
+    (367, 44, 32, 24), (399, 46, 34, 23),
+    (366, 69, 33, 26), (398, 68, 35, 27),
+    (368, 95, 31, 24), (400, 96, 33, 23),
 ]
 STACK_TUBE = 3
-STACK_TABLE_TOP = STACK_Y + 60      # the slab under the tubes, in canvas px
+STACK_TABLE_TOP = STACK_Y + 76      # the slab under the tubes, in canvas px
 
 
 def kit(rel):
@@ -194,21 +195,22 @@ GLOW_POS = [('menu/glow', 0, 0)]
 
 def glow(img):
     """
-    MenuView.Glow(): three pre-dithered halo sprites whose COLOUR IS A STRENGTH. Cold ramp 0-4, warm 5-9;
-    the top of each is the bloom's core and is painted as-is, everything else walks the surface under it up
-    its own material ramp by that many steps. A glow can therefore brighten a wall or a desk, and it can
-    never paint cyan onto them.
+    MenuView.Glow(): the glow sprite's pixels are STRENGTHS, not colours. The sprite stores each strength as a
+    palette colour, but the runtime recolours by VALUE rather than by key -- and so does this twin, because
+    keying on the colour was the v119.0 bug that put cyan speckles on the window: the wall around the window
+    is already at the top of its own ramp, so the fallback "dithered tint" had nowhere to lift and painted
+    the glow's own cyan instead.
+
+    The fix is a rule, not a number: A GLOW PIXEL ON A SURFACE WITH NO HEADROOM ADDS NOTHING. The wall and the
+    floor gained lit steps (wall_3, floor_3/4) precisely so the headroom exists where the light lands.
     """
     from menu_palette import PALETTE
     up = {}
     for low, high in MenuLayoutRamps():
         up.setdefault(PALETTE[low], PALETTE[high])
-    ramp = ['teal_2', 'cyan_0', 'cyan_1', 'cyan_2',
-            'amber_1', 'amber_2', 'amber_3', 'amber_4']
     strength = {}
-    for i, key in enumerate(ramp):
-        strength.setdefault(PALETTE[key], i % 5)
-    hot = 4        # nothing cold reaches it now; the warm ramp's top band is strength 3
+    for i, key in enumerate(COLD_WARM_RAMP):
+        strength.setdefault(PALETTE[key], i)
     out = img.load()
     for rel, ox, oy in GLOW_POS:
         g = kit(rel)
@@ -226,23 +228,24 @@ def glow(img):
                     continue
                 if CRT_X <= dx < CRT_X + 260 and CRT_Y <= dy < CRT_Y + 186:
                     continue                      # never wash the tube
-                s_ = strength.get(c[:3])
-                if not s_:
+                st = strength.get(c[:3])
+                if st is None:
                     continue
+                if st >= GLOW_EMISSIVE:
+                    out[dx, dy] = c          # a specular: painted, always
+                    continue
+                steps = 1 if st in (0, 3) else 2
                 now = out[dx, dy][:3]
-                if s_ >= hot:
-                    out[dx, dy] = c
-                    continue
-                left = s_
-                for _ in range(s_):
+                for _ in range(steps):
                     nxt = up.get(now)
                     if nxt is None:
-                        break
+                        break                     # no headroom: the light adds nothing here
                     now = nxt
-                    left -= 1
-                if left > 0 and BAYER_MENU[dy & 3][dx & 3] < left * 5:
-                    now = c[:3]
                 out[dx, dy] = now + (255,)
+
+
+COLD_WARM_RAMP = ['teal_2', 'cyan_0', 'cyan_1', 'amber_1', 'amber_2', 'amber_3', 'cyan_2', 'amber_4']
+GLOW_EMISSIVE = 6
 
 
 def MenuLayoutRamps():

@@ -2233,7 +2233,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "menu",
-      "sha256_16": "97d13138b623e5fc",
+      "sha256_16": "c40046c87f9138d1",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2252,7 +2252,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "menu",
-      "sha256_16": "77fbb014b2b9e86f",
+      "sha256_16": "aa14734ee4f83b29",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2271,7 +2271,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "menu",
-      "sha256_16": "2d3308eb490b6570",
+      "sha256_16": "31c2cfa709810378",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2290,7 +2290,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "menu",
-      "sha256_16": "b85fc73a8b66d125",
+      "sha256_16": "510010dd6344972a",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2304,12 +2304,12 @@
     {
       "source": "art/kit/menu/monitor_stack.png",
       "assetPath": "Assets/Art/Kit/menu/monitor_stack.png",
-      "width": 116,
-      "height": 88,
+      "width": 70,
+      "height": 108,
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "menu",
-      "sha256_16": "cfde72bba23028d4",
+      "sha256_16": "ef7b5416461ce0ee",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2347,7 +2347,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "menu",
-      "sha256_16": "9b5f02e8c63ed33f",
+      "sha256_16": "ac0583f82a3a65da",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2366,7 +2366,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "menu",
-      "sha256_16": "9e8f223a97377828",
+      "sha256_16": "f542568588972e7c",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",

@@ -67,7 +67,12 @@ RAMPS = {
     'wall':  [(236, .36, .085), (224, .32, .135), (212, .28, .185), (200, .24, .290)],
     # the floor: a violet-black tile. Its own hue family, two steps below the wall, so the wall/floor
     # line reads as a line and not as a change of light
-    'floor': [(276, .46, .022), (264, .40, .038), (252, .34, .060), (244, .30, .100)],
+    # v119.1: FOUR steps was still not enough. v119's four steps spanned value 0.022-0.100, i.e. the whole
+    # floor lived inside 2-10% luma, so tiles, grout, shadow and light were all the same near-black and the
+    # player's "define the ground more" was really "I cannot see a floor". `floor_4` is the value a tile
+    # takes when the monitor's spill actually reaches it: still dark (0.145, far under the 0.62 ceiling),
+    # still violet, and enough separation for a checker and a grout line to be readable at 480x270.
+    'floor': [(276, .46, .022), (264, .40, .038), (252, .34, .060), (244, .30, .100), (236, .26, .145)],
     # the desk: WARM. the one large warm surface, and the reason the frame is not monochrome cyan
     'wood':  [(14, .57, .050), (24, .56, .090), (32, .54, .140), (40, .48, .200), (48, .38, .280)],
     # steel: the monitor table and the server's case. cool, green-leaning (it reflects the screens),

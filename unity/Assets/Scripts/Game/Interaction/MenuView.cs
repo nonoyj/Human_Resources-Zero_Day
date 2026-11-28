@@ -275,7 +275,7 @@ namespace HRZeroDay.Game.Interaction
             {
                 Color32 c;
                 if (palette.TryGetValue(MenuLayout.GlowRamp[i], out c) && !strength.ContainsKey(c))
-                    strength[c] = i % MenuLayout.GlowHotLen;
+                    strength[c] = i;
             }
 
             for (int i = 0; i < MenuLayout.GlowSprites.Length; i++)
@@ -305,32 +305,25 @@ namespace HRZeroDay.Game.Interaction
                         if (_room[idx].a == 0) continue;
                         int s;
                         if (!strength.TryGetValue(c, out s)) continue;
-                        if (s <= 0) continue;
 
                         Color32 now = _room[idx];
-                        if (s >= MenuLayout.GlowHotLen)
+                        if (s >= MenuLayout.GlowEmissive)
                         {
-                            // the core of the bloom is an emitter: paint it, do not lift toward it
+                            // a specular: painted, always
                             _room[idx] = c;
                             continue;
                         }
-                        // otherwise: walk the surface UP its own ramp, s steps. When the ramp runs out --
-                        // and the back wall is already at the top of its ramp, which is exactly where the
-                        // window's halo lands -- the leftover strength becomes a DITHERED tint: that
-                        // fraction of the pixels take the glow's own colour, the rest stay as they are.
-                        // That is how a 16-bit screen fakes a colour that is not in the ramp, and it is
-                        // why the halo reads as light on the wall instead of being invisible on it.
-                        int remaining = s;
-                        for (int step = 0; step < s && remaining > 0; step++)
+                        // ONE or TWO steps, and NOTHING when the surface has no headroom left. The wall
+                        // around the window is already at the top of its ramp, and v119.0's fallback
+                        // "dithered tint" is what put cyan speckles on it. A glow pixel adds light or it
+                        // adds nothing; it never paints its own colour onto a surface.
+                        int steps = (s == 0 || s == MenuLayout.GlowHotLen) ? 1 : 2;
+                        for (int step = 0; step < steps; step++)
                         {
                             Color32 next;
                             if (!up.TryGetValue(now, out next)) break;
                             now = next;
-                            remaining--;
                         }
-                        if (remaining > 0 &&
-                            MenuLayout.Bayer4[((dy & 3) << 2) | (dx & 3)] < remaining * MenuLayout.GlowTintDiv)
-                            now = c;
                         _room[idx] = now;
                     }
                 }
