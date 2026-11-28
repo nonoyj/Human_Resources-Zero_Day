@@ -2056,3 +2056,17 @@ props, and props placed by hand against a desk whose perspective was drawn separ
   now fits the whole 480x270 canvas (contain) instead of a fixed height.
 - **Regression test:** `the_concept_rows_exist_and_fit_the_glass` plus the clamp; **manual: the player's eye.**
 - **Prevention rule:** a block placed by constants is clamped by a function that knows the frame.
+
+### BUG-045 -- the handover paste could print an [ok] for a check it had not done (v130.5)
+- **Found:** 2026-11-25 by me, before shipping   **Severity:** P1 (it is the report, and the report is the product)
+- **Symptom:** the in-bundle copy of the paste cannot carry its own archive's sha256 (a file cannot contain the
+  hash of the archive that contains it), so its hash is empty -- and the success line was written to print
+  "sha256 matches" regardless of whether a hash was compared.
+- **Root cause:** one success message for two different outcomes (checked / not checked). The player's standing
+  rule is that a message contradicting its own output is worse than no message, and this was that bug in the
+  handover itself.
+- **Fix:** `orders/PASTE-v130.5.ps1` branches: with a hash it prints the hash result, without one it prints
+  exactly what it checked ("full-size file ... no hash in this copy -- step 2 checks the build itself").
+- **Regression test:** `check_powershell_syntax.py` parses it; the message/outcome pairing is now one branch per
+  outcome by construction. **Manual:** the player's first four lines.
+- **Prevention rule:** a success line is written by the branch that did the work, never after the if.
