@@ -312,7 +312,7 @@ def shell():
 
 
 # ===================================================================================== window
-def window():
+def window(w=None, h=None):
     """
     The room's cold key. The player asked for it to look "more cinematic", so it is built the way a night
     window is photographed:
@@ -324,9 +324,13 @@ def window():
       - the sill catches a cold specular, the only bright line in the sprite, and one warm window light
         (the far apartment) is the only warm pixel, so it does not compete with the lamp.
     """
-    img = Image.new('RGBA', (WIN_W, WIN_H), (0, 0, 0, 0))
+    # PARAMETRIC (v128). The desk's room blits the SAME window as the menu, only larger, so the two rooms can
+    # never disagree about what a window looks like. Every literal that depended on the pane size is a
+    # proportion of it now; at (88,160) the output is byte-identical to the approved menu window.
+    mw = WIN_W if w is None else int(w)
+    mh = WIN_H if h is None else int(h)
+    img = Image.new('RGBA', (mw, mh), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    mw, mh = WIN_W, WIN_H
 
     # ---- the reveal: a thick concrete surround, lit on its top face and black on the inside
     box(d, 0, 0, mw, mh, 'void')
@@ -359,16 +363,19 @@ def window():
     dither(img, gx0, gy1 - 16, gx1, gy1 - 12, 'wall_3', 'steel_1', 0.45)
 
     # ---- the moon: a hard disc with a two-step halo. No rim light -- the halo IS the rim.
-    mx, my = gx0 + int((gx1 - gx0) * 0.70), gy0 + 14
-    d.ellipse([mx - 9, my - 9, mx + 9, my + 9], fill=rgba('wall_2'))
-    d.ellipse([mx - 6, my - 6, mx + 6, my + 6], fill=rgba('wall_3'))
-    d.ellipse([mx - 4, my - 4, mx + 4, my + 4], fill=rgba('steel_1'))
-    d.ellipse([mx - 1, my - 5, mx + 5, my + 1], fill=rgba('wall_2'))      # the shadow side
+    mr = max(4, int(9 * mw / 88.0))              # the moon scales with the pane
+    mx, my = gx0 + int((gx1 - gx0) * 0.70), gy0 + int(14 * mw / 88.0)
+    d.ellipse([mx - mr, my - mr, mx + mr, my + mr], fill=rgba('wall_2'))
+    d.ellipse([mx - mr * 2 // 3, my - mr * 2 // 3, mx + mr * 2 // 3, my + mr * 2 // 3], fill=rgba('wall_3'))
+    d.ellipse([mx - mr * 4 // 9, my - mr * 4 // 9, mx + mr * 4 // 9, my + mr * 4 // 9], fill=rgba('steel_1'))
+    d.ellipse([mx - mr // 9, my - mr * 5 // 9, mx + mr * 5 // 9, my + mr // 9], fill=rgba('wall_2'))
 
-    far_base = gy1 - 10
+    k = mw / 88.0                                 # the height scale
+    far_base = gy1 - int(10 * k)
     # ---- FAR skyline: violet, one value above the sky, no detail at all
-    for (fx, fw, fh) in ((0.02, .14, 26), (0.17, .10, 34), (0.28, .16, 22), (0.45, .12, 30),
-                         (0.58, .14, 24), (0.72, .11, 32), (0.84, .15, 20)):
+    for (fx, fw, fh0) in ((0.02, .14, 26), (0.17, .10, 34), (0.28, .16, 22), (0.45, .12, 30),
+                          (0.58, .14, 24), (0.72, .11, 32), (0.84, .15, 20)):
+        fh = int(fh0 * k)
         bx0 = gx0 + int(fx * (gx1 - gx0))
         bx1 = min(bx0 + int(fw * (gx1 - gx0)), gx1)
         if bx1 > bx0:
@@ -380,15 +387,16 @@ def window():
     near_base = gy1
     near = ((0.00, .16, 30), (0.15, .12, 20), (0.26, .13, 38), (0.39, .10, 24),
             (0.49, .13, 44), (0.62, .12, 28), (0.74, .12, 22), (0.85, .15, 34))
-    for (fx, fw, fh) in near:
+    for (fx, fw, fh0) in near:
+        fh = int(fh0 * k)
         bx0 = gx0 + int(fx * (gx1 - gx0))
         bx1 = min(bx0 + int(fw * (gx1 - gx0)), gx1)
         if bx1 <= bx0:
             continue
         box(d, bx0, near_base - fh, bx1, near_base, 'void')
         hline(d, bx0, bx1, near_base - fh, 'floor_2')       # the parapet catches the sky
-        for wy in range(near_base - fh + 5, near_base - 3, 6):
-            for wx in range(bx0 + 2, bx1 - 1, 5):
+        for wy in range(near_base - fh + 5, near_base - 3, max(3, int(6 * k))):
+            for wx in range(bx0 + 2, bx1 - 1, max(3, int(5 * k))):
                 seed = (wx * 7 + wy * 13 + (wx * wy) // 3) % 11
                 if seed == 0:
                     px(d, wx, wy, 'amber_2')
@@ -407,7 +415,7 @@ def window():
     # A one-pixel vertical line down a pane reads as a scratch (that trap is already in the bug log). Glass
     # over a lit city reflects HORIZONTALLY: a broad soft band across the lower pane, and one thin hard
     # highlight where the surface turns. That is what "stronger highlights" looks like on wet glass.
-    for y in range(gy0 + int(sky_h * 0.46), min(gy1 - 46, gy0 + int(sky_h * 0.72))):
+    for y in range(gy0 + int(sky_h * 0.46), min(gy1 - int(46 * k), gy0 + int(sky_h * 0.72))):
         t = (y - gy0 - sky_h * 0.46) / float(max(1, sky_h * 0.26))
         for x in range(gx0 + 1, gx1):
             if BAYER4[y & 3][x & 3] / 16.0 < 0.5 * (1.0 - abs(t - 0.4) * 1.6):
@@ -686,7 +694,7 @@ def lamp():
 
 
 # ===================================================================================== crt
-def crt():
+def crt(w=None, h=None):
     """
     The monitor the menu lives in.
 
@@ -700,16 +708,22 @@ def crt():
       - one specular on the top edge, one on the bottom bezel lip. Nothing else on the case is bright;
       - no grille, no knobs, no badge -- a studio display has one LED and nothing to say.
     """
-    img = Image.new('RGBA', (CRT_W, CRT_H), (0, 0, 0, 0))
+    # PARAMETRIC (v128), same reason as window(): the desk's tube is THIS object, rendered smaller. At
+    # (260,186) the output is byte-identical to the approved menu CRT.
+    mw = CRT_W if w is None else int(w)
+    mh = CRT_H if h is None else int(h)
+    sc = mw / float(CRT_W)
+    img = Image.new('RGBA', (mw, mh), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    mw, mh = CRT_W, CRT_H
-    gx, gy, gw, gh = CRT_GLASS
+    gx, gy = int(CRT_GLASS[0] * sc), int(CRT_GLASS[1] * sc)
+    gw, gh = int(CRT_GLASS[2] * sc), int(CRT_GLASS[3] * sc)
 
     # ---- the stand: a short angled plinth, wider at the front (perspective)
-    box(d, 62, mh - 12, mw - 62, mh - 1, 'steel_0')
-    hline(d, 62, mw - 62, mh - 12, 'steel_1')
-    hline(d, 66, mw - 66, mh - 1, 'void')
-    dither(img, 64, mh - 11, mw - 64, mh - 5, 'steel_0', 'void', 0.35)
+    s1, s2 = int(62 * sc), int(66 * sc)
+    box(d, s1, mh - 12, mw - s1, mh - 1, 'steel_0')
+    hline(d, s1, mw - s1, mh - 12, 'steel_1')
+    hline(d, s2, mw - s2, mh - 1, 'void')
+    dither(img, s1 + 2, mh - 11, mw - s1 - 2, mh - 5, 'steel_0', 'void', 0.35)
 
     # ---- the case: two planes plus a top face
     box(d, 0, 2, mw, mh - 12, 'void')
@@ -717,35 +731,121 @@ def crt():
     cut_corners(d, 1, 3, mw - 1, mh - 13, 4, 'void')
     box(d, 4, 3, mw - 4, 5, 'steel_1')                       # the top face, catching the window
     dither(img, 4, 5, mw - 4, 8, 'steel_1', 'steel_0', 0.5)
-    box(d, mw - 10, 8, mw - 2, mh - 14, 'void')              # the right face, turned away
+    box(d, mw - int(10 * sc), 8, mw - 2, mh - 14, 'void')    # the right face, turned away
     vline(d, 2, 6, mh - 14, 'steel_1')                       # the left face, catching the tube
 
     # ---- the bezel: thin. 6 px sides, 12 px at the bottom for the control strip.
-    box(d, gx - 6, gy - 6, gx + gw + 6, gy + gh + 12, 'void')
-    cut_corners(d, gx - 6, gy - 6, gx + gw + 6, gy + gh + 12, 6, 'steel_0')
-    hline(d, gx - 6, gx + gw + 6, gy - 6, 'steel_1')
-    vline(d, gx - 6, gy - 6, gy + gh + 12, 'steel_0')
+    bz = max(2, int(6 * sc))                                # the bezel: 6 px at menu scale, thinner when small
+    bot = max(4, int(12 * sc))                              # the control strip under the glass
+    box(d, gx - bz, gy - bz, gx + gw + bz, gy + gh + bot, 'void')
+    cut_corners(d, gx - bz, gy - bz, gx + gw + bz, gy + gh + bot, max(2, int(6 * sc)), 'steel_0')
+    hline(d, gx - bz, gx + gw + bz, gy - bz, 'steel_1')
+    vline(d, gx - bz, gy - bz, gy + gh + bot, 'steel_0')
     # the inner lip: black, 2 px, all the way round -- the tube is set INTO the bezel
     box(d, gx - 2, gy - 2, gx + gw + 2, gy + gh + 2, 'void')
     cut_corners(d, gx - 2, gy - 2, gx + gw + 2, gy + gh + 2, 8, 'steel_0')
     hline(d, gx - 5, gx + gw + 5, gy - 5, 'steel_1')         # the bezel's top edge
-    hline(d, gx - 5, gx + gw + 5, gy + gh + 11, 'void')
+    hline(d, gx - 5, gx + gw + 5, gy + gh + bot - 1, 'void')
 
     # ---- the control strip: one LED, and the brand, in two pixels of steel
-    sy = gy + gh + 5
-    px(d, gx + 8, sy + 2, 'steel_2')
-    hline(d, gx + 12, gx + 26, sy + 2, 'steel_0')
-    px(d, gx + gw - 8, sy + 2, 'teal_3')                     # power: the only lit pixel on the case
+    sy = gy + gh + max(2, int(5 * sc))
+    px(d, gx + max(3, int(8 * sc)), sy + 2, 'steel_2')
+    hline(d, gx + int(12 * sc), gx + int(26 * sc), sy + 2, 'steel_0')
+    px(d, gx + gw - max(3, int(8 * sc)), sy + 2, 'teal_3')   # power: the only lit pixel on the case
 
     # ---- the tube's rim: the phosphor falls off at the edge, so the last 2 px are darker
     for i in range(2):
         d.rectangle([gx + i, gy + i, gx + gw - 1 - i, gy + gh - 1 - i], outline=rgba('void'))
     # ---- the sheen: ONE cold diagonal, 1 px, upper-left. v116's was 2 px wide and read as a scratch.
-    for t in range(18):
+    for t in range(max(6, int(18 * sc))):
         img.putpixel((gx + 5 + t, gy + 5 + t), rgba('steel_1'))
     speculars(img, 'crt')
     return img
 
+
+# ===================================================================================== desk props
+# ONE DRAWING, TWO ROOMS (v128).
+#
+# These four objects used to be drawn inline inside desk(). The in-game desk drew its own versions, and the
+# player's note was exact: "the objects are on the edge of the table and does not look like they are ON the
+# table based on their angles". Two drawings of one object are two objects; one drawing called twice is one.
+# The bodies below are the approved menu drawing, character for character -- only the coordinates that were
+# captured from desk()'s locals are arguments now.
+def cup(d, img, cx, cy):
+    """The coffee, on its saucer, steam rising. (cx, cy) is the base of the cup body."""
+    box(d, cx - 13, cy + 20, cx + 13, cy + 24, 'cup_0')       # saucer
+    hline(d, cx - 13, cx + 13, cy + 20, 'cup_1')
+    hline(d, cx - 11, cx - 3, cy + 21, 'cup_2')               # the saucer's lit rim, on the tube's side
+    for i in range(17):                                        # the cup, tapered, lit on the left
+        y = cy + 3 + i
+        left = cx - 8 + i // 9
+        right = cx + 8 - i // 9
+        hline(d, left, right, y, 'cup_1')
+        vline(d, left, y, y + 1, 'cup_2')
+        vline(d, right - 1, y, y + 1, 'cup_0')
+    box(d, cx - 9, cy, cx + 9, cy + 3, 'cup_2')               # the rim catches the most light
+    hline(d, cx - 7, cx + 7, cy + 1, 'wood_0')                # ...and the coffee inside it is black
+    # the handle: a 2 px arc on the shadow side, with one lit pixel on its outer edge
+    for i in range(7):
+        xx = cx + 10 + (1 if i in (0, 6) else 0)
+        px(d, xx, cy + 6 + i, 'cup_1')
+        if i in (1, 2, 3, 4):
+            px(d, xx + 1, cy + 6 + i, 'cup_0')
+    # steam: three strands, phase-offset, in the cup's own ramp -- never bright enough to fight the title
+    for (sx, height, tone) in ((cx - 4, 15, 'cup_1'), (cx, 21, 'paper_1'), (cx + 4, 12, 'cup_0')):
+        for i in range(height):
+            y = cy - 3 - i
+            if y < 0:
+                continue
+            x = sx + (1 if (i // 6) % 2 else 0)
+            px(d, x, y, tone)
+            if i % 6 == 2:
+                px(d, x + 1, y, tone)
+
+def keyboard(d, img, kx, ky, kw=84, kh=20):
+    """A wedge seen from slightly above: four key rows and a spacebar."""
+    box(d, kx, ky, kx + kw, ky + kh, 'void')
+    box(d, kx + 1, ky + 1, kx + kw - 1, ky + kh - 1, 'key_2')
+    hline(d, kx + 1, kx + kw - 1, ky + 1, 'key_2')
+    dither(img, kx + 1, ky + kh - 7, kx + kw - 1, ky + kh - 1, 'key_2', 'key_1', 0.5)
+    for row in range(2):
+        y = ky + 4 + row * 4
+        for col in range(11):
+            x = kx + 5 + col * 7
+            box(d, x, y, x + 5, y + 2, 'key_0')
+            px(d, x + 1, y, 'key_1')
+    box(d, kx + 18, ky + 13, kx + 64, ky + 16, 'key_0')
+    hline(d, kx + 18, kx + 64, ky + 13, 'key_1')
+    box(d, kx + 5, ky + 13, kx + 14, ky + 16, 'key_0')
+    box(d, kx + 70, ky + 13, kx + 81, ky + 16, 'key_0')
+
+def mouse(d, img, mx, my):
+    """The mouse, cable running back off the desk. (mx, my) is its top-left."""
+    box(d, mx, my, mx + 14, my + 16, 'void')
+    box(d, mx + 1, my + 1, mx + 13, my + 15, 'mouse_1')
+    dither(img, mx + 1, my + 7, mx + 13, my + 15, 'mouse_1', 'mouse_0', 0.5)
+    hline(d, mx + 3, mx + 11, my + 2, 'mouse_2')
+    vline(d, mx + 7, my + 3, my + 6, 'void')
+    for i in range(6):
+        px(d, mx + 9 + i // 3, my - 1, 'mouse_0')
+
+def forms(d, img, fx, fy):
+    """The pile of application forms, top sheet in the tube's light. (fx, fy) is the top-left."""
+    for i in (2, 1, 0):
+        x, y = fx + i * 3, fy + i * 2
+        top = (i == 0)
+        box(d, x, y, x + 56, y + 24, 'paper_1' if top else 'paper_0')
+        hline(d, x, x + 56, y, 'paper_1')
+        hline(d, x, x + 56, y + 24, 'void')
+        vline(d, x, y, y + 24, 'void')
+        vline(d, x + 56, y, y + 24, 'void')
+        if top:
+            for r in range(4):
+                hline(d, x + 6, x + 50, y + 7 + r * 4, 'paper_0')
+            # the stamp: the only red on the desk, and it is the AI's colour for a reason
+            d.rectangle([x + 32, y + 15, x + 50, y + 21], outline=rgba('stamp'))
+            hline(d, x + 35, x + 47, y + 18, 'stamp')
+            hline(d, x + 2, x + 54, y + 23, 'paper_2')       # the sheet's near edge catches light
 
 # ===================================================================================== desk
 def desk():
@@ -863,80 +963,13 @@ def desk():
     hline(d, 324, 446, near - 6, 'wood_2')
     box(d, 378, near - 13, 400, near - 11, 'brass')
 
-    # ---- the pile of application forms, against the frame edge, the top sheet in the tube's light
-    fx, fy = 422, ty + 2
-    for i in (2, 1, 0):
-        x, y = fx + i * 3, fy + i * 2
-        top = (i == 0)
-        box(d, x, y, x + 56, y + 24, 'paper_1' if top else 'paper_0')
-        hline(d, x, x + 56, y, 'paper_1')
-        hline(d, x, x + 56, y + 24, 'void')
-        vline(d, x, y, y + 24, 'void')
-        vline(d, x + 56, y, y + 24, 'void')
-        if top:
-            for r in range(4):
-                hline(d, x + 6, x + 50, y + 7 + r * 4, 'paper_0')
-            # the stamp: the only red on the desk, and it is the AI's colour for a reason
-            d.rectangle([x + 32, y + 15, x + 50, y + 21], outline=rgba('stamp'))
-            hline(d, x + 35, x + 47, y + 18, 'stamp')
-            hline(d, x + 2, x + 54, y + 23, 'paper_2')       # the sheet's near edge catches light
-
-    # ---- coffee: 30 px of desk to itself, right of the monitor, and the SECOND brightest thing here
-    cx, cy = 282, ty + 6
-    box(d, cx - 13, cy + 20, cx + 13, cy + 24, 'cup_0')       # saucer
-    hline(d, cx - 13, cx + 13, cy + 20, 'cup_1')
-    hline(d, cx - 11, cx - 3, cy + 21, 'cup_2')               # the saucer's lit rim, on the tube's side
-    for i in range(17):                                        # the cup, tapered, lit on the left
-        y = cy + 3 + i
-        left = cx - 8 + i // 9
-        right = cx + 8 - i // 9
-        hline(d, left, right, y, 'cup_1')
-        vline(d, left, y, y + 1, 'cup_2')
-        vline(d, right - 1, y, y + 1, 'cup_0')
-    box(d, cx - 9, cy, cx + 9, cy + 3, 'cup_2')               # the rim catches the most light
-    hline(d, cx - 7, cx + 7, cy + 1, 'wood_0')                # ...and the coffee inside it is black
-    # the handle: a 2 px arc on the shadow side, with one lit pixel on its outer edge
-    for i in range(7):
-        xx = cx + 10 + (1 if i in (0, 6) else 0)
-        px(d, xx, cy + 6 + i, 'cup_1')
-        if i in (1, 2, 3, 4):
-            px(d, xx + 1, cy + 6 + i, 'cup_0')
-    # steam: three strands, phase-offset, in the cup's own ramp -- never bright enough to fight the title
-    for (sx, height, tone) in ((cx - 4, 15, 'cup_1'), (cx, 21, 'paper_1'), (cx + 4, 12, 'cup_0')):
-        for i in range(height):
-            y = cy - 3 - i
-            if y < 0:
-                continue
-            x = sx + (1 if (i // 6) % 2 else 0)
-            px(d, x, y, tone)
-            if i % 6 == 2:
-                px(d, x + 1, y, tone)
-
-    # ---- keyboard: a wedge seen from slightly above, four key rows and a spacebar
-    kx, ky, kw, kh = 300, ty + 10, 84, 20
-    box(d, kx, ky, kx + kw, ky + kh, 'void')
-    box(d, kx + 1, ky + 1, kx + kw - 1, ky + kh - 1, 'key_2')
-    hline(d, kx + 1, kx + kw - 1, ky + 1, 'key_2')
-    dither(img, kx + 1, ky + kh - 7, kx + kw - 1, ky + kh - 1, 'key_2', 'key_1', 0.5)
-    for row in range(2):
-        y = ky + 4 + row * 4
-        for col in range(11):
-            x = kx + 5 + col * 7
-            box(d, x, y, x + 5, y + 2, 'key_0')
-            px(d, x + 1, y, 'key_1')
-    box(d, kx + 18, ky + 13, kx + 64, ky + 16, 'key_0')
-    hline(d, kx + 18, kx + 64, ky + 13, 'key_1')
-    box(d, kx + 5, ky + 13, kx + 14, ky + 16, 'key_0')
-    box(d, kx + 70, ky + 13, kx + 81, ky + 16, 'key_0')
-
-    # ---- mouse: right of the keyboard, cable running back off the desk
-    box(d, 388, ky + 1, 402, ky + 17, 'void')
-    box(d, 389, ky + 2, 401, ky + 16, 'mouse_1')
-    dither(img, 389, ky + 8, 401, ky + 16, 'mouse_1', 'mouse_0', 0.5)
-    hline(d, 391, 399, ky + 3, 'mouse_2')
-    vline(d, 395, ky + 4, ky + 7, 'void')
-    for i in range(6):
-        px(d, 397 + i // 3, ky, 'mouse_0')
+    # ---- THE PROPS (v128). These four blocks used to be drawn inline here; they are shared functions now, so
+    # the in-game desk draws the SAME cup, keyboard, mouse and forms. The coordinates and the output of this
+    # layer are unchanged.
+    forms(d, img, 422, ty + 2)
+    cup(d, img, 282, ty + 6)
+    keyboard(d, img, 300, ty + 10)
+    mouse(d, img, 388, ty + 11)
 
     # ---- THE LIGHT POOLS, painted LAST so they land on every prop: a cold pool under the tube and a warm
     #      pool under the lamp, with the black between them left alone. Elliptical and dithered one step.

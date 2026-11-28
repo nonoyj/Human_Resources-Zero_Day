@@ -56,7 +56,7 @@ from menu_palette import PALETTE, RAMP  # noqa: E402
 W, H = 480, 270
 
 # ---- the desk's geometry, taken from desk_layout.json so this art cannot drift from the hotspots -------
-DESK_ROW = 170          # the desk's FAR edge: the props' plane starts here
+DESK_ROW = 186          # the desk's FAR edge: the props' plane starts here, 22 px above the window's sill
 FLOOR_ROW = 198         # where the wall meets the floor -- 8 px of floor show behind the desk
 DESK_LIP = 228          # the desk's near edge: the lip the player's hands are on
 # An OPEN desk (v127). Below the lip is not the desk's front panel -- it is the shadowed floor under the
@@ -71,16 +71,26 @@ WALL_X = 0
 # monitor now on the RIGHT and the applicant on the LEFT (the player's instruction -- "it would look cramped
 # for the applicant if we put the window there and the applicant on the side"), the window belongs behind
 # the applicant, i.e. on the left, and the monitor takes the right wall.
-WIN_X0, WIN_X1 = 26, 208
-WIN_Y0, WIN_Y1 = 8, 152
-WIN_SILL = 152
+# The window runs from just above the desk's far edge UP the wall, so its sill reads as the same kind of
+# ledge the menu's does. v127 had the sill at y=152 with the desk's far edge at 170 -- an 18 px gap of bare
+# wall that made the window look like it was floating.
+WIN_X0, WIN_X1 = 24, 200
+WIN_Y0, WIN_Y1 = 24, 164
+WIN_SILL = 164
 
 # ---- the monitor, left of centre (layout: monitor anchor 14,86 as a 0.58x redraw) ----------------------
 # The monitor's CANVAS rect, matching desk_layout.json (anchor [268,84], 192x108) -- the first pass
 # still had the pre-move left-hand numbers here, which put the tube's light pool on the empty left half of
 # the desk and drew an olive oval where nothing was. The sprite is 192x108 either way; these numbers are
 # what the pools and the wall's rim are measured from, so they have to agree with the layout.
-MON_X0, MON_Y0, MON_X1, MON_Y1 = 268, 88, 460, 196
+# The monitor's canvas rect, derived from desk_layout.json: anchor [268,186] with a 200x143 sprite, so the
+# sprite occupies columns 268..467 and rows 270-186-143 = -59..  (i.e. its plinth's bottom row is row 184? no:
+# rows 270-186-143= -59 is impossible, which is exactly why the anchor is computed from the surface below).
+MON_W, MON_H = 200, 143
+MON_X0 = 266
+MON_X1 = MON_X0 + MON_W
+MON_Y1 = DESK_ROW - 1              # the plinth's bottom row sits ON the desk's surface line
+MON_Y0 = MON_Y1 - MON_H + 1
 
 
 def rgba(key):
@@ -192,245 +202,79 @@ def floor(img, d):
 # ===================================================================================== the desk slab
 def desk_slab_sprite():
     """
-    THE SURFACE, as its own layer (v127). It used to be painted into the room, which meant the mess under the
-    desk could not be drawn UNDER it: the slab was part of the background, so anything sorted above the
-    background -- the junk -- lay on top of the wood and read as clutter ON the desk.
+    THE DESK SURFACE -- and it is drawn the way the MENU draws its desk, because that is the approved object.
 
-    Now the slab is a sprite that sorts between them: junk (8) < slab (9) < props (13..17). That is what the
-    standing rule "layer the art" means at this size, and it is why the desk no longer looks like it floats:
-    the junk is genuinely behind its front edge.
+    The menu's desk (make_menu_room.desk()) is a slab whose FAR edge is `ty` and whose FRONT edge is `near =
+    ty + 38`; the wood gets brighter toward the camera and the single specular is the front edge. v127 built a
+    58 px slab that darkened toward the camera with a tube-shaped light pool baked into it, which read as a
+    black bar under a bright line. This is the menu's construction at this room's height.
 
-    Painted in the menu's wood: two steps across its depth, one dither seam, the darker band where it turns
-    away from the window, and the specular rationed to the front edge.
+    Rows (top-down canvas): DESK_ROW (186) is the far edge, against the wall; DESK_LIP (228) is the front
+    edge, where the player's hands are. The depth is 42 px.
     """
     h = DESK_LIP - DESK_ROW
-    img = Image.new('RGBA', (W, h), rgba('wood_2'))
+    img = Image.new('RGBA', (W, h), rgba('wood_1'))
     d = ImageDraw.Draw(img)
 
-    # the far edge catches the window's cold key: two rows up its ramp, with the desk's occlusion above it
+    # far edge: the wood meets the wall, and the wall's occlusion is the darkest line on it
     for x in range(W):
-        img.putpixel((x, 0), rgba('wood_3'))
-        img.putpixel((x, 1), rgba('wood_2'))
-
-    # the depth: WOOD GETS BRIGHTER TOWARDS THE CAMERA. The first pass darkened towards the camera and the
-    # desk read as a black bar across the frame -- the menu's desk is the brightest thing in its lower third
-    # and that is exactly what makes it read as a desk. wood_2 at the far edge, wood_3 at the lip.
-    dither(img, 0, 12, W, 20, 'wood_2', 'wood_3', 0.40)
-    dither(img, 0, 26, W, 34, 'wood_3', 'wood_2', 0.22)
-
-    # the lip: the frame's one warm specular, doubled, and its shadow socket under it
+        img.putpixel((x, 0), rgba('wood_0'))
+    M.dither(img, 0, 2, W, 9, 'wood_1', 'wood_0', 0.42)
+    # the middle of the slab, one step up
+    M.dither(img, 0, 14, W, 22, 'wood_1', 'wood_2', 0.34)
+    # toward the camera the wood LIGHTENS, as in the menu
+    M.dither(img, 0, 30, W, 36, 'wood_1', 'wood_2', 0.22)
+    # the front edge: the desk's one specular, exactly as the menu draws it
     for x in range(W):
-        img.putpixel((x, h - 4), rgba('wood_4'))
-        img.putpixel((x, h - 3), rgba('wood_4'))
-        img.putpixel((x, h - 2), rgba('wood_1'))
-        img.putpixel((x, h - 1), rgba('void'))
-
-    # ---- OCCLUSION: a soft shadow pass right in front of the far edge, which is where the props stand.
-    # Without it every object on the desk is a sticker on a board -- the player's oldest note about this room.
-    for x in range(W):
-        for k in range(0, 9):
-            y = 2 + k
-            if M.BAYER4[y & 3][x & 3] / 16.0 < (1.0 - k / 9.0) * 0.55:
-                img.putpixel((x, y), rgba('wood_0'))
-
-    # THE TUBE'S POOL IS NOT PAINTED HERE, AND THAT IS THE FIX. It used to be: an ellipse of wood_3/wood_4
-    # baked onto the slab right where the monitor's light would fall. ScreenLight then ran over the same
-    # pixels at runtime and had nowhere to climb -- the surface was already at the top of its ramp -- so
-    # switching the tube on moved the desk by +1.0/255. That is the whole "lamp lights the wall, not the
-    # desk" report, and no amount of tuning the light would have fixed it: the effect was painted away
-    # before it was applied. Baked light belongs in the MENU's room (a still image). The desk is live.
-    # What the slab does carry is occlusion: the far edge's contact shadow, and a faint warm lift where the
-    # wood faces the camera.
-
+        img.putpixel((x, h - 3), rgba('wood_3'))
+        img.putpixel((x, h - 2), rgba('wood_2'))
+        img.putpixel((x, h - 1), rgba('wood_0'))
     return img
 
 
 # ===================================================================================== the window
 def window():
     """
-    The window behind the applicant: the room's cold key and the depth behind his head.
+    THE MENU'S WINDOW. Not "a window in the menu's materials" -- the same function that paints the front
+    door's window, called at desk scale.
 
-    Three lit panes round a cross of mullions, the city below the sill line, and the sky above it. The centre
-    opening is deliberately EMPTY (sky, a few stars, the city's edge) because the applicant's head goes in
-    front of exactly that rectangle -- the composition decision recorded in desk_layout.json, painted
-    properly instead of drawn as a flat plate.
+    v127 hand-painted a window here: a sky gradient, hashed stars, a skyline of its own invention. The player
+    put it in one sentence -- "the windows does not look like to be the one in the menu" -- and they were
+    right, because two drawings of one object are two objects. `make_menu_room.window()` was already
+    size-driven apart from two globals, so it is parametric now (v128, verified byte-identical at 88x160) and
+    this sprite IS its output at 176x236: the same concrete reveal, the same five-step sky with 12 px dither
+    seams, the same smear of a moon, the same two skylines, the same dark mullion cross, the same cold sill
+    specular. The only difference is scale.
     """
-    w, h = WIN_X1 - WIN_X0, WIN_Y1 - WIN_Y0
-    img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-
-    # ---- the sky: wall_0 at the top, lifting toward the horizon where the city's light sits
-    for y in range(h):
-        t = y / float(h)
-        key = 'wall_1' if t < 0.35 else ('steel_0' if t < 0.62 else 'steel_1')
-        for x in range(w):
-            img.putpixel((x, y), rgba(key))
-    # stars: a SPARSE HASH, and the first version of this was a polka-dot lattice -- (i*37)%w and (i*53)%52
-    # are highly correlated, so "scattered" came out as a diagonal grid of dots, which reads as a texture on
-    # the glass rather than as a sky. A hash that mixes the two axes fixes it; 1 pixel in ~230 is sky.
-    def _h(x, y):
-        h = (x * 374761393 + y * 668265263) & 0xFFFFFFFF
-        h = (h ^ (h >> 13)) * 1274126177 & 0xFFFFFFFF
-        return h ^ (h >> 16)
-
-    for y in range(2, min(h - 2, int(h * 0.60))):
-        for x in range(2, w - 2):
-            if _h(x, y) % 230 == 0:
-                img.putpixel((x, y), rgba('paper_1'))
-
-    # ---- the city: a silhouette band with lit windows, standing on the sill
-    city_top = int(h * 0.62)
-    x = 0
-    seed = 12345
-    while x < w:
-        seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
-        bw = 10 + (seed >> 16) % 22
-        seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
-        bh = 8 + (seed >> 16) % 30
-        top = min(h - 2, city_top + 26 - bh)
-        for yy in range(top, h):
-            for xx in range(x, min(w, x + bw)):
-                img.putpixel((xx, yy), rgba('void'))
-        # the towers' lit windows: sparse, warm-free (this is a cold room), one pixel each
-        for yy in range(top + 3, h - 2, 4):
-            for xx in range(x + 2, min(w, x + bw) - 1, 3):
-                hh = (xx * 374761393 + yy * 668265263) & 0xFFFFFFFF
-                hh = (hh ^ (hh >> 13)) * 1274126177 & 0xFFFFFFFF
-                if (hh ^ (hh >> 16)) % 5 == 0:
-                    img.putpixel((xx, yy), rgba('paper_1'))
-        x += bw + 2
-
-    # ---- the mullions: a cross. 3 px wide, wall_2 on the lit side and void on the shadow side, so the
-    # frame is a solid object in front of the glass and not a drawn line on it.
-    cx, cy = w // 2, int(h * 0.52)
-    for xx in range(cx - 1, cx + 2):
-        for y in range(h):
-            img.putpixel((xx, y), rgba('wall_2') if xx == cx - 1 else rgba('void'))
-    for yy in range(cy - 1, cy + 2):
-        for x in range(w):
-            img.putpixel((x, yy), rgba('wall_2') if yy == cy - 1 else rgba('void'))
-
-    # ---- the glazing's own specular: two diagonal streaks of 'steel_1' at low coverage. A window in a dark
-    # room is a mirror as much as a hole; it is the reason the menu's window reads as glass.
-    #
-    # ...and the streaks are SHORT and in one pane, because a streak that runs the height of the window is a
-    # scratch on the glass, not a reflection. (First draft: a dotted diagonal from corner to corner, found by
-    # looking at the render.)
-    for i in range(6, int(w * 0.34)):
-        for k in range(0, 2):
-            y = int(i * 0.42) + k - 2
-            if 0 <= y < h and M.BAYER4[y & 3][i & 3] < 6:
-                img.putpixel((i, y), rgba('steel_1'))
-    for i in range(10, int(w * 0.30)):
-        y = int(i * 0.42) + 9
-        if 0 <= y < h and M.BAYER4[y & 3][i & 3] < 3:
-            img.putpixel((i, y), rgba('steel_2'))
-
-    # ---- the frame: 2 px of steel, lit on the top and left, with the sill 4 px deep and its own specular on
-    # the top edge (speculars are rationed to three surfaces in this room; the sill is one of them)
-    for x in range(w):
-        img.putpixel((x, 0), rgba('steel_2'))
-        img.putpixel((x, 1), rgba('steel_1'))
-        img.putpixel((x, h - 1), rgba('void'))
-        img.putpixel((x, h - 2), rgba('steel_2'))
-    for y in range(h):
-        img.putpixel((0, y), rgba('steel_2'))
-        img.putpixel((1, y), rgba('steel_1'))
-        img.putpixel((w - 1, y), rgba('void'))
-        img.putpixel((w - 2, y), rgba('steel_2'))
-    return img
+    return M.window(WIN_X1 - WIN_X0, WIN_Y1 - WIN_Y0)
 
 
 # ===================================================================================== the monitor
 def monitor():
     """
-    The monitor the applicant is being judged through, at the layout's 0.58 scale: 192x108.
+    THE MENU'S MONITOR, at desk scale -- and it STANDS ON THE DESK.
 
-    It is the same object as the menu's CRT (menu/crt.png) seen smaller and from the front: a thin dark
-    bezel, a lit top edge, a shadow side, a glass that is very slightly green-black, and a scanline every
-    three rows. The glass is left EMPTY -- MonitorScreen paints into it at runtime from the same glyph atlas
-    -- but it is painted with its own two-step value and its roll-off, so the screen reads as glass even
-    before a single letter is drawn on it.
+    Two things were wrong in v127 and the player named both:
+
+      * "our monitor is literally behind the table": the tube was drawn 108 px tall with its base at canvas
+        row 184, while the desk's surface line is 186 -- so the monitor's own feet were UNDER the wood and the
+        slab cut across its stand. A monitor standing on a desk has its base ON the surface line and its body
+        ABOVE it.
+      * it was not the menu's monitor either: a flat black bezel drawn from scratch. This is
+        `make_menu_room.crt()` -- the approved menu CRT, the same dark case, thin bezel, three planes, one LED,
+        one sheen -- rendered at 200x143. Its stand plinth is the last 12 px of the sprite, so the anchor puts
+        those rows on the desk's surface.
     """
-    w, h = MON_X1 - MON_X0, MON_Y1 - MON_Y0
-    img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    bez = 7
-
-    # ---- the case: steel_1 body, steel_0 shadow side, steel_2 lit top and left. One specular on the top
-    # edge, and a 2 px socket under the bottom lip.
-    for y in range(h):
-        for x in range(w):
-            img.putpixel((x, y), rgba('steel_1'))
-    for y in range(h):
-        for x in range(w - 5, w):
-            img.putpixel((x, y), rgba('steel_0'))
-    for x in range(w):
-        img.putpixel((x, 0), rgba('steel_2'))
-        img.putpixel((x, 1), rgba('steel_2'))
-        img.putpixel((x, h - 1), rgba('void'))
-        img.putpixel((x, h - 2), rgba('steel_0'))
-    for y in range(h):
-        img.putpixel((0, y), rgba('steel_2'))
-        img.putpixel((1, y), rgba('steel_1'))
-        img.putpixel((w - 1, y), rgba('void'))
-
-    # ---- the bezel's inner shadow: a 2 px socket all round the glass, so the tube sits INSIDE the case
-    gx0, gy0, gx1, gy1 = bez, bez, w - bez - 4, h - bez - 6
-    for y in range(gy0 - 2, gy1 + 2):
-        for x in range(gx0 - 2, gx1 + 2):
-            if 0 <= x < w and 0 <= y < h:
-                img.putpixel((x, y), rgba('void'))
-
-    # ---- the glass: void with a scanline every three rows and a faint wash in the top third, exactly the
-    # menu's GlassMaterial() rule, so the two screens are the same glass
-    for y in range(gy0, gy1):
-        bright = y < gy0 + (gy1 - gy0) // 3
-        for x in range(gx0, gx1):
-            key = 'void'
-            if (y - gy0) % 3 == 2:
-                key = 'teal_0' if bright else 'steel_0'
-            img.putpixel((x, y), rgba(key))
-
-    # ---- the tube's own cold light on the case's bottom lip: the screen lighting its own chin
-    for x in range(gx0, gx1):
-        for k in range(0, 3):
-            y = gy1 + 1 + k
-            if y < h and M.BAYER4[y & 3][x & 3] < (10 - k * 3):
-                img.putpixel((x, y), rgba('teal_1'))
-
-    # ---- the corner LEDs and the brand slot: three pixels, and the only place the case is not grey
-    for i, key in enumerate(('teal_2', 'amber_1', 'steel_0')):
-        img.putpixel((gx1 - 6 + i * 3, gy1 + 4), rgba(key))
-    return img
+    return M.crt(MON_W, MON_H)
 
 
 def monitor_stand():
     """
-    The stand, as its own layer (the layout anchors it separately because the monitor's stub could never
-    reach the desk -- the 2026-11-26 float fix). A neck, a foot, and a shadow socket under it.
+    RETIRED (v128). The menu's CRT carries its own stand -- a 12 px plinth drawn as part of the case -- so a
+    second, separately-placed arm put two stands under one monitor. DeskSceneBuilder keeps the layer slot (it
+    is harmless when empty), but the desk no longer draws one.
     """
-    w, h = 54, 40
-    img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    # the neck
-    for y in range(0, h - 10):
-        for x in range(w // 2 - 5, w // 2 + 5):
-            img.putpixel((x, y), rgba('steel_1'))
-    for y in range(0, h - 10):
-        img.putpixel((w // 2 - 5, y), rgba('steel_2'))
-        img.putpixel((w // 2 + 4, y), rgba('steel_0'))
-    # the foot: a shallow tray, lit on the top edge, black in its socket
-    for y in range(h - 10, h - 4):
-        for x in range(4, w - 4):
-            img.putpixel((x, y), rgba('steel_1'))
-    for x in range(4, w - 4):
-        img.putpixel((x, h - 10), rgba('steel_2'))
-        img.putpixel((x, h - 5), rgba('steel_0'))
-    for y in range(h - 4, h):
-        for x in range(2, w - 2):
-            img.putpixel((x, y), rgba('void'))
-    return img
+    return None
 
 
 # ===================================================================================== the desk

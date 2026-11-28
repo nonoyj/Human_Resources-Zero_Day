@@ -1,5 +1,10 @@
 # AGENTS.md — read this first if you are an AI agent working in this repo
 
+> **READ `STANDING-ORDERS.md` FIRST.** It carries the player's standing instructions — the mandatory report
+> format (**What I did / What you did / What to expect / What's next**), "the menu is the standard, reuse the
+> generator rather than redrawing", the prop-perspective rule, and the no-guessing rule. It is updated every
+> time the player corrects the build, and it outranks this file where the two disagree.
+
 **Repo:** *Human Resources: Zero Day* — a 480×270 Unity 6 game (HR screener vs synthetic applicants),
 plus a FastAPI backend, a generated art/audio kit, and five gate scripts.
 
