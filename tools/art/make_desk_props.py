@@ -46,6 +46,15 @@ import make_menu_room as M        # rgba, box, hline, vline, dither, BAYER4 -- o
 from menu_palette import PALETTE  # noqa: E402
 
 W, H = 480, 270
+# The desk's surface starts at its far edge; the props' shared layer is a band above it.
+DESK_ROW = 186
+# THE BAND IS 160..227, and that is the fix. The menu's prop functions draw DOWN the canvas from the point
+# they are given (cup: body from cy, saucer at cy+24; keyboard: ky..ky+kh; forms: fy..fy+26), so a prop placed
+# "on the desk" has its point INSIDE the slab's depth and its body running down into the wood -- which is how
+# the menu's own desk places the cup (cy = the slab's far edge + 6). Cropping a band ABOVE the far edge
+# therefore captured nothing but the cup's steam. The band is the slab and the air above it.
+BAND_TOP = 160              # canvas row of this sprite's row 0
+PROP_BAND = 68              # canvas rows 160..227: the slab's 42 px plus 26 px of steam room
 
 
 def rgba(key):
@@ -531,6 +540,55 @@ def palette_gate(pieces):
     return bad, off
 
 
+
+
+# ===================================================================================== the desk's props
+# THE MENU'S PROPS, ON THE GAME'S DESK (v128).
+#
+# v127 drew its own coffee, keyboard, mouse and papers. The player's note: "the objects are on the edge of the
+# table and does not look like they are ON the table based on their angles." Two problems in one sentence --
+# wrong objects, and wrong placement -- and both are fixed the same way: call the menu's own drawing functions
+# (make_menu_room.cup / keyboard / mouse / forms), and place them so their BASES stand on the desk's surface.
+#
+# PLACEMENT, and this is the rule that was wrong: the canvas is top-down, so an object standing on a surface
+# is drawn UP from the line it stands on. The desk's surface starts at its far edge, DESK_ROW = 186. Every
+# prop's BASE row is 186 and its body rises into the rows above -- exactly how the menu's own desk places its
+# cup (cy at the far edge of the slab, cup body above it).
+def props_layer():
+    """480 x PROP_BAND, one entry per prop, all of them the menu's drawings, all of them standing on 186."""
+    import make_menu_room as M
+    band_top = BAND_TOP
+    img = Image.new('RGBA', (W, PROP_BAND), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+
+    def at(canvas_x, canvas_top_row, fn, **kw):
+        """Run a menu prop function at CANVAS coordinates, then crop the band out of it.
+
+        `canvas_top_row` is where the function starts drawing -- its own (cy/ky/fy). The body runs DOWN from
+        there into the slab, exactly as on the menu's desk.
+        """
+        sub = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+        sd = ImageDraw.Draw(sub)
+        fn(sd, sub, canvas_x, canvas_top_row, **kw)
+        return sub.crop((0, band_top, W, band_top + PROP_BAND))
+
+    # left to right: the papers at the frame's left end, the keyboard in front of the viewer, the clipboard,
+    # the coffee, and the mouse at the right -- the menu's own left-to-right reading, mirrored to this room's
+    # monitor on the right so the props cluster under the tube's light.
+    # Every top row is DESK_ROW + the same inset the MENU uses (6 px below its slab's far edge), so all four
+    # objects stand on the same line of the same slab. Left to right: the forms at the frame's left end, the
+    # keyboard in front of the viewer, the mouse, then the coffee under the tube's light.
+    top = DESK_ROW + 6
+    for piece in (
+        at(26,  top, M.forms),
+        at(196, top, M.keyboard),
+        at(292, top - 3, M.mouse),
+        at(330, top, M.cup),
+    ):
+        img.alpha_composite(piece)
+    return img
+
+
 def main():
     pieces = {
         'desk/props_coffee.png': coffee(),
@@ -539,6 +597,7 @@ def main():
         'desk/props_clipboard.png': clipboard(),
         'desk/props_papers.png': papers(),
         'desk/props_junk.png': junk(),
+        'desk/props_desk_M.png': props_layer(),
     }
     bad, off = palette_gate(pieces)
     print('%s: %d off-palette pixels across %d sprites' % ('PASS' if bad == 0 else 'FAIL', bad, len(pieces)))

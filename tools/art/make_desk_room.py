@@ -57,7 +57,8 @@ W, H = 480, 270
 
 # ---- the desk's geometry, taken from desk_layout.json so this art cannot drift from the hotspots -------
 DESK_ROW = 186          # the desk's FAR edge: the props' plane starts here, 22 px above the window's sill
-FLOOR_ROW = 198         # where the wall meets the floor -- 8 px of floor show behind the desk
+FLOOR_ROW = 168         # where the wall meets the floor -- 18 px of floor show behind the desk, under
+# the window's sill (164), which is what puts the desk's far edge (186) on the same ground plane as the menu's
 DESK_LIP = 228          # the desk's near edge: the lip the player's hands are on
 # An OPEN desk (v127). Below the lip is not the desk's front panel -- it is the shadowed floor under the
 # desk, which the player can see because the desk is open underneath. That is the band they called "too big
@@ -89,7 +90,7 @@ WIN_SILL = 164
 MON_W, MON_H = 200, 143
 MON_X0 = 266
 MON_X1 = MON_X0 + MON_W
-MON_Y1 = DESK_ROW - 1              # the plinth's bottom row sits ON the desk's surface line
+MON_Y1 = DESK_ROW - 1              # the plinth's bottom row sits ON the desk's surface line (186)
 MON_Y0 = MON_Y1 - MON_H + 1
 
 
@@ -202,33 +203,77 @@ def floor(img, d):
 # ===================================================================================== the desk slab
 def desk_slab_sprite():
     """
-    THE DESK SURFACE -- and it is drawn the way the MENU draws its desk, because that is the approved object.
+    THE DESK, built exactly the way make_menu_room.desk() builds the menu's -- slab, then the props, then the
+    light pools over all of it. One sprite, because the menu's is one sprite.
 
-    The menu's desk (make_menu_room.desk()) is a slab whose FAR edge is `ty` and whose FRONT edge is `near =
-    ty + 38`; the wood gets brighter toward the camera and the single specular is the front edge. v127 built a
-    58 px slab that darkened toward the camera with a tube-shaped light pool baked into it, which read as a
-    black bar under a bright line. This is the menu's construction at this room's height.
+    WHY THIS SHAPE. v127 shipped the slab and the props as separate layers, and the player read the result
+    correctly: "the objects are on the edge of the table and does not look like they are ON the table based on
+    their angles." Separate layers means the props have no contact shadow, no shared light and no shared
+    perspective -- they are stickers on a board. The menu does not do that: it draws the wood, draws the cup
+    and the keyboard on it, and then paints the tube's pool and the lamp's warmth over everything at the end.
+    That is why the menu's props look like they are standing there.
 
-    Rows (top-down canvas): DESK_ROW (186) is the far edge, against the wall; DESK_LIP (228) is the front
-    edge, where the player's hands are. The depth is 42 px.
+    Rows (top-down canvas): DESK_ROW 186 is the far edge against the wall, DESK_LIP 228 is the front edge.
+    A prop placed "on the desk" has its top row at DESK_ROW + 6 -- the same 6 px inset the menu uses -- and its
+    body runs DOWN into the wood, which is what the menu's own cup does.
     """
     h = DESK_LIP - DESK_ROW
     img = Image.new('RGBA', (W, h), rgba('wood_1'))
     d = ImageDraw.Draw(img)
 
-    # far edge: the wood meets the wall, and the wall's occlusion is the darkest line on it
+    # ---- the slab, in the menu's construction: wood_1 across the depth, wood_0 where it meets the wall,
+    # wood_2 toward the camera, and the one specular on the front edge.
     for x in range(W):
         img.putpixel((x, 0), rgba('wood_0'))
     M.dither(img, 0, 2, W, 9, 'wood_1', 'wood_0', 0.42)
-    # the middle of the slab, one step up
     M.dither(img, 0, 14, W, 22, 'wood_1', 'wood_2', 0.34)
-    # toward the camera the wood LIGHTENS, as in the menu
     M.dither(img, 0, 30, W, 36, 'wood_1', 'wood_2', 0.22)
-    # the front edge: the desk's one specular, exactly as the menu draws it
     for x in range(W):
         img.putpixel((x, h - 3), rgba('wood_3'))
         img.putpixel((x, h - 2), rgba('wood_2'))
         img.putpixel((x, h - 1), rgba('wood_0'))
+
+    # ---- the props: the MENU'S OWN DRAWING FUNCTIONS, on this desk, at canvas coordinates.
+    # They are rendered onto a full-canvas scratch so their own coordinates stay canvas coordinates, then the
+    # slab's band is cut out of it -- so the y they receive is the same y the menu gives them.
+    scratch = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(scratch)
+    top = DESK_ROW + 6                       # the menu's 6 px inset from its slab's far edge
+    M.forms(sd, scratch, 26, top)
+    M.keyboard(sd, scratch, 196, top)
+    M.mouse(sd, scratch, 292, top - 3)
+    M.cup(sd, scratch, 330, top)
+    img.alpha_composite(scratch.crop((0, DESK_ROW, W, DESK_ROW + h)))
+
+    # ---- contact shadows: a soft dark seam under each object, drawn in the wood's own dither. Without this a
+    # prop is a decal; with it, it is an object with weight.
+    for (px0, px1) in ((26, 86), (196, 288), (292, 306), (316, 346)):
+        for x in range(max(0, px0), min(W, px1)):
+            for k in range(0, 4):
+                y = (top - DESK_ROW) + 24 + k
+                if 0 <= y < h and M.BAYER4[y & 3][x & 3] / 16.0 < (1.0 - k / 4.0) * 0.6:
+                    img.putpixel((x, y), rgba('wood_0'))
+
+    # ---- the light pools, painted LAST over the wood AND the props, exactly as the menu does it: the tube's
+    # cold pool under the monitor (right of centre here) and the lamp's warm pool ... there is no lamp in the
+    # game's room, so this is the tube's pool plus the window's cold spill at the left end.
+    for y in range(h):
+        for x in range(W):
+            if img.getpixel((x, y))[3] == 0:
+                continue
+            cold = ((x - (MON_X0 + MON_W // 2)) / 150.0) ** 2 + ((y - 14) / 30.0) ** 2
+            win = ((x - 90) / 130.0) ** 2 + ((y - 10) / 34.0) ** 2
+            t = M.BAYER4[y & 3][x & 3]
+            if cold < 1.0 and t < (1.0 - cold) * 9.0:
+                p = img.getpixel((x, y))[:3]
+                if p == PALETTE['wood_1']:
+                    img.putpixel((x, y), rgba('wood_2'))
+            elif win < 1.0 and t < (1.0 - win) * 6.0:
+                p = img.getpixel((x, y))[:3]
+                if p == PALETTE['wood_1']:
+                    img.putpixel((x, y), rgba('wood_2'))
+                elif p == PALETTE['wood_0'] and t < 3:
+                    img.putpixel((x, y), rgba('wood_1'))
     return img
 
 
@@ -404,10 +449,10 @@ def room():
 
 
 def main():
+    # the monitor's stand retired (v128): the menu's CRT carries its own plinth.
     pieces = {
         'backgrounds/office_M0.png': room(),
         'desk/monitor_M.png': monitor(),
-        'desk/monitor_stand_M.png': monitor_stand(),
         'desk/desk_slab_M.png': desk_slab_sprite(),
         'desk/foreground_M.png': foreground(),
     }

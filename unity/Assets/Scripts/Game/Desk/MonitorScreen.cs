@@ -145,10 +145,12 @@ namespace HRZeroDay.Game
             // v127: the monitor was REDRAWN (monitor_M, 192x108, the menu's tube) and its bezel is 4 px, not
             // 6/12. The old constants were monitor_small's drawing at 0.58 scale; kept as the fallback for
             // that sprite so a project still on the old art does not change shape under the player's feet.
-            if (spriteW == 192 && spriteH == 108)
+            if (spriteW == 200 && spriteH == 143)
             {
-                // monitor_M: bezel 4 px all round, glass x5..186 (182 wide), y 8..101 (94 tall, y up)
-                return new GlassRect { x = 5, y = 8, w = 182, h = 94 };
+                // monitor_M (v128): make_menu_room.crt() rendered at 200x143, so the glass is the menu's own
+                // CRT_GLASS (26,12,228,152) scaled by 200/260 = 0.769: x=20, y=9, w=175, h=116. The json and
+                // this function must agree; GameDataTests asserts it.
+                return new GlassRect { x = 20, y = 9, w = 175, h = 116 };
             }
             const int x0 = 6, yTop = 6, insetRight = 6, insetBottom = 12;
             int w = spriteW - x0 - insetRight;

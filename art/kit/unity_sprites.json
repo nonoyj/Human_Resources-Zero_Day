@@ -19,7 +19,7 @@
     "ui": 18,
     "icons": 18,
     "stamps": 2,
-    "desk": 23,
+    "desk": 24,
     "backgrounds": 4,
     "menu": 8,
     "fx": 3,
@@ -1974,11 +1974,11 @@
       "source": "art/kit/desk/desk_slab_M.png",
       "assetPath": "Assets/Art/Kit/desk/desk_slab_M.png",
       "width": 480,
-      "height": 58,
+      "height": 42,
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "desk",
-      "sha256_16": "29937e43a10694e0",
+      "sha256_16": "c4eab301b2bb9283",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2087,12 +2087,12 @@
     {
       "source": "art/kit/desk/monitor_M.png",
       "assetPath": "Assets/Art/Kit/desk/monitor_M.png",
-      "width": 192,
-      "height": 108,
+      "width": 200,
+      "height": 143,
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "desk",
-      "sha256_16": "6a26ffa30a6cefee",
+      "sha256_16": "39daee14b1501546",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2226,6 +2226,25 @@
       "spriteMode": "Single",
       "kind": "desk",
       "sha256_16": "8504d2428ee355f8",
+      "import": {
+        "textureType": "Sprite",
+        "filterMode": "Point",
+        "compression": "None",
+        "mipmaps": false,
+        "alphaIsTransparency": true,
+        "meshType": "FullRect",
+        "wrapMode": "Clamp"
+      }
+    },
+    {
+      "source": "art/kit/desk/props_desk_M.png",
+      "assetPath": "Assets/Art/Kit/desk/props_desk_M.png",
+      "width": 480,
+      "height": 68,
+      "ppu": 16,
+      "spriteMode": "Single",
+      "kind": "desk",
+      "sha256_16": "54517f085a564403",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2453,7 +2472,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "background",
-      "sha256_16": "e316f0cfe91c387b",
+      "sha256_16": "1259796a66554fb8",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",

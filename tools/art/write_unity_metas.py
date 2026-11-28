@@ -113,6 +113,9 @@ READABLE = (
     # the slab (v127): the wood surface is its own layer now, and it is the surface the tube's light lands
     # ON -- the exact sprite the player's "it lights the back, not the desk" complaint was about.
     'Art/Kit/desk/desk_slab_M.png',
+    'Art/Kit/desk/props_desk_M.png',
+    # monitor_M was redrawn 200x143 from the menu's CRT (v128)
+    'Art/Kit/desk/monitor_M.png',
 )
 
 
