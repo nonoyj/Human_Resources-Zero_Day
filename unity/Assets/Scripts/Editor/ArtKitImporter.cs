@@ -58,6 +58,28 @@ namespace HRZeroDay.EditorTools
 
             AssetDatabase.Refresh();
 
+            // ---- THE ROOM'S OWN SPRITES MUST BE READABLE (v119.4, BUG-082) ----------------------------
+            //
+            // The front door is the ONE screen that does not draw its sprites: MenuView.BuildRoom() BLITS
+            // eight of them into a single 480x270 buffer with GetPixels32, lights that buffer, and draws the
+            // result as one texture. Read/Write Enabled is therefore a hard requirement for these PNGs, and
+            // the importer never asked for it -- ApplySettings below does not touch isReadable at all, so
+            // every menu sprite has shipped with Unity's default (off) and GetPixels32 threw on each one.
+            //
+            // MenuView treats a throw as a soft failure ("skip rather than crash the front door"), so the
+            // room came up EMPTY and the menu drew its text straight over the desk scene. That is the exact
+            // screenshot the player sent: correct, well-lit text floating in the room with no monitor, no
+            // window and no wall around it. A silent soft failure is worse than a crash -- a crash gets
+            // fixed the same day.
+            //
+            // Done for BOTH copies (Assets/Art/Kit is the authoring mirror, Assets/Resources is what the
+            // game loads), the same way the atlas is handled below.
+            int readable = 0;
+            string[] roomSprites = MenuRoomSprites();
+            for (int i = 0; i < roomSprites.Length; i++)
+                readable += MakeReadable("Assets/Resources/Art/Kit/menu/" + roomSprites[i]);
+            readable += MakeReadable("Assets/Resources/Art/Kit/fonts/monitor_font_5x7");
+
             // The glyph atlas is a plain Texture2D that the runtime reads pixel-by-pixel
             // (Texture2D.GetPixels32). Unity imports textures with Read/Write DISABLED by default, which
             // throws "texture data is either not readable" the moment the CRT initialises. It is also not
@@ -77,8 +99,46 @@ namespace HRZeroDay.EditorTools
             }
             AssetDatabase.Refresh();
             Debug.Log(string.Format("[HR//0D] art kit import: {0} sprites checked, {1} updated, " +
-                                    "{2} frames built. Verify with: python tools/art/publish_to_unity.py --verify",
-                                    manifest.sprites.Count, changed, frames));
+                                    "{2} frames built, {3} room textures made readable. " +
+                                    "Verify with: python tools/art/publish_to_unity.py --verify",
+                                    manifest.sprites.Count, changed, frames, readable));
+        }
+
+        /// <summary>
+        /// Every sprite MenuView.BuildRoom() reads pixels from, in the order it blits them. Mirrored from
+        /// MenuLayout (BuildRoom) and MenuLayout.GlowSprites -- if a ninth sprite is added to the room it has
+        /// to be added here too, and MenuTests checks that the two lists agree.
+        /// </summary>
+        public static string[] MenuRoomSprites()
+        {
+            return new[]
+            {
+                "shell", "window", "monitor_stack", "crt", "server", "desk", "lamp",
+                "glow", "glow_lamp", "glow_tube", "glow_window",
+            };
+        }
+
+        /// <summary>
+        /// Read/Write ON, Point, uncompressed, no mips, Clamp. The settings a texture needs before the
+        /// runtime is allowed to call GetPixels32 on it.
+        /// </summary>
+        private static int MakeReadable(string pathNoExtension)
+        {
+            foreach (var ext in new[] { ".png", "" })
+            {
+                var importer = AssetImporter.GetAtPath(pathNoExtension + ext) as TextureImporter;
+                if (importer == null) continue;
+                bool dirty = false;
+                if (!importer.isReadable) { importer.isReadable = true; dirty = true; }
+                if (importer.filterMode != FilterMode.Point) { importer.filterMode = FilterMode.Point; dirty = true; }
+                if (importer.textureCompression != TextureImporterCompression.Uncompressed)
+                { importer.textureCompression = TextureImporterCompression.Uncompressed; dirty = true; }
+                if (importer.mipmapEnabled) { importer.mipmapEnabled = false; dirty = true; }
+                if (!importer.wrapMode.Equals(TextureWrapMode.Clamp)) { importer.wrapMode = TextureWrapMode.Clamp; dirty = true; }
+                if (dirty) importer.SaveAndReimport();
+                return dirty ? 1 : 0;
+            }
+            return 0;
         }
 
         /// <summary>

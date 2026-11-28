@@ -166,8 +166,10 @@ namespace HRZeroDay.Core.Rules
         public const int PillX = GlassX + 40;
         public const int PillW = 148;
         public const int PillH = 13;
-        public const int PillStep = 13;
-        public const int PillTop = GlassY + 72;
+        public const int PillStep = 14;            // v119.4: 14, not 13 -- one pixel of air between rows
+        public const int PillTop = GlassY + 70;    // v119.4: 70, not 72 -- the block sits a row higher so
+                                                   // the footer has room below it instead of sitting on the
+                                                   // tube's bottom lip (BUG-085)
         public static int FooterTop { get { return GlassY + GlassH - 12; } }
 
         // The atlas is 5x7, 2 px letter gap, 3 px line gap (art/kit/fonts/monitor_font_5x7.json).

@@ -28,6 +28,7 @@ namespace HRZeroDay.Tests
             yield return CheckEveryJsonKeyHasAField();
             yield return CheckEveryLayoutLayerResolves();
             yield return CheckEveryResourcesLoadHasAFile();
+            yield return CheckTheMenuRoomIsReadable();
         }
 
         /// <summary>
@@ -336,5 +337,68 @@ namespace HRZeroDay.Tests
             return "PASS  the headless stubs declare only members Unity really has (no invented operators)";
         }
 
+
+        /// <summary>
+        /// THE MENU ROOM MUST BE READABLE (BUG-082, v119.4).
+        ///
+        /// MenuView does not DRAW the room's sprites, it BLITS them into one buffer with GetPixels32. Unity
+        /// only serves those pixels when the asset's .meta says `isReadable: 1`; otherwise the call throws,
+        /// MenuView treats the throw as a soft failure, and the front door renders as text floating over the
+        /// desk scene -- the exact screenshot the player sent after v119.3. The gate that missed it checked
+        /// the PNGs, and the PNGs were perfect.
+        ///
+        /// So this test reads the three places that have to agree and fails if any of them drifts:
+        ///   * MenuView.Blit(...) -- which sprites are read,
+        ///   * each .meta in Assets/Resources -- whether Unity will hand over the pixels,
+        ///   * write_unity_metas.py's READABLE list and ArtKitImporter.MenuRoomSprites() -- the two things
+        ///     that would fix it again on a fresh machine.
+        /// </summary>
+        private static string CheckTheMenuRoomIsReadable()
+        {
+            var view = File.ReadAllText("unity/Assets/Scripts/Game/Interaction/MenuView.cs");
+            var blitted = new List<string>();
+            int at = 0;
+            while ((at = view.IndexOf("Blit(\"menu/", at, StringComparison.Ordinal)) >= 0)
+            {
+                int open = view.IndexOf('"', at) + 1;
+                int close = view.IndexOf('"', open);
+                var name = view.Substring(open, close - open);
+                if (!blitted.Contains(name)) blitted.Add(name);
+                at = close;
+            }
+            if (blitted.Count < 7) return "FAIL  only " + blitted.Count + " room sprites found in MenuView.Blit";
+
+            var problems = new List<string>();
+            foreach (var name in blitted)
+            {
+                var metaRel = "unity/Assets/Resources/Art/Kit/" + name + ".png.meta";
+                var sourceRel = "unity/Assets/Art/Kit/" + name + ".png.meta";
+                foreach (var rel in new[] { metaRel, sourceRel })
+                {
+                    if (!File.Exists(rel)) { problems.Add(rel + " (missing)"); continue; }
+                    if (!File.ReadAllText(rel).Contains("isReadable: 1"))
+                        problems.Add(rel + " (isReadable: 0 -- GetPixels32 will throw)");
+                }
+            }
+
+            // the two fixers have to know the same list, or the next fresh machine is broken again
+            var py = File.ReadAllText("tools/art/write_unity_metas.py");
+            foreach (var name in blitted)
+                if (!py.Contains("'" + name + ".png'") && !py.Contains("'Art/Kit/" + name + ".png'"))
+                    problems.Add("write_unity_metas.py does not list " + name + ".png as READABLE");
+
+            var importer = File.ReadAllText("unity/Assets/Scripts/Editor/ArtKitImporter.cs");
+            foreach (var name in blitted)
+            {
+                var bare = name.Substring(name.LastIndexOf('/') + 1);
+                if (!importer.Contains("\"" + bare + "\"") && !importer.Contains("\"" + name + "\""))
+                    problems.Add("ArtKitImporter.MenuRoomSprites() does not list " + name);
+            }
+
+            if (problems.Count > 0)
+                return "FAIL  the front door cannot read its own room: " + string.Join("; ", problems.ToArray());
+            return "PASS  all " + blitted.Count + " menu-room sprites are Read/Write Enabled in both copies, "
+                 + "and both fixers know the list";
+        }
     }
 }

@@ -56,6 +56,23 @@ READABLE = (
     'sweep/sweep_desk_480x270.png',
     'sweep/sweep_corridor_480x270.png',
     'sweep/sweep_lift_480x270.png',
+    # THE FRONT DOOR'S ROOM (v119.4, BUG-082). MenuView does not DRAW these eight sprites -- it BLITS them
+    # into one 480x270 buffer with GetPixels32, lights that buffer, and draws the result. Read/Write off
+    # means GetPixels32 throws, MenuView swallows the throw, and the room comes up empty: the menu's text
+    # floating in the middle of the desk scene, which is exactly the screenshot the player sent.
+    # Keep this list and ArtKitImporter.MenuRoomSprites() and MenuLayout's blit order in step; a test
+    # (ManifestBridgeTests.CheckTheMenuRoomIsReadable) fails if they drift apart.
+    'Art/Kit/menu/shell.png',
+    'Art/Kit/menu/window.png',
+    'Art/Kit/menu/monitor_stack.png',
+    'Art/Kit/menu/crt.png',
+    'Art/Kit/menu/server.png',
+    'Art/Kit/menu/desk.png',
+    'Art/Kit/menu/lamp.png',
+    'Art/Kit/menu/glow.png',
+    'Art/Kit/menu/glow_lamp.png',
+    'Art/Kit/menu/glow_tube.png',
+    'Art/Kit/menu/glow_window.png',
 )
 
 
@@ -221,21 +238,47 @@ def stale_reason(meta_text: str) -> str:
     return ''
 
 
+def is_atlas(rel: str) -> bool:
+    """The glyph atlas is the one readable asset that is NOT a sprite -- the runtime reads it as a Texture2D."""
+    return 'fonts/monitor_font_5x7' in rel
+
+
+def readable_meta(guid: str, rel: str) -> str:
+    """
+    A readable asset that is still a SPRITE (v119.4, BUG-082). The game blits these with GetPixels32, but it
+    may also draw them as sprites -- so the readable flag is ADDED to the sprite import settings rather than
+    replacing them with a plain Texture import. Only the glyph atlas is a non-sprite.
+    """
+    return texture_meta(guid) if is_atlas(rel) else sprite_meta(guid, readable=True)
+
+
 def repair(rel_under_assets: str, meta_path: str, readable: bool, dry: bool) -> str:
     """Rewrite one .meta if it is stale. Returns a short label, or '' when nothing was needed."""
     text = open(meta_path, encoding='utf-8').read()
+    if readable:
+        # Readability is the requirement, and a readable sprite is still a sprite: the only thing that can be
+        # wrong with a readable asset is that it is not readable (or that it was flattened to a plain texture
+        # by an earlier run of this script -- which is a real bug, so it is repaired too).
+        if 'isReadable: 1' in text and (is_atlas(rel_under_assets) or 'spriteMode: 1' in text):
+            return ''
+        why = 'not readable, but the game reads its pixels' if 'isReadable: 1' not in text \
+            else 'readable, but no longer a sprite'
+        if dry:
+            return why
+        guid = [l.split(':', 1)[1].strip() for l in text.splitlines() if l.startswith('guid:')]
+        guid = guid[0] if guid else unity_guid(rel_under_assets)
+        with open(meta_path, 'w', encoding='utf-8') as fh:
+            fh.write(readable_meta(guid, rel_under_assets))
+        return why
     why = stale_reason(text)
     if not why:
-        if readable and 'isReadable: 1' not in text:
-            why = 'not readable, but the game reads its pixels'
-        else:
-            return ''
+        return ''
     if dry:
         return why
     guid = [l.split(':', 1)[1].strip() for l in text.splitlines() if l.startswith('guid:')]
     guid = guid[0] if guid else unity_guid(rel_under_assets)
     with open(meta_path, 'w', encoding='utf-8') as fh:
-        fh.write(texture_meta(guid) if readable else sprite_meta(guid))
+        fh.write(sprite_meta(guid))
     return why
 
 
@@ -259,9 +302,12 @@ def source_metas(dry: bool) -> list:
                 notes.append(('missing  ' if dry else 'wrote    ') + rel)
                 if not dry:
                     with open(meta_path, 'w', encoding='utf-8') as fh:
-                        fh.write(sprite_meta(unity_guid(rel)))
+                        fh.write(readable_meta(unity_guid(rel), rel))
                 continue
-            why = repair(rel, meta_path, False, dry)
+            # BUG-082: the authoring copy gets the SAME Read/Write setting as the mirror. The game only ever
+            # loads Assets/Resources, but two copies of one asset that disagree about a hard requirement is
+            # how BUG-075 happened -- and ArtKitImporter now sets both, so the committed metas must match.
+            why = repair(rel, meta_path, any(rel.endswith(r) for r in READABLE), dry)
             if why:
                 notes.append(('stale    ' if dry else 'repaired ') + rel + '  (' + why + ')')
     return notes
@@ -308,6 +354,8 @@ def main() -> int:
             if os.path.isfile(meta_path):
                 already += 1
                 text = open(meta_path, encoding='utf-8').read()
+                if is_readable and 'isReadable: 1' in text and (is_atlas(rel) or 'spriteMode: 1' in text):
+                    continue                                  # readable sprite: nothing to do
                 if stale_reason(text) and not (is_readable and 'isReadable: 1' in text):
                     why = stale_reason(text)
                     if args.check:
@@ -315,7 +363,7 @@ def main() -> int:
                         continue
                     guid = [l.split(':', 1)[1].strip() for l in text.splitlines() if l.startswith('guid:')][0]
                     with open(meta_path, 'w', encoding='utf-8') as fh:
-                        fh.write(texture_meta(guid) if is_readable else sprite_meta(guid))
+                        fh.write(readable_meta(guid, rel))
                     fixed_readable += 1
                     continue
                 if is_readable and 'isReadable: 1' not in text:

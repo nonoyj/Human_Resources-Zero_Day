@@ -34,6 +34,20 @@ from the bundle's history, so a push after an install needs a force, and `Push.p
 
 ---
 
+## 1b. If the menu is a black box with text in it (v119.4, BUG-082)
+
+The front door **blits** its room sprites with `GetPixels32`, so those textures must be Read/Write Enabled. A
+machine that imported the art before v119.4 has `isReadable: 0` in their `.meta` files, and the menu comes up as
+text over the desk scene. One click fixes it, **inside Unity**, with the project open:
+
+> **HR//0D -> Import Art Kit** (menu bar), then Stop and Play.
+
+That is the whole fix -- no reinstall, no bundle. The console prints
+`art kit import: N sprites checked, ... 11 room textures made readable.` when it worked. If it still looks wrong,
+run `python tools/art/write_unity_metas.py` from the repo root and re-open the project.
+
+---
+
 ## 2. The block every reply ends with (copy-paste)
 
 > **Never paste the zip name inline** (v119.3). The chat renders `HR-ZeroDay-bundle-vNN.zip` as a markdown

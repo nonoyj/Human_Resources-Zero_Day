@@ -337,3 +337,29 @@ The back wall was one value with two faint joints, which at 480x270 reads as fog
 
 Because the wall and the floor are now both *drawn* rather than implied, the two planes separate on their own —
 which is what "separate it with lines" asks for, done with architecture instead of a drawn border.
+
+---
+
+## 18. v119.4 -- the room the game could not read
+
+The player's screenshot said "menu looks bugged". The cause was not the art and not the layout: the front door
+blits eight sprites with `GetPixels32`, and all eight shipped with **Read/Write disabled**, so Unity refused the
+pixels, `Blit()` swallowed the failure, and the menu drew its text into an empty room over the desk scene.
+
+Three gates had passed on that screen, because all three tested the *picture* (`make_menu_composite.py`, the
+palette gate, the tube-fit gate) and none tested the *read path the game actually uses*. That is the lesson, and
+it is now in two places:
+
+* `CheckTheMenuRoomIsReadable` -- enumerates `MenuView.Blit(...)`, so a ninth room sprite is covered the day it
+  is added, and refuses to pass unless both `write_unity_metas.py` and `ArtKitImporter.MenuRoomSprites()` know
+  the list (the fix has to survive a fresh machine, not just this one);
+* `tools/UnityStubs/RenderDump.csproj` -- an **opt-in** harness that runs `BuildRoom()` + `Paint()`'s passes
+  headlessly and writes the frame to a PNG, honouring each `.meta`'s `isReadable` so it *reproduces* the failure
+  as well as the fix. The two frames (`isReadable: 0` -> empty room; `isReadable: 1` -> the room) are the proof.
+
+It also fixed the look defect the screenshot exposed: the selected row was a pale bar with washed-out text, so
+the strongest emphasis read as the weakest. It is now reverse video -- cyan fill, `void` label -- and the row
+block sits 2 px higher with 1 px of air between rows so the footer is not on the tube's lip.
+
+Reference frames: `art/kit/reference/menu_v119_1x.png` (the twin), `art/kit/reference/menu_v119_4_unity.png`
+(the same frame rendered by the game's own code path).

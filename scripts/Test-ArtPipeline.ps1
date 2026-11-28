@@ -240,7 +240,16 @@ try {
             'unity\Assets\Resources\Art\Kit\sweep\sweep_desk_480x270.png.meta',
             'unity\Assets\Resources\Art\Kit\sweep\sweep_corridor_480x270.png.meta',
             'unity\Assets\Resources\Art\Kit\sweep\sweep_lift_480x270.png.meta',
-            'unity\Assets\Resources\fonts\monitor_font_5x7.png.meta'
+            'unity\Assets\Resources\fonts\monitor_font_5x7.png.meta',
+            # THE FRONT DOOR'S ROOM (v119.4, BUG-082). MenuView blits these into one buffer with
+            # GetPixels32; with Read/Write off the call throws, the room comes up empty, and the menu
+            # draws its text over the desk scene -- the player's "menu looks bugged" screenshot. The
+            # list is short on purpose: the unit test enumerates MenuView.Blit and checks EVERY sprite,
+            # so this gate only has to prove the pipeline wrote readable metas at all.
+            'unity\Assets\Resources\Art\Kit\menu\shell.png.meta',
+            'unity\Assets\Resources\Art\Kit\menu\crt.png.meta',
+            'unity\Assets\Resources\Art\Kit\menu\desk.png.meta',
+            'unity\Assets\Resources\Art\Kit\menu\glow.png.meta'
         )
         foreach ($rel in $needReadable) {
             $p = Join-Path $repo $rel
@@ -255,7 +264,7 @@ try {
         if ($bad.Count -gt 0) {
             $failed++
             foreach ($b in $bad) { Write-Host "  [FAIL] $b" -ForegroundColor Red }
-        } else { OK 'sweep art and the glyph atlas are Read/Write Enabled' }
+        } else { OK 'sweep art, the glyph atlas and the menu room are Read/Write Enabled' }
 
     S 'text is painted by one renderer, from one glyph source'
         $bad = @()

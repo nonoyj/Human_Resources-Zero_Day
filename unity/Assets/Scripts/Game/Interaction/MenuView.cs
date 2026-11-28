@@ -23,6 +23,11 @@
 //   BUG-072  the menu drew NOTHING: Paint() called FlipToTextureOrder and then RenderRows on the same
 //            buffer. RenderRows inverts its y again, so every line landed off the top of the glass and
 //            was clipped away. The flip is now the LAST thing that happens, and no raster call follows it.
+//   BUG-082  the room itself never appeared: eight kit sprites are BLITTED with GetPixels32, all eight shipped
+//            with Read/Write off, GetPixels32 threw, Blit() swallowed the throw, and the menu drew its text
+//            into an empty buffer -- the player's "menu looks bugged". Fixed in write_unity_metas.py + the
+//            importer; MenuView also COUNTS the failures now and draws a fallback cabinet rather than
+//            failing silently, because a silent soft failure is what hid this for two rounds.
 //   BUG-073  the title/subtitle tracking was hard-coded at the atlas's 2 px gap, so "thicker and closer"
 //            was impossible. Tracking and bleed are now parameters of LineWidth/DrawScaled.
 using System;
@@ -57,6 +62,11 @@ namespace HRZeroDay.Game.Interaction
 
         // the composed room, built once; Paint() copies it and stamps the live cells on top
         private Color32[] _room;
+
+        // HOW MANY room sprites Unity refused to hand over pixels for (BUG-082). Zero in a correct build.
+        // Anything else means the room could not be composited and the fallback below is running.
+        private int _roomMissing;
+        private bool _roomWarned;
 
         // live state
         private Color32[] _frame;           // the buffer that is painted and uploaded
@@ -141,6 +151,7 @@ namespace HRZeroDay.Game.Interaction
         private bool BuildRoom()
         {
             _room = new Color32[W * H];
+            _roomMissing = 0;
             // BACK TO FRONT. The order is the room's depth order, not the draw order of the concept:
             // wall, window (the cold key's source), the rail of screens, the lamp (the warm key), the
             // monitor, the server in the corner, and the desk in front of all of it.
@@ -155,7 +166,56 @@ namespace HRZeroDay.Game.Interaction
             Light();
             Vignette();
             Glow();          // the glow is a SEPARATE layer, and it is LAST: light is added, never removed
+            if (_roomMissing > 0)
+            {
+                Debug.LogError("[HR//0D] menu room: " + _roomMissing + " of 7 room textures could not be " +
+                               "read (Read/Write is off in their .meta). Drawing the room UNCOMPOSITED " +
+                               "so the menu is still readable. Run HR//0D > Import Art Kit, then " +
+                               "python tools/art/write_unity_metas.py");
+            }
             return true;
+        }
+
+        /// <summary>
+        /// The fallback door: the CRT's case and its tube, drawn from MenuLayout alone, no textures. It is not
+        /// the room -- there is no window, no desk, no wall -- but it puts the menu's text inside a monitor,
+        /// which is the one thing that must never be in doubt.
+        /// </summary>
+        private void CabinetAndTube(Color32[] buf)
+        {
+            Color32 case1 = Ink("steel_1", new Color32(26, 31, 38, 255));
+            Color32 case0 = Ink("steel_0", new Color32(13, 16, 20, 255));
+            Color32 edge = Ink("void", new Color32(9, 11, 15, 255));
+            Color32 paper = Ink("void", new Color32(9, 11, 15, 255));
+            Color32 wash = Ink("teal_0", new Color32(5, 8, 10, 255));
+            for (int y = 0; y < H; y++)
+            {
+                for (int x = 0; x < W; x++)
+                {
+                    // the wall behind the case: one flat step darker than the case, so the case has an edge
+                    buf[y * W + x] = case0;
+                }
+            }
+            for (int y = MenuLayout.CrtY; y < MenuLayout.CrtY + MenuLayout.CrtH && y < H; y++)
+            {
+                for (int x = MenuLayout.CrtX; x < MenuLayout.CrtX + MenuLayout.CrtW && x < W; x++)
+                {
+                    bool rim = x < MenuLayout.CrtX + 2 || x >= MenuLayout.CrtX + MenuLayout.CrtW - 2 ||
+                               y < MenuLayout.CrtY + 2 || y >= MenuLayout.CrtY + MenuLayout.CrtH - 2;
+                    buf[y * W + x] = rim ? edge : case1;
+                }
+            }
+            int x0 = MenuLayout.GlassX, y0 = MenuLayout.GlassY;
+            int x1 = x0 + MenuLayout.GlassW, y1 = y0 + MenuLayout.GlassH;
+            for (int y = y0; y < y1 && y < H; y++)
+            {
+                bool bright = y < y0 + MenuLayout.GlassH / 3;
+                for (int x = x0; x < x1 && x < W; x++)
+                {
+                    buf[y * W + x] = paper;
+                    if ((y - y0) % 3 == 2) buf[y * W + x] = bright ? wash : case0;
+                }
+            }
         }
 
         /// <summary>
@@ -378,11 +438,19 @@ namespace HRZeroDay.Game.Interaction
             if (tex == null)
             {
                 Debug.LogWarning("[HR//0D] menu room: Resources/" + KitRoot + resource + " missing.");
+                _roomMissing++;
                 return false;
             }
             Color32[] px;
             try { px = tex.GetPixels32(); }
-            catch (Exception) { return false; }        // not readable: skip rather than crash the front door
+            catch (Exception)
+            {
+                // READ/WRITE IS OFF ON THIS TEXTURE (BUG-082). Skipping it is not a soft failure -- it is
+                // the whole room failing, because every piece of the room is composited this way. Counted
+                // and reported by Paint(), and the .meta files now ship isReadable: 1 so it cannot happen.
+                _roomMissing++;
+                return false;
+            }
 
             int tw = tex.width, th = tex.height;
             for (int y = 0; y < th; y++)
@@ -655,7 +723,23 @@ namespace HRZeroDay.Game.Interaction
 
             Array.Copy(_room, _frame, _frame.Length);
 
-            StackScreens(_frame);
+            // THE UNCOMPOSITED ROOM (v119.4, BUG-082). If Unity would not give up the room's pixels, the
+            // buffer is empty and the menu would draw its text onto whatever is behind it -- which is what
+            // the player photographed. Paint a flat cabinet and a tube instead: ugly is recoverable, text
+            // over a desk scene is a bug report with no diagnosis in it.
+            if (_roomMissing > 0)
+            {
+                if (!_roomWarned)
+                {
+                    _roomWarned = true;
+                    Debug.LogError("[HR//0D] menu is drawing the FALLBACK door: the room could not be read.");
+                }
+                CabinetAndTube(_frame);
+            }
+            else
+            {
+                StackScreens(_frame);
+            }
             Dust(_frame);
             Props();          // v119: the lamp and the keyboard answer the pointer
             Text(_frame);
@@ -815,6 +899,11 @@ namespace HRZeroDay.Game.Interaction
             {
                 if (revealing && i >= revealRows) break;
                 bool hovered = i == _hoverRow && !rows[i].Selected;
+                // THE SELECTION (v119.4, BUG-083). It was a near-white fill (paper_2 on cyan_1), which read
+                // as "this row is disabled" -- grey text on a white bar, the most muted thing on the screen,
+                // chosen for the most likely next action. The selection is now the tube's own CYAN at its
+                // mid step, the label cut out in `void`: a lit readout, which is what the console language
+                // in this room already says. Colour carries the meaning; brightness carries the emphasis.
                 var pill = MenuLayout.Row(i, rows[i].Selected ? "cyan_1" : (hovered ? "steel_1" : "void"),
                                           rows[i].Selected ? "void" : (hovered ? "white" : "paper_2"));
                 DrawPill(buf, pill, rows[i].Selected);

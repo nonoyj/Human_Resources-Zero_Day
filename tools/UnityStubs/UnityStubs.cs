@@ -183,11 +183,28 @@ namespace UnityEngine
         public TextureWrapMode wrapMode;      // real Unity: Texture.wrapMode, settable on a Texture2D
         public Texture2D() { }
         public Texture2D(int w, int h, TextureFormat f, bool mips) { width = w; height = h; }
-        public Color32[] GetPixels32() { return new Color32[width * height]; }
+        public Color32[] GetPixels32()
+        {
+#if RENDERDUMP
+            return _px ?? new Color32[width * height];
+#else
+            return new Color32[width * height];
+#endif
+        }
+#if RENDERDUMP
+        // RENDERDUMP ONLY: the harness needs the pixels it just wrote back again. Unity's own GetPixels32
+        // returns the texture's contents, so storing them is faithful -- but the gate never needs it, and
+        // this file must not grow API the engine does not have, so the field lives behind the symbol.
+        private Color32[] _px;
+#endif
         // Real Unity 6 API. Without Read/Write Enabled the getter is FALSE and GetPixels32 throws, which
         // is exactly the failure the player hit -- so the stub has to expose the flag.
         public bool isReadable;
-        public void SetPixels32(Color32[] px) { }
+        public void SetPixels32(Color32[] px) {
+#if RENDERDUMP
+            _px = px;
+#endif
+        }
         public void Apply(bool mips) { }
         public void Apply(bool updateMipmaps, bool makeNoLongerReadable) { }
         // real Unity signatures: GetPixels(x, y, w, h) is bottom-left based and returns Color[]
@@ -296,8 +313,18 @@ namespace UnityEngine
         // asset, because a headless test cannot decode one.
         public static readonly string Root = System.IO.Path.Combine("unity", "Assets", "Resources");
 
+#if RENDERDUMP
+        // RENDERDUMP ONLY -- see tools/UnityStubs/RenderDump.cs. The symbol is defined by that project and by
+        // nothing else, so this hook does not exist in the gate's view of the stub: game code that tried to
+        // use it would still fail CompileCheck, which is what keeps the stub honest.
+        public static System.Func<string, Texture2D> Loader;
+#endif
+
         public static T Load<T>(string path) where T : Object
         {
+#if RENDERDUMP
+            if (typeof(T) == typeof(Texture2D)) return Loader == null ? null : (T)(object)Loader(path);
+#endif
             if (typeof(T) == typeof(TextAsset))
             {
                 var file = System.IO.Path.Combine(Root, path.Replace('/', System.IO.Path.DirectorySeparatorChar) + ".json");

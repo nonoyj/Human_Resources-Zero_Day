@@ -1628,3 +1628,60 @@ was written for had never once run.
 the old commit tracked and the new one does not (`git diff --diff-filter=D <old> <new>`). Files the player
 wrote are untracked in both commits, so they are never touched. `$bundleHead` is restored from
 `$script:bundleHead` after the copy so both the new sweep and the `-Clean` branch use the real target.
+
+## BUG-082 -- the front door was drawing its text into an EMPTY room (v119.4, 2026-11-25)
+
+**Reported:** *"Menu looks bugged"*, with a screenshot of the menu's title, tagline, five rows and footer
+sitting in a black box in the middle of the desk scene and no room around them.
+
+**What the screenshot actually was.** Not a layout bug and not a regression from the art rounds. `MenuView`
+does not *draw* the room's sprites -- it **blits** eight of them into one 480x270 buffer with
+`Texture2D.GetPixels32`, lights that buffer, and uploads the result. Unity only serves those pixels when the
+asset's `.meta` says **`isReadable: 1`**. Every menu sprite shipped `isReadable: 0`, because
+`ArtKitImporter.ApplySettings` never set it and `write_unity_metas.READABLE` listed only the glyph atlas and
+the three sweep floors. `GetPixels32` threw on all eight, and `Blit()` treats a throw as a soft failure --
+*"skip rather than crash the front door"* -- so the composed room was an empty buffer and only the text drew.
+
+The game was therefore showing: text, over the desk scene, in the right place, correctly lit. Everything the
+gate checked (geometry, palette, tube fit, palette conformance) was still true, which is why five gates passed
+on a screen that had no room in it.
+
+**Why the twin renderer did not catch it.** `make_menu_composite.py` reads the PNGs directly -- it is a
+*drawing*, not the game's blit. A twin that does not use the engine's read path cannot fail the engine's
+read path. That is the same class of mistake as BUG-080: the check was more forgiving than the runtime.
+
+**Fix.**
+* `write_unity_metas.READABLE` now lists the eleven room PNGs; they get `isReadable: 1` **and stay sprites**
+  (a readable sprite, not a flattened texture -- `readable_meta()` decides by asset, not by flag);
+* `ArtKitImporter` gained `MenuRoomSprites()` + `MakeReadable()`, so **HR//0D > Import Art Kit** repairs a
+  machine that already imported the art without re-installing anything;
+* `MenuView` counts the failures and now says so loudly (`Debug.LogError`, with the fix in the message), and
+  if the room is empty it draws a **fallback cabinet and tube** so the menu is never ambiguous -- ugly is
+  recoverable, text floating over a desk scene is a bug report with no diagnosis in it;
+* two new gates: `CheckTheMenuRoomIsReadable` (enumerates `MenuView.Blit`, checks **every** sprite's `.meta`
+  in both copies, and that both fixers know the list) and a PS gate that proves the pipeline wrote readable
+  metas at all.
+
+## BUG-083 -- the selected row read as the DISABLED row (v119.4)
+
+**Reported:** the menu looks wrong; in the screenshot the highlighted row is a pale bar with washed-out text.
+
+**Cause.** The selection was `cyan_1` fill with `paper_2` label -- a low-contrast light bar with grey text on
+it. In this room every lit surface is dark-with-a-cyan-edge and every *disabled* thing is a flat pale block,
+so the strongest emphasis on the screen read as the weakest, on the row a player is most likely to take.
+
+**Fix.** Reverse video instead: the selected pill is `cyan_1` and the label is cut out in `void`, so it reads
+as a lit readout (the console language the room already speaks). Nothing else about the rows changed.
+
+## BUG-084 -- the artwork could not reach the player (v119.4)
+
+**Reported:** *"Workspace over budget ... 4,441 files were not saved"* on the session's workspace panel.
+
+**Cause.** The local .NET SDK (~578 MB / 4,800 files) was living inside the workspace at `.dotnet/`. It was
+gitignored but **not** excluded from the workspace snapshot, so the snapshot budget (128 MB / 10,000 files)
+was consumed by a toolchain that is a *local* dependency, not project content.
+
+**Fix.** The SDK lives **outside the workspace** (`%USERPROFILE%\.hr0d-toolchain\dotnet`) and is found on PATH;
+the workspace copy and its symlink are deleted, and `.dotnet/` stays in `.gitignore` as a tripwire so a future
+toolchain install that lands in the repo shows up in `git status` instead of in the snapshot warning. The
+repository itself is 31 MB / ~6,000 files, which is the number that matters.

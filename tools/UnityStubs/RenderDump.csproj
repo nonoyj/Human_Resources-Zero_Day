@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- OPT-IN render harness. Not part of CI, not compiled by CompileCheck.csproj, never shipped.
+       Purpose: compose MenuView.BuildRoom() headlessly so the front door can be inspected without Unity. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <LangVersion>9.0</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>RenderDump</AssemblyName>
+    <DefineConstants>$(DefineConstants);RENDERDUMP</DefineConstants>
+    <NoWarn>CS0168;CS0219;CS8632;CS0649;CS0414;CS0108</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="UnityStubs.cs" />
+    <Compile Include="InputSystemStubs.cs" />
+    <Compile Include="RenderDump.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Core/**/*.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.5" />
+  </ItemGroup>
+</Project>
