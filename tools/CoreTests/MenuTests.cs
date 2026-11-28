@@ -516,11 +516,72 @@ namespace HRZeroDay.Tests
                 // only at the OUTSIDE edges, never between two rows
                 True(MenuLayout.RowAt(mid, MenuLayout.PillTop - 1, items.Count) == 0,
                      "a near-miss above the first row misses the block");
-                True(MenuLayout.RowAt(mid, MenuLayout.PillTop + items.Count * MenuLayout.PillStep, items.Count)
-                     == items.Count - 1, "a near-miss below the last row misses the block");
+                // v119.5: the slop is OUTSIDE the block only, and it is 2 px. The old check allowed 2 px of
+                // slop BOTH ways because RowAt used to clamp everything below the block onto the last row --
+                // that clamp is exactly BUG-086 ("clicking anywhere outside the monitor chooses whatever is
+                // highlighted"), so the assertion moves with the fix: 2 px belongs to the block, 3 px does not.
+                True(MenuLayout.RowAt(mid, MenuLayout.PillTop + items.Count * MenuLayout.PillStep + 1, items.Count)
+                     == items.Count - 1, "a 1 px near-miss below the last row misses the block");
+                True(MenuLayout.RowAt(mid, MenuLayout.PillTop + items.Count * MenuLayout.PillStep + 3, items.Count)
+                     == -1, "a 3 px near-miss below the last row still lands on it");
                 True(MenuLayout.RowAt(mid, MenuLayout.PillTop + items.Count * MenuLayout.PillStep + 4, items.Count) == -1,
                      "the tube below the last row resolves to a row");
             }
+
+            // ---- THE ROOM IS NOT A BUTTON (v119.5, BUG-086) ------------------------------------------
+            // The player: "clicking randomly anywhere outside the monitor clicks whatever is highlighted on
+            // the screen". RowAt used to CLAMP (anything below the block counted as the last row, and the
+            // tube below the pills was never excluded), and the router then fell back to Choose() for any
+            // click that hit nothing. Both are gone; this is the arithmetic they left behind.
+            int count = MenuRules.Root(true, false).Count;
+            int cx0 = MenuLayout.PillX + MenuLayout.PillW / 2;
+            int[][] dead =
+            {
+                new[] { 6, 40 },                                             // the wall, far left
+                new[] { MenuLayout.CrtX + 4, MenuLayout.CrtY + 8 },           // the monitor's own bezel
+                new[] { cx0, MenuLayout.GlassY + 6 },                         // inside the glass, above the title
+                new[] { MenuLayout.GlassX + 6, MenuLayout.PillTop + 20 },     // inside the glass, left of the pills
+                new[] { MenuLayout.GlassX + MenuLayout.GlassW - 6, MenuLayout.PillTop + 20 },  // ... and right
+                new[] { cx0, MenuLayout.PillTop + count * MenuLayout.PillStep + 2 },           // under the block
+                new[] { cx0, MenuLayout.GlassY + MenuLayout.GlassH - 4 },     // the tube's lower lip
+                new[] { 470, 260 },                                           // the floor, bottom right
+            };
+            for (int i = 0; i < dead.Length; i++)
+                True(MenuLayout.RowAt(dead[i][0], dead[i][1], count) == -1,
+                     "the pointer resolves to a row at dead point " + i + " (" + dead[i][0] + "," + dead[i][1] + ")");
+
+            // ...and the reverse: every point inside a pill still resolves to that pill, so the fix cannot
+            // have narrowed the rows into something unclickable
+            for (int i = 0; i < count; i++)
+            {
+                int y = MenuLayout.PillTop + i * MenuLayout.PillStep + MenuLayout.PillH / 2;
+                True(MenuLayout.RowAt(MenuLayout.PillX + 1, y, count) == i, "the left edge of row " + i + " is dead");
+                True(MenuLayout.RowAt(MenuLayout.PillX + MenuLayout.PillW - 2, y, count) == i,
+                     "the right edge of row " + i + " is dead");
+            }
+            True(MenuLayout.InRowBlock(cx0, MenuLayout.PillTop + 4, count), "the row block does not claim its own area");
+            True(!MenuLayout.InRowBlock(6, 40, count), "the row block claims the wall");
+
+            // ---- THE KEYBOARD'S TEXT WINDOW (v119.5) -------------------------------------------------
+            // It must be OFF the tube (the first version covered the rows, and the screenshot of it was the
+            // whole reason it moved), entirely on the canvas, and wide enough for its longest line.
+            True(MenuLayout.TypeWindowY >= MenuLayout.GlassY + MenuLayout.GlassH,
+                 "the keyboard's text window covers the tube");
+            True(MenuLayout.InGlass(MenuLayout.TypeWindowX + 4, MenuLayout.TypeWindowY + 4) == false,
+                 "the text window's top-left corner is inside the monitor's glass");
+            True(MenuLayout.TypeWindowX >= 0 && MenuLayout.TypeWindowY >= 0 &&
+                 MenuLayout.TypeWindowX + MenuLayout.TypeWindowW <= MenuLayout.W &&
+                 MenuLayout.TypeWindowY + MenuLayout.TypeWindowH <= MenuLayout.H,
+                 "the keyboard's text window runs off the canvas");
+            // it hangs off the keyboard: the desk draws the keys at (300,186) 84x20, so the window's box must
+            // at least reach under them in x, or it reads as a box from nowhere
+            True(MenuLayout.TypeWindowX <= 300 && MenuLayout.TypeWindowX + MenuLayout.TypeWindowW >= 384,
+                 "the text window does not sit under the keyboard");
+            // three rows of type (header + 2 body lines at 9 px) plus padding, and it must fit its longest line:
+            // 27 cells at the atlas's 7 px pitch is 189 px, plus 8 px of padding, inside 192
+            int cells = (MenuLayout.TypeWindowW - 8) / (MenuLayout.GlyphW + MenuLayout.LetterGap);
+            True(cells >= 26, "the text window only holds " + cells + " glyph cells");
+            True(MenuLayout.TypeWindowH >= 3 * 9 + 6, "the text window is too short for its three lines");
             // the props: each hit box must be inside the canvas and over the thing it names
             // v119.1: the cluster moved right of the monitor (366+), so the hit test follows it
             True(MenuLayout.StackCellAt(MenuLayout.StackX + 8, MenuLayout.StackY + 10) >= 0,

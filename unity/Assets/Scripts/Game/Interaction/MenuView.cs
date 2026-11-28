@@ -92,17 +92,41 @@ namespace HRZeroDay.Game.Interaction
         public int Count { get { return _items == null ? 0 : _items.Count; } }
 
         /// <summary>
-        /// Clicking the keyboard types a line onto the desk. It is the smallest possible proof that the
-        /// furniture is part of the interface, and it costs one string.
+        /// Clicking the keyboard opens a small text window on the tube and types one more line into it
+        /// (v119.5, the player's ask: "when the keyboard types ok, could we make it a text box pop out that
+        /// fades after not being clicked for a while"). Every click appends; the window closes itself
+        /// TypeWindowSeconds after the last click.
+        ///
+        /// It is still a joke, but it is now a JOKE WITH A PLACE: a box that appears where the typing goes,
+        /// types a whole line at a time like a terminal, and then gives the tube back. Before this it was one
+        /// line of text on the footer that the footer drew over on the next frame.
         /// </summary>
         public void TypeOnDesk()
         {
-            _deskTyped = Math.Min(_deskTyped + 1, _deskTicks.Length);
+            _typeLine = Math.Min(_typeLine + 1, _typeLines.Length);
+            _typeLeft = TypeWindowSeconds;
             Paint();
         }
 
-        private int _deskTyped;
-        private static readonly string[] _deskTicks = { "OK", "OK OK", "OK OK OK", "WHY" };
+        /// <summary>The box on the tube: how long a silent click leaves it up, and how much of it is drawn.</summary>
+        public const float TypeWindowSeconds = 6f;
+        private const float TypeFadeSeconds = 0.6f;
+
+        private int _typeLine;
+        private float _typeLeft;
+        private float _typeReveal;          // 0..1, the typewriter: characters of the newest line that are on
+        private static readonly string[] _typeLines =
+        {
+            "> OK",
+            "> OK OK OK",
+            "> WHY",
+            "> IT IS 03:14",
+            "> QUIET NIGHT",
+            "> NOT THE SAME",
+        };
+
+        /// <summary>The box is up (or fading). The tests read this, and Paint() skips the work when false.</summary>
+        public bool TypeWindowOpen { get { return _typeLine > 0 && (_typeLeft > 0f || _typeReveal > 0f); } }
 
         public static MenuView Attach(DeskBootstrap game)
         {
@@ -576,6 +600,30 @@ namespace HRZeroDay.Game.Interaction
             _clock += dt;
             if (_keyboardHint > 0f) _keyboardHint = Math.Max(0f, _keyboardHint - dt * 0.35f);
 
+            // the keyboard's text window: types itself in, sits, then fades out TypeWindowSeconds after the
+            // last click on the keyboard. It repaints only while it is doing something, and the last repaint
+            // is the one that clears it (BUG-078: an overlay that stops being painted keeps its last frame).
+            if (_typeLine > 0)
+            {
+                bool live = _typeLeft > 0f || _typeReveal > 0f;
+                if (_typeLeft > 0f)
+                {
+                    _typeLeft -= dt;
+                    float want = Math.Min(1f, _typeReveal + dt * 6f);
+                    if (want != _typeReveal) { _typeReveal = want; Paint(); }
+                }
+                else if (_typeReveal > 0f)
+                {
+                    _typeReveal = Math.Max(0f, _typeReveal - dt / TypeFadeSeconds);
+                    Paint();
+                }
+                if (_typeLeft <= 0f && _typeReveal <= 0f && live)
+                {
+                    _typeLine = 0;                 // window closed: the next click starts a fresh box
+                    Paint();
+                }
+            }
+
             // the breach: a random screen, rationed to one every 14-26 s
             if (_breachLeft > 0f)
             {
@@ -916,12 +964,101 @@ namespace HRZeroDay.Game.Interaction
                     Centre(buf, "[UP/DOWN] MOVE   [ENTER] CHOOSE", MenuLayout.FooterTop, "amber_3", 1);
             }
 
-            // what the keyboard typed, if anything: a small line on the desk's near edge, above the footer
-            if (_deskTyped > 0)
-                Centre(buf, _deskTicks[_deskTyped - 1], MenuLayout.FooterTop - 8, "cyan_1", 1);
+            // the keyboard's text window, over the tube, above the footer
+            if (TypeWindowOpen) TextWindow(buf);
 
             Centre(buf, Footer_(), MenuLayout.FooterTop, "paper_2", 1);
         }
+
+        /// <summary>
+        /// THE KEYBOARD'S TEXT WINDOW (v119.5). A small terminal box that pops out over the tube when the
+        /// keyboard is clicked, types the line on a caret, and DISSOLVES in an ordered dither once it has
+        /// been left alone for TypeWindowSeconds -- the same dither the light falls off with, so the box
+        /// belongs to the room instead of floating over it.
+        ///
+        /// Everything is drawn from the atlas at 1x, inside the tube's picture area, and the box is clipped
+        /// to the glass the same way the title is, so it can never spill onto the bezel.
+        /// </summary>
+        private void TextWindow(Color32[] buf)
+        {
+            // THE WINDOW'S PLACE (v119.5). It is NOT on the tube: the tube is the menu, and a box over it
+            // covers the rows the player is choosing between -- the first version did exactly that, and the
+            // screenshot of it was enough to move it. It hangs off the KEYBOARD instead, on the front face
+            // of the desk, which is where a pop-up from a physical keyboard would appear, and it is drawn
+            // after the room but before the text so it can never cover a row.
+            int x0 = MenuLayout.TypeWindowX, x1 = x0 + MenuLayout.TypeWindowW;
+            int lineH = 9;
+            int y1 = MenuLayout.TypeWindowY + MenuLayout.TypeWindowH;
+            int y0 = MenuLayout.TypeWindowY;
+
+            // how visible it is: solid while it is live, then a dissolve over TypeFadeSeconds
+            float vis = _typeLeft > 0f ? 1f : _typeReveal;
+
+            Color32 fill = Ink("void", new Color32(9, 11, 15, 255));
+            Color32 dark = Ink("steel_0", new Color32(14, 17, 19, 255));
+            Color32 edge = Ink("cyan_1", new Color32(42, 113, 122, 255));
+            Color32 head = Ink("cyan_2", new Color32(101, 194, 194, 255));
+
+            for (int y = y0; y < y1; y++)
+            {
+                if (y < 0 || y >= H) continue;
+                for (int x = x0; x < x1; x++)
+                {
+                    if (x < 0 || x >= W) continue;
+                    bool border = (y == y0) || (y == y1 - 1) || (x == x0) || (x == x1 - 1);
+                    // the ordered dissolve: a stable per-pixel rank, so the box thins evenly instead of
+                    // flickering. 4x4 Bayer is enough at this size and costs no table lookup.
+                    if (vis < 1f && !border)
+                    {
+                        int bx = x & 3, by = y & 3;
+                        int rank = (int)((Bayer4[by * 4 + bx]) * 16f);       // 0..15
+                        if (rank >= (int)Math.Round(vis * 16f)) continue;
+                    }
+                    else if (vis < 1f)
+                    {
+                        // the frame dissolves LAST: at half-fade the box still reads as a box
+                        if (((x + y) & 1) != 0) continue;
+                    }
+                    buf[y * W + x] = border ? edge : fill;
+                }
+            }
+            // the header strip: one row of steel under the top edge, the box's own title in it
+            for (int x = x0 + 1; x < x1 - 1 && x < W; x++)
+            {
+                if (y0 + 1 < 0 || y0 + 1 >= H) continue;
+                buf[(y0 + 1) * W + x] = dark;
+            }
+            DrawScaledClipped(buf, "TERMINAL", x0 + 4, y0 + 2, "cyan_2", 1, MenuLayout.LetterGap, 0, false);
+
+            // the two body lines: the previous line greyed, the newest typing itself in on a caret
+            int ly = y0 + lineH + 4;
+            if (_typeLine >= 2)
+                DrawScaledClipped(buf, _typeLines[_typeLine - 2], x0 + 4, ly, "paper_2", 1,
+                                  MenuLayout.LetterGap, 0, false);
+            string newest = _typeLines[Math.Max(0, _typeLine - 1)];
+            int shown = Math.Min(newest.Length, (int)(_typeReveal * newest.Length + 0.001f));
+            if (shown > 0)
+                DrawScaledClipped(buf, newest.Substring(0, shown), x0 + 4, ly + lineH, "white", 1,
+                                  MenuLayout.LetterGap, 0, false);
+            // the caret: a 4x7 block that blinks at 2 Hz, only while the window is live
+            if (_typeLeft > 0f && Math.Sin(_clock * 6.3) > -0.2 && shown < newest.Length + 1)
+            {
+                int cx = x0 + 4 + shown * (MenuLayout.GlyphW + MenuLayout.LetterGap);
+                int cy = ly + lineH;
+                for (int y = cy; y < cy + MenuLayout.GlyphH; y++)
+                    for (int x = cx; x < cx + 4; x++)
+                        if (x >= 0 && x < W && y >= 0 && y < H && x < x1 - 2) buf[y * W + x] = head;
+            }
+        }
+
+        /// <summary>A 4x4 ordered-dither matrix, 0..1. The glow and the box's dissolve share the language.</summary>
+        private static readonly float[] Bayer4 =
+        {
+             0f,  8f,  2f, 10f,
+            12f,  4f, 14f,  6f,
+             3f, 11f,  1f,  9f,
+            15f,  7f, 13f,  5f,
+        };
 
         /// <summary>
         /// PROPS THAT ANSWER (v119). Two of the room's objects are interactive, and both react in the same
@@ -1074,6 +1211,17 @@ namespace HRZeroDay.Game.Interaction
         private void DrawScaled(Color32[] buf, string text, int left, int top, string ink, int scale,
                                 int gap, int bleed)
         {
+            DrawScaledClipped(buf, text, left, top, ink, scale, gap, bleed, true);
+        }
+
+        /// <summary>
+        /// The pen, with the tube's clip optional. Everything inside the glass uses the clip (a glyph that
+        /// fits the rect can still hang off the tube's cut corner -- "the text is offscreen"); the keyboard's
+        /// text window is drawn BELOW the tube, on the desk, so it must not be clipped by it.
+        /// </summary>
+        private void DrawScaledClipped(Color32[] buf, string text, int left, int top, string ink, int scale,
+                                       int gap, int bleed, bool clipToTube)
+        {
             Color32 colour = Ink(ink, new Color32(230, 241, 255, 255));
             int cellW = MenuLayout.GlyphW + gap;
             for (int ci = 0; ci < text.Length; ci++)
@@ -1089,7 +1237,7 @@ namespace HRZeroDay.Game.Interaction
                     {
                         int tx = penX + gx;
                         if (tx < 0 || tx >= W) continue;
-                        if (!InGlass(tx, ty)) continue;
+                        if (clipToTube && !InGlass(tx, ty)) continue;
                         // the bleed column repeats the glyph's rightmost ink column, which thickens it
                         int srcX = gx / scale;
                         if (srcX >= MenuLayout.GlyphW) srcX = MenuLayout.GlyphW - 1;

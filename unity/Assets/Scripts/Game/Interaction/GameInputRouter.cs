@@ -85,9 +85,15 @@ namespace HRZeroDay.Game.Interaction
 
                 bool tappedMenu = (mm != null && mm.leftButton.wasPressedThisFrame) ||
                                   (ts != null && ts.primaryTouch.press.wasPressedThisFrame);
-                if (tappedMenu)
+                if (tappedMenu && px >= 0)
                 {
-                    if (px < 0 || !game.MenuClick(px, py)) game.MenuChoose();
+                    // THE ROOM IS NOT A BUTTON (v119.5, BUG-086). This line used to read
+                    // `if (px < 0 || !game.MenuClick(px, py)) game.MenuChoose();` -- so a click that hit
+                    // NOTHING chose whatever row happened to be selected. Combined with the old clamp in
+                    // MenuLayout.RowAt, that meant a click anywhere on screen pressed CREDITS. Now the
+                    // click has to land on a row or a prop, and a click on the room does nothing at all,
+                    // which is what makes the props read as props.
+                    game.MenuClick(px, py);
                 }
                 return;
             }
@@ -115,6 +121,11 @@ namespace HRZeroDay.Game.Interaction
                 if (kb.lKey.wasPressedThisFrame) game.ToggleLetter();
                 if (kb.xKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame) game.CloseLetter();
                 if (kb.hKey.wasPressedThisFrame) game.ToggleHelp();
+                // ALERTS (v119.6): TAB is the one key the desk and the letter both honour, because the panel is
+                // read-only and never steals a decision. ESC closes it before it closes anything else.
+                if (kb.tabKey.wasPressedThisFrame) game.ToggleAlerts();
+                else if (game.AlertsOpen && (kb.escapeKey.wasPressedThisFrame || kb.xKey.wasPressedThisFrame))
+                { game.CloseAlerts(); return; }
                 if (kb.aKey.wasPressedThisFrame) game.Approve();
                 if (kb.sKey.wasPressedThisFrame) game.Reject();
                 // The walk owns SPACE while it is on screen: turning a page must never also advance the

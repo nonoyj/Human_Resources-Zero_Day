@@ -121,7 +121,10 @@ namespace HRZeroDay.Game.Interaction
             // the player saw on the first play of v113. Every full-screen screen must be listed here, or
             // the desk writes on top of it.
             bool atMenu = _game.ShowingMenu;
-            intro = intro || atMenu;
+            // ...but the ALERTS popup is the player's OWN request and outranks the hiding rule: a player who
+            // presses TAB at the desk must see the panel, and one who presses it behind a full-screen screen
+            // must not (the screen owns the keys -- see GameInputRouter).
+            if (!_game.AlertsOpen) intro = intro || atMenu;
 
             // Letter mode: LetterView already shows the letter itself, so the HUD shows ONLY the
             // flags, in dark ink, in the blank middle of the page (below the body, above the
@@ -207,8 +210,16 @@ namespace HRZeroDay.Game.Interaction
 
             if (_game.ShowDaySummary)
             {
+                // ---- THE SUMMARY ARRIVES (v119.7, P5's last item). Four beats, 0.22 s apart: the verdict
+                // word, then the numbers, then the arc line, then the prompt. The clock and the beat
+                // arithmetic live in Core (RunLedger.SummaryBeatsShown) so the view cannot invent a timeline,
+                // and the whole thing is skipped by any input (see DeskBootstrap.continue/Next), because a
+                // player who is ready should never be made to wait for an animation.
+                int beats = RunLedger.SummaryBeatsShown(_game.SummaryElapsed);
+                bool settled = RunLedger.SummaryReady(_game.SummaryElapsed);
                 var d = _game.LastDay;
                 Add(result, "DAY " + (d == null ? s.Day : d.Day) + " CLOSED");
+                if (beats < 2) return result;
                 Add(result, "");
                 Add(result, d == null ? string.Empty :
                     "APPROVED " + d.Approved + "   REJECTED " + d.Rejected + "   QUOTA " + (d.QuotaMet ? "MET" : "MISSED"));
@@ -223,8 +234,10 @@ namespace HRZeroDay.Game.Interaction
                 Add(result, "");
                 // WHERE THIS DAY SITS (v101). "DAY 3 OF 5" plus one honest line about the state of the
                 // run, so the player always knows whether they are near the end or near the edge.
+                if (beats < 3) return result;
                 if (_game.Ledger != null)
                     Add(result, _game.Ledger.ArcLine(d == null ? s.Day : d.Day));
+                if (!settled) return result;
                 Add(result, "");
                 bool last = s.Finished || (d != null && d.Day >= RunLedger.ArcLength);
                 Add(result, last ? "[SPACE] CLOSE THE FILE" : "[SPACE] NEXT DAY");
@@ -260,16 +273,41 @@ namespace HRZeroDay.Game.Interaction
                 return result;
             }
 
+            // ---- THE ALERTS POPUP (v119.6, docs/87 v110). It REPLACES the shift block while it is up: a
+            // popup that draws over the HUD is two panels fighting for the same corner, and the panel is what
+            // the player asked for by pressing the key. Every number in it comes from SecurityPanel (Core),
+            // which is also what the tests read.
+            // (ALERTS popup — see below. It replaces the shift block, not the whole HUD: the panel is the
+            // answer to a key the player pressed, and it draws what Core computed, never its own arithmetic.)
+            if (_game.AlertsOpen)
+            {
+                var panel = _game.SecurityPanelModel();
+                Add(result, "COMPANY SECURITY");
+                Add(result, "");
+                foreach (var line in panel.Lines()) Add(result, line);
+                Add(result, "");
+                Add(result, "[ESC] CLOSE");
+                return result;
+            }
+
             var v = s.Current;
             // Compact by design: the full dossier lives in the letter. Keeping only the identity
             // line here stops the HUD covering the monitor and the applicant across the table.
+            //
+            // v119.6: the shift line now carries the two counters the team asked for (docs/87 A1/A3), both
+            // DERIVED -- the day is the shift's own day, and SECURITY is SecurityRules.Compute over the live
+            // trust / corruption / hires, so it can never drift from the popup's headline.
             Add(result, "HUMAN RESOURCES // ZERO DAY");
-            Add(result, "DAY " + s.Day + "/5  TRUST " + s.Trust + "  CORRUPT " + s.CorruptionLevel +
-                        "  SUBJECT " + (s.Shift.CurrentIndex + 1) + "/" + s.Shift.Today.Count);
+            Add(result, "DAY " + s.Day + "/5  SECURITY " + SecurityRules.Compute(s.Trust, s.CorruptionLevel,
+                        s.Shift.SyntheticsHired) + " " + SecurityRules.BandWord(
+                        SecurityRules.Compute(s.Trust, s.CorruptionLevel, s.Shift.SyntheticsHired)));
+            Add(result, "HIRED " + s.Shift.SyntheticsHired + "/" + ShiftController.HireLimitForDefeat +
+                        "   TRUST " + s.Trust + "   CORRUPT " + s.CorruptionLevel + "/3" +
+                        "   SUBJECT " + (s.Shift.CurrentIndex + 1) + "/" + s.Shift.Today.Count);
             Add(result, (v.FullName ?? "APPLICANT") + " / " + (v.Role ?? "OPEN ROLE") + " / ID " + (v.IdNumber ?? "-"));
             Add(result, "CLICK THE PERSON TO INSPECT");
             Add(result, "[L] LETTER  [1-5] FLAGS/REASON  [6] INSUFFICIENT");
-            Add(result, "[A] APPROVE  [S] REJECT  [SPACE] NEXT  [H] HELP");
+            Add(result, "[A] APPROVE  [S] REJECT  [SPACE] NEXT  [TAB] ALERTS  [H] HELP");
             if (_game.HelpVisible)
             {
                 Add(result, "");

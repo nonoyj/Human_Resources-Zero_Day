@@ -39,6 +39,9 @@ namespace HRZeroDay.Game.Interaction
         public bool LetterOpen { get { return Letter != null && Letter.gameObject.activeSelf; } }
         public bool ShowDebrief { get { return _showingDebrief; } }
         public bool ShowDaySummary { get { return _showingDaySummary; } }
+        /// <summary>Seconds since the day summary opened -- the transition reads it, nothing else may.</summary>
+        public float SummaryElapsed { get { return _summaryElapsed; } }
+        private float _summaryElapsed;
         /// <summary>The after-hours walk is on screen. Input goes to the walk while this is true.</summary>
         public bool ShowingSweep { get { return Walk != null && Walk.IsOpen; } }
         public bool ShowEnding { get { return Session != null && Session.Finished && !_showingDebrief; } }
@@ -167,6 +170,66 @@ namespace HRZeroDay.Game.Interaction
 
         public void ToggleHelp() { _helpVisible = !_helpVisible; }
 
+        // --------------------------------------------------------------- ALERTS (v119.6, docs/87 v110)
+        /// <summary>
+        /// The ALERTS panel is up. It is a POPUP OVER THE DESK, not a screen: the shift keeps running behind
+        /// it and ESC/ALERTS closes it, because a player should be able to look at the number without
+        /// stopping the day (and because a modal over a timed interview is a way to lose a shift to a menu).
+        /// </summary>
+        public bool AlertsOpen { get { return _alertsOpen; } }
+        private bool _alertsOpen;
+        private readonly System.Collections.Generic.List<SecurityAlert> _alerts =
+            new System.Collections.Generic.List<SecurityAlert>();
+        /// <summary>The alerts this run has raised, newest last. Read by the HUD's panel and by the tests.</summary>
+        public System.Collections.Generic.IList<SecurityAlert> Alerts { get { return _alerts; } }
+
+        public void ToggleAlerts()
+        {
+            _alertsOpen = !_alertsOpen;
+            if (_alertsOpen) Cue(Sfx.Drawer);
+            if (Hud != null) Hud.RefreshNow();
+        }
+
+        public void CloseAlerts()
+        {
+            if (!_alertsOpen) return;
+            _alertsOpen = false;
+            if (Hud != null) Hud.RefreshNow();
+        }
+
+        /// <summary>
+        /// Records an alert. Public so the interaction layer and, later, the inbox can raise one; it is the
+        /// ONLY way an alert enters the run, which is what keeps the panel and the rating in step.
+        /// </summary>
+        public void RaiseAlert(SecurityAlert alert)
+        {
+            if (alert == null) return;
+            _alerts.Add(alert);
+            if (Hud != null) Hud.RefreshNow();
+        }
+
+        /// <summary>The security rating right now, derived from the live session and never stored.</summary>
+        public int SecurityNow
+        {
+            get
+            {
+                if (Session == null) return SecurityRules.Start;
+                return SecurityRules.Compute(Session.Trust, Session.CorruptionLevel,
+                                             Session.Shift.SyntheticsHired);
+            }
+        }
+
+        /// <summary>The ALERTS panel's model, built fresh so it can never show a stale rating.</summary>
+        public SecurityPanelModel SecurityPanelModel()
+        {
+            if (Session == null) return SecurityPanel.Build(SecurityRules.Start, 0, 0, _alerts);
+            return SecurityPanel.Build(Session.Trust, Session.CorruptionLevel,
+                                       Session.Shift.SyntheticsHired, _alerts);
+        }
+
+        /// <summary>The hires count for the HUD's live line, and the day's own quota progress.</summary>
+        public int HiresThisRun { get { return Session == null ? 0 : Session.Shift.SyntheticsHired; } }
+
         // --------------------------------------------------------------- after-hours sweep
         /// <summary>
         /// Builds the walk's page lazily, once. Lazy because most Play sessions never reach a summary,
@@ -193,14 +256,15 @@ namespace HRZeroDay.Game.Interaction
         public void OnSweepFinished()
         {
             _showingDaySummary = true;
+            _summaryElapsed = 0f;
             Hud.RefreshNow();          // the summary must appear with the walk's line on the first frame
         }
 
         private void StartSweep()
         {
             EnsureSweep();
-            if (Walk == null) { _showingDaySummary = true; return; }
-            if (!Walk.Open(_sweepTraces)) { _showingDaySummary = true; return; }
+            if (Walk == null) { _showingDaySummary = true; _summaryElapsed = 0f; return; }
+            if (!Walk.Open(_sweepTraces)) { _showingDaySummary = true; _summaryElapsed = 0f; return; }
             CloseLetter();
             Presenter.Hide();
         }
@@ -270,8 +334,12 @@ namespace HRZeroDay.Game.Interaction
                     _closedRoster = new System.Collections.Generic.List<HRZeroDay.Core.Data.ApplicantRecord>(
                         Session.Shift.Today);
                     var closedDay = Session.LastClosedDay;
+                    int corruptionBefore = Session.CorruptionLevel;
                     LastDay = Session.CloseDay();
                     RecordDay(LastDay, closedDay);
+                    if (Session.CorruptionLevel > corruptionBefore)
+                        RaiseAlert(SecurityRules.Alert(AlertKind.CorruptionRose, closedDay, null));
+                    CloseAlerts();          // a closed day is a closed popup; the summary owns the screen now
                     RecordArc(LastDay, closedDay);
                     CloseLetter();
                     Presenter.Hide();
@@ -287,7 +355,7 @@ namespace HRZeroDay.Game.Interaction
                                                       LastDay == null ? 0 : LastDay.SyntheticsHired);
                     _sweepLine = SweepScript.SummaryLine(closedDay, _sweepTraces);
                     if (Sweep.HasSweep(closedDay)) StartSweep();
-                    else _showingDaySummary = true;
+                    else { _showingDaySummary = true; _summaryElapsed = 0f; }
                 }
                 else if (Decision != null) Decision.NextApplicant();
                 return;
@@ -622,6 +690,19 @@ namespace HRZeroDay.Game.Interaction
         private void OnCommitted(DecisionResult result)
         {
             LastDecision = result;
+
+            // ---- THE ALERTS THIS CALL RAISES (v119.6). Raised HERE, at the moment of the decision, from the
+            // result the rules already computed -- not on the summary screen, and not by the HUD. One place,
+            // so the popup, the debrief and the day's story cannot disagree about what just happened.
+            if (result != null)
+            {
+                if (result.SyntheticHired > 0)
+                    RaiseAlert(SecurityRules.Alert(AlertKind.SyntheticHired, Session.Day,
+                                                   Session.Current == null ? null : Session.Current.Id));
+                if (result.WrongfulRejection > 0)
+                    RaiseAlert(SecurityRules.Alert(AlertKind.DoubleMismatch, Session.Day,
+                                                   Session.Current == null ? null : Session.Current.Id));
+            }
             PersistSave();
             _showingDebrief = true;
             // THE VERDICT LANDS (v105). Wrong calls get the low thud FIRST, under the stamp, so the player
@@ -642,6 +723,14 @@ namespace HRZeroDay.Game.Interaction
         }
 
         private void Update()
+        {
+            // THE SUMMARY'S CLOCK (v119.7). One float, advanced only while the summary is up, so the
+            // transition is a function of how long the player has been looking at it and not of frame count.
+            if (_showingDaySummary) _summaryElapsed += Time.unscaledDeltaTime;
+            UpdateDesk();
+        }
+
+        private void UpdateDesk()
         {
             // THE FRONT DOOR STOPS THE CLOCK (v118, BUG-071). The player's report was literal: "the game is
             // playing while the menu is displaying". It was: Session.Tick ran every frame whether or not a

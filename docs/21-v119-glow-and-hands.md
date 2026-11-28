@@ -363,3 +363,26 @@ block sits 2 px higher with 1 px of air between rows so the footer is not on the
 
 Reference frames: `art/kit/reference/menu_v119_1x.png` (the twin), `art/kit/reference/menu_v119_4_unity.png`
 (the same frame rendered by the game's own code path).
+
+---
+
+## 19. v119.5–v119.6 -- the front door stops clicking itself, and the HUD starts counting
+
+The player's first play of v119.4 found two input/output defects the gates could not:
+**a click anywhere on screen pressed the highlighted row** (BUG-085) and **the keyboard's typed line was
+painted under the footer** (BUG-086). Both were in the seam between a room that is *drawn* and a room that is
+*clickable*: the art and the hit test were written on different days, and the fallback that made the pointer
+forgiving ("a click that hits nothing still chooses") was right when the menu had no pointer at all.
+
+v119.6 starts P6 with the HUD work the team asked for (`docs/87` A1/A3/A4):
+
+| | |
+|---|---|
+| **A1 hires counter** | `HIRED n/3` live on the shift line, from `ShiftController` -- no new state |
+| **A3 Security Rating** | `SECURITY 62 SHAKY` live on the shift line, `SecurityRules.Compute` over the live trust, corruption and hires |
+| **A4 ALERTS** | **TAB** opens a popup that explains the number: the headline, a 24-cell bar, the three weighted parts with their raw inputs, and the run's alerts loudest first |
+
+The panel is a **Core model** (`SecurityPanel`), not view code, for one reason: it prints four numbers that
+must add up. `EnsureAddsUp` repairs the rounding before anyone sees it, and a test walks **680 states** and
+asserts the parts equal the headline in every one. The alerts are raised where they happen (`OnCommitted`,
+`Continue`), not on the summary screen, so the popup, the debrief and the day's story can never disagree.

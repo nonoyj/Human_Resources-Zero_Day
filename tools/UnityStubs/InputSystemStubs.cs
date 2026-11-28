@@ -27,6 +27,7 @@ namespace UnityEngine.InputSystem
         public ButtonControl lKey = new ButtonControl();
         public ButtonControl xKey = new ButtonControl();
         public ButtonControl hKey = new ButtonControl();
+        public ButtonControl tabKey = new ButtonControl();   // real UnityEngine.InputSystem.Keyboard member
         public ButtonControl aKey = new ButtonControl();
         public ButtonControl sKey = new ButtonControl();
         public ButtonControl rKey = new ButtonControl();

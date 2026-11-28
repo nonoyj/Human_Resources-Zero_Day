@@ -16,7 +16,7 @@ Read the bar like this: `[##........]` — done / total, so a glance says how mu
 | P3 | **The after-hours sweep** — walk, traces, pages, key strip | `[##########]` 10/10 | **done in v97** (`docs/90` BUG-057) |
 | P4 | **Save, resume, audio, endings, intro** | `[########..]` 8/10 | save + resume + endings + intro slot + **the room and 7 cues (v105)**; the spoken intro waits on BE2 |
 | P5 | **Replenish** — art sweep, look, animation feel (`docs/82`) | `[#######...]` 7/8 | **front door locked in v118–v119.4**: layered room, glow layer, defined floor and wall, grounded table, pointer interactivity, and a room the game can actually READ (BUG-082) with the selection reading as lit rather than disabled. Left: 1 animation-feel item (the day-summary transition, `docs/21` §7) |
-| P6 | **Ship** — Android build, QA matrix, store assets | `[..........]` 0/8 | not started |
+| P6 | **Ship** — Android build, QA matrix, store assets | `[###.......]` 3/8 | **started in v119.6**: the HUD carries LIVE hires + SECURITY during a shift (docs/87 A1/A3) and the ALERTS popup explains the rating from Core's own arithmetic (A4). QA matrix, build, store assets remain |
 
 **The honest headline: the game is playable and correct; it is not yet finished and not yet pretty.**
 Roughly 55 % of the work is behind us, and the remaining 45 % is mostly *breadth* (audio, intro,

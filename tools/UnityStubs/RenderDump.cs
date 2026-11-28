@@ -39,6 +39,8 @@ public static class RenderDump
             // the boot reveal is time-based and the stub's clock is frozen at 0; skip it, or every row is
             // still "not typed yet" and the dump shows a menu with no options in it
             typeof(MenuView).GetField("_bootReveal", flags).SetValue(view, 1f);
+            if (args.Length > 2 && args[2] == "keyboard") { view.TypeOnDesk(); view.TypeOnDesk(); typeof(MenuView).GetField("_typeReveal", flags).SetValue(view, 1f); }
+            if (args.Length > 2 && args[2] == "fade") { view.TypeOnDesk(); view.TypeOnDesk(); typeof(MenuView).GetField("_typeReveal", flags).SetValue(view, 0.45f); typeof(MenuView).GetField("_typeLeft", flags).SetValue(view, 0f); }
 
             // Paint() needs a real Texture2D + sprite renderer, which the stub does not build. So run the
             // same passes Paint() runs, in the same order, on a copy -- this is the frame the player sees.

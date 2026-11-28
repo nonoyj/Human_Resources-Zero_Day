@@ -30,6 +30,50 @@ namespace HRZeroDay.Tests
             yield return CheckLedgerCountsTheRunThePlayerPlayed();
             yield return CheckSummaryAlwaysSaysWhereYouAre();
             yield return CheckLedgerSurvivesASaveMidRun();
+            yield return CheckTheSummaryArrivesInBeatsAndFinishes();
+        }
+
+
+        /// <summary>
+        /// THE SUMMARY'S TRANSITION (v119.7). P5's last item is a FEEL change, and a feel change still has to
+        /// be finite, ordered and monotonic: four beats, each one later than the last, the whole thing over in
+        /// under a second, and once it is over it stays over. The HUD reads these functions and nothing else,
+        /// so this test is the transition.
+        /// </summary>
+        private static string CheckTheSummaryArrivesInBeatsAndFinishes()
+        {
+            True(RunLedger.SummaryBeats == 4, "the summary transition is no longer four beats");
+            float total = RunLedger.SummaryBeatSeconds * RunLedger.SummaryBeats;
+            True(total <= 1.2f, "the summary transition takes " + total + " s -- long enough to be in the way");
+
+            // nothing at t=0, everything at the end, and it never goes backwards
+            True(RunLedger.SummaryBeatsShown(0f) == 0, "the summary shows a line before it has opened");
+            True(RunLedger.SummaryBeatsShown(-1f) == 0, "a negative clock shows a line");
+            True(RunLedger.SummaryBeatsShown(total) == RunLedger.SummaryBeats, "the transition never completes");
+            True(RunLedger.SummaryBeatsShown(total * 10f) == RunLedger.SummaryBeats, "the transition overruns");
+            True(RunLedger.SummaryReady(total), "the prompt is not pressable once the transition is done");
+            // the beat boundaries are half-open, so the last hundredth of a beat is still the previous beat:
+            // state the intent, not a boundary artefact
+            True(!RunLedger.SummaryReady(RunLedger.SummaryBeatSeconds * (RunLedger.SummaryBeats - 1)),
+                 "the prompt is pressable before the numbers have landed");
+
+            int previous = 0;
+            for (float t = 0f; t <= total + 0.5f; t += 0.02f)
+            {
+                int shown = RunLedger.SummaryBeatsShown(t);
+                True(shown >= previous, "the summary went BACKWARDS at " + t + " s");
+                True(shown <= RunLedger.SummaryBeats, "the summary showed more beats than it has");
+                float p = RunLedger.SummaryProgress(t);
+                True(p >= 0f && p <= 1f, "the progress left 0..1 at " + t + " s");
+                previous = shown;
+            }
+            // every beat is visible for exactly one step: four beats over the window, no beat skipped
+            for (int b = 0; b < RunLedger.SummaryBeats; b++)
+            {
+                float at = RunLedger.SummaryBeatSeconds * b + 0.001f;
+                True(RunLedger.SummaryBeatsShown(at) == b + 1, "beat " + (b + 1) + " does not appear on time");
+            }
+            return "PASS  the day summary arrives in four ordered beats and settles in under a second";
         }
 
         private static void True(bool condition, string message)

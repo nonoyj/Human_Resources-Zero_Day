@@ -21,6 +21,104 @@ namespace HRZeroDay.Tests
             yield return CheckTheDashboardAddsUp();
             yield return CheckAlertsAreTheFourDecidedKinds();
             yield return CheckCorrectCallsGiveSomethingBack();
+            yield return CheckThePanelAlwaysAddsUp();
+            yield return CheckThePanelNeverInventsAPart();
+            yield return CheckThePanelPrintsItsAlertsLoudestFirst();
+        }
+
+
+        /// <summary>
+        /// THE PANEL ADDS UP (v119.6). It prints four numbers on one screen -- the headline and the three
+        /// weighted parts -- so the parts must sum to the headline for EVERY reachable state. This is the test
+        /// the dashboard exists for: SecurityRating's own comment says a breakdown that does not add up is
+        /// worse than no breakdown, and rounding is exactly where that happens.
+        /// </summary>
+        private static string CheckThePanelAlwaysAddsUp()
+        {
+            int checkedStates = 0;
+            for (int trust = 0; trust <= 100; trust += 3)
+            {
+                for (int corruption = 0; corruption <= 3; corruption++)
+                {
+                    for (int hires = 0; hires <= 4; hires++)
+                    {
+                        var m = SecurityPanel.Build(trust, corruption, hires, null);
+                        int sum = m.TrustPoints + m.CorruptionPoints + m.HiresPoints;
+                        True(sum == m.Rating, "the panel's parts sum to " + sum + " but the headline is " +
+                             m.Rating + " (trust " + trust + ", corruption " + corruption + ", hires " + hires + ")");
+                        True(m.Rating == SecurityRules.Compute(trust, corruption, hires),
+                             "the panel's headline disagrees with the rating rule");
+                        True(m.Headline == SecurityRules.HudLine(m.Rating), "the panel's headline text is not the rule's line");
+                        True(m.BarFilled >= 0 && m.BarFilled <= SecurityPanelModel.BarCells, "the bar overflows");
+                        True(m.Bar.Length == SecurityPanelModel.BarCells + 2, "the bar is not BarCells wide");
+                        True(m.Lines().Length >= 5, "the panel lost its rows");
+                        checkedStates++;
+                    }
+                }
+            }
+            return "PASS  the panel's three parts add up to its headline in all " + checkedStates + " reachable states";
+        }
+
+        /// <summary>
+        /// No part may be negative, exceed the rating's own scale, or claim a contribution the state does not
+        /// have: a part is a PORTION of the number, so it lives in 0..100 and the three of them cannot all be
+        /// the whole thing.
+        /// </summary>
+        private static string CheckThePanelNeverInventsAPart()
+        {
+            for (int trust = 0; trust <= 100; trust += 5)
+                for (int corruption = 0; corruption <= 3; corruption++)
+                {
+                    var m = SecurityPanel.Build(trust, corruption, 0, null);
+                    True(m.TrustPoints >= 0 && m.CorruptionPoints >= 0 && m.HiresPoints >= 0,
+                         "a part of the rating is negative");
+                    True(m.TrustPoints <= SecurityRules.Max, "a part is larger than the whole scale");
+                    // a healthy company is ALL trust, which is the anchor SecurityRating documents
+                    if (trust >= 100 && corruption == 0)
+                        True(m.TrustPoints == SecurityRules.Start,
+                             "a healthy company's panel does not put its " + SecurityRules.Start +
+                             " points on trust (it says " + m.TrustPoints + ")");
+                }
+            // a fresh run reads 70 STABLE and says so, in the rule's words. NOTE the inputs: a fresh run is
+            // FULL TRUST, not trust 70 -- SecurityRules.Fresh() is Compute(100, 0, 0), and Compute(70,0,0) is
+            // a SHAKY company that has already lost a third of its trust. The panel takes the live inputs.
+            var fresh = SecurityPanel.Build(100, 0, 0, null);
+            True(fresh.Rating == SecurityRules.Fresh(), "the panel does not agree with Fresh()");
+            True(fresh.Band == "STABLE", "a fresh run is not STABLE");
+            True(fresh.Lines()[0] == "SECURITY 70 STABLE", "the fresh headline is '" + fresh.Lines()[0] + "'");
+            return "PASS  the panel's parts are portions of the rating, and a fresh run reads SECURITY 70 STABLE";
+        }
+
+        /// <summary>
+        /// Alerts print loudest first and there are never more than three: a popup is not a log. Severity
+        /// orders them, and a fact outranks an inference (the same rule the alert kinds were built with).
+        /// </summary>
+        private static string CheckThePanelPrintsItsAlertsLoudestFirst()
+        {
+            var alerts = new List<SecurityAlert>
+            {
+                SecurityRules.Alert(AlertKind.DoubleMismatch, 1, "a"),   // severity 1
+                SecurityRules.Alert(AlertKind.SyntheticHired, 1, "b"),   // severity 3
+                SecurityRules.Alert(AlertKind.VerifiedLie, 2, "c"),      // severity 2
+                SecurityRules.Alert(AlertKind.CorruptionRose, 3, "d"),   // severity 3
+            };
+            var m = SecurityPanel.Build(80, 1, 1, alerts);
+            True(m.Alerts.Count == SecurityPanelModel.MaxAlerts, "the panel printed " + m.Alerts.Count + " alerts");
+            True(m.Alerts[0].Weight >= m.Alerts[1].Weight && m.Alerts[1].Weight >= m.Alerts[2].Weight,
+                 "the alerts are not sorted by severity");
+            True(m.Alerts[0].Weight == 3, "the loudest alert is not first");
+            // the quiet case says something rather than nothing
+            var quiet = SecurityPanel.Build(70, 0, 0, new List<SecurityAlert>());
+            True(quiet.Lines()[quiet.Lines().Length - 1] == quiet.QuietLine, "an empty panel prints nothing at all");
+            // every printed line is upper case: the panel is painted with an atlas that has no lowercase
+            foreach (var line in m.Lines())
+            {
+                var text = line ?? string.Empty;
+                for (int i = 0; i < text.Length; i++)
+                    if (text[i] >= 'a' && text[i] <= 'z')
+                        throw new Exception("the panel line '" + text + "' has lowercase, which the atlas cannot paint");
+            }
+            return "PASS  alerts print loudest first, never more than three, and every line is paintable";
         }
 
         private static void True(bool condition, string message)

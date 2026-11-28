@@ -172,6 +172,13 @@ namespace HRZeroDay.Core.Rules
                                                    // tube's bottom lip (BUG-085)
         public static int FooterTop { get { return GlassY + GlassH - 12; } }
 
+        // ---- THE KEYBOARD'S TEXT WINDOW (v119.5). Off the tube, on the desk's front face, hanging under
+        // the keyboard the player clicked (desk.png puts the keys at (300,186) 84x20). 192 px wide holds
+        // 27 glyph cells at the atlas's 7 px pitch, which is what the line table in MenuView is sized to.
+        // X sits so the box is centred under the keys: keyboard (300..384) centre 342, box 192 wide -> 246.
+        public const int TypeWindowX = 246, TypeWindowY = 206;
+        public const int TypeWindowW = 192, TypeWindowH = 34;
+
         // The atlas is 5x7, 2 px letter gap, 3 px line gap (art/kit/fonts/monitor_font_5x7.json).
         public const int GlyphW = 5, GlyphH = 7, LetterGap = 2, LineGap = 3;
 
@@ -374,15 +381,53 @@ namespace HRZeroDay.Core.Rules
         public static int RowAt(int x, int y, int count)
         {
             if (count <= 0) return -1;
+
+            // ---- v119.5, BUG-086: THE FRONT DOOR IS NOW A DOOR, NOT A HIT-REGION -------------------
+            //
+            // The player reported: "clicking randomly anywhere outside the monitor clicks whatever is
+            // highlighted on the screen". Two separate holes did that, and both were in this function:
+            //
+            //   1. the ROW bands were clamped instead of rejected -- `i >= count` returned `count - 1`, so
+            //      anything below the last pill counted as the last pill, and `y < top` returned row 0. A
+            //      click anywhere in the tube's lower half therefore chose CREDITS;
+            //   2. the only horizontal test was the pill's own 2 px slop -- the tube's glass, the bezel and
+            //      the whole 480x270 frame were not consulted at all.
+            //
+            // The rule that replaces it is physical: a row is under the pointer only if the pointer is on
+            // that row's pill and inside the monitor's glass. Everything else is the room, and a click on
+            // the room does nothing (see DeskBootstrap.MenuClick -- it no longer falls back to Choose).
+            if (!InGlass(x, y)) return -1;
             if (x < PillX - 2 || x >= PillX + PillW + 2) return -1;
-            // Rows are contiguous (PillStep == PillH), so the bands TILE exactly: y / PillStep is the row.
-            // The first version gave each row 2 px of slop on both sides, which made neighbouring bands
-            // overlap and made the bottom two pixels of every row resolve to the row ABOVE it -- found by
-            // the pointer test, which is exactly what it is for.
             int top = PillTop, bottom = PillTop + count * PillStep;
+            // The 2 px slop is OUTSIDE the block only, and it is TWO pixels -- not the whole tube. Inside
+            // the block the bands tile exactly, so borders belong to a row; below the block the last row
+            // owns exactly its 2 px of slop and nothing further. The old code clamped EVERY y below the block
+            // onto the last row, which is why a click anywhere on the lower half of the screen chose
+            // CREDITS (BUG-086).
             if (y < top - 2 || y >= bottom + 2) return -1;
-            int i = (y - top) / PillStep;
-            return i < 0 ? 0 : (i >= count ? count - 1 : i);
+            if (y >= bottom) return count - 1;            // the 2 px slop under the block belongs to the last row
+            int i = (y - top) / PillStep;                 // exact band, no rounding, no overlap
+            if (i < 0) i = 0;
+            if (i >= count) return -1;                    // unreachable by construction; kept as a guard
+            return i;
+        }
+
+        /// <summary>Is this canvas point on the monitor's picture area? The front door's input boundary.</summary>
+        public static bool InGlass(int x, int y)
+        {
+            return x >= GlassX && x < GlassX + GlassW && y >= GlassY && y < GlassY + GlassH;
+        }
+
+        /// <summary>
+        /// The FIVE-row block as one rect: the pills plus their 2 px slop, inside the glass. The pointer
+        /// uses it to light the whole block's edge, so it is obvious which part of the screen is live.
+        /// </summary>
+        public static bool InRowBlock(int x, int y, int count)
+        {
+            if (count <= 0) return false;
+            if (!InGlass(x, y)) return false;
+            return x >= PillX - 2 && x < PillX + PillW + 2 &&
+                   y >= PillTop - 2 && y < PillTop + count * PillStep + 2;
         }
 
         /// <summary>Which tube of the monitor cluster the pointer is over, or -1. Uses StackCells.</summary>

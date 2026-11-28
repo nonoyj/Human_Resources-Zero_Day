@@ -155,6 +155,42 @@ namespace HRZeroDay.Core.Rules
             return ledger;
         }
 
+        // ---- THE DAY SUMMARY'S TRANSITION (v119.7, P5's last animation-feel item) ----------------------
+        //
+        // The player, in the animation notes: the summary should arrive as an END-OF-DAY MOMENT, not as a text
+        // block that is simply there. The cheapest honest way to do that at 480x270 is to stage what the
+        // summary SAYS: the verdict word, then the numbers, then the arc line, then the prompt -- four beats,
+        // 0.22 s apart, in order.
+        //
+        // The arithmetic lives HERE, in Core, for one reason: the HUD must not own a timeline. A view that
+        // decides when the next line appears is a view that can disagree with the copy, and this project has
+        // paid for that twice already (the palette, and the menu room). The beats are data, so the test can
+        // assert they are ordered, monotonic and finite.
+        public const float SummaryBeatSeconds = 0.22f;
+        public const int SummaryBeats = 4;
+
+        /// <summary>0..1 across the whole transition, `elapsed` seconds after the summary opened.</summary>
+        public static float SummaryProgress(float elapsed)
+        {
+            if (elapsed <= 0f) return 0f;
+            float total = SummaryBeatSeconds * SummaryBeats;
+            return elapsed >= total ? 1f : elapsed / total;
+        }
+
+        /// <summary>How many of the four beats are on screen at `elapsed`. Always within 0..SummaryBeats.</summary>
+        public static int SummaryBeatsShown(float elapsed)
+        {
+            if (elapsed <= 0f) return 0;
+            int n = (int)(elapsed / SummaryBeatSeconds) + 1;
+            return n < 0 ? 0 : (n > SummaryBeats ? SummaryBeats : n);
+        }
+
+        /// <summary>True once the transition has finished and the prompt may be pressed.</summary>
+        public static bool SummaryReady(float elapsed)
+        {
+            return SummaryBeatsShown(elapsed) >= SummaryBeats;
+        }
+
         /// <summary>
         /// The day summary's arc line: where this day sits in the run, and whether the run is heading
         /// somewhere. One line, because the summary already has numbers on it.

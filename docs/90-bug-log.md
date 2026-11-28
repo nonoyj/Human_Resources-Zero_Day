@@ -1685,3 +1685,37 @@ was consumed by a toolchain that is a *local* dependency, not project content.
 the workspace copy and its symlink are deleted, and `.dotnet/` stays in `.gitignore` as a tripwire so a future
 toolchain install that lands in the repo shows up in `git status` instead of in the snapshot warning. The
 repository itself is 31 MB / ~6,000 files, which is the number that matters.
+
+## BUG-085 -- a click anywhere on screen pressed the highlighted row (v119.5, 2026-11-25)
+
+**Reported:** *"Clicking randomly anywhere outside the monitor clicks whatever is highlighted on the screen."*
+
+**Two holes, both in the input path, and each one hid the other:**
+
+1. `MenuLayout.RowAt` **clamped** instead of rejecting. Anything below the row block returned the last row, and
+   the whole horizontal axis outside the pills was never tested at all -- so a click on the wall, the desk or
+   the tube's lower lip resolved to a row.
+2. `GameInputRouter` then did `if (px < 0 || !game.MenuClick(px, py)) game.MenuChoose();` -- a click that hit
+   *nothing* chose the selected row. That fallback existed so a keyboard player who clicked harmlessly was
+   never stuck; it was correct when the menu had no pointer, and it became the bug the moment the room was
+   clickable.
+
+**Fix.** A row is under the pointer only if the pointer is inside the monitor's glass **and** on that row's
+pill (`MenuLayout.InGlass` + an exact band test; the 2 px slop lives outside the block only). The router no
+longer falls back to `Choose()` -- a click on the room does nothing, which is what makes the props read as
+props. Every one of the eight dead points the player could have hit is now asserted by name in `MenuTests`.
+
+## BUG-086 -- the keyboard typed one line the footer then drew over (v119.5)
+
+**Reported:** *"When the keyboard types ok, could we make it a text box pop out that fades after not being
+clicked for a while."*
+
+**Cause.** `TypeOnDesk()` wrote a tick string at `FooterTop - 8`, one pixel band above the footer, and the
+footer was painted after it. Two lines of text in the same six pixels: whichever drew last won.
+
+**Fix.** A real window (`MenuView.TextWindow`): a bordered terminal box with a header strip that **types its
+line on a caret**, keeps the previous line greyed above it, and **dissolves in a 4x4 ordered dither** six
+seconds after the last click. It hangs under the keyboard on the desk's front face (`MenuLayout.TypeWindow`,
+246,206, 192x34) -- the first version sat on the tube and covered the rows, which the render of it made
+obvious. The frame dissolves last, so at half-fade the box still reads as a box. A unit test pins it off the
+glass, on the canvas, under the keys, and wide enough for its longest line.
