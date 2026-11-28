@@ -42,6 +42,7 @@
          project compiles it directly. UnityStubs supplies the tiny Unity surface it uses. -->
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/MonitorScreen.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/MonitorScreenRaster.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Game/Desk/ScaledGlyphs.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Desk/LetterView.cs" />
     <Compile Include="../../unity/Assets/Scripts/Game/Interaction/*.cs" />
     <!-- GameAudio is the one Game-assembly file the desk wires to; the headless runner compiles it so a

@@ -24,6 +24,7 @@ namespace HRZeroDay.Tests
             yield return CheckTheCursorLandsOnAnOffGridVolume();
             yield return CheckEveryRowCanBeReachedAndEveryVolumeCanGoBothWays();
             yield return CheckTheConsentRowIsTheDecision();
+            yield return CheckTheConceptRowsExistAndFitTheGlass();
         }
 
         private static void True(bool condition, string message)
@@ -35,6 +36,9 @@ namespace HRZeroDay.Tests
         private static string CheckContinueOnlyExistsWithASave()
         {
             var first = MenuRules.Root(false, false);
+            // v113: the concept's root is exactly five rows with a save and four on a first run
+            // (START is the only first-run row; DATA moved inside SETTINGS). Counts are asserted, not
+            // assumed: a row that appears or vanishes has to be a decision somebody wrote down.
             True(first.Count == 4, "a first run shows " + first.Count + " rows, expected 4");
             foreach (var item in first)
                 True(item.Action != MenuAction.Continue, "a first run offers CONTINUE");
@@ -43,23 +47,25 @@ namespace HRZeroDay.Tests
 
             var resumed = MenuRules.Root(true, true);
             True(resumed[0].Action == MenuAction.Continue, "a save does not offer CONTINUE first");
-            True(resumed[0].Label == "CONTINUE THE RUN", "the run label is wrong: " + resumed[0].Label);
+            True(resumed[0].Label == "CONTINUE RUN", "the run label is wrong: " + resumed[0].Label);
 
             var idle = MenuRules.Root(true, false);
             True(idle[0].Label == "CONTINUE", "a save with no run in progress says: " + idle[0].Label);
+            True(idle.Count == 5, "a save shows " + idle.Count + " rows, expected 5 (the concept's root)");
 
-            // and the two things that have never had a home are always reachable
+            // and the two things that have never had a home are always reachable -- SETTINGS on the root,
+            // DATA & CONSENT one row inside it (v113 moved it there to keep the concept's five-row root)
             foreach (var list in new List<List<MenuItem>> { first, resumed })
             {
-                bool settings = false, consent = false;
+                bool settings = false;
                 foreach (var item in list)
-                {
                     if (item.Action == MenuAction.OpenSettings) settings = true;
-                    if (item.Action == MenuAction.OpenConsent) consent = true;
-                }
                 True(settings, "SETTINGS is not in the menu");
-                True(consent, "DATA & CONSENT is not in the menu");
             }
+            bool consent = false;
+            foreach (var item in MenuRules.Settings(false))
+                if (item.Action == MenuAction.OpenConsent) consent = true;
+            True(consent, "DATA & CONSENT is not reachable from SETTINGS");
             return "PASS  CONTINUE exists only with a save; SETTINGS and CONSENT are always reachable";
         }
 
@@ -240,6 +246,40 @@ namespace HRZeroDay.Tests
             True(MenuRules.ConsentState(false, true) == "OFF - YOU SAID NO", "declined state is wrong");
             True(no[0].Label != yes[0].Label, "the row does not visibly change when it is answered");
             return "PASS  the row that looks like the checkbox is the row that answers";
+        }
+
+        /// <summary>
+        /// The player asked for a specific screen (concept, 2026-11-28): CONTINUE, NEW SHIFT, FIELD MANUAL,
+        /// SETTINGS, CREDITS inside a big monitor. This asserts those rows exist AND that the layout maths
+        /// puts every pill inside the glass -- a row that renders off the bezel is a row nobody can press.
+        /// </summary>
+        private static string CheckTheConceptRowsExistAndFitTheGlass()
+        {
+            var rows = MenuRules.Root(true, true);
+            var wanted = new[] { "CONTINUE RUN", "NEW SHIFT", "FIELD MANUAL", "SETTINGS", "CREDITS" };
+            True(MenuRules.Root(false, false).Count == 4, "a first-run root is not four rows");
+            for (int i = 0; i < wanted.Length; i++)
+                True(rows[i].Label == wanted[i],
+                     "row " + i + " is \"" + rows[i].Label + "\", the concept says \"" + wanted[i] + "\"");
+
+            var screen = MenuScreenText.Root(true, true, 0);
+            True(screen.Count == rows.Count, "the painted rows and the menu rows disagree");
+            True(screen[0].Selected, "the first row is not the selected one");
+
+            // every pill: inside the glass, and the label fits inside the pill
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var pill = MenuLayout.Row(i, "signal", "void");
+                True(pill.X >= MenuLayout.GlassX && pill.X + pill.W <= MenuLayout.GlassX + MenuLayout.GlassW,
+                     "pill " + i + " runs outside the glass horizontally");
+                True(pill.Y >= MenuLayout.GlassY && pill.Y + pill.H <= MenuLayout.GlassY + MenuLayout.GlassH,
+                     "pill " + i + " runs outside the glass vertically");
+                int w = rows[i].Label.Length * (MenuLayout.GlyphW + MenuLayout.LetterGap) - MenuLayout.LetterGap;
+                True(w <= pill.W, "\"" + rows[i].Label + "\" is " + w + " px, the pill is " + pill.W);
+            }
+            True(MenuLayout.TaglineTop + MenuLayout.TitleScale * MenuLayout.GlyphH <= MenuLayout.Row(0, "a", "b").Y,
+                 "the tagline runs into the first pill");
+            return "PASS  the concept's five rows exist and every pill sits inside the monitor glass";
         }
 
         /// <summary>Volume: ten honest steps, clamped, and a bar made of atlas characters.</summary>

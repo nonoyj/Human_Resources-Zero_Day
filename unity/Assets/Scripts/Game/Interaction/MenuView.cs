@@ -1,23 +1,31 @@
-// HR//0D -- MenuView: the front door, drawn in the game's own pixels.
+// HR//0D -- MenuView: the front door, drawn as the room it belongs to.
 // Assembly: HRZeroDay.Game  (UnityEngine)
 //
+// WHAT THE PLAYER ASKED FOR (concept, 2026-11-28; ADR-017/018)
+//   "The menu items are on the pixel computer, then a coffee underneath with applicant files on the table,
+//    then monitors in the background with an aesthetic view of the city in the night with a server on the
+//    side. Overall look has a cyan glow from the night sky and the monitor screen."
+//
 // WHAT THIS IS
-//   One 480x270 texture, painted the same way as the intro card and the walk page: a dark office behind, a
-//   panel in front, text from the 5x7 atlas, and a selection line made of atlas characters. Three screens --
-//   root, settings, consent -- because those are the three things the save file has never had a home for.
+//   One 480x270 texture, built at runtime from kit sprites laid out by MenuLayout:
+//       background (night city)  ->  server rack  ->  monitor_big  ->  cyan halo  ->  desk band
+//   then dimmed, then the menu is painted INTO the monitor's glass: a 3x title, a red 3x subtitle, the
+//   amber tagline, and the option rows as text pills (the selected one filled with the signal colour).
+//   Nothing here is a new art style: every pixel comes from the game's atlas and palette.
 //
-// WHAT IT IS NOT
-//   Not a splash screen and not a gate. The desk still builds underneath it (GameBoot does that), so pressing
-//   START is a menu closing, not a scene change that could fail. That also means the room is already audible
-//   when the menu is up -- the player is in the office before they say go.
+// WHY COMPOSE AT RUNTIME INSTEAD OF SHIPPING ONE BIG PNG
+//   The desk already knows where the monitor, the desk band and the props are. A single baked PNG would be
+//   a second source of truth -- change the monitor and the menu keeps the old one. This composes from the
+//   same sprites the desk uses, at the coordinates in MenuLayout, and the twin renderer
+//   (tools/art/make_menu_composite.py) reads the same numbers.
 //
-// THE RULES (all enforced by MenuRules tests, not by this file)
-//   1. CONTINUE only exists when there is a save.
-//   2. Every label is paintable with the atlas (upper case, <= 24 chars).
-//   3. Consent is a decision, not a default: the game records nothing until the player says yes, and saying no
-//      changes nothing about the game.
+// FAILURE IS SILENT: no sprites, no atlas, an exception -- the desk starts as it did before v110. A front
+// door that can stop the game opening is worse than no front door.
+using System;
 using System.Collections.Generic;
 using HRZeroDay.Core.Rules;
+using HRZeroDay.Game;
+using HRZeroDay.Game.Desk;
 using UnityEngine;
 
 namespace HRZeroDay.Game.Interaction
@@ -26,18 +34,10 @@ namespace HRZeroDay.Game.Interaction
     {
         public const string RootName = "MenuView";
         private const string AtlasResource = "fonts/monitor_font_5x7";
+        private const string KitRoot = "Art/Kit/";
         private const float Ppu = 16f;
 
-        private const int PageW = 480;
-        private const int PageH = 270;
-        private const int CardX = 60;
-        private const int CardY = 34;
-        private const int CardW = 360;
-        private const int CardH = 202;
-        private const int PadX = 14;
-        private const int PadY = 14;
-        private const int LineStep = 10;
-        private const int Cols = 46;
+        private const int W = MenuLayout.W, H = MenuLayout.H;
 
         private DeskBootstrap _game;
         private MenuScreen _screen = MenuScreen.Root;
@@ -51,7 +51,9 @@ namespace HRZeroDay.Game.Interaction
         private IGlyphSource _glyphs;
         private bool _ready;
 
-        // what the menu needs to know about the save, refreshed on every open
+        // the composed room, built once, dimmed per open
+        private Color32[] _room;
+
         private bool _hasSave;
         private bool _runInProgress;
         private bool _consentDecided;
@@ -81,20 +83,21 @@ namespace HRZeroDay.Game.Interaction
                 Debug.LogWarning("[HR//0D] menu skipped: no glyph atlas.");
                 return false;
             }
+            if (!BuildRoom()) return false;
 
-            _root = new GameObject("MenuCard");
+            _root = new GameObject("MenuRoom");
             _root.transform.SetParent(transform, false);
 
-            var go = new GameObject("Card");
+            var go = new GameObject("Screen");
             go.transform.SetParent(_root.transform, false);
             _card = go.AddComponent<SpriteRenderer>();
             _card.sortingOrder = 240;              // above the intro card (230): the menu is the frontmost thing
-            _card.transform.localPosition = PageTransform.CanvasToWorld(PageW * 0.5f, PageH * 0.5f, Ppu);
+            _card.transform.localPosition = PageTransform.CanvasToWorld(W * 0.5f, H * 0.5f, Ppu);
 
-            _tex = new Texture2D(PageW, PageH, TextureFormat.RGBA32, false);
+            _tex = new Texture2D(W, H, TextureFormat.RGBA32, false);
             _tex.filterMode = FilterMode.Point;
-            _tex.name = "MenuCard";
-            _card.sprite = Sprite.Create(_tex, new Rect(0, 0, PageW, PageH), new Vector2(0.5f, 0.5f), Ppu);
+            _tex.name = "MenuRoom";
+            _card.sprite = Sprite.Create(_tex, new Rect(0, 0, W, H), new Vector2(0.5f, 0.5f), Ppu);
 
             _root.SetActive(false);
             _ready = true;
@@ -102,8 +105,91 @@ namespace HRZeroDay.Game.Interaction
         }
 
         /// <summary>
-        /// Opens the root screen. `hasSave` comes from the bootstrap: a fresh profile has no run to continue,
-        /// and CONTINUE must not be offered at all (MenuRules.Root decides that, not this view).
+        /// Composes the room once. Every sprite is optional: a missing one is skipped and logged, and the
+        /// rest of the frame still draws, because a menu with no server is still a menu.
+        /// </summary>
+        private bool BuildRoom()
+        {
+            _room = new Color32[W * H];
+            bool any = false;
+            any |= Blit("backgrounds/office_L0", 0, 0, true);
+            any |= Blit("desk/server_rack", MenuLayout.ServerX, MenuLayout.ServerY, false);
+            any |= Blit("desk/monitor_big", MenuLayout.MonitorX, MenuLayout.MonitorY, false);
+            Halo();
+            any |= Blit("desk/desk_foreground", 0, MenuLayout.DeskY, false);
+            if (!any) Debug.LogWarning("[HR//0D] menu room: no kit sprites found under Resources/" + KitRoot);
+            return true;
+        }
+
+        private bool Blit(string resource, int x0, int y0, bool mustFill)
+        {
+            var tex = Resources.Load<Texture2D>(KitRoot + resource);
+            if (tex == null)
+            {
+                Debug.LogWarning("[HR//0D] menu room: Resources/" + KitRoot + resource + " missing.");
+                return false;
+            }
+            Color32[] px;
+            try { px = tex.GetPixels32(); }
+            catch (Exception) { return false; }        // not readable: skip rather than crash the front door
+
+            int tw = tex.width, th = tex.height;
+            for (int y = 0; y < th; y++)
+            {
+                int dy = y0 + y;
+                if (dy < 0 || dy >= H) continue;
+                for (int x = 0; x < tw; x++)
+                {
+                    int dx = x0 + x;
+                    if (dx < 0 || dx >= W) continue;
+                    var c = px[(th - 1 - y) * tw + x];   // PNG order is top-down, the buffer is top-down too
+                    if (c.a == 0) continue;
+                    _room[dy * W + dx] = c;
+                }
+            }
+            return mustFill || true;
+        }
+
+        /// <summary>The cyan the screen and the window throw. Flat steps, two rings, one pool on the desk.</summary>
+        private void Halo()
+        {
+            var teal = Ink("glow_teal", new Color32(12, 61, 56, 255));
+            var dim = Ink("signaldim", new Color32(15, 168, 138, 255));
+            int x0 = MenuLayout.MonitorX, y0 = MenuLayout.MonitorY;
+            int x1 = x0 + 260, y1 = y0 + 170;
+            for (int i = 1; i <= 2; i++)
+            {
+                var ink = i == 1 ? dim : teal;
+                for (int x = x0 - i; x <= x1 - 1 + i; x++)
+                {
+                    Put(x, y0 - i, ink);
+                    Put(x, y1 - 1 + i, ink);
+                }
+                for (int y = y0 - i; y <= y1 - 1 + i; y++)
+                {
+                    Put(x0 - i, y, ink);
+                    Put(x1 - 1 + i, y, ink);
+                }
+            }
+            for (int i = 0; i < 2; i++)
+            {
+                int y = y1 + 2 + i * 3;
+                int half = 130 - i * 34;
+                for (int x = (x0 + x1) / 2 - half; x < (x0 + x1) / 2 + half; x++) Put(x, y, i == 0 ? teal : dim);
+            }
+        }
+
+        private void Put(int x, int y, Color32 ink)
+        {
+            if (x < 0 || y < 0 || x >= W || y >= H) return;
+            int i = y * W + x;
+            if (_room[i].a == 0) return;
+            _room[i] = ink;
+        }
+
+        /// <summary>
+        /// Opens the root screen. `hasSave` comes from the bootstrap: a fresh profile has no run to
+        /// continue, and CONTINUE must not be offered at all (MenuRules.Root decides that, not this view).
         /// </summary>
         public bool Open(bool hasSave, bool runInProgress, bool consentDecided, bool consentGranted,
                          float roomVolume, float sfxVolume, bool muted)
@@ -125,7 +211,7 @@ namespace HRZeroDay.Game.Interaction
             return true;
         }
 
-        /// <summary>The S shortcut from the root screen: settings, without moving the cursor there first.</summary>
+        /// <summary>The S shortcut: settings, without moving the cursor there first.</summary>
         public void OpenSettings()
         {
             if (!_open) return;
@@ -156,10 +242,10 @@ namespace HRZeroDay.Game.Interaction
         public bool Step(int delta)
         {
             if (!_open || _screen != MenuScreen.Settings) return false;
-            if (_index == 0) { _roomVolume = MenuRules.StepVolume(_roomVolume, delta); }
-            else if (_index == 1) { _sfxVolume = MenuRules.StepVolume(_sfxVolume, delta); }
+            if (_index == 0) _roomVolume = MenuRules.StepVolume(_roomVolume, delta);
+            else if (_index == 1) _sfxVolume = MenuRules.StepVolume(_sfxVolume, delta);
             else if (_index == 2) { if (delta != 0) _muted = !_muted; }
-            else return false;
+            else return false;              // DATA & CONSENT and BACK are chosen, not stepped
 
             if (_game != null) _game.ApplyAudioSettings(_roomVolume, _sfxVolume, _muted);
             _items = MenuRules.Settings(_muted);
@@ -197,6 +283,14 @@ namespace HRZeroDay.Game.Interaction
                     Paint();
                     return false;
 
+                case MenuAction.OpenManual:
+                    // the manual is the controls page: same glass, one row back, no second window
+                    _screen = MenuScreen.Manual;
+                    _items = new List<MenuItem> { new MenuItem(MenuAction.Back, "BACK", true) };
+                    _index = 0;
+                    Paint();
+                    return false;
+
                 case MenuAction.Back:
                     _screen = MenuScreen.Root;
                     _items = MenuRules.Root(_hasSave, _runInProgress);
@@ -205,7 +299,6 @@ namespace HRZeroDay.Game.Interaction
                     return false;
 
                 case MenuAction.None:
-                    // the settings rows ARE the control: choosing one changes it in place
                     ApplySettingRow();
                     return false;
 
@@ -256,112 +349,181 @@ namespace HRZeroDay.Game.Interaction
         // ------------------------------------------------------------------ paint
         private void Paint()
         {
-            if (_tex == null || _glyphs == null) return;
-            int w = _tex.width, h = _tex.height;
+            if (_tex == null || _glyphs == null || _room == null) return;
 
-            var voidInk = Colour("void", new Color32(11, 14, 19, 255));
-            var lineInk = Colour("line", new Color32(43, 58, 77, 255));
-            var buf = new Color32[w * h];
-            for (int i = 0; i < buf.Length; i++) buf[i] = voidInk;
-
-            // the card
-            for (int y = CardY; y < CardY + CardH; y++)
-                for (int x = CardX; x < CardX + CardW; x++)
-                {
-                    bool edge = y == CardY || y == CardY + CardH - 1 || x == CardX || x == CardX + CardW - 1;
-                    buf[y * w + x] = edge ? lineInk : voidInk;
-                }
+            var buf = new Color32[W * H];
+            Array.Copy(_room, buf, buf.Length);
+            Dim(buf);
 
             var rows = new List<MonitorScreenRaster.RasterRow>();
-            int top = CardY + PadY;
+            var pills = new List<MenuLayout.Pill>();
 
-            if (_screen == MenuScreen.Root)
+            // ---- the title block: the concept's proportions, 2x for the title and its red second line
+            var big = new ScaledGlyphs(_glyphs, MenuLayout.TitleScale);
+            Centre(buf, big, Title(), MenuLayout.TitleTop, "text");
+            string sub = Subtitle();
+            if (!string.IsNullOrEmpty(sub)) Centre(buf, big, sub, MenuLayout.SubtitleTop, "danger");
+            string tag = Tagline();
+            if (!string.IsNullOrEmpty(tag)) Centre(buf, big, tag, MenuLayout.TaglineTop, "warn");
+
+            // ---- the option rows
+            var menuRows = BuildRows();
+            for (int i = 0; i < menuRows.Count; i++)
             {
-                Row(rows, "HUMAN RESOURCES // ZERO DAY", top, "signal");
-                Row(rows, "", top + LineStep, "text");
-                for (int i = 0; i < _items.Count; i++)
-                    Row(rows, (_index == i ? "> " : "  ") + _items[i].Label, top + (2 + i) * LineStep,
-                        _index == i ? "text" : "textdim");
-                Row(rows, AudioHint(), CardY + CardH - PadY - 3 * LineStep, "textdim");
-                Row(rows, "[UP/DOWN] MOVE", CardY + CardH - PadY - 2 * LineStep, "textdim");
-                Row(rows, "[SPACE] CHOOSE", CardY + CardH - PadY - LineStep, "textdim");
-            }
-            else if (_screen == MenuScreen.Settings)
-            {
-                Row(rows, "SETTINGS", top, "signal");
-                Row(rows, "", top + LineStep, "text");
-                for (int i = 0; i < _items.Count; i++)
-                {
-                    string label = _items[i].Label;
-                    string extra = "";
-                    if (i == 0) extra = "  " + MenuRules.Bar(_roomVolume) + " " + MenuRules.Percent(_roomVolume);
-                    else if (i == 1) extra = "  " + MenuRules.Bar(_sfxVolume) + " " + MenuRules.Percent(_sfxVolume);
-                    Row(rows, (_index == i ? "> " : "  ") + label + extra, top + (2 + i) * LineStep,
-                        _index == i ? "text" : "textdim");
-                }
-                Row(rows, ConsentRules.Summary(_consentDecided, _consentGranted),
-                    CardY + CardH - PadY - 3 * LineStep, "textdim");
-                Row(rows, "[LEFT/RIGHT] CHANGES", CardY + CardH - PadY - 2 * LineStep, "textdim");
-                Row(rows, "[ESC] BACK", CardY + CardH - PadY - LineStep, "textdim");
-            }
-            else if (_screen == MenuScreen.Consent)
-            {
-                Row(rows, "DATA & CONSENT", top, "signal");
-                var notice = ConsentRules.Notice();
-                int y = top + LineStep + 4;
-                for (int i = 0; i < notice.Length && i < 10; i++)
-                {
-                    Row(rows, notice[i], y, "textdim");
-                    y += LineStep;
-                }
-                // THE DECISION IS A ROW, AND IT IS THE FIRST ROW (BUG-065). v110 painted the checkbox as
-                // decoration under the notice and put the real toggle on a second row -- so the thing that
-                // looked like a checkbox was not the thing that answered. Now the cursor sits on it.
-                int baseY = CardY + CardH - PadY - 4 * LineStep;
-                for (int i = 0; i < _items.Count; i++)
-                    Row(rows, (_index == i ? "> " : "  ") + _items[i].Label, baseY + i * LineStep,
-                        _index == i ? "text" : "textdim");
-                // the state and the key hint share a line: five rows under the notice would run into the border
-                Row(rows, "STATE: " + MenuRules.ConsentState(_consentGranted, _consentDecided),
-                    baseY + 2 * LineStep, "textdim");
-            }
-            else
-            {
-                Row(rows, "CREDITS", top, "signal");
-                Row(rows, "", top + LineStep, "text");
-                Row(rows, "A GAME ABOUT TELLING PEOPLE", top + 2 * LineStep, "text");
-                Row(rows, "FROM THINGS WEARING PEOPLE.", top + 3 * LineStep, "text");
-                Row(rows, "", top + 4 * LineStep, "text");
-                Row(rows, "MADE WITH THE ARENA AGENT.", top + 5 * LineStep, "textdim");
-                Row(rows, "[ESC] BACK", CardY + CardH - PadY - LineStep, "textdim");
+                var pill = MenuLayout.Row(i, menuRows[i].Selected ? "signal" : "panel2",
+                                          menuRows[i].Selected ? "void" : "text");
+                pills.Add(pill);
+                CentreIn(buf, new ScaledGlyphs(_glyphs, 1), menuRows[i].Label, pill, menuRows[i].Selected ? "void" : "text");
             }
 
-            MonitorScreenRaster.RenderRows(buf, w, h, rows, _glyphs,
-                MonitorScreenRaster.RasterClip.Box(CardX + 1, CardY + 1, CardW - 2, CardH - 2));
-            MonitorScreenRaster.FlipToTextureOrder(buf, w, h);
+            // ---- the small print, at the bottom of the glass
+            string foot = Footer();
+            Centre(buf, new ScaledGlyphs(_glyphs, 1), foot, MenuLayout.GlassY + MenuLayout.GlassH - 14, "textdim");
+
+            PaintPills(buf, pills);
+            MonitorScreenRaster.RenderRows(buf, W, H, rows, _glyphs,
+                MonitorScreenRaster.RasterClip.Box(MenuLayout.GlassX, MenuLayout.GlassY,
+                                                   MenuLayout.GlassW, MenuLayout.GlassH));
+            MonitorScreenRaster.FlipToTextureOrder(buf, W, H);
             _tex.SetPixels32(buf);
             _tex.Apply(false);
         }
 
-        private string AudioHint()
+        private string Title()
         {
-            return _muted ? "SOUND OFF   [S] SETTINGS" : "SOUND ON    [S] SETTINGS";
+            if (_screen == MenuScreen.Settings) return "SETTINGS";
+            if (_screen == MenuScreen.Consent) return "DATA AND CONSENT";
+            if (_screen == MenuScreen.Credits) return "CREDITS";
+            if (_screen == MenuScreen.Manual) return "FIELD MANUAL";
+            return MenuScreenText.Title;
         }
 
-        private static void Row(List<MonitorScreenRaster.RasterRow> rows, string text, int top, string colour)
+        private string Subtitle()
         {
-            rows.Add(new MonitorScreenRaster.RasterRow
+            if (_screen == MenuScreen.Root) return MenuScreenText.Subtitle;
+            return "";
+        }
+
+        private string Tagline()
+        {
+            if (_screen == MenuScreen.Root) return MenuScreenText.Tagline;
+            if (_screen == MenuScreen.Consent) return "RECORDS DECISIONS, NEVER YOUR NAME";
+            if (_screen == MenuScreen.Manual) return "L INSPECT  A APPROVE  S REJECT";
+            if (_screen == MenuScreen.Credits) return "MADE WITH THE ARENA AGENT";
+            return "";
+        }
+
+        private List<MenuRow> BuildRows()
+        {
+            switch (_screen)
             {
-                text = text,
-                x = CardX + PadX,
-                top = top,
-                colour = colour
-            });
+                case MenuScreen.Manual:
+                case MenuScreen.Credits:
+                    return new List<MenuRow> { new MenuRow(MenuAction.Back, "BACK", "signal", true) };
+                case MenuScreen.Settings:
+                    return MenuScreenText.Settings(_muted, _roomVolume, _sfxVolume, _index);
+                case MenuScreen.Consent:
+                    return MenuScreenText.Consent(_consentGranted, _consentDecided, _index);
+                default:
+                    return MenuScreenText.Root(_hasSave, _runInProgress, _index);
+            }
         }
 
-        private Color32 Colour(string key, Color32 fallback)
+        /// <summary>
+        /// The room at night: each surface drops one palette step (MenuLayout.Darken); light-emitting
+        /// colours are left alone, so the window, the stars and the server LEDs still glow. Done by colour
+        /// lookup, not by index, because the room buffer holds whatever the kit sprites drew.
+        /// </summary>
+        private void Dim(Color32[] buf)
         {
-            return TextPanel.Ink(MonitorScreenView.PaletteCached, key, fallback);
+            var palette = MonitorScreenView.PaletteCached;
+            if (palette == null) return;
+            var step = new Dictionary<Color32, Color32>();
+            for (int i = 0; i < MenuLayout.Darken.GetLength(0); i++)
+            {
+                string from = MenuLayout.Darken[i, 0], to = MenuLayout.Darken[i, 1];
+                Color32 a, b;
+                if (palette.TryGetValue(from, out a) && palette.TryGetValue(to, out b)) step[a] = b;
+            }
+            for (int y = 0; y < H; y++)
+            {
+                for (int x = 0; x < W; x++)
+                {
+                    if (InGlass(x, y)) continue;
+                    int i = y * W + x;
+                    Color32 dark;
+                    if (buf[i].a != 0 && step.TryGetValue(buf[i], out dark)) buf[i] = dark;
+                }
+            }
+        }
+
+        private static bool InGlass(int x, int y)
+        {
+            return x >= MenuLayout.GlassX && x < MenuLayout.GlassX + MenuLayout.GlassW &&
+                   y >= MenuLayout.GlassY && y < MenuLayout.GlassY + MenuLayout.GlassH;
+        }
+
+        /// <summary>A pill: filled body, 1 px edge in the same ink, drawn before the label lands on it.</summary>
+        private void PaintPills(Color32[] buf, List<MenuLayout.Pill> pills)
+        {
+            foreach (var p in pills)
+            {
+                var fill = Ink(p.Fill, new Color32(29, 39, 53, 255));
+                for (int y = p.Y; y < p.Y + p.H; y++)
+                {
+                    if (y < MenuLayout.GlassY || y >= MenuLayout.GlassY + MenuLayout.GlassH) continue;
+                    for (int x = p.X; x < p.X + p.W; x++)
+                    {
+                        if (x < MenuLayout.GlassX || x >= MenuLayout.GlassX + MenuLayout.GlassW) continue;
+                        buf[y * W + x] = fill;
+                    }
+                }
+            }
+        }
+
+        /// <summary>Draws `text` centred in the glass at `top`, with a scaled glyph source.</summary>
+        private void Centre(Color32[] buf, ScaledGlyphs glyphs, string text, int top, string ink)
+        {
+            int width = glyphs.WidthOf(text);
+            int left = MenuLayout.GlassX + (MenuLayout.GlassW - width) / 2;
+            var rows = new List<MonitorScreenRaster.RasterRow>
+            {
+                Row(text, left, top, ink)
+            };
+            MonitorScreenRaster.RenderRows(buf, W, H, rows, glyphs,
+                MonitorScreenRaster.RasterClip.Box(MenuLayout.GlassX, MenuLayout.GlassY,
+                                                   MenuLayout.GlassW, MenuLayout.GlassH));
+        }
+
+        private void CentreIn(Color32[] buf, IGlyphSource glyphs, string text, MenuLayout.Pill pill, string ink)
+        {
+            int width = text.Length * (MenuLayout.GlyphW + MenuLayout.LetterGap) - MenuLayout.LetterGap;
+            int left = pill.X + (pill.W - width) / 2;
+            int top = pill.Y + (pill.H - MenuLayout.GlyphH) / 2;
+            var rows = new List<MonitorScreenRaster.RasterRow> { Row(text, left, top, ink) };
+            MonitorScreenRaster.RenderRows(buf, W, H, rows, glyphs,
+                MonitorScreenRaster.RasterClip.Box(MenuLayout.GlassX, MenuLayout.GlassY,
+                                                   MenuLayout.GlassW, MenuLayout.GlassH));
+        }
+
+        private static MonitorScreenRaster.RasterRow Row(string text, int x, int top, string ink)
+        {
+            return new MonitorScreenRaster.RasterRow { text = text, x = x, top = top, colour = ink };
+        }
+
+        private string Footer()
+        {
+            if (_screen == MenuScreen.Settings) return "[LEFT/RIGHT] CHANGE  [ESC] BACK";
+            if (_screen == MenuScreen.Consent)
+                return MenuRules.ConsentState(_consentGranted, _consentDecided);
+            return _muted ? "[SPACE] CHOOSE   SOUND OFF" : "[SPACE] CHOOSE   [S] SOUND";
+        }
+
+        private static Color32 Ink(string key, Color32 fallback)
+        {
+            Color32 value;
+            var palette = MonitorScreenView.PaletteCached;
+            return palette != null && palette.TryGetValue(key, out value) ? value : fallback;
         }
 
         private void OnDestroy()

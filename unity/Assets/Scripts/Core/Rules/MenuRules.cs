@@ -26,6 +26,7 @@ namespace HRZeroDay.Core.Rules
         OpenSettings,    // audio
         OpenConsent,     // data & consent
         OpenCredits,
+        OpenManual,      // FIELD MANUAL: the controls, on the same screen as everything else
         Back,
         QuitApp
     }
@@ -36,7 +37,8 @@ namespace HRZeroDay.Core.Rules
         Root,
         Settings,
         Consent,
-        Credits
+        Credits,
+        Manual
     }
 
     public sealed class MenuItem
@@ -68,11 +70,13 @@ namespace HRZeroDay.Core.Rules
             var items = new List<MenuItem>();
             if (hasSave)
                 items.Add(new MenuItem(MenuAction.Continue,
-                                       hasRunInProgress ? "CONTINUE THE RUN" : "CONTINUE", true));
-            items.Add(new MenuItem(MenuAction.NewRun, hasSave ? "NEW RUN" : "START", true));
+                                       hasRunInProgress ? "CONTINUE RUN" : "CONTINUE", true));
+            items.Add(new MenuItem(MenuAction.NewRun, hasSave ? "NEW SHIFT" : "START", true));
+            items.Add(new MenuItem(MenuAction.OpenManual, "FIELD MANUAL", true));
             items.Add(new MenuItem(MenuAction.OpenSettings, "SETTINGS", true));
-            items.Add(new MenuItem(MenuAction.OpenConsent, "DATA & CONSENT", true));
             items.Add(new MenuItem(MenuAction.OpenCredits, "CREDITS", true));
+            // DATA moved into SETTINGS in v113: the concept's root is exactly five rows, and someone
+            // looking for the data setting looks in settings. Nothing was cut; one row moved.
             return items;
         }
 
@@ -91,6 +95,7 @@ namespace HRZeroDay.Core.Rules
                 new MenuItem(MenuAction.None, "ROOM VOLUME", true),
                 new MenuItem(MenuAction.None, "SOUND VOLUME", true),
                 new MenuItem(MenuAction.None, muted ? "SOUND: OFF" : "SOUND: ON", true),
+                new MenuItem(MenuAction.OpenConsent, "DATA & CONSENT", true),
                 new MenuItem(MenuAction.Back, "BACK", true)
             };
         }

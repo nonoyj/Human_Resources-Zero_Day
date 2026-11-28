@@ -103,58 +103,103 @@ MENU_TITLE = "HUMAN RESOURCES"
 MENU_SUB = "ZERO DAY"
 MENU_TAG = "NOT EVERY APPLICANT IS A PERSON"
 
-SCREENS = {
-    'root': [
-        ("HUMAN RESOURCES", 'text', 8),
-        ("ZERO DAY", 'danger', 24),
-        ("NOT EVERY APPLICANT IS A PERSON", 'warn', 42),
-        ("> CONTINUE", 'signal', 66),
-        ("  NEW SHIFT", 'text', 83),
-        ("  FIELD MANUAL", 'text', 100),
-        ("  SETTINGS", 'text', 117),
-        ("  CREDITS", 'text', 134),
-    ],
-    'settings': [
-        ("SETTINGS", 'text', 10),
-        ("", 'text', 26),
-        ("> ROOM VOLUME   ########-- 80%", 'signal', 40),
-        ("  SOUND VOLUME  #########- 90%", 'text', 56),
-        ("  SOUND: ON", 'text', 72),
-        ("  BACK", 'text', 88),
-        ("", 'text', 104),
-        ("[LEFT/RIGHT] CHANGE  [ESC] BACK", 'textdim', 122),
-    ],
-    'consent': [
-        ("DATA & CONSENT", 'text', 8),
-        ("RECORDS: DECISIONS, TIME TAKEN,", 'textdim', 24),
-        ("THE SEED OF THE RUN.", 'textdim', 36),
-        ("NEVER: YOUR NAME OR TYPE.", "textdim", 48),
-        ("OFF UNTIL YOU SAY YES.", 'textdim', 60),
-        ("> [ ] SHARE DATA", 'signal', 82),
-        ("  BACK", 'text', 98),
-        ("STATE: NOT ASKED YET", 'textdim', 116),
-    ],
-}
+# ---- mirrored from MenuLayout.cs / MenuScreenText.cs (ADR-018). The twin draws what the view draws.
+TITLE_TOP = 42 + 10
+TITLE_SCALE = 2
+SUBTITLE_TOP = TITLE_TOP + 9 * TITLE_SCALE
+TAGLINE_TOP = SUBTITLE_TOP + 9 * TITLE_SCALE + 4
+PILL_TOP = 42 + 65
+PILL_X = 26 + 56
+PILL_W = 236 - 112
+PILL_H = 10
+PILL_STEP = PILL_H + 3
 
 
-def paint_menu(img):
-    """The concept's type hierarchy, in the game's own atlas: title, red subtitle, tagline, five rows."""
-    from preview_intro import load_font, draw_text
+def root_labels(has_save, in_progress):
+    first = ('CONTINUE RUN' if in_progress else 'CONTINUE') if has_save else 'START'
+    return [first, 'NEW SHIFT', 'FIELD MANUAL', 'SETTINGS', 'CREDITS']
+
+
+DARKEN = [('panel2', 'panel'), ('panel', 'void'), ('line', 'panel'), ('linehi', 'line'), ('muted', 'line'), ('textdim', 'muted'), ('text', 'textdim'), ('white', 'textdim'), ('paper', 'paperdim'), ('paperdim', 'ink'), ('ink', 'void'), ('signal', 'signaldim'), ('ok', 'signaldim'), ('synth', 'synthdim')]
+
+
+def dim(img):
+    """
+    The room at night. Every surface drops ONE palette step; anything that emits light (signal, warn,
+    orange, the glow keys) stays lit. That is why the window and the LEDs still read while the walls fall
+    back -- and it is a smooth darkening, not a checker, because a checker reads as noise at 1x.
+    """
+    from make_art_kit import PALETTE
+    key_of = {v: k for k, v in PALETTE.items()}
+    px = img.load()
+    g = frame()['glass']
+    for y in range(H):
+        for x in range(W):
+            if g['x'] <= x < g['x'] + g['w'] and g['y'] <= y < g['y'] + g['h']:
+                continue
+            c = px[x, y]
+            if c[3] == 0:
+                continue
+            k = key_of.get(c[:3])
+            if k is None:
+                continue
+            target = dict(DARKEN).get(k)
+            if target:
+                px[x, y] = PALETTE[target]
+def paint_menu(img, labels):
+    """
+    Title at 3x (each atlas pixel repeated 3x3), red subtitle at 3x, amber tagline, then the option rows
+    as pills: the selected one filled with signal and its label in void, the rest on panel2.
+    """
+    from preview_intro import load_font, draw_text, GLYPH_W as GW, GLYPH_H as GH, LETTER_GAP as LG, LINE_GAP
     pal, atlas, rects = load_font()
     g = frame()['glass']
     cx = g['x'] + g['w'] // 2
-    lines = [r for r in SCREENS[SCREEN] if r[0]]
-    centred = [r for r in lines if len(r) < 4]
-    blocked = [r for r in lines if len(r) == 4]
-    for text, key, dy in centred:
-        w = len(text) * (5 + 2) - 2
-        draw_text(img, rects, atlas, pal, cx - w // 2, g['y'] + dy, text, key)
-    if blocked:
-        # ONE column: every option and every notice line starts at the same x, so the stack is a block
-        widest = max(len(t) for t, _k, _d, _a in blocked) * (5 + 2) - 2
-        left = cx - widest // 2
-        for text, key, dy, _align in blocked:
-            draw_text(img, rects, atlas, pal, left, g['y'] + dy, text, key)
+
+    def big(text, top, key, scale):
+        cell_w = (GW + LG) * scale
+        width = len(text) * cell_w - LG * scale
+        x = cx - width // 2
+        for i, ch in enumerate(text):
+            if ch == ' ':
+                continue
+            for gy in range(GH):
+                for gx in range(GW):
+                    if not _ink(rects, atlas, ch, gx, gy):
+                        continue
+                    for sy in range(scale):
+                        for sx in range(scale):
+                            px = x + i * cell_w + gx * scale + sx
+                            py = top + gy * scale + sy
+                            if g['x'] <= px < g['x'] + g['w'] and g['y'] <= py < g['y'] + g['h']:
+                                img.putpixel((px, py), pal[key])
+
+    def small(text, top, key, left):
+        draw_text(img, rects, atlas, pal, left, top, text, key)
+
+    big('HUMAN RESOURCES', TITLE_TOP, 'text', TITLE_SCALE)
+    big('ZERO DAY', SUBTITLE_TOP, 'danger', TITLE_SCALE)
+    tag = 'NOT EVERY APPLICANT IS A PERSON'
+    small(tag, TAGLINE_TOP, 'warn', cx - (len(tag) * (GW + LG) - LG) // 2)
+
+    d = ImageDraw.Draw(img)
+    for i, label in enumerate(labels):
+        top = PILL_TOP + i * PILL_STEP
+        sel = i == 0
+        fill = pal['signal'] if sel else pal['panel2']
+        d.rectangle([PILL_X, top, PILL_X + PILL_W - 1, top + PILL_H - 1], fill=fill)
+        ink = 'void' if sel else 'text'
+        small(label, top + (PILL_H - GH) // 2, ink, PILL_X + (PILL_W - (len(label) * (GW + LG) - LG)) // 2)
+
+    foot = '[SPACE] CHOOSE   [S] SOUND'
+    small(foot, g['y'] + g['h'] - 14, 'textdim', cx - (len(foot) * (GW + LG) - LG) // 2)
+
+
+def _ink(rects, atlas, ch, gx, gy):
+    o = rects.get(ch)
+    if o is None:
+        return False
+    return atlas.getpixel((o[0] + gx, o[1] + gy))[3] > 0
 
 
 def glass_capacity():
@@ -165,13 +210,11 @@ def glass_capacity():
     return cols, rows
 
 
-SCREEN = 'root'
 
 
 def main():
     global SCREEN
-    if '--screen' in sys.argv:
-        SCREEN = sys.argv[sys.argv.index('--screen') + 1]
+
     if '--write-frame' in sys.argv:
         data = json.load(open(LAYOUT, encoding='utf-8'))
         data['menuFrame'] = frame()
@@ -181,13 +224,15 @@ def main():
 
     cols, rows = glass_capacity()
     problems = []
-    for name, lines in SCREENS.items():
-        for row in lines:
-            text, key, dy = row[0], row[1], row[2]
-            if len(text) > cols:
-                problems.append('%s: "%s" is %d cols, glass holds %d' % (name, text, len(text), cols))
-            if dy + 7 > frame()['glass']['h']:
-                problems.append('%s: "%s" runs past the glass bottom' % (name, text))
+    g = frame()['glass']
+    if TITLE_TOP + TITLE_SCALE * 7 > g['y'] + g['h']:
+        problems.append('the title runs past the glass bottom')
+    for i, label in enumerate(root_labels(True, True)):
+        w = len(label) * 7 - 2
+        if w > PILL_W:
+            problems.append('"%s" is %d px wide, the pill is %d' % (label, w, PILL_W))
+    if PILL_TOP + 4 * PILL_STEP + PILL_H > g['y'] + g['h'] - 17:
+        problems.append('the option pills run into the footer')
     if problems:
         for p in problems:
             print('  ' + p)
@@ -202,12 +247,13 @@ def main():
     img = compose_monitor(img)
     halo_at(img)
     img = compose_desk(img)
-    paint_menu(img)
+    dim(img)
+    paint_menu(img, root_labels(has_save=True, in_progress=True))
 
-    out = os.path.join(ROOT, 'art', 'kit', 'reference', 'menu_composite_%s_1x.png' % SCREEN)
+    out = os.path.join(ROOT, 'art', 'kit', 'reference', 'menu_composite_1x.png')
     img.save(out)
-    big = img.resize((W * 3, H * 3), Image.NEAREST)
-    big.save(os.path.join(ROOT, 'art', 'kit', 'reference', 'menu_composite_%s_3x.png' % SCREEN))
+    img.resize((W * 3, H * 3), Image.NEAREST).save(
+        os.path.join(ROOT, 'art', 'kit', 'reference', 'menu_composite_3x.png'))
     print('wrote %s (glass %d,%d %dx%d; %d cols x %d rows at 2x)'
           % (os.path.relpath(out, ROOT), *[frame()['glass'][k] for k in ('x', 'y', 'w', 'h')], cols, rows))
     return 0
