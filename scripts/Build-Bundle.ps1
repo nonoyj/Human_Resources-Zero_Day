@@ -32,7 +32,10 @@
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)][int]$Version,
+    # v130.2: STRING, not int. The player's v130.1 round shipped a bundle whose FILE was named v130 (the old
+    # one) while its content was the new one, because an [int] cannot hold "130.1" and PowerShell's binder
+    # chose 130 silently. A version is a tag, not a number this script does arithmetic on.
+    [Parameter(Mandatory = $true)][string]$Version,
     [string]$OutDir = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -207,6 +210,17 @@ if ($names -notcontains 'HR-ZeroDay/scripts/Apply-Bundle.ps1')     { D "bootstra
 if ($names -notcontains 'history.bundle')                          { D "history.bundle missing from zip root" }
 if ($names -notcontains 'history.branch')                          { D "history.branch missing from zip root" }
 if ($names | Where-Object { $_ -like 'HR-ZeroDay/.git/*' })        { D ".git leaked into the zip (must ship as history.bundle)" }
+# BUG-034 (v130.2): the zip must ship the handover script for ITS OWN version. v130.1 shipped a file called
+# v130 that contained the new code, and the player's block then looked for a script that was not in the zip --
+# a 30-second failure that looked like a corrupted download. If a bundle has a RUN-*.ps1 at all, one of them
+# must carry this version's number.
+$runs = $names | Where-Object { $_ -like 'HR-ZeroDay/orders/RUN-*.ps1' }
+if ($runs -and -not ($runs | Where-Object { $_ -like "*v$Version.ps1" })) {
+    D "the zip carries no RUN-v$Version.ps1 (found: $($runs -join ', ')) -- the handover script and the bundle name disagree"
+}
+OK "handover script present for v$Version"
+
+# and the version in the file name must be the version in the handover script, byte for byte
 $leak = $names | Where-Object { $_ -match '/(\.local|\.nuget|\.dotnet|\.tooling|node_modules|Library)/' }
 if ($leak) { D "tooling cache leaked into the zip: $($leak | Select-Object -First 3)" }
 $bad = $names | Where-Object { $_.IndexOfAny($badChar) -ge 0 }

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     v130.1, one paste: verify the bundle, extract it, apply it, push, and capture every gate to a log.
 
@@ -27,9 +27,23 @@ if (-not (Test-Path -LiteralPath $zip)) { Die "bundle not found: $zip  (put the 
 # checksum here. What it checks instead is the thing a bad download actually looks like: a short file.
 # The delivery message quotes a sha256; this prints the one it found, so the two can be compared.
 $size = (Get-Item -LiteralPath $zip).Length
-if ($size -lt 15MB) { Die "the zip is only $([int]($size/1MB)) MB -- a full v130.1 bundle is ~17.4 MB, re-download it" }
+if ($size -lt 15MB) { Die "the zip is only $([int]($size/1MB)) MB -- a full v130.1 bundle is ~18 MB, re-download it" }
 $got = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
-Ok "size $([math]::Round($size/1MB,1)) MB, sha256 $got"
+Write-Host "  sha256 $got" -ForegroundColor Cyan
+
+# BUG-034: a bundle whose CONTENT is new but whose FILE still has the old name is indistinguishable from a
+# good download until something looks inside it. The last round failed exactly there. So: the zip must
+# contain the handover script that names this version, or the block stops with one sentence and no stack.
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$inZip = @()
+$zipCheck = [System.IO.Compression.ZipFile]::OpenRead($zip)
+try { $inZip = $zipCheck.Entries | ForEach-Object { $_.FullName } } finally { $zipCheck.Dispose() }
+if ($inZip -notcontains 'HR-ZeroDay/orders/RUN-v130.1.ps1') {
+    Die ("this zip is not the v130.1 bundle -- it has no HR-ZeroDay/orders/RUN-v130.1.ps1.`n" +
+         "  The file in Downloads is an older one with the same name. Delete it, download the new bundle, " +
+         "and check that its size is ~18 MB (17,500,000 bytes or more).")
+}
+Ok "this is the v130.1 bundle ($($inZip.Count) entries, handover script present)"
 
 # ---------------------------------------------------------------- 1. extract beside the repo
 Step "extracting to $stage"

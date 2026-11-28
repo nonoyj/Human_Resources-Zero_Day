@@ -151,3 +151,19 @@ add the entry here.
 - **RULE: "build" means "the world contains exactly one of these when I am done".** Find and destroy the
   old root first, in the builder itself, so the editor menu and Play mode cannot disagree.
 
+### H6. A VERSION IS A TAG, NOT A NUMBER (BUG-034)
+- **What the player saw:** the block died with `the term '...RUN-v130.1.ps1' is not recognized`, and the
+  sha256 printed at the top was the PREVIOUS build's.
+- **What happened:** `Build-Bundle.ps1` typed its version as `[int]`, so `-Version 130.1` bound as **130**: the
+  new bundle was written to the OLD file name. The player downloaded it, the name matched the name I quoted,
+  and the only thing that could tell the difference was the content. My block then looked for a script that
+  was not in that zip and produced a filesystem error instead of a sentence.
+- **RULE: anything that names a delivery is a STRING.** A version, a tag, a build id -- never an int that a
+  binder can round.
+- **RULE: the bundle verifies ITS OWN contents before it applies anything.** `Build-Bundle.ps1` now refuses to
+  produce a zip that lacks `RUN-v<version>.ps1`, and the handover block opens the zip, looks for its own
+  script, and stops with one sentence ("this is not the v130.2 bundle; the file in Downloads is older")
+  instead of a stack trace. **A download that is silently the wrong build is the most expensive kind of bug
+  there is, because every other conclusion you draw from it is wrong too.**
+- **RULE: versioned file names.** `HR-ZeroDay-bundle-v130.2.zip`, never a reused `v130`. Two rounds in a row
+  were spent on a stale zip that Windows happily kept under the same name.
