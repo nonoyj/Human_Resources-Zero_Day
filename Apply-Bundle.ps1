@@ -598,3 +598,8 @@ Next:
 finally {
     if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue }
 }
+
+# An explicit success exit. Not decoration: the caller reads $LASTEXITCODE, and leaving it as whatever the last
+# git call happened to set made a clean apply report "[FAIL] Apply-Bundle returned 0" in one round and
+# "[FAIL] Apply-Bundle returned (blank)" in the next. Say what you mean at the end of every path.
+exit 0
