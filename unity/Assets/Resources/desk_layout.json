@@ -12,7 +12,7 @@
     "rects": "x, y, w, h measured from the anchor: x grows right, y grows UP, so y is the BOTTOM edge",
     "sortingOrder": "lower draws first (behind)"
   },
-  "notes": "composition L (approved 2026-11-26): window behind the applicant's shoulders, monitor 0.58x as a 1-px redraw, desk_foreground sorts ABOVE the applicant so keyboard/mug sit in front of him. applicant scaleFactor 0.96 is applied by DeskSceneBuilder. Anchors converted from the study's top-down rows: monitor (14,76), document (34,93), applicant (288,29); FLOOR_ROW 198, DESK_ROW 206. MONITOR FLOAT FIX (2026-11-26): the monitor sprite carried a 4 px stand stub that could never reach the desk (monitor sorts -20, desk sorts +10), so it hung 12 px in air. The stand is now its own layer, monitor_stand, anchored so its base overlaps the desk surface by 3 px; monitor moved to anchor y 86 (bottom row 184) to sit on it. BAND FIX (2026-11-26): desk_foreground is 480x19 at the bottom of the screen, so the arm and everything above the lip stay unclipped. document moved to [38,100] to sit inside the glass.",
+  "notes": "v129: the game room is the menu's room. Window / CRT / floor / props are the menu's own functions (make_menu_room.window, .crt, .floor_band, .cup, .forms, .keyboard, .mouse); the floor line is 164, the desk far edge 170, the lip 214. Monitor RIGHT at x256, applicant LEFT at x16 beside the table, window behind him. The menu's dead hardware under the desk is NOT in this room -- that is menu-only. Anchors are y-UP: top row = 270 - anchorY - spriteHeight.",
   "layers": [
     {
       "id": "background",
@@ -28,7 +28,7 @@
       "id": "monitor",
       "sprite": "art/kit/desk/monitor_M.png",
       "anchor": [
-        266,
+        256,
         84
       ],
       "sortingOrder": -20,
@@ -43,14 +43,14 @@
         "lineGap": 3,
         "note": "glass rect in monitor-local px, y up, for monitor_M (200x143): make_menu_room.crt scaled 200/260, so the glass is 26,12,228,152 scaled by 0.769."
       },
-      "notes": "THE MENU CRT (make_menu_room.crt at 200x143) standing ON the desk: its plinth bottom row is canvas 185, the desk surface starts at 186."
+      "notes": "THE MENU CRT (make_menu_room.crt at 200x143) standing ON the desk: plinth bottom row 186, the wood runs 170..213, so it sits 16 px proud of the far edge, under the keyboard on the right."
     },
     {
       "id": "document",
       "sprite": "art/kit/desk/document_small.png",
       "anchor": [
-        318,
-        104
+        300,
+        128
       ],
       "sortingOrder": -15
     },
@@ -58,8 +58,8 @@
       "id": "applicant",
       "sprite": "art/kit/applicants/bust_M_192x216.png",
       "anchor": [
-        32,
-        18
+        16,
+        43
       ],
       "sortingOrder": 0,
       "frameSprite": "human_solid_a_neutral",
@@ -74,37 +74,27 @@
         "fps": 4,
         "loop": true
       },
-      "notes": "the single-frame bust; the animator crops the 4-cell strip at app_human_solid_a_192x216.png"
-    },
-    {
-      "id": "junk",
-      "sprite": "art/kit/desk/props_junk.png",
-      "anchor": [
-        0,
-        0
-      ],
-      "sortingOrder": 8,
-      "notes": "dead hardware on the floor under the desk"
+      "notes": "seated BEHIND the far side of the desk, beside it: base row 227, top row 20, 184x207 at the approved 0.96. The wood's far edge is row 170, so he is 57 px further back than the props and the desk hides his lap -- he is at the table, not under it, and nothing of him is cut off."
     },
     {
       "id": "desk_slab",
       "sprite": "art/kit/desk/desk_slab_M.png",
       "anchor": [
         0,
-        42
+        56
       ],
       "sortingOrder": 9,
-      "notes": "480x42 wood surface, canvas rows 186..227"
+      "notes": "480x44 wood surface, canvas rows 170..213 (the far edge is row 170 = DESK_ROW)"
     },
     {
       "id": "desk",
       "sprite": "art/kit/desk/foreground_M.png",
       "anchor": [
         0,
-        28
+        42
       ],
       "sortingOrder": 10,
-      "notes": "480x14 front lip, canvas rows 228..241; sorts above the slab and above the junk"
+      "notes": "480x14 front lip, canvas rows 214..227; sorts above the slab"
     }
   ],
   "deskEdgeY": 18,

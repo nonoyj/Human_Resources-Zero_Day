@@ -4,7 +4,10 @@
 Every line below is here because a round was spent getting it wrong. When a new correction arrives, it is
 added here *first*, and only then acted on, so the same mistake cannot be made twice.
 
-Last updated: 2026-11-28 (after v127 was rejected).
+> **The checked folder is `orders/`.** Start at `orders/00-READ-FIRST.md`, then run `orders/CHECKLIST.md`
+> top to bottom. This page is the long form; `orders/` is the version that is actually walked every round.
+
+Last updated: 2026-11-29 (v129 — the folder exists and is walked).
 
 ---
 

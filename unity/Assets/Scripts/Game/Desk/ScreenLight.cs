@@ -53,10 +53,13 @@ namespace HRZeroDay.Game
         //      every prop, the clipboard, the coffee -- was never inside the radius. The measured dump in
         //      tools/comp/preview_screenlight.py showed the desk moving +1.0/255 between tube off and tube on,
         //      which is a no-op. A light is a coordinate before it is a colour.
+        //      v129 re-measurement of the MENU's CRT (monitor_M is make_menu_room.crt at 200x143, glass
+        //      20,9,175,116 in sprite px, anchored at canvas [256,84] -> top row 43):
+        //      glass canvas rows 61..176, columns 276..451, so centre (364,118), half-size (88,58).
         public const int GlassX = 364;
-        public const int GlassY = 115;
-        public const int GlassRx = 91;
-        public const int GlassRy = 47;
+        public const int GlassY = 118;
+        public const int GlassRx = 88;
+        public const int GlassRy = 58;
         /// <summary>The row the desk surface starts on, top-down canvas rows (desk_layout.json: slab top 170).</summary>
         public const int DeskRow = 170;
         /// <summary>Where the pool's centre is: ON the desk in front of the tube, never on the wall.</summary>
@@ -88,11 +91,13 @@ namespace HRZeroDay.Game
         {
             // v127: read off desk_layout.json's own anchors, so a shadow starts where its object starts.
             // canvas top-down row = 270 - anchorY - spriteH.
-            new Prop(176, 96, 208, 20),   // keyboard   [176,42] 96x20
-            new Prop(300, 18, 206, 24),   // mouse      [300,40] 18x24
-            new Prop(214, 44, 196, 30),   // papers     [214,44] 44x30
-            new Prop(352, 30, 194, 38),   // coffee     [352,38] 30x38
-            new Prop(408, 38, 190, 46),   // clipboard  [408,34] 38x46
+            // v129: the four props the desk actually carries, drawn by make_menu_room into desk_slab_M,
+            // in the player's order -- coffee, forms, keyboard, mouse. They stand on the surface: top row
+            // 176 (desk far edge 170 + the menu's 6 px inset), the mouse 3 px higher.
+            new Prop(34, 44, 176, 30),    // coffee
+            new Prop(96, 62, 176, 26),    // forms
+            new Prop(262, 84, 176, 20),   // keyboard
+            new Prop(356, 20, 173, 32),   // mouse
         };
 
         // ---- one captured surface ---------------------------------------------------------------------

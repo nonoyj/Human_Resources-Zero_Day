@@ -133,3 +133,41 @@ That last test caught a real bug on its first run: flags were derived from the b
 `NO SIGNATURE` was true on **every** letter, including the normal ones. A player who flagged it would
 have been penalised for being right. The flags are now derived from `body + signature` — the text the
 player actually reads. **This is the class of bug that only a many-seed test finds.**
+
+---
+
+## 8. What the glass shows: the applicant's own photo (CONFIRMED, not yet drawn)
+
+The player asked on 2026-11-29, while reviewing v129: *"just a confirmation, we'll still change the
+computers display with the staffs we have talked about during the mechanics right?"* — **Yes.** The CRT
+carries the **applicant's own ID photo**, cut from the same sprite the room is drawing. It is the
+mechanic that makes `docs/07`'s portrait tells (`portrait_asymmetry`, `portrait_blend_seam`,
+`odd_lighting`) usable: the player reads the photo on the glass and the person across the desk, and the
+mismatch is the evidence.
+
+### The numbers (so the art can be generated against them)
+
+| Thing | Value | Why |
+|---|---|---|
+| Glass | 175 × 116 px (`desk_layout.json` `monitor.screen`, v129's menu CRT) | 25 × 11 character cells at 5×7 |
+| Photo | **48 × 48**, 1 px sunk border, glass-local `x 8`, top row 8 | nearest-neighbour half of the 96 × 96 ID portrait, doubled again by the phone's integer scale |
+| Text area left of the photo | x 62 → 167 | **15 columns** of 5×7 — the trust bar `[####------] 62` is exactly 15, so it still fits |
+| Rows | unchanged, 11 | the card keeps its `DAY / TRUST / NAME / ROLE / ID / GRAD·EXP / REF / > READ LETTER` order |
+
+### Rules that come with it
+
+1. **The photo is not a second drawing.** `make_applicants.py` already draws one 192×216 sprite per
+   applicant; the portrait is that sprite's head, cropped (`96×96` in documents per `docs/00` 3.6,
+   `48×48` on the glass), so *the glass can never disagree with the person* — except for
+   `synthetic_cloned`, where disagreeing **is** the tell (`docs/08` §5).
+2. **The artifact must survive the crop.** A mole or a blend seam that is 1 px at 96×96 is 1 px at 48×48
+   after a nearest-neighbour halve, i.e. ~3 px on a 3× phone. If a tell cannot be seen in the 48 px
+   version, the tell is too small and the generator is wrong, not the crop.
+3. **The photo is drawn, never composited from a photo file.** The pixel grid stays the shape language
+   (`docs/17` §-front-door, rule 1).
+4. **Order on the glass**: header (day · trust), then the photo block with the name/role/ID beside it,
+   then the prompt. The photo is a *reading*, not a button: `METADATA SCAN` and `ZOOM` are the actions
+   that inspect it, and they live on the desk, not on the glass.
+
+**Status:** spec confirmed by the player 2026-11-29 (v129); implementation follows the portrait generation
+pass — `docs/17` §7 item 4 in `orders/05-phases.md`.

@@ -248,7 +248,7 @@ def verify(layout, by_path, manifest) -> int:
         print(f'FAIL: {len(problems)} layout problems')
         return 1
     print(f'PASS: {len(layout["layers"])} layers + {len(layout["hotspots"])} hotspots resolve '
-          f'on a {cw}x{ch} canvas; monitor left of x={cw // 2}, applicant right of it')
+          f'on a {cw}x{ch} canvas; monitor right of x={cw // 2}, applicant left of it')
     print(f'      manifest: {len(manifest["sprites"])} sprites, all Point / uncompressed')
     return 0
 

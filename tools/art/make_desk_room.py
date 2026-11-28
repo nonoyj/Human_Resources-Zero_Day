@@ -56,10 +56,11 @@ from menu_palette import PALETTE, RAMP  # noqa: E402
 W, H = 480, 270
 
 # ---- the desk's geometry, taken from desk_layout.json so this art cannot drift from the hotspots -------
-DESK_ROW = 186          # the desk's FAR edge: the props' plane starts here, 22 px above the window's sill
-FLOOR_ROW = 168         # where the wall meets the floor -- 18 px of floor show behind the desk, under
-# the window's sill (164), which is what puts the desk's far edge (186) on the same ground plane as the menu's
-DESK_LIP = 228          # the desk's near edge: the lip the player's hands are on
+DESK_ROW = 170          # the desk's FAR edge: the props' plane starts here, 6 px above the window's sill
+FLOOR_ROW = 164         # the wall meets the floor exactly at the window's sill, as in the menu, where the
+# window's frame and the floor line meet the desk's own line. 46 px of floor show behind the desk.
+DESK_LIP = 214          # the desk's near edge = the menu's front edge (MenuLayout.DeskEdgeY 214): the
+# slab is 44 px deep, the menu's own 38-plus-the-difference, and everything below 214 is FLOOR.
 # An OPEN desk (v127). Below the lip is not the desk's front panel -- it is the shadowed floor under the
 # desk, which the player can see because the desk is open underneath. That is the band they called "too big
 # and too empty", and it is now where the mess of dead PCs lives (art/kit/desk/props_junk.png).
@@ -76,7 +77,7 @@ WALL_X = 0
 # ledge the menu's does. v127 had the sill at y=152 with the desk's far edge at 170 -- an 18 px gap of bare
 # wall that made the window look like it was floating.
 WIN_X0, WIN_X1 = 24, 200
-WIN_Y0, WIN_Y1 = 24, 164
+WIN_Y0, WIN_Y1 = 0, 164       # the window runs to the top of the wall, as the menu's does at x8,y10
 WIN_SILL = 164
 
 # ---- the monitor, left of centre (layout: monitor anchor 14,86 as a 0.58x redraw) ----------------------
@@ -90,7 +91,7 @@ WIN_SILL = 164
 MON_W, MON_H = 200, 143
 MON_X0 = 266
 MON_X1 = MON_X0 + MON_W
-MON_Y1 = DESK_ROW - 1              # the plinth's bottom row sits ON the desk's surface line (186)
+MON_Y1 = DESK_ROW - 1              # the plinth's bottom row sits ON the desk's surface line (170)
 MON_Y0 = MON_Y1 - MON_H + 1
 
 
@@ -155,49 +156,21 @@ def wall(img, d):
 # ===================================================================================== the floor
 def floor(img, d):
     """
-    The floor BEHIND the desk: 8 px of it, in perspective, converging on the menu's vanishing point. The desk's floor was a
-    flat band; a floor a player stands in front of is the cheapest depth cue the frame has, and the menu
-    already proved it (it is the thing the player called "define the ground more" and then approved).
+    THE MENU'S TILED FLOOR. Not a band with a horizon row -- make_menu_room.floor_band(), the same function
+    that lays the menu's tiles, called at this room's floor line.
+
+    That is the player's ruling applied literally: "COPY what's in the menu art and just change things that's
+    necessary for the game." v127/v128 painted a wall/floor seam and a flat band; the menu has converging tile
+    rows on the vanishing point, growing taller toward the camera. Nothing about a game room needs a worse
+    floor than a menu room, and now it does not have one.
     """
-    for y in range(FLOOR_ROW, DESK_ROW):
-        for x in range(W):
-            img.putpixel((x, y), rgba('floor_1'))
-
-    row_y, ri = FLOOR_ROW + 2, 0
-    while row_y < DESK_ROW:
-        step = 7 + ri * 3
-        ry1 = min(row_y + step, DESK_ROW)
-        d.line([(0, row_y), (W, row_y)], fill=rgba('floor_0'))
-        if row_y + 1 < H:
-            d.line([(0, row_y + 1), (W, row_y + 1)], fill=rgba('floor_4'))
-        nearness = (row_y - FLOOR_ROW) / float(H - FLOOR_ROW)
-        face = ('floor_4' if nearness > 0.45 else 'floor_1') if ri % 2 == 0 else \
-               ('floor_2' if nearness > 0.45 else 'floor_3')
-        for y in range(row_y + 2, ry1):
-            for x in range(W):
-                img.putpixel((x, y), rgba(face))
-        # vertical grout, aimed at the vanishing point
-        spacing = max(18, 34 - ri * 2)
-        for k in range(-14, 16):
-            xt = VPX + k * spacing
-            xb = VPX + int(k * spacing * (1.5 + ri * 0.12))
-            if xb < -4 or xt > W + 4:
-                continue
-            for y in range(row_y, ry1):
-                t = (y - row_y) / float(max(1, ry1 - row_y))
-                x = int(xt + (xb - xt) * t)
-                if 0 <= x < W:
-                    img.putpixel((x, y), rgba('floor_0'))
-        row_y, ri = ry1, ri + 1
-
-    # the desk's own contact shadow: 3 px of near-black where the carcass meets the floor, dithered out in
-    # front of it. This is what stops the desk reading as a pasted rectangle -- the one rule the player has
-    # raised about the table twice.
-    for x in range(W):
-        for k in range(0, 3):
-            y = FLOOR_ROW + k
-            if y < H:
-                img.putpixel((x, y), rgba('void'))
+    # the floor is the menu's function; the desk's own layer covers the middle of it, exactly as the menu's
+    # desk layer covers its floor.
+    # THE FLOOR RUNS TO THE BOTTOM OF THE FRAME. It used to stop at the desk's far edge, which left every
+    # row below the desk's front edge (214) as unpainted void -- a black band across the bottom of the game
+    # that the menu does not have. In the menu the floor lives inside the desk sprite; here the desk is a
+    # layer standing ON the room, so the room owns the whole floor and the desk covers the part it sits on.
+    M.floor_band(d, img, FLOOR_ROW, H)
 
 
 # ===================================================================================== the desk slab
@@ -239,15 +212,19 @@ def desk_slab_sprite():
     scratch = Image.new('RGBA', (W, H), (0, 0, 0, 0))
     sd = ImageDraw.Draw(scratch)
     top = DESK_ROW + 6                       # the menu's 6 px inset from its slab's far edge
-    M.forms(sd, scratch, 26, top)
-    M.keyboard(sd, scratch, 196, top)
-    M.mouse(sd, scratch, 292, top - 3)
-    M.cup(sd, scratch, 330, top)
+    # ORDER (v129, the player's instruction): "Swap the coffee with the keyboard and mouse." The coffee moves
+    # to the left end, where the menu has its forms, and the keyboard + mouse take the coffee's place at the
+    # right, under the tube -- which is also the correct room: the monitor is on the right, so the keyboard you
+    # would actually be typing on belongs under it.
+    M.cup(sd, scratch, 34, top)
+    M.forms(sd, scratch, 96, top)
+    M.keyboard(sd, scratch, 262, top)
+    M.mouse(sd, scratch, 356, top - 3)
     img.alpha_composite(scratch.crop((0, DESK_ROW, W, DESK_ROW + h)))
 
     # ---- contact shadows: a soft dark seam under each object, drawn in the wood's own dither. Without this a
     # prop is a decal; with it, it is an object with weight.
-    for (px0, px1) in ((26, 86), (196, 288), (292, 306), (316, 346)):
+    for (px0, px1) in ((22, 56), (92, 152), (258, 352), (352, 372)):
         for x in range(max(0, px0), min(W, px1)):
             for k in range(0, 4):
                 y = (top - DESK_ROW) + 24 + k
@@ -333,8 +310,10 @@ def foreground():
     it. It is the desk's only warm surface in a cold room, which is what makes it read as the player's side.
     """
     w, h = W, 14                        # the front edge as its own strip: rows DESK_LIP..DESK_LIP+13.
-    # Below it, to the bottom of the frame, is the OPEN under-desk band where the dead hardware lives
-    # (props_junk.png), and that band is 28 rows -- enough to read, not enough to fill.
+    # BELOW IT IS FLOOR (v129). v127/v128 filled this band with dead PCs, servers and error screens. The
+    # player's ruling: "Remove the random monitors and servers underneath the table IN THE GAME version since
+    # thats only for the menu version." The menu has no junk under its desk and neither does the game now --
+    # the band is the menu's tiled floor, and the room draws it.
     img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     for y in range(h):
@@ -384,22 +363,23 @@ def light_pools(img):
     # ---- UNDER THE DESK (v127). The slab and the lip are their own layers now, so what the background owes
     # the bottom of the frame is the floor the desk stands on: dark, one step, with the slab's contact shadow
     # at the top. The mess of dead PCs is drawn on top of THIS, and the slab is drawn over the back of it.
-    # The floor under the desk is floor_2 -> floor_1 toward the bottom edge, not floor_1 -> void: the junk
-    # that sits on it is drawn in steel_0/steel_1, and on a near-black band those two values are the same
-    # silhouette. A lit room has a lit floor; the junk only reads if the floor it stands on does.
-    for y in range(DESK_ROW, H):
-        k = (y - DESK_ROW) / float(max(1, H - DESK_ROW))
+    # ---- UNDER THE DESK: the menu's floor, shaded, and nothing else. The desk's front edge casts a hard
+    # contact shadow for 3 px and a dithered falloff below that; everything under it is the room's own tiled
+    # floor showing through. No junk, no error screens -- that belongs to the menu's room, which is a still.
+    # THE SHADOW IS PUSHED DOWN THE FLOOR'S OWN RAMP, never painted black: the menu's floor is already the
+    # darkest surface in the room, and stamping `void` over it deletes the tiles -- which is exactly what the
+    # first pass of this did, leaving a black band under the desk where the floor should be.
+    floor_down = {'floor_4': 'floor_3', 'floor_3': 'floor_2', 'floor_2': 'floor_1',
+                  'floor_1': 'floor_0', 'floor_0': 'void'}
+    for y in range(DESK_LIP, min(H, DESK_LIP + 18)):
+        k = (y - DESK_LIP) / 18.0
         for x in range(W):
-            if k < 0.34:
-                img.putpixel((x, y), rgba('floor_1'))
-            elif k < 0.72:
-                img.putpixel((x, y), rgba('floor_2' if M.BAYER4[y & 3][x & 3] > 6 else 'floor_1'))
-            else:
-                img.putpixel((x, y), rgba('floor_2'))
-    for y in range(DESK_ROW, min(H, DESK_ROW + 10)):
-        for x in range(W):
-            if M.BAYER4[y & 3][x & 3] / 16.0 < 0.45 * (1.0 - (y - DESK_ROW) / 10.0):
-                img.putpixel((x, y), rgba('floor_1'))
+            if M.BAYER4[y & 3][x & 3] / 16.0 < (1.0 - k) * 0.75:
+                cur = img.getpixel((x, y))[:3]
+                for key, down in floor_down.items():
+                    if cur == PALETTE[key]:
+                        img.putpixel((x, y), rgba(down))
+                        break
 
     # ---- the tube's pool: an ellipse lying ON the desk surface in front of the glass, plus the cold rim it
     # throws up the monitor's own shadow side

@@ -763,6 +763,85 @@ def crt(w=None, h=None):
     return img
 
 
+def floor_band(d, img, near, bottom, tile_w=34, vpx=268):
+    """
+    THE FLOOR, lifted out of desk() so the GAME's room can draw the same floor as the menu's (v129).
+
+    The player's ruling: "COPY what's in the menu art and just change things that's necessary for the game."
+    The game's room had its own idea of a floor while the menu has a tiled floor in perspective on the
+    vanishing point. This is that floor: converging rows whose height grows toward the camera, black grout, a
+    lit bevel on each row's far edge, and a 3 px shadow socket where the desk carcass meets it.
+
+    `near` is the canvas row where the desk's front edge is; `bottom` is the last row to paint. At the menu's
+    own numbers (near 176, bottom 120) the output is byte-identical to the approved menu floor.
+    """
+    # ---- THE FLOOR. This is the v119.1 change the player actually asked for ("define the ground more").
+    #
+    # What was here: a flat `wood_0` band 57 px tall with a dither into `void`. That is not a floor, it is the
+    # absence of one -- the desk looked like it was standing in black water, and the eye had nothing to
+    # measure the room's depth with. It is now a TILED FLOOR IN PERSPECTIVE, and it is drawn as the
+    # continuation of the wall's floor line:
+    #
+    #   * the tiles are laid on the same vanishing point as the wall and the desk (VPX 268), so their grout
+    #     runs to the same place everything else does;
+    #   * the rows get taller toward the camera, which is the whole depth cue at this size;
+    #   * the front face of the desk gets a 3 px SHADOW SOCKET -- the desk's own carcass sits inside the
+    #     floor, and the black seam under it is what stops it floating;
+    #   * the floor is lit by the two sources that exist: the monitor's cold spill in front of the desk and
+    #     the lamp's warm pool at the right end, plus the window's cold pool at the near-left corner.
+    bayer = (0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5)
+    bayer = (0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5)
+    box(d, 0, near, W, bottom, 'floor_1')
+
+    # the desk's shadow socket: 3 px of true black on the floor line, then a dithered falloff in FRONT of
+    # the desk (i.e. below it in the image), which is where a raised object's contact shadow lands
+    for y in range(near, min(bottom, near + 3)):
+        hline(d, 0, W, y, 'void')
+    for y in range(near + 3, min(bottom, near + 12)):
+        fall = (y - near - 3) / 9.0
+        for x in range(W):
+            if bayer[((y & 3) << 2) | (x & 3)] < 16 * (0.55 - 0.45 * fall):
+                img.putpixel((x, y), rgba('void'))
+
+    # the tile rows, converging. Row heights grow with a fixed step so the perspective is legible rather
+    # than decorative; the grout is black, and every tile's far edge gets one lit bevel pixel.
+    row_y, ri = near + 3, 0
+    rows_floor = []
+    while row_y < bottom:
+        step = 9 + ri * 3
+        ry1 = min(row_y + step, bottom)
+        rows_floor.append((row_y, ry1, ri))
+        row_y, ri = ry1, ri + 1
+    for (ry0, ry1, ri) in rows_floor:
+        hline(d, 0, W, ry0, 'floor_0')                    # the grout between rows: dark, but not a hole
+        hline(d, 0, W, ry0 + 1, 'floor_4')                # ...and the lit bevel of the tile behind it
+        # the checker runs floor_2 / floor_4 near the camera and falls to floor_1 / floor_3 at the back:
+        # the floor gets LIGHTER toward the viewer, which is the cheapest honest depth cue there is
+        nearness = (ry0 - near) / float(bottom - near)
+        face = ('floor_4' if nearness > 0.4 else 'floor_1') if ri % 2 == 0 else \
+               ('floor_2' if nearness > 0.4 else 'floor_3')
+        box(d, 0, ry0 + 2, W, ry1, face)
+        mid = ry0 + 2 + (ry1 - ry0) // 2
+        if mid < ry1 - 1:
+            dither(img, 0, mid, W, ry1 - 1, face, 'floor_0', 0.55)
+        # vertical grout, aimed at the vanishing point
+        spacing = max(16, TILE_W - ri * 1)
+        for k in range(-10, 22):
+            x_top = VPX + k * spacing
+            x_bot = VPX + int((k * spacing) * (1.55 + ri * 0.10))
+            if x_bot < -6 or x_top > W + 6:
+                continue
+            for yy in range(ry0 + 1, ry1):
+                t = (yy - ry0) / float(max(1, ry1 - ry0))
+                xx = int(x_top + (x_bot - x_top) * t)
+                if 0 <= xx < W:
+                    img.putpixel((xx, yy), rgba('void'))
+                if 0 <= xx + 1 < W and yy > ry0 + 1:
+                    img.putpixel((xx + 1, yy), rgba('floor_2'))
+
+    return
+
+
 # ===================================================================================== desk props
 # ONE DRAWING, TWO ROOMS (v128).
 #
@@ -873,68 +952,8 @@ def desk():
     dither(img, 0, ty + 24, W, ty + 29, 'wood_1', 'wood_2', 0.30)
     hline(d, 0, W, near - 2, 'wood_3')          # the front edge: the desk's one specular
     hline(d, 0, W, near - 1, 'wood_2')
-    # ---- THE FLOOR. This is the v119.1 change the player actually asked for ("define the ground more").
-    #
-    # What was here: a flat `wood_0` band 57 px tall with a dither into `void`. That is not a floor, it is the
-    # absence of one -- the desk looked like it was standing in black water, and the eye had nothing to
-    # measure the room's depth with. It is now a TILED FLOOR IN PERSPECTIVE, and it is drawn as the
-    # continuation of the wall's floor line:
-    #
-    #   * the tiles are laid on the same vanishing point as the wall and the desk (VPX 268), so their grout
-    #     runs to the same place everything else does;
-    #   * the rows get taller toward the camera, which is the whole depth cue at this size;
-    #   * the front face of the desk gets a 3 px SHADOW SOCKET -- the desk's own carcass sits inside the
-    #     floor, and the black seam under it is what stops it floating;
-    #   * the floor is lit by the two sources that exist: the monitor's cold spill in front of the desk and
-    #     the lamp's warm pool at the right end, plus the window's cold pool at the near-left corner.
-    bayer = (0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5)
-    box(d, 0, near, W, DESK_H, 'floor_1')
-
-    # the desk's shadow socket: 3 px of true black on the floor line, then a dithered falloff in FRONT of
-    # the desk (i.e. below it in the image), which is where a raised object's contact shadow lands
-    for y in range(near, min(DESK_H, near + 3)):
-        hline(d, 0, W, y, 'void')
-    for y in range(near + 3, min(DESK_H, near + 12)):
-        fall = (y - near - 3) / 9.0
-        for x in range(W):
-            if bayer[((y & 3) << 2) | (x & 3)] < 16 * (0.55 - 0.45 * fall):
-                img.putpixel((x, y), rgba('void'))
-
-    # the tile rows, converging. Row heights grow with a fixed step so the perspective is legible rather
-    # than decorative; the grout is black, and every tile's far edge gets one lit bevel pixel.
-    row_y, ri = near + 3, 0
-    rows_floor = []
-    while row_y < DESK_H:
-        step = 9 + ri * 3
-        ry1 = min(row_y + step, DESK_H)
-        rows_floor.append((row_y, ry1, ri))
-        row_y, ri = ry1, ri + 1
-    for (ry0, ry1, ri) in rows_floor:
-        hline(d, 0, W, ry0, 'floor_0')                    # the grout between rows: dark, but not a hole
-        hline(d, 0, W, ry0 + 1, 'floor_4')                # ...and the lit bevel of the tile behind it
-        # the checker runs floor_2 / floor_4 near the camera and falls to floor_1 / floor_3 at the back:
-        # the floor gets LIGHTER toward the viewer, which is the cheapest honest depth cue there is
-        nearness = (ry0 - near) / float(DESK_H - near)
-        face = ('floor_4' if nearness > 0.4 else 'floor_1') if ri % 2 == 0 else \
-               ('floor_2' if nearness > 0.4 else 'floor_3')
-        box(d, 0, ry0 + 2, W, ry1, face)
-        mid = ry0 + 2 + (ry1 - ry0) // 2
-        if mid < ry1 - 1:
-            dither(img, 0, mid, W, ry1 - 1, face, 'floor_0', 0.55)
-        # vertical grout, aimed at the vanishing point
-        spacing = max(16, TILE_W - ri * 1)
-        for k in range(-10, 22):
-            x_top = VPX + k * spacing
-            x_bot = VPX + int((k * spacing) * (1.55 + ri * 0.10))
-            if x_bot < -6 or x_top > W + 6:
-                continue
-            for yy in range(ry0 + 1, ry1):
-                t = (yy - ry0) / float(max(1, ry1 - ry0))
-                xx = int(x_top + (x_bot - x_top) * t)
-                if 0 <= xx < W:
-                    img.putpixel((xx, yy), rgba('void'))
-                if 0 <= xx + 1 < W and yy > ry0 + 1:
-                    img.putpixel((xx + 1, yy), rgba('floor_2'))
+    floor_band(d, img, near, DESK_H)
+    bayer = (0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5)   # the cold-light pass below
 
     # the monitor's cold light on the floor in front of the desk: the one place its spill can be seen
     for y in range(near + 3, DESK_H):

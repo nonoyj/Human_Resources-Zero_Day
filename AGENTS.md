@@ -1,6 +1,19 @@
 # AGENTS.md — read this first if you are an AI agent working in this repo
 
-> **READ `STANDING-ORDERS.md` FIRST.** It carries the player's standing instructions — the mandatory report
+> **READ `orders/` FIRST — `orders/00-READ-FIRST.md`, then `orders/CHECKLIST.md`.** That folder is the
+> player's standing instruction set, checked before every reply. It carries:
+>
+> | File | What it is |
+> |---|---|
+> | `00-READ-FIRST.md` | the four report headings, the six hard rules, why the folder exists |
+> | `CHECKLIST.md` | the tick-list run before every reply |
+> | `01-art-rules.md` | **copy the menu, don't redraw it**; placement and prop rules |
+> | `02-report-format.md` | the definitions, and the mandatory PowerShell handover block |
+> | `03-unity-and-bundle.md` | what is source of truth, what each gate's pass looks like, the bundle |
+> | `04-IMPORTANT-MEMORY.md` | the player's corrections, verbatim, newest first |
+> | `05-phases.md` | current phase, phases left, steps in each, and everything pending |
+>
+> **`STANDING-ORDERS.md` is the longer form.** It carries the player's standing instructions — the mandatory report
 > format (**What I did / What you did / What to expect / What's next**), "the menu is the standard, reuse the
 > generator rather than redrawing", the prop-perspective rule, and the no-guessing rule. It is updated every
 > time the player corrects the build, and it outranks this file where the two disagree.

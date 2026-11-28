@@ -1903,3 +1903,58 @@ props, and props placed by hand against a desk whose perspective was drawn separ
   wall far right +0.1** (`docs/images/v128/tube_measured.png`). The light lands on the desk and not on the wall.
 - Gates: `CoreTests` **ALL TESTS PASSED** · `CompileCheck` **0 errors** · `Test-ArtPipeline.ps1`
   **ART PIPELINE OK** · `publish --verify` **112 sprites** · `verify_fresh_clone.py` **PASS**.
+
+---
+
+## v129 — BUG-022..025: the room is the menu's room, and the player's folder of standing orders
+
+### BUG-022 — the game room was a different room that shared the menu's colours
+- **Found:** 2026-11-29 (v129) · **Severity:** P1 (it is the rejection that repeats)
+- **Symptom:** the player, for the fifth time: *"I have said COPY what's in the menu art and just change things
+  that's necessary for the game but you kept on making a totally different one which has the same vibes."*
+- **Root cause:** `make_desk_room.py` had its own `floor()`, its own window geometry, and its own desk
+  construction. They were *inspired* by `make_menu_room.py`, not *made by* it, so every menu correction since
+  v116 silently forked the two rooms.
+- **Fix:** the shared drawing primitives are now the menu's own functions, called from the game's generator:
+  `window()` untouched, `crt()` at 200×143, and `floor_band(d, img, near, bottom, tile_w, vpx)` extracted out
+  of `desk()` so both rooms paint the identical floor. The game's numbers are now the menu's numbers:
+  desk far edge **170**, floor line **164** (= the window sill), lip **214**, floor to **270**.
+- **Proof it is a copy and not a resemblance:** `git status art/kit/menu/` is **empty** after the extraction —
+  the menu's sprites are byte-identical, so the menu cannot have been "reinterpreted".
+- **Prevention rule:** if a drawing is one line, call it. A second drawing of the same thing is a fork, and a
+  fork is a future rejection with a delay attached.
+
+### BUG-023 — the applicant was under the table, and then the wrong size
+- **Found:** 2026-11-29 · **Severity:** P1
+- **Symptom:** *"kindly put them further back like they are sitting beside the table, they look like they are
+  under the table with only the head visible."* The first v129 fix went too far the other way: at 0.72 the top
+  of his head was in the floor band, so the wood crossed his **neck**.
+- **Root cause:** three anchors were tried and all three failed a different way, because the anchor was being
+  treated as a single dial for two independent things — how visible he is, and how deep he sits.
+- **Fix:** the base returns to the approved `docs/15` `0.96` (184×207) and he is put **behind the far side of
+  the desk**, beside it: anchor `[16,43]`, base row **227**, top row **20**, 57 px further back than the props.
+  The wood's far edge (row 170) crosses his forearms, so he reads as seated at the table with the desk hiding
+  his lap — not a head on the floor, not a bust floating in the room.
+- **Prevention rule:** a subject's **base row** is what says where they are sitting. Decide the base row first,
+  then choose the scale that fits the frame above it. Choosing scale first is what produced two wrong rooms.
+
+### BUG-024 — the tube's light was measured against the old desk
+- **Found:** 2026-11-29 · **Severity:** P1
+- **Symptom:** after the desk moved 16 px up, `ScreenLight` and its offline twin were still pointing at
+  `GlassX 364 / GlassY 115 / DeskRow 170` with the five old prop rects — the pool was centred on a tube that no
+  longer occupied those rows, and the prop shadows were cast from objects that had moved.
+- **Fix:** both copies re-measured off `monitor_M` (200×143, glass `20,9,175,116` at `[256,84]`): glass centre
+  **364,118**, half-size **88,58**; props are the four the desk carries — coffee, forms, keyboard, mouse.
+- **Measured (off → on, mean of the region):** desk under the tube **+15.16**, keyboard **+9.05**, desk far left
+  **−1.37**, wall above the monitor **+0.00**, wall far left **+0.00**, the CRT's own display **+0.00**.
+  `docs/images/v129/tube_on_measured.png`.
+
+### BUG-025 — there was no checked folder, so the orders lived in a document nobody walked
+- **Found:** 2026-11-29 · **Severity:** P1 (process)
+- **Symptom:** *"make a folder for it that you will always check and it will contain EACH AND EVERY instructions
+  I have given to you all this time."* `STANDING-ORDERS.md` existed but was a long page, not a checklist.
+- **Fix:** `orders/` — `00-READ-FIRST.md`, `CHECKLIST.md`, `01-art-rules.md`, `02-report-format.md`,
+  `03-unity-and-bundle.md`, `04-IMPORTANT-MEMORY.md` (the player's words, verbatim), `05-phases.md` (the phase
+  board and every pending item including the day/night cycle). `AGENTS.md` and `STANDING-ORDERS.md` both point
+  at it, and `AGENTS.md` table-lists what each file is for.
+- **Prevention rule:** the orders are a **checklist that is walked**, not a document that is cited.

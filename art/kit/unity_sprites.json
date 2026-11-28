@@ -1974,11 +1974,11 @@
       "source": "art/kit/desk/desk_slab_M.png",
       "assetPath": "Assets/Art/Kit/desk/desk_slab_M.png",
       "width": 480,
-      "height": 42,
+      "height": 44,
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "desk",
-      "sha256_16": "c4eab301b2bb9283",
+      "sha256_16": "d78c8e00d023f6f3",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
@@ -2472,7 +2472,7 @@
       "ppu": 16,
       "spriteMode": "Single",
       "kind": "background",
-      "sha256_16": "1259796a66554fb8",
+      "sha256_16": "7cca4f3cff194990",
       "import": {
         "textureType": "Sprite",
         "filterMode": "Point",
