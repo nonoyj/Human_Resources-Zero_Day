@@ -11,7 +11,10 @@
 # ==========================================================================================
 $ErrorActionPreference = 'Stop'
 $name = 'HR-ZeroDay-bundle-v130.5.zip'
-$want = '13b716c085d02eb6b47c205c642155732f9fac6369ea9d7d44c01d365e0c625e'
+# EMPTY HERE ON PURPOSE. A file cannot contain the sha256 of the archive that contains it. The copy I hand the
+# player has the hash filled in; this one falls back to "full size + the archive names this round", which are
+# the two things that actually distinguish a stale download.
+$want = ''
 $base = if ($env:USERPROFILE) { $env:USERPROFILE } elseif ($env:HOME) { $env:HOME } else { '' }
 if (-not $base) { Write-Host '  [FAIL] I cannot find your home folder, so I cannot find Downloads.' -ForegroundColor Red; exit 1 }
 $zip   = Join-Path (Join-Path $base 'Downloads') $name
@@ -32,14 +35,23 @@ if (-not (Test-Path -LiteralPath $zip)) {
 }
 $got = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLower()
 $len = (Get-Item -LiteralPath $zip).Length
-if ($got -ne $want) {
-    Write-Host "  [FAIL] this is NOT the v130.5 bundle. Do not run it." -ForegroundColor Red
-    Write-Host "         expected $want" -ForegroundColor Yellow
-    Write-Host "         got      $got  ($($len.ToString('N0')) bytes)" -ForegroundColor Yellow
-    Write-Host "         Delete $name and download it again: the download was incomplete, or it is an older file." -ForegroundColor Yellow
-    exit 1
+if ($want) {
+    if ($got -ne $want) {
+        Write-Host "  [FAIL] this is NOT the v130.5 bundle. Do not run it." -ForegroundColor Red
+        Write-Host "         expected $want" -ForegroundColor Yellow
+        Write-Host "         got      $got  ($($len.ToString('N0')) bytes)" -ForegroundColor Yellow
+        Write-Host "         Delete $name and download it again: the download was incomplete, or it is an older file." -ForegroundColor Yellow
+        exit 1
+    }
+    Ok "sha256 matches -- this is the v130.5 bundle ($($len.ToString('N0')) bytes)"
 }
-Ok "sha256 matches -- this is the v130.5 bundle ($($len.ToString('N0')) bytes)"
+else {
+    # no hash in this copy: say exactly what WAS checked, and nothing about a hash
+    if ($len -lt 17500000) {
+        Die "the file is only $($len.ToString('N0')) bytes -- a full v130.5 bundle is ~17.9 MB. Delete it and download again."
+    }
+    Ok "full-size file ($($len.ToString('N0')) bytes); no hash in this copy -- step 2 checks the build itself"
+}
 
 # ---- 2. the build ------------------------------------------------------------------------
 Step "2/4  the build inside it"
